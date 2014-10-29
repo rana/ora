@@ -34,7 +34,7 @@ on Windows 8.1.
 Minimum requirements are Go 1.3 with CGO enabled, a GCC C compiler, and
 Oracle 12c (12.1.0.1.0) or Oracle Instant Client (12.1.0.1.0).
 
-Get the package from GitHub:
+Get the ora package from GitHub:
 
 	go get github.com/ranaian/ora
 
