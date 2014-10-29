@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ranaian/oracle"
+	"github.com/ranaian/ora"
 )
 
 func main() {
@@ -27,7 +27,9 @@ func main() {
 	}
 
 	// create table
-	stmtTbl, err := ses.Prepare("create table t1 (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))")
+	stmtTbl, err := ses.Prepare("create table t1 " +
+		"(c1 number(19,0) generated always as identity (start with 1 increment by 1), " +
+		"c2 varchar2(48 char))")
 	defer stmtTbl.Close()
 	if err != nil {
 		panic(err)
@@ -137,7 +139,10 @@ func main() {
 	}
 
 	// create stored procedure with sys_refcursor
-	stmtProcCreate, err := ses.Prepare("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from t1 where c1 > 2 order by c1; end proc1;")
+	stmtProcCreate, err := ses.Prepare(
+		"create or replace procedure proc1(p1 out sys_refcursor) as begin " +
+		"open p1 for select c1, c2 from t1 where c1 > 2 order by c1; " +
+		"end proc1;")
 	defer stmtProcCreate.Close()
 	rowsAffected, err = stmtProcCreate.Execute()
 	if err != nil {
@@ -181,5 +186,4 @@ func main() {
 	// 4 It's a fast, statically typed, compiled
 	// 5 One of Go's key design goals is code
 	// 3
-
 }
