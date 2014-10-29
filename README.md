@@ -25,7 +25,7 @@ on Windows 8.1.
 * [Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
 * [Limitations](https://github.com/ranaian/ora#limitations)
 * [License](https://github.com/ranaian/ora#license)
-* [API Reference](http://godoc.org/github.com/ranaian/ora)
+* [API Reference](http://godoc.org/github.com/ranaian/ora#pkg-index)
 
 ---
 
