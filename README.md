@@ -858,12 +858,12 @@ END LOOP;
 END;
 ```
 
-Run the tests.
-
 ```sql
 -- delete the non-container test database; use SqlPlus as sysdba
 DROP USER test CASCADE;
 ```
+
+Run the tests.
 
 ##### Limitations #####
 
