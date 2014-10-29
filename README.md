@@ -37,7 +37,9 @@ Oracle 12c (12.1.0.1.0) or Oracle Instant Client (12.1.0.1.0).
 Get the package from GitHub:
 
 	go get github.com/ranaian/ora
-	
+
+Install Oracle 12c or Oracle Instant Client.
+
 Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
 and dll. For example:
 
