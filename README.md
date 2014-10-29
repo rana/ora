@@ -362,6 +362,7 @@ an insert or stored procedure call. For example, a numeric pointer captures an
 identity value:
 	
 ```go
+// given:
 // create table t1 (
 // c1 number(19,0) generated always as identity (start with 1 increment by 1),
 // c2 varchar2(48 char))
@@ -373,17 +374,18 @@ stmt.Execute(&id)
 A `string` pointer captures an out parameter from a stored procedure:
 
 ```go
+// given:
 // create or replace procedure proc1 (p1 out varchar2) as begin p1 := 'go'; end proc1;
 var str string
 stmt, err = ses.Prepare("call proc1(:1)")
 stmt.Execute(&str)
 ```
 
-Slices may be used to insert multiple records with a single server round-trip:
+Slices may be used to insert multiple records with a single insert statement:
 
 ```go
 // insert one million rows with single insert statement
-// create table t1 (c1 number)
+// given: create table t1 (c1 number)
 values := make([]int64, 1000000)
 for n, _ := range values {
 	values[n] = int64(n)
@@ -399,8 +401,8 @@ insert and select. The nullable Go types provided by the ora package are `Int64`
 nullable strings and select nullable strings:
 
 ```go
-// create table t1 (c1 varchar2(48 char))
 // insert String slice
+// given: create table t1 (c1 varchar2(48 char))
 a := make([]ora.String, 5)
 a[0] = ora.String{Value: "Go is expressive, concise, clean, and efficient."}
 a[1] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
@@ -425,7 +427,7 @@ call can be configured to return an `int64` and a nullable `Int64` from the same
 column:
 
 ```go
-// create table t1 (c1 number)
+// given: create table t1 (c1 number)
 stmt, err = ses.Prepare("select c1, c1 from t1", ora.I64, ora.OraI64)
 resultSet, err := stmt.Fetch()
 for resultSet.Next() {
@@ -439,7 +441,7 @@ supports `int64`, `int32`, `int16`, `int8`, `uint64`, `uint32`, `uint16`, `uint8
 
 ```go
 // insert uint16
-// create table t1 (c1 number)
+// given: create table t1 (c1 number)
 value := uint16(9)
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Execute(value)
@@ -569,8 +571,8 @@ srv.SetStatementConfig(sc)
 Another scenario may be to configure the runes mapped to `bool` values:
 
 ```go
-// create table t1 (c1 char(1 byte))
-// Update StatementConfig to change the FalseRune and TrueRune inserted into the database
+// update StatementConfig to change the FalseRune and TrueRune inserted into the database
+// given: create table t1 (c1 char(1 byte))
 // insert 'false' record
 var falseValue bool = false
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
@@ -610,7 +612,8 @@ for resultSet.Next() {
 
 `ResultSet` may also be used with stored procedure parameters that are defined as OUT SYS_REFCURSOR. For example:
 
-```go	
+```go
+// given:
 // create table t1 (c1 number, c2 varchar2(48 char))
 // create or replace procedure proc1(p1 out sys_refcursor) as 
 // begin open p1 for select c1, c2 from t1 order by c1; end proc1;
@@ -628,6 +631,7 @@ Stored procedures with multiple SYS_REFCURSOR parameters enable a single `Execut
 multiple `ResultSets`:
 
 ```go
+// given:
 // create table t1 (c1 number, c2 varchar2(48 char))
 // create or replace procedure proc1(p1 out sys_refcursor, p2 out sys_refcursor) as begin 
 // open p1 for select c1 from t1 order by c1; open p2 for select c2 from t1 order by c2;
@@ -662,8 +666,8 @@ The default uses a `PrefetchMemorySize` of 134MB.
 `IntervalYM` may be be inserted and selected:
 
 ```go
-// create table t1 (c1 interval year to month)
 // insert IntervalYM slice
+// given: create table t1 (c1 interval year to month)
 a := make([]ora.IntervalYM, 5)
 a[0] = ora.IntervalYM{Year: 1, Month: 1}
 a[1] = ora.IntervalYM{Year: 99, Month: 9}
@@ -685,6 +689,7 @@ for resultSet.Next() {
 
 ```go
 // insert IntervalDS slice
+// given: create table t1 (c1 interval day to second)
 a := make([]ora.IntervalDS, 5)
 a[0] = ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
 a[1] = ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
@@ -705,7 +710,8 @@ for resultSet.Next() {
 Transactions on an Oracle server are supported:
 
 ```go
-// create table t1 (c1 number)
+// given: create table t1 (c1 number)
+
 // rollback
 tx, err := ses.BeginTransaction()
 stmt, err = ses.Prepare("insert into t1 (c1) values (3)")
