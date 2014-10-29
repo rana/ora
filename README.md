@@ -584,7 +584,7 @@ stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Config.TrueRune = 'Y'
 stmt.Execute(trueValue)
 
-// Update ResultSetConfig to change the TrueRune
+// update ResultSetConfig to change the TrueRune
 // used to translate an Oracle char to a Go bool
 // fetch inserted records
 stmt, err = ses.Prepare("select c1 from t1")
@@ -603,6 +603,7 @@ columns are returned as strings and don't have a unique Go type.
 `ResultSet` is used to obtain Go values from a SQL select statement. `ResultSet` has two usages. `Statement.Fetch` may be called to obtain a `ResultSet` when a SQL select statement is provided to `Statement.Prepare`:
 
 ```go
+// given: create table t1 (c1 number, c2, char(1 byte), c3 varchar2(48 char))
 stmt, err = ses.Prepare("select c1, c2, c3 from t1")
 resultSet, err := stmt.Fetch()
 for resultSet.Next() {
