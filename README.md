@@ -847,9 +847,7 @@ GO_ORA_DRIVER_TEST_USERNAME = test
 GO_ORA_DRIVER_TEST_PASSWORD = test
 ```
 
-Run the tests.
-
-Here are some helpful SQL maintenance statements.
+Some helpful SQL maintenance statements:
 
 ```sql
 -- delete all tables in a non-container database
@@ -859,6 +857,8 @@ EXECUTE IMMEDIATE ('DROP TABLE "' || c.table_name || '" CASCADE CONSTRAINTS');
 END LOOP;
 END;
 ```
+
+Run the tests.
 
 ```sql
 -- delete the non-container test database; use SqlPlus as sysdba

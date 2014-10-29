@@ -794,9 +794,7 @@ Container test database setup steps:
 	GO_ORA_DRIVER_TEST_USERNAME = test
 	GO_ORA_DRIVER_TEST_PASSWORD = test
 
-Run the tests.
-
-Here are some helpful SQL maintenance statements.
+Some helpful SQL maintenance statements:
 
 	// delete all tables in a non-container database
 	BEGIN
@@ -808,6 +806,8 @@ Here are some helpful SQL maintenance statements.
 	// delete the non-container test database; use SqlPlus as sysdba
 	DROP USER test CASCADE;
 
+Run the tests.
+	
 Limitations
 
 database/sql method Stmt.QueryRow is not supported.
