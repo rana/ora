@@ -16,6 +16,18 @@ application communication and driver communication with Oracle databases.
 The ora package has been verified to work with Oracle Enterprise 12c (12.1.0.1.0)
 on Windows 8.1.
 
+-----
+[Installation](https://github.com/ranaian/ora#installation)
+[Data Types](https://github.com/ranaian/ora#data-types)
+[SQL Placeholder Syntax](https://github.com/ranaian/ora#sql-placeholder-syntax)
+[Working With The Sql Package](https://github.com/ranaian/ora#working-with-the-sql-package)
+[Working With The Oracle Package Directly](https://github.com/ranaian/ora#working-with-the-oracle-package-directly)
+[Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
+[Limitations](https://github.com/ranaian/ora#limitations)
+[License](https://github.com/ranaian/ora#license)
+[API Reference](http://godoc.org/github.com/ranaian/ora)
+-----
+
 ##### Installation #####
 
 Minimum requirements are Go 1.3 with CGO enabled, a GCC C compiler, and
@@ -33,6 +45,10 @@ the location of the OCI library. These locations will vary based on whether an O
 database is locally installed or whether the Oracle instant client libraries are
 locally installed.
 
+Get the package from GitHub:
+
+	go get github.com/ranaian/ora
+
 ##### Data Types #####
 
 The ora package supports all built-in Oracle data types. The supported Oracle
@@ -41,8 +57,6 @@ TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIME ZONE,
 INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND, CHAR, NCHAR, VARCHAR, VARCHAR2,
 NVARCHAR2, LONG, CLOB, NCLOB, BLOB, LONG RAW, RAW, ROWID and BFILE.
 SYS_REFCURSOR is also supported.
-
-##### Boolean Types #####
 
 Oracle does not provide a built-in boolean type. Oracle provides a single-byte
 character type. A common practice is to define two single-byte characters which

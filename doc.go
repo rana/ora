@@ -41,8 +41,6 @@ INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND, CHAR, NCHAR, VARCHAR, VARCHAR2,
 NVARCHAR2, LONG, CLOB, NCLOB, BLOB, LONG RAW, RAW, ROWID and BFILE.
 SYS_REFCURSOR is also supported.
 
-Boolean Types
-
 Oracle does not provide a built-in boolean type. Oracle provides a single-byte
 character type. A common practice is to define two single-byte characters which
 represent true and false. The ora package adopts this approach. The oracle
