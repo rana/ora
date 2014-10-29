@@ -41,7 +41,7 @@ Get the package from GitHub:
 Install Oracle 12c or Oracle Instant Client.
 
 Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
-and dll. For example:
+and library. For example:
 
 	// example OS environment variables for Oracle 12c on Windows
 	CGO_CFLAGS=-Ic:/oracle/home/OCI/include/
