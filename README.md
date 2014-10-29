@@ -16,17 +16,17 @@ application communication and driver communication with Oracle databases.
 The ora package has been verified to work with Oracle Enterprise 12c (12.1.0.1.0)
 on Windows 8.1.
 
------
-[Installation](https://github.com/ranaian/ora#installation)
-[Data Types](https://github.com/ranaian/ora#data-types)
-[SQL Placeholder Syntax](https://github.com/ranaian/ora#sql-placeholder-syntax)
-[Working With The Sql Package](https://github.com/ranaian/ora#working-with-the-sql-package)
-[Working With The Oracle Package Directly](https://github.com/ranaian/ora#working-with-the-oracle-package-directly)
-[Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
-[Limitations](https://github.com/ranaian/ora#limitations)
-[License](https://github.com/ranaian/ora#license)
-[API Reference](http://godoc.org/github.com/ranaian/ora)
------
+---
+* [Installation](https://github.com/ranaian/ora#installation)
+* [Data Types](https://github.com/ranaian/ora#data-types)
+* [SQL Placeholder Syntax](https://github.com/ranaian/ora#sql-placeholder-syntax)
+* [Working With The Sql Package](https://github.com/ranaian/ora#working-with-the-sql-package)
+* [Working With The Oracle Package Directly](https://github.com/ranaian/ora#working-with-the-oracle-package-directly)
+* [Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
+* [Limitations](https://github.com/ranaian/ora#limitations)
+* [License](https://github.com/ranaian/ora#license)
+* [API Reference](http://godoc.org/github.com/ranaian/ora)
+---
 
 ##### Installation #####
 
