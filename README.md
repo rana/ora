@@ -573,11 +573,13 @@ Another scenario may be to configure the runes mapped to `bool` values:
 ```go
 // update StatementConfig to change the FalseRune and TrueRune inserted into the database
 // given: create table t1 (c1 char(1 byte))
+
 // insert 'false' record
 var falseValue bool = false
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Config.FalseRune = 'N'
 stmt.Execute(falseValue)
+
 // insert 'true' record
 var trueValue bool = true
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
