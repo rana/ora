@@ -401,16 +401,16 @@ nullable strings and select nullable strings:
 ```go
 // create table t1 (c1 varchar2(48 char))
 // insert String slice
-a := make([]String, 5)
-a[0] = String{Value: "Go is expressive, concise, clean, and efficient."}
-a[1] = String{Value: "Its concurrency mechanisms make it easy to"}
-a[2] = String{IsNull: true}
-a[3] = String{Value: "It's a fast, statically typed, compiled"}
-a[4] = String{Value: "One of Go's key design goals is code"}
+a := make([]ora.String, 5)
+a[0] = ora.String{Value: "Go is expressive, concise, clean, and efficient."}
+a[1] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
+a[2] = ora.String{IsNull: true}
+a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
+a[4] = ora.String{Value: "One of Go's key design goals is code"}
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Execute(a)
 
-// Specify OraS to Prepare method to return String values
+// Specify OraS to Prepare method to return ora.String values
 // fetch records
 stmt, err = ses.Prepare("select c1 from t1", OraS)
 resultSet, err := stmt.Fetch()
@@ -426,7 +426,7 @@ column:
 
 ```go
 // create table t1 (c1 number)
-stmt, err = ses.Prepare("select c1, c1 from t1", I64, OraI64)
+stmt, err = ses.Prepare("select c1, c1 from t1", ora.I64, ora.OraI64)
 resultSet, err := stmt.Fetch()
 for resultSet.Next() {
 	fmt.Println(resultSet.Row[0], resultSet.Row[1])
@@ -447,7 +447,8 @@ stmt.Execute(value)
 // select numerics of various sizes from the same column
 stmt, err = ses.Prepare(
 	"select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, from t1",
-	I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
+	ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, 
+	ora.F64, ora.F32)
 resultSet, err := stmt.Fetch()
 row := resultSet.NextRow()
 ```
@@ -542,22 +543,22 @@ default:
 
 ```go
 sc := NewStatementConfig()
-sc.ResultSet.SetNumberScaless(OraI64)
-sc.ResultSet.SetNumberScaled(OraF64)
-sc.ResultSet.SetBinaryDouble(OraF64)
-sc.ResultSet.SetBinaryFloat(OraF64)
-sc.ResultSet.SetFloat(OraF64)
-sc.ResultSet.SetDate(OraT)
-sc.ResultSet.SetTimestamp(OraT)
-sc.ResultSet.SetTimestampTz(OraT)
-sc.ResultSet.SetTimestampLtz(OraT)
-sc.ResultSet.SetChar1(OraB)
-sc.ResultSet.SetVarchar(OraS)
-sc.ResultSet.SetLong(OraS)
-sc.ResultSet.SetClob(OraS)
-sc.ResultSet.SetBlob(OraBits)
-sc.ResultSet.SetRaw(OraBits)
-sc.ResultSet.SetLongRaw(OraBits)
+sc.ResultSet.SetNumberScaless(ora.OraI64)
+sc.ResultSet.SetNumberScaled(ora.OraF64)
+sc.ResultSet.SetBinaryDouble(ora.OraF64)
+sc.ResultSet.SetBinaryFloat(ora.OraF64)
+sc.ResultSet.SetFloat(ora.OraF64)
+sc.ResultSet.SetDate(ora.OraT)
+sc.ResultSet.SetTimestamp(ora.OraT)
+sc.ResultSet.SetTimestampTz(ora.OraT)
+sc.ResultSet.SetTimestampLtz(ora.OraT)
+sc.ResultSet.SetChar1(ora.OraB)
+sc.ResultSet.SetVarchar(ora.OraS)
+sc.ResultSet.SetLong(ora.OraS)
+sc.ResultSet.SetClob(ora.OraS)
+sc.ResultSet.SetBlob(ora.OraBits)
+sc.ResultSet.SetRaw(ora.OraBits)
+sc.ResultSet.SetLongRaw(ora.OraBits)
 srv, err := env.OpenServer("orcl")
 // setting the server StatementConfig will cascade to any open Sessions, Statements
 // any new Session, Statement will receive this StatementConfig
@@ -572,19 +573,19 @@ Another scenario may be to configure the runes mapped to `bool` values:
 // Update StatementConfig to change the FalseRune and TrueRune inserted into the database
 // insert 'false' record
 var falseValue bool = false
-stmt, err = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Config.FalseRune = 'N'
 stmt.Execute(falseValue)
 // insert 'true' record
 var trueValue bool = true
-stmt, err = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Config.TrueRune = 'Y'
 stmt.Execute(trueValue)
 
 // Update ResultSetConfig to change the TrueRune
 // used to translate an Oracle char to a Go bool
 // fetch inserted records
-stmt, err = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+stmt, err = ses.Prepare("select c1 from t1")
 resultSet, err := stmt.Fetch()
 resultSet.Config.TrueRune = 'Y'
 for resultSet.Next() {
@@ -614,7 +615,7 @@ for resultSet.Next() {
 // create or replace procedure proc1(p1 out sys_refcursor) as 
 // begin open p1 for select c1, c2 from t1 order by c1; end proc1;
 stmt, err = ses.Prepare("call proc1(:1)")
-resultSet := &ResultSet{}
+resultSet := &ora.ResultSet{}
 stmt.Execute(resultSet)
 if resultSet.IsOpen() {
 	for resultSet.Next() {
@@ -632,8 +633,8 @@ multiple `ResultSets`:
 // open p1 for select c1 from t1 order by c1; open p2 for select c2 from t1 order by c2;
 // end proc1;
 stmt, err = ses.Prepare("call proc1(:1, :2)")
-resultSet1 := &ResultSet{}
-resultSet2 := &ResultSet{}
+resultSet1 := &ora.ResultSet{}
+resultSet2 := &ora.ResultSet{}
 stmt.Execute(resultSet1, resultSet2)
 // read from first cursor
 if resultSet1.IsOpen() {
@@ -663,12 +664,12 @@ The default uses a `PrefetchMemorySize` of 134MB.
 ```go
 // create table t1 (c1 interval year to month)
 // insert IntervalYM slice
-a := make([]IntervalYM, 5)
-a[0] = IntervalYM{Year: 1, Month: 1}
-a[1] = IntervalYM{Year: 99, Month: 9}
-a[2] = IntervalYM{IsNull: true}
-a[3] = IntervalYM{Year: -1, Month: -1}
-a[4] = IntervalYM{Year: -99, Month: -9}
+a := make([]ora.IntervalYM, 5)
+a[0] = ora.IntervalYM{Year: 1, Month: 1}
+a[1] = ora.IntervalYM{Year: 99, Month: 9}
+a[2] = ora.IntervalYM{IsNull: true}
+a[3] = ora.IntervalYM{Year: -1, Month: -1}
+a[4] = ora.IntervalYM{Year: -99, Month: -9}
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Execute(a)
 
@@ -684,12 +685,12 @@ for resultSet.Next() {
 
 ```go
 // insert IntervalDS slice
-a := make([]IntervalDS, 5)
-a[0] = IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
-a[1] = IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
-a[2] = IntervalDS{IsNull: true}
-a[3] = IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
-a[4] = IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
+a := make([]ora.IntervalDS, 5)
+a[0] = ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
+a[1] = ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
+a[2] = ora.IntervalDS{IsNull: true}
+a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
+a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
 stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
 stmt.Execute(a)
 
@@ -735,7 +736,7 @@ will return a nil error when the connection is fine:
 
 ```go
 // open a session before calling Ping
-ses, _ := srv.OpenSession("scott", "tiger")
+ses, _ := srv.OpenSession("username", "password")
 err := srv.Ping()
 if err == nil {
 	fmt.Println("Ping sucessful")
@@ -747,7 +748,7 @@ to `Version` requires an open Session:
 
 ```go
 // open a session before calling Version
-ses, err := srv.OpenSession("scott", "tiger")
+ses, err := srv.OpenSession("username", "password")
 version, err := srv.Version()
 if version != "" && err == nil {
 	fmt.Println("Received version from server")
