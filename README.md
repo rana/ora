@@ -624,15 +624,15 @@ Oracle-specific types offered by the ora package are `ResultSet`, `IntervalYM`, 
 `IntervalDS` represents an Oracle INTERVAL DAY TO SECOND. And `Bfile` represents an Oracle BFILE. ROWID 
 columns are returned as strings and don't have a unique Go type. 
 
-'ResultSet' is used to obtain Go values from a SQL select statement. Methods 'ResultSet.Next', 
-'ResultSet.NextRow', and 'ResultSet.Len' are available. Fields 'ResultSet.Row', 'ResultSet.Err', 
-'ResultSet.Index', and 'ResultSet.ColumnNames' are also available. The 'Next' method attempts to 
-load data from an Oracle buffer into 'Row', returning true when successful. When no data is available, 
-or if an error occurs, 'Next' returns false setting 'Row' to nil. Any error in 'Next' is assigned to 'Err'. 
-Calling 'Next' increments 'Index' and method 'Len' returns the total number of rows processed. The 'NextRow'
-method is convenient for returning a single row. 'NextRow' calls 'Next' and returns 'Row'. 
+`ResultSet` is used to obtain Go values from a SQL select statement. Methods `ResultSet.Next`, 
+`ResultSet.NextRow`, and `ResultSet.Len` are available. Fields `ResultSet.Row`, `ResultSet.Err`, 
+`ResultSet.Index`, and `ResultSet.ColumnNames` are also available. The `Next` method attempts to 
+load data from an Oracle buffer into `Row`, returning true when successful. When no data is available, 
+or if an error occurs, `Next` returns false setting `Row` to nil. Any error in `Next` is assigned to `Err`. 
+Calling `Next` increments `Index` and method `Len` returns the total number of rows processed. The `NextRow`
+method is convenient for returning a single row. `NextRow` calls `Next` and returns `Row`. 
 
-'ResultSet' has two usages. 'ResultSet' may be returned from 'Statement.Fetch' when prepared with a SQL select 
+`ResultSet` has two usages. `ResultSet` may be returned from `Statement.Fetch` when prepared with a SQL select 
 statement:
 
 ```go
