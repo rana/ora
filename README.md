@@ -641,7 +641,7 @@ for resultSet.Next() {
 }
 ```
 
-Or, a `*ResultSet` may be specified to `Statement.Execute` prepared with a stored procedure accepting 
+Or, a `*ResultSet` may be passed to `Statement.Execute` when prepared with a stored procedure accepting 
 an OUT SYS_REFCURSOR parameter:
 
 ```go

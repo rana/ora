@@ -607,7 +607,7 @@ statement:
 		fmt.Println(resultSet.Index, resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
 	}
 
-Or, a *ResultSet may be specified to Statement.Execute prepared with a stored procedure accepting 
+Or, a *ResultSet may be passed to Statement.Execute when prepared with a stored procedure accepting 
 an OUT SYS_REFCURSOR parameter:
 	
 	// given:
