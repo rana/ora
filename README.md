@@ -690,7 +690,7 @@ if resultSet2.IsOpen() {
 }
 ```
 	
-The types of values assigned to `Row` may be configured in the `StatementConfig.ResultSet` field. For configuration 
+The types of values assigned to `Row` may be configured in `StatementConfig.ResultSet`. For configuration 
 to take effect, assign `StatementConfig.ResultSet` prior to calling `Statement.Fetch` or `Statement.Execute`. 
 
 `ResultSet` prefetching may be controlled by `StatementConfig.PrefetchRowCount` and
@@ -699,7 +699,7 @@ to take effect, assign `StatementConfig.ResultSet` prior to calling `Statement.F
 otherwise, the minimum of `PrefetchRowCount` and `PrefetchMemorySize` is used.
 The default uses a `PrefetchMemorySize` of 134MB.
 
-Opening and closing `ResultSets` is managed internally. `ResultSet` doesn't have an Open method or Close method.
+Opening and closing `ResultSets` is managed internally. `ResultSet` does not have an Open method or Close method.
 
 `IntervalYM` may be be inserted and selected:
 
