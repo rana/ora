@@ -629,7 +629,7 @@ in `Next` is assigned to `Err`. Calling `Next` increments `Index` and method `Le
 total number of rows processed. The `NextRow` method is convenient for returning a single row. `NextRow` 
 calls `Next` and returns `Row`. The types of values assigned to `Row` may be configured in the `Config` field.
 
-`ResultSet` has two usages. `ResultSet` may be returned from `Statement.Fetch` prepared with a SQL select 
+`ResultSet` has two usages. `ResultSet` may be returned from `Statement.Fetch` when prepared with a SQL select 
 statement:
 
 ```go

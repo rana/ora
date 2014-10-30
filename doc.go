@@ -597,7 +597,7 @@ in Next is assigned to Err. Calling Next increments Index and method Len returns
 total number of rows processed. The NextRow method is convenient for returning a single row. NextRow 
 calls Next and returns Row. The types of values assigned to Row may be configured in the Config field.
 
-ResultSet has two usages. ResultSet may be returned from Statement.Fetch prepared with a SQL select 
+ResultSet has two usages. ResultSet may be returned from Statement.Fetch when prepared with a SQL select 
 statement:
 
 	// given: create table t1 (c1 number, c2, char(1 byte), c3 varchar2(48 char))
