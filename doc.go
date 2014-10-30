@@ -517,19 +517,22 @@ the default value defined in ResultSetConfig is used.
 	
 There are two configuration structs, StatementConfig and ResultSetConfig.
 StatementConfig configures various aspects of a Statement. ResultSetConfig configures
-various aspects of a ResultSet, including the default mapping between a select-list
+various aspects of a ResultSet, including the default mapping between an Oracle select-list
 column and a Go type. StatementConfig may be set in an Environment, Server, Session
-and Statement. ResultSetConfig may be set in a ResultSet and StatementConfig.
+and Statement. ResultSetConfig may be set in a StatementConfig.
 
-Setting a StatementConfig on a configurable struct, such as Environment, Server, Session
+Setting StatementConfig on Environment, Server, Session
 or Statement, cascades the StatementConfig to all current and future descendent structs.
 An Environment may contain multiple Servers. A Server may contain multiple Sessions.
 A Session may contain multiple Statements. A Statement may contain multiple ResultSets.
 
 	// setting StatementConfig cascades to descendent structs
-	// Environment -> Server -> Session -> Statement
+	// Environment -> Server -> Session -> Statement -> ResultSet
 
 Setting a ResultSetConfig on a StatementConfig does not cascade through descendent structs.
+Configuration of Statement.Config takes effect prior to calls to Statement.Execute and
+Statement.Fetch; consequently, any updates to Statement.Config after a call to Statement.Execute
+or Statement.Fetch are not observed.
 
 One configuration scenario may be to set a server's select statements to return nullable Go types by 
 default:
@@ -589,13 +592,13 @@ ResultSet represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle IN
 IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID 
 columns are returned as strings and don't have a unique Go type. 
 
-ResultSet is used to obtain Go values from a SQL select statement. ResultSet contains methods Next, 
-NextRow, and Len. Fields Row, Err, Index, ColumnNames, and Config are available in ResultSet. The 
-Next method attempts to load data from an Oracle buffer into Row, returning true when successful. 
-When no data is available, or if an error occurs, Next returns false setting Row to nil. Any error 
-in Next is assigned to Err. Calling Next increments Index and method Len returns the 
-total number of rows processed. The NextRow method is convenient for returning a single row. NextRow 
-calls Next and returns Row. The types of values assigned to Row may be configured in the Config field.
+ResultSet is used to obtain Go values from a SQL select statement. Methods ResultSet.Next, 
+ResultSet.NextRow, and ResultSet.Len are available. Fields ResultSet.Row, ResultSet.Err, 
+ResultSet.Index, and ResultSet.ColumnNames are also available. The Next method attempts to 
+load data from an Oracle buffer into Row, returning true when successful. When no data is available, 
+or if an error occurs, Next returns false setting Row to nil. Any error in Next is assigned to Err. 
+Calling Next increments Index and method Len returns the total number of rows processed. The NextRow 
+method is convenient for returning a single row. NextRow calls Next and returns Row. 
 
 ResultSet has two usages. ResultSet may be returned from Statement.Fetch when prepared with a SQL select 
 statement:
@@ -647,15 +650,17 @@ multiple ResultSets:
 			fmt.Println(resultSet2.Row[0])
 		}
 	}
-	
-Opening and closing ResultSets is managed internally. ResultSet doesn't have an 
-Open method or Close method.
+
+The types of values assigned to Row may be configured in the StatementConfig.ResultSet field. For configuration 
+to take effect, assign StatementConfig.ResultSet prior to calling Statement.Fetch or Statement.Execute. 
 
 ResultSet prefetching may be controlled by StatementConfig.PrefetchRowCount and
 StatementConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with 
 PrefetchMemorySize. When PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
 The default uses a PrefetchMemorySize of 134MB.
+
+Opening and closing ResultSets is managed internally. ResultSet doesn't have an Open method or Close method.
 
 IntervalYM may be be inserted and selected:
 
