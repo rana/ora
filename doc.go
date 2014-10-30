@@ -589,8 +589,8 @@ ResultSet represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle IN
 IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID 
 columns are returned as strings and don't have a unique Go type. 
 
-ResultSet is used to obtain Go values from a SQL select statement. ResultSet has two usages. Statement.Fetch may be called to obtain a ResultSet when a SQL select statement is provided to 
-Statement.Prepare:
+ResultSet is used to obtain Go values from a SQL select statement. ResultSet has two usages. 
+ResultSet may be returned from Statement.Fetch prepared with a SQL select statement:
 
 	// given: create table t1 (c1 number, c2, char(1 byte), c3 varchar2(48 char))
 	stmt, err = ses.Prepare("select c1, c2, c3 from t1")
@@ -599,7 +599,8 @@ Statement.Prepare:
 		fmt.Println(resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
 	}
 
-ResultSet may also be used with stored procedure parameters that are defined as OUT SYS_REFCURSOR. For example:
+Or, a *ResultSet may be specified to Statement.Execute prepared with a stored procedure accepting 
+an OUT SYS_REFCURSOR parameter:
 	
 	// given:
 	// create table t1 (c1 number, c2 varchar2(48 char))
@@ -614,7 +615,7 @@ ResultSet may also be used with stored procedure parameters that are defined as 
 		}
 	}
 
-Stored procedures with multiple SYS_REFCURSOR parameters enable a single Execute call to obtain 
+Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single Execute call to obtain 
 multiple ResultSets:
 
 	// given:
