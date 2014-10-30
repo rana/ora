@@ -624,8 +624,8 @@ columns are returned as strings and don't have a unique Go type.
 `ResultSet` is used to obtain Go values from a SQL select statement. `ResultSet` contains methods `Next`, 
 `NextRow`, and `Len`. Fields `Row`, `Err`, `Index`, `ColumnNames`, and `Config` are available in `ResultSet`. 
 The `Next` method attempts to load data from an Oracle buffer into `Row`, returning `true` when successful. 
-When no data is available, or if an error occurs, `Next` returns `false` and sets `Row` to nil. Any error 
-occurring in `Next` is assigned to `Err`. Calling `Next` increments `Index` and method `Len` returns the 
+When no data is available, or if an error occurs, `Next` returns `false` setting `Row` to nil. Any error 
+in `Next` is assigned to `Err`. Calling `Next` increments `Index` and method `Len` returns the 
 total number of rows processed. The `NextRow` method is convenient for returning a single row. `NextRow` 
 calls `Next` and returns `Row`. The types of values assigned to `Row` may be configured with the `Config` field.
 
