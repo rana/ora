@@ -589,8 +589,16 @@ ResultSet represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle IN
 IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID 
 columns are returned as strings and don't have a unique Go type. 
 
-ResultSet is used to obtain Go values from a SQL select statement. ResultSet has two usages. 
-ResultSet may be returned from Statement.Fetch prepared with a SQL select statement:
+ResultSet is used to obtain Go values from a SQL select statement. ResultSet contains methods Next, 
+NextRow, and Len. Fields Row, Err, Index, ColumnNames, and Config are available in ResultSet. The 
+Next method attempts to load data from an Oracle buffer into Row, returning true when successful. 
+When no data is available, or if an error occurs, Next returns false and sets Row to nil. Any error 
+occurring in Next is assigned to Err. Calling Next increments Index. Len returns the 
+total number of rows processed. The NextRow method is convenient for returning a single row. NextRow 
+calls Next and returns Row. The types of values assigned to Row may be configured with the Config field.
+
+ResultSet has two usages. ResultSet may be returned from Statement.Fetch prepared with a SQL select 
+statement:
 
 	// given: create table t1 (c1 number, c2, char(1 byte), c3 varchar2(48 char))
 	stmt, err = ses.Prepare("select c1, c2, c3 from t1")
