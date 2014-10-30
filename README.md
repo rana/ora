@@ -550,7 +550,7 @@ column and a Go type. `StatementConfig` may be set in an `Environment`, `Server`
 and `Statement`. `ResultSetConfig` may be set in a `StatementConfig`.
 
 Setting `StatementConfig` on `Environment`, `Server`, `Session`
-or `Statement`, cascades the `StatementConfig` to all current and future descendent structs.
+or `Statement` cascades the `StatementConfig` to all current and future descendent structs.
 An `Environment` may contain multiple `Servers`. A `Server` may contain multiple `Sessions`.
 A `Session` may contain multiple `Statements`. A `Statement` may contain multiple `ResultSets`.
 
