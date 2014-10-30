@@ -581,8 +581,8 @@ Another scenario may be to configure the runes mapped to bool values:
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
 	stmt, err = ses.Prepare("select c1 from t1")
+	stmt.Config.TrueRune = 'Y'
 	resultSet, err := stmt.Fetch()
-	resultSet.Config.TrueRune = 'Y'
 	for resultSet.Next() {
 		fmt.Println(resultSet.Row[0])
 	}
