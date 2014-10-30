@@ -595,7 +595,7 @@ Next method attempts to load data from an Oracle buffer into Row, returning true
 When no data is available, or if an error occurs, Next returns false setting Row to nil. Any error 
 in Next is assigned to Err. Calling Next increments Index and method Len returns the 
 total number of rows processed. The NextRow method is convenient for returning a single row. NextRow 
-calls Next and returns Row. The types of values assigned to Row may be configured with the Config field.
+calls Next and returns Row. The types of values assigned to Row may be configured in the Config field.
 
 ResultSet has two usages. ResultSet may be returned from Statement.Fetch prepared with a SQL select 
 statement:
