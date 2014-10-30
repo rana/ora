@@ -774,7 +774,7 @@ for resultSet.Next() {
 }
 ```
 
-The `Server.Ping` method is available to check whether the client's connection to the 
+The `Server.Ping` method checks whether the client's connection to the 
 Oracle server is valid. A call to `Ping` requires an open Session. `Ping` 
 will return a nil error when the connection is fine:
 
