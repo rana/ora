@@ -631,6 +631,7 @@ load data from an Oracle buffer into `Row`, returning true when successful. When
 or if an error occurs, `Next` returns false setting `Row` to nil. Any error in `Next` is assigned to `Err`. 
 Calling `Next` increments `Index` and method `Len` returns the total number of rows processed. The `NextRow`
 method is convenient for returning a single row. `NextRow` calls `Next` and returns `Row`. 
+'ColumnNames' returns the names of columns defined by the SQL select statement.
 
 `ResultSet` has two usages. `ResultSet` may be returned from `Statement.Fetch` when prepared with a SQL select 
 statement:
