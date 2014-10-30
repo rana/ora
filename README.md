@@ -625,7 +625,7 @@ columns are returned as strings and don't have a unique Go type.
 `NextRow`, and `Len`. Fields `Row`, `Err`, `Index`, `ColumnNames`, and `Config` are available in `ResultSet`. 
 The `Next` method attempts to load data from an Oracle buffer into `Row`, returning `true` when successful. 
 When no data is available, or if an error occurs, `Next` returns `false` and sets `Row` to nil. Any error 
-occurring in `Next` is assigned to `Err`. Calling `Next` increments `Index`. `Len` returns the 
+occurring in `Next` is assigned to `Err`. Calling `Next` increments `Index` and method `Len` returns the 
 total number of rows processed. The `NextRow` method is convenient for returning a single row. `NextRow` 
 calls `Next` and returns `Row`. The types of values assigned to `Row` may be configured with the `Config` field.
 
@@ -637,7 +637,7 @@ statement:
 stmt, err = ses.Prepare("select c1, c2, c3 from t1")
 resultSet, err := stmt.Fetch()
 for resultSet.Next() {
-	fmt.Println(resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
+	fmt.Println(resultSet.Index, resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
 }
 ```
 
