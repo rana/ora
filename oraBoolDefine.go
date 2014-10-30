@@ -50,7 +50,7 @@ func (oraBoolDefine *oraBoolDefine) define(columnSize int, position int, resultS
 func (oraBoolDefine *oraBoolDefine) value() (value interface{}, err error) {
 	boolValue := Bool{IsNull: oraBoolDefine.isNull < 0}
 	if !boolValue.IsNull {
-		boolValue.Value = bytes.Runes(oraBoolDefine.buffer)[0] == oraBoolDefine.resultSet.Config.TrueRune
+		boolValue.Value = bytes.Runes(oraBoolDefine.buffer)[0] == oraBoolDefine.resultSet.statement.Config.ResultSet.TrueRune
 	}
 	return boolValue, err
 }

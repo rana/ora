@@ -5,6 +5,9 @@
 package ora
 
 // StatementConfig affects various aspects of a SQL statement.
+//
+// Assign values to StatementConfig prior to calling Statement.Execute
+// and Statement.Fetch for the configuration values to take effect.
 type StatementConfig struct {
 	prefetchRowCount    uint32
 	prefetchMemorySize  uint32

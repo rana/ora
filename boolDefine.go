@@ -48,7 +48,7 @@ func (boolDefine *boolDefine) define(columnSize int, position int, resultSet *Re
 }
 func (boolDefine *boolDefine) value() (value interface{}, err error) {
 	if boolDefine.isNull > -1 {
-		value = bytes.Runes(boolDefine.buffer)[0] == boolDefine.resultSet.Config.TrueRune
+		value = bytes.Runes(boolDefine.buffer)[0] == boolDefine.resultSet.statement.Config.ResultSet.TrueRune
 	}
 	return value, err
 }

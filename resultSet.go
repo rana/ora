@@ -15,10 +15,10 @@ import (
 	"unsafe"
 )
 
-// ResultSet contains methods to retrieve the results of a SQL select statement.
+// ResultSet is used to obtain Go values from a SQL select statement.
 //
-// ResultSet internally manages opening resources and closing resources and doesn't
-// require any user calls to an open method or close method.
+// Opening and closing a ResultSet is managed internally.
+// ResultSet doesn't have an Open method or Close method.
 type ResultSet struct {
 	statement   *Statement
 	ocistmt     *C.OCIStmt
@@ -27,7 +27,6 @@ type ResultSet struct {
 	Index       int
 	Row         []interface{}
 	ColumnNames []string
-	Config      ResultSetConfig
 }
 
 // Len returns the number of rows retrieved.
@@ -124,7 +123,6 @@ func (resultSet *ResultSet) IsOpen() bool {
 func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error {
 	resultSet.statement = statement
 	resultSet.ocistmt = ocistmt
-	resultSet.Config = statement.Config.ResultSet
 	resultSet.Index = -1
 	// Get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
@@ -205,9 +203,9 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 			if precision != 0 && (numericScale > 0 || numericScale == -127) {
 				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
 					if numericScale == -127 {
-						goColumnType = resultSet.Config.float
+						goColumnType = resultSet.statement.Config.ResultSet.float
 					} else {
-						goColumnType = resultSet.Config.numberScaled
+						goColumnType = resultSet.statement.Config.ResultSet.numberScaled
 					}
 				} else {
 					err = checkNumericColumn(statement.goColumnTypes[n])
@@ -222,7 +220,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 				}
 			} else {
 				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.Config.numberScaless
+					goColumnType = resultSet.statement.Config.ResultSet.numberScaless
 				} else {
 					err = checkNumericColumn(statement.goColumnTypes[n])
 					if err != nil {
@@ -238,7 +236,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.binaryDouble
+				goColumnType = resultSet.statement.Config.ResultSet.binaryDouble
 			} else {
 				err = checkNumericColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -253,7 +251,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_IBFLOAT:
 			// BINARY_FLOAT
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.binaryFloat
+				goColumnType = resultSet.statement.Config.ResultSet.binaryFloat
 			} else {
 				err = checkNumericColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -270,13 +268,13 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
 				switch ociTypeCode {
 				case C.SQLT_DAT:
-					goColumnType = resultSet.Config.date
+					goColumnType = resultSet.statement.Config.ResultSet.date
 				case C.SQLT_TIMESTAMP:
-					goColumnType = resultSet.Config.timestamp
+					goColumnType = resultSet.statement.Config.ResultSet.timestamp
 				case C.SQLT_TIMESTAMP_TZ:
-					goColumnType = resultSet.Config.timestampTz
+					goColumnType = resultSet.statement.Config.ResultSet.timestampTz
 				case C.SQLT_TIMESTAMP_LTZ:
-					goColumnType = resultSet.Config.timestampLtz
+					goColumnType = resultSet.statement.Config.ResultSet.timestampLtz
 				}
 			} else {
 				err = checkTimeColumn(statement.goColumnTypes[n])
@@ -317,7 +315,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_CHR:
 			// VARCHAR, VARCHAR2, NVARCHAR2
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.varchar
+				goColumnType = resultSet.statement.Config.ResultSet.varchar
 			} else {
 				err = checkStringColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -333,7 +331,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 			// CHAR, NCHAR
 			if columnSize == 1 {
 				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.Config.char1
+					goColumnType = resultSet.statement.Config.ResultSet.char1
 				} else {
 					err = checkBoolOrStringColumn(statement.goColumnTypes[n])
 					if err != nil {
@@ -367,7 +365,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 			} else {
 				// Interpret as string
 				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.Config.char
+					goColumnType = resultSet.statement.Config.ResultSet.char
 				} else {
 					err = checkStringColumn(statement.goColumnTypes[n])
 					if err != nil {
@@ -383,7 +381,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_LNG:
 			// LONG
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.long
+				goColumnType = resultSet.statement.Config.ResultSet.long
 			} else {
 				err = checkStringColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -399,7 +397,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_CLOB:
 			// CLOB, NCLOB
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.clob
+				goColumnType = resultSet.statement.Config.ResultSet.clob
 			} else {
 				err = checkStringColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -422,7 +420,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_LBI:
 			// LONG RAW
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.longRaw
+				goColumnType = resultSet.statement.Config.ResultSet.longRaw
 			} else {
 				err = checkBitsColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -439,7 +437,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_BIN:
 			// RAW
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.raw
+				goColumnType = resultSet.statement.Config.ResultSet.raw
 			} else {
 				err = checkBitsColumn(statement.goColumnTypes[n])
 				if err != nil {
@@ -456,7 +454,7 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		case C.SQLT_BLOB:
 			// BLOB
 			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.Config.blob
+				goColumnType = resultSet.statement.Config.ResultSet.blob
 			} else {
 				err = checkBitsColumn(statement.goColumnTypes[n])
 				if err != nil {

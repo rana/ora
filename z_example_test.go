@@ -283,8 +283,8 @@ func ExampleStatement_Execute_insert_fetch_bool_alternate() {
 	// fetch inserted records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
+	stmt.Config.ResultSet.TrueRune = 'Y'
 	resultSet, _ := stmt.Fetch()
-	resultSet.Config.TrueRune = 'Y'
 	for resultSet.Next() {
 		fmt.Printf("%v ", resultSet.Row[0])
 	}
