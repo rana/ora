@@ -138,7 +138,7 @@ func NewEnv() (env *Environment) {
 		return &Server{sess: list.New()}
 	}
 	env.sesPool.New = func() interface{} {
-		return &Session{stmts: list.New()}
+		return &Session{stmts: list.New(), txs: list.New()}
 	}
 	env.stmtPool.New = func() interface{} {
 		return &Statement{env: env, rsts: list.New()}
@@ -527,7 +527,7 @@ func (env *Environment) OpenServer(dbname string) (*Server, error) {
 
 	// Allocate server handle
 	//OCIHandleAlloc( (void  *) envhp, (void  **) &srvhp, (ub4)OCI_HTYPE_SERVER, 0, (void  **) 0);
-	serverHandle, err := env.allocateOciHandle(C.OCI_HTYPE_SERVER)
+	ocisrv, err := env.allocateOciHandle(C.OCI_HTYPE_SERVER)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +537,7 @@ func (env *Environment) OpenServer(dbname string) (*Server, error) {
 	dbnamep := C.CString(dbname)
 	defer C.free(unsafe.Pointer(dbnamep))
 	r := C.OCIServerAttach(
-		(*C.OCIServer)(serverHandle),          //OCIServer     *srvhp,
+		(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
 		env.ocierr,                            //OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(dbnamep)), //const OraText *dbname,
 		C.sb4(C.strlen(dbnamep)),              //sb4           dbname_len,
@@ -548,7 +548,7 @@ func (env *Environment) OpenServer(dbname string) (*Server, error) {
 
 	// Allocate service context handle
 	//OCIHandleAlloc( (void  *) envhp, (void  **) &svchp, (ub4)OCI_HTYPE_SVCCTX, 0, (void  **) 0);
-	svcctxHandle, err := env.allocateOciHandle(C.OCI_HTYPE_SVCCTX)
+	ocisvcctx, err := env.allocateOciHandle(C.OCI_HTYPE_SVCCTX)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +556,7 @@ func (env *Environment) OpenServer(dbname string) (*Server, error) {
 	// Set server handle onto service context handle
 	///* set attribute server context in the service context */
 	//OCIAttrSet( (void  *) svchp, (ub4) OCI_HTYPE_SVCCTX, (void  *) srvhp, (ub4) 0, (ub4) OCI_ATTR_SERVER, (OCIError *) errhp);
-	err = env.setOciAttribute(svcctxHandle, C.OCI_HTYPE_SVCCTX, serverHandle, C.ub4(0), C.OCI_ATTR_SERVER)
+	err = env.setOciAttribute(ocisvcctx, C.OCI_HTYPE_SVCCTX, ocisrv, C.ub4(0), C.OCI_ATTR_SERVER)
 	if err != nil {
 		return nil, err
 	}
@@ -565,8 +565,8 @@ func (env *Environment) OpenServer(dbname string) (*Server, error) {
 	srv := env.srvPool.Get().(*Server)
 	srv.env = env
 	srv.dbname = dbname
-	srv.ocisvr = (*C.OCIServer)(serverHandle)
-	srv.ocisvcctx = (*C.OCISvcCtx)(svcctxHandle)
+	srv.ocisrv = (*C.OCIServer)(ocisrv)
+	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	srv.stmtConfig = env.stmtConfig
 
 	// Add server to environment list; store element for later server removal

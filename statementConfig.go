@@ -17,6 +17,14 @@ type StatementConfig struct {
 	stringPtrBufferSize int
 	byteSlice           GoColumnType
 
+	// IsAutoCommitting determines whether DML statements are automatically
+	// committed.
+	//
+	// The default is true.
+	//
+	// IsAutoCommitting is not observed during a transaction.
+	IsAutoCommitting bool
+
 	// FalseRune represents the false Go bool value sent to an Oracle server
 	// during a parameter bind.
 	//
@@ -49,6 +57,7 @@ func (c *StatementConfig) Reset() {
 	c.lobBufferSize = 1 << 24      // 16,777,216
 	c.stringPtrBufferSize = 4000
 
+	c.IsAutoCommitting = true
 	c.FalseRune = '0'
 	c.TrueRune = '1'
 	c.ResultSet.Reset()

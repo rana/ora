@@ -18,7 +18,7 @@ import (
 // An Oracle server associated with an environment.
 type Server struct {
 	ocisvcctx  *C.OCISvcCtx
-	ocisvr     *C.OCIServer
+	ocisrv     *C.OCIServer
 	stmtConfig StatementConfig
 
 	env    *Environment
@@ -124,7 +124,7 @@ func (srv *Server) Version() (string, error) {
 	}
 	var buffer [512]C.char
 	r := C.OCIServerVersion(
-		unsafe.Pointer(srv.ocisvr),               //void         *hndlp,
+		unsafe.Pointer(srv.ocisrv),               //void         *hndlp,
 		srv.env.ocierr,                           //OCIError     *errhp,
 		(*C.OraText)(unsafe.Pointer(&buffer[0])), //OraText      *bufp,
 		C.ub4(len(buffer)),                       //ub4          bufsz
@@ -150,7 +150,7 @@ func (srv *Server) checkIsOpen() error {
 // Calling Close will cause Server.IsOpen to return false. Once closed, a server cannot
 // be re-opened. Call Environment.OpenServer to open a new server.
 func (srv *Server) IsOpen() bool {
-	return srv.ocisvr != nil
+	return srv.ocisrv != nil
 }
 
 // Close disconnects from an Oracle server.
@@ -171,7 +171,7 @@ func (srv *Server) Close() error {
 		}
 		// Detach server
 		r := C.OCIServerDetach(
-			srv.ocisvr,     //OCIServer   *srvhp,
+			srv.ocisrv,     //OCIServer   *srvhp,
 			srv.env.ocierr, //OCIError    *errhp,
 			C.OCI_DEFAULT)  //ub4         mode );
 		if r == C.OCI_ERROR {
@@ -191,7 +191,7 @@ func (srv *Server) Close() error {
 		srv.env = nil
 		srv.elem = nil
 		srv.dbname = ""
-		srv.ocisvr = nil
+		srv.ocisrv = nil
 		srv.ocisvcctx = nil
 
 		// Put server in pool

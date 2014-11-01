@@ -1563,16 +1563,16 @@ func ExampleTransaction() {
 	stmt.Execute()
 
 	// rollback
-	tx, _ := ses.BeginTransaction()
 	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (3)", tableName))
+	tx, _ := ses.BeginTransaction()
 	stmt.Execute()
 	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (5)", tableName))
 	stmt.Execute()
 	tx.Rollback()
 
 	// commit
-	tx, _ = ses.BeginTransaction()
 	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (7)", tableName))
+	tx, _ = ses.BeginTransaction()
 	stmt.Execute()
 	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	stmt.Execute()

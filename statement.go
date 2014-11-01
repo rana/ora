@@ -770,6 +770,13 @@ func (stmt *Statement) exec(tryAddBindForIdentity bool, params []interface{}) (r
 		return 0, 0, err
 	}
 
+	// don't auto comit if there is a transaction occuring
+	var mode C.ub4
+	if stmt.Config.IsAutoCommitting && stmt.ses.txs.Front() == nil {
+		mode = C.OCI_COMMIT_ON_SUCCESS
+	} else {
+		mode = C.OCI_DEFAULT
+	}
 	// Execute statement on Oracle server
 	r := C.OCIStmtExecute(
 		stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
@@ -779,7 +786,7 @@ func (stmt *Statement) exec(tryAddBindForIdentity bool, params []interface{}) (r
 		C.ub4(0),                //ub4                 rowoff,
 		nil,                     //const OCISnapshot   *snap_in,
 		nil,                     //OCISnapshot         *snap_out,
-		C.OCI_DEFAULT)           //ub4                 mode );
+		mode)                    //ub4                 mode );
 	if r == C.OCI_ERROR {
 		return 0, 0, stmt.ses.srv.env.ociError()
 	}
@@ -954,6 +961,11 @@ func (stmt *Statement) Close() error {
 		// Close result sets
 		for e := stmt.rsts.Front(); e != nil; e = e.Next() {
 			e.Value.(*ResultSet).close()
+		}
+
+		// Remove statement from session list
+		if stmt.elem != nil {
+			stmt.ses.stmts.Remove(stmt.elem)
 		}
 
 		// Clear statement fields

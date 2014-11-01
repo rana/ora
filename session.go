@@ -23,6 +23,7 @@ type Session struct {
 	srv      *Server
 	elem     *list.Element
 	stmts    *list.List
+	txs      *list.List
 	username string
 }
 
@@ -98,43 +99,11 @@ func (ses *Session) BeginTransaction() (*Transaction, error) {
 	if r == C.OCI_ERROR {
 		return nil, ses.srv.env.ociError()
 	}
-	return &Transaction{ses: ses}, nil
-}
+	tx := &Transaction{ses: ses}
+	// store tx for stmt to determine if can auto commit
+	tx.elem = ses.txs.PushFront(tx)
 
-// CommitTransaction commits a transaction.
-func (ses *Session) CommitTransaction() error {
-	// Validate that the session is open
-	err := ses.checkIsOpen()
-	if err != nil {
-		return err
-	}
-
-	r := C.OCITransCommit(
-		ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
-		ses.srv.env.ocierr, //OCIError     *errhp,
-		C.OCI_DEFAULT)      //ub4          flags );
-	if r == C.OCI_ERROR {
-		return ses.srv.env.ociError()
-	}
-	return nil
-}
-
-// RollbackTransaction rolls back a transaction.
-func (ses *Session) RollbackTransaction() error {
-	// Validate that the session is open
-	err := ses.checkIsOpen()
-	if err != nil {
-		return err
-	}
-
-	r := C.OCITransRollback(
-		ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
-		ses.srv.env.ocierr, //OCIError     *errhp,
-		C.OCI_DEFAULT)      //ub4          flags );
-	if r == C.OCI_ERROR {
-		return ses.srv.env.ociError()
-	}
-	return nil
+	return tx, nil
 }
 
 // checkIsOpen validates that a session is open.
@@ -167,6 +136,11 @@ func (ses *Session) Close() error {
 			if err != nil {
 				return err
 			}
+		}
+
+		// remove transactions from list
+		for e := ses.txs.Front(); e != nil; e = e.Next() {
+			ses.txs.Remove(e)
 		}
 
 		// Close session
