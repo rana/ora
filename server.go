@@ -78,7 +78,6 @@ func (srv *Server) OpenSession(username string, password string) (*Session, erro
 		return nil, srv.env.ociError()
 	}
 	// Set session handle on service context handle
-	//OCIAttrSet((void  *)svchp, (ub4)OCI_HTYPE_SVCCTX, (void  *)usrhp,(ub4)0, OCI_ATTR_SESSION, errhp);
 	err = srv.env.setOciAttribute(unsafe.Pointer(srv.ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
 	if err != nil {
 		return nil, err
