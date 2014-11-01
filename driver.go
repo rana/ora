@@ -252,7 +252,7 @@ func clear(buffer []byte, fill byte) {
 }
 
 func errNew(str string) error {
-	return errors.New("ora-drv: " + str)
+	return errors.New("ora: " + str)
 }
 
 func errNewF(format string, a ...interface{}) error {
