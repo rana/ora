@@ -1578,6 +1578,10 @@ func ExampleTransaction() {
 	stmt.Execute()
 	tx.Commit()
 
+	// check that auto commit is reenabled
+	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
+	stmt.Execute()
+
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	rst, _ := stmt.Fetch()
@@ -1587,6 +1591,7 @@ func ExampleTransaction() {
 	// Output:
 	// 7
 	// 9
+	// 11
 }
 
 func ExampleDriver_usage() {
