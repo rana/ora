@@ -235,7 +235,7 @@ An example of using the ora package directly:
 		a[1] = ora.String{IsNull: true}
 		a[2] = ora.String{Value: "It's a fast, statically typed, compiled"}
 		a[3] = ora.String{Value: "One of Go's key design goals is code"}
-		stmtSliceIns, err := ses.Prepare("insert into t1 (c2) values (:c2)")
+		stmtSliceIns, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2)")
 		defer stmtSliceIns.Close()
 		if err != nil {
 			panic(err)
@@ -405,7 +405,7 @@ nullable Strings and select nullable Strings:
 	a[2] = ora.String{IsNull: true}
 	a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
 	a[4] = ora.String{Value: "One of Go's key design goals is code"}
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Execute(a)
 
 	// Specify OraS to Prepare method to return ora.String values
@@ -677,7 +677,7 @@ IntervalYM may be be inserted and selected:
 	stmt.Execute(a)
 
 	// fetch IntervalYM
-	stmt, err = ses.Prepare("select c1 from t1")
+	stmt, err = ses.Prepare("SELECT C1 FROM T1")
 	rst, err := stmt.Fetch()
 	for rst.Next() {
 		fmt.Println(rst.Row[0])
@@ -697,7 +697,7 @@ IntervalDS may be be inserted and selected:
 	stmt.Execute(a)
 
 	// fetch IntervalDS
-	stmt, err = ses.Prepare("select c1 from t1")
+	stmt, err = ses.Prepare("SELECT C1 FROM T1")
 	rst, err := stmt.Fetch()
 	for rst.Next() {
 		fmt.Println(rst.Row[0])

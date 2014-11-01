@@ -80,7 +80,7 @@ is placed. The SQL placeholder is an Oracle identifier, from 1 to 30
 characters, prefixed with a colon `:`. For example:
 
 	// example Oracle placeholder uses a colon
-	insert into t1 (c1) values (:c1)
+	INSERT INTO T1 (C1) VALUES (:C1)
 
 Placeholders within a SQL statement are bound by position. The actual name is not
 used by the ora package driver e.g., placeholder names `:c1`, `:1`, or `:xyz` are
@@ -428,7 +428,7 @@ a[1] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
 a[2] = ora.String{IsNull: true}
 a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
 a[4] = ora.String{Value: "One of Go's key design goals is code"}
-stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 stmt.Execute(a)
 
 // Specify OraS to Prepare method to return ora.String values
@@ -734,7 +734,7 @@ a[1] = ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123
 a[2] = ora.IntervalDS{IsNull: true}
 a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
 a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
-stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 stmt.Execute(a)
 
 // fetch IntervalDS
