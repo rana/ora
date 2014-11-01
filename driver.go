@@ -77,7 +77,8 @@ const (
 
 const (
 	// The Oracle driver name registered with the database/sql package.
-	DriverName string = "oracle"
+	DriverName    string = "oracle"
+	DriverVersion string = "v1.0"
 )
 
 // An Oracle database driver.

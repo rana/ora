@@ -12,6 +12,7 @@ package ora
 import "C"
 import (
 	"container/list"
+	"fmt"
 	"unsafe"
 )
 
@@ -59,7 +60,7 @@ func (srv *Server) OpenSession(username string, password string) (*Session, erro
 	// Set driver name on the session handle
 	// Driver name is specified to aid diagnostics
 	// Driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO
-	gop := C.CString("GO")
+	gop := C.CString(fmt.Sprintf("GO %v", DriverVersion))
 	defer C.free(unsafe.Pointer(gop))
 	err = srv.env.setOciAttribute(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(gop), C.ub4(C.strlen(gop)), C.OCI_ATTR_DRIVER_NAME)
 	if err != nil {
