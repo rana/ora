@@ -48,19 +48,19 @@ func Test_cursor1_session(t *testing.T) {
 	callProcStmt, err := testSes.Prepare("call proc1(:1)")
 	defer callProcStmt.Close()
 	testErr(err, t)
-	resultSet := &ResultSet{}
-	_, err = callProcStmt.Execute(resultSet)
+	rst := &ResultSet{}
+	_, err = callProcStmt.Execute(rst)
 	testErr(err, t)
-	if resultSet.IsOpen() {
-		for resultSet.Next() {
-			if len(resultSet.Row) != 2 {
-				t.Fatalf("select column count: expected(%v), actual(%v)", 2, len(resultSet.Row))
+	if rst.IsOpen() {
+		for rst.Next() {
+			if len(rst.Row) != 2 {
+				t.Fatalf("select column count: expected(%v), actual(%v)", 2, len(rst.Row))
 			} else {
-				//fmt.Println("resultSet.Row ", resultSet.Row)
-				compare(expectedStrs[resultSet.Index], resultSet.Row[0], S, t)
-				compare(expectedInt64s[resultSet.Index], resultSet.Row[1], I64, t)
+				//fmt.Println("rst.Row ", rst.Row)
+				compare(expectedStrs[rst.Index], rst.Row[0], S, t)
+				compare(expectedInt64s[rst.Index], rst.Row[1], I64, t)
 			}
 		}
-		testErr(resultSet.Err, t)
+		testErr(rst.Err, t)
 	}
 }

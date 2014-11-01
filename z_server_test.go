@@ -9,7 +9,7 @@ import (
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)
@@ -30,7 +30,7 @@ func TestServer_OpenCloseSession(t *testing.T) {
 }
 
 func TestServer_Ping(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)
@@ -46,7 +46,7 @@ func TestServer_Ping(t *testing.T) {
 }
 
 func TestServer_Version(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)

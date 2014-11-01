@@ -15,55 +15,55 @@ import (
 )
 
 type int8PtrBind struct {
-	environment *Environment
-	ocibnd      *C.OCIBind
-	ociNumber   C.OCINumber
-	isNull      C.sb2
-	value       *int8
+	env       *Environment
+	ocibnd    *C.OCIBind
+	ociNumber C.OCINumber
+	isNull    C.sb2
+	value     *int8
 }
 
-func (int8PtrBind *int8PtrBind) bind(value *int8, position int, ocistmt *C.OCIStmt) error {
-	int8PtrBind.value = value
+func (b *int8PtrBind) bind(value *int8, position int, ocistmt *C.OCIStmt) error {
+	b.value = value
 	r := C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&int8PtrBind.ocibnd),     //OCIBind      **bindpp,
-		int8PtrBind.environment.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                        //ub4          position,
-		unsafe.Pointer(&int8PtrBind.ociNumber), //void         *valuep,
-		C.sb8(C.sizeof_OCINumber),              //sb8          value_sz,
-		C.SQLT_VNU,                             //ub2          dty,
-		unsafe.Pointer(&int8PtrBind.isNull),    //void         *indp,
+		ocistmt,                      //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),     //OCIBind      **bindpp,
+		b.env.ocierr,                 //OCIError     *errhp,
+		C.ub4(position),              //ub4          position,
+		unsafe.Pointer(&b.ociNumber), //void         *valuep,
+		C.sb8(C.sizeof_OCINumber),    //sb8          value_sz,
+		C.SQLT_VNU,                   //ub2          dty,
+		unsafe.Pointer(&b.isNull),    //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
 		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return int8PtrBind.environment.ociError()
+		return b.env.ociError()
 	}
 	return nil
 }
 
-func (int8PtrBind *int8PtrBind) setPtr() error {
-	if int8PtrBind.isNull > -1 {
+func (b *int8PtrBind) setPtr() error {
+	if b.isNull > -1 {
 		r := C.OCINumberToInt(
-			int8PtrBind.environment.ocierr,    //OCIError              *err,
-			&int8PtrBind.ociNumber,            //const OCINumber       *number,
-			C.uword(1),                        //uword                 rsl_length,
-			C.OCI_NUMBER_SIGNED,               //uword                 rsl_flag,
-			unsafe.Pointer(int8PtrBind.value)) //void                  *rsl );
+			b.env.ocierr,            //OCIError              *err,
+			&b.ociNumber,            //const OCINumber       *number,
+			C.uword(1),              //uword                 rsl_length,
+			C.OCI_NUMBER_SIGNED,     //uword                 rsl_flag,
+			unsafe.Pointer(b.value)) //void                  *rsl );
 		if r == C.OCI_ERROR {
-			return int8PtrBind.environment.ociError()
+			return b.env.ociError()
 		}
 	}
 	return nil
 }
 
-func (int8PtrBind *int8PtrBind) close() {
+func (b *int8PtrBind) close() {
 	defer func() {
 		recover()
 	}()
-	int8PtrBind.ocibnd = nil
-	int8PtrBind.value = nil
-	int8PtrBind.environment.int8PtrBindPool.Put(int8PtrBind)
+	b.ocibnd = nil
+	b.value = nil
+	b.env.int8PtrBindPool.Put(b)
 }

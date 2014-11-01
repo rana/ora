@@ -16,7 +16,7 @@ import (
 )
 
 type timePtrBind struct {
-	environment *Environment
+	env         *Environment
 	ocibnd      *C.OCIBind
 	ociDateTime *C.OCIDateTime
 	valuePtr    *time.Time
@@ -24,62 +24,62 @@ type timePtrBind struct {
 	isNull      C.sb2
 }
 
-func (timePtrBind *timePtrBind) bind(value *time.Time, position int, ocistmt *C.OCIStmt) error {
-	timePtrBind.valuePtr = value
+func (b *timePtrBind) bind(value *time.Time, position int, ocistmt *C.OCIStmt) error {
+	b.valuePtr = value
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(timePtrBind.environment.ocienv),              //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&timePtrBind.ociDateTime)), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                                    //ub4           type,
+		unsafe.Pointer(b.env.ocienv),                      //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(&b.ociDateTime)), //dvoid         **descpp,
+		C.OCI_DTYPE_TIMESTAMP_TZ,                          //ub4           type,
 		0,   //size_t        xtramem_sz,
 		nil) //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
-		return timePtrBind.environment.ociError()
+		return b.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
 		return errNew("unable to allocate oci timestamp handle during bind")
 	}
 	r = C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&timePtrBind.ocibnd),            //OCIBind      **bindpp,
-		timePtrBind.environment.ocierr,                //OCIError     *errhp,
-		C.ub4(position),                               //ub4          position,
-		unsafe.Pointer(&timePtrBind.ociDateTime),      //void         *valuep,
-		C.sb8(unsafe.Sizeof(timePtrBind.ociDateTime)), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                           //ub2          dty,
-		unsafe.Pointer(&timePtrBind.isNull),           //void         *indp,
+		ocistmt,                             //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),            //OCIBind      **bindpp,
+		b.env.ocierr,                        //OCIError     *errhp,
+		C.ub4(position),                     //ub4          position,
+		unsafe.Pointer(&b.ociDateTime),      //void         *valuep,
+		C.sb8(unsafe.Sizeof(b.ociDateTime)), //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                 //ub2          dty,
+		unsafe.Pointer(&b.isNull),           //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
 		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return timePtrBind.environment.ociError()
+		return b.env.ociError()
 	}
 	return nil
 }
 
-func (timePtrBind *timePtrBind) setPtr() (err error) {
-	if timePtrBind.valuePtr != nil && timePtrBind.isNull > -1 {
-		*timePtrBind.valuePtr, err = getTime(timePtrBind.environment, timePtrBind.ociDateTime)
+func (b *timePtrBind) setPtr() (err error) {
+	if b.valuePtr != nil && b.isNull > -1 {
+		*b.valuePtr, err = getTime(b.env, b.ociDateTime)
 	}
 	return err
 }
 
-func (timePtrBind *timePtrBind) close() {
+func (b *timePtrBind) close() {
 	defer func() {
 		recover()
 	}()
 	// cleanup bindTime
-	if timePtrBind.cZone != nil {
-		C.free(unsafe.Pointer(timePtrBind.cZone))
-		timePtrBind.cZone = nil
+	if b.cZone != nil {
+		C.free(unsafe.Pointer(b.cZone))
+		b.cZone = nil
 		C.OCIDescriptorFree(
-			unsafe.Pointer(timePtrBind.ociDateTime), //void     *descp,
-			C.OCI_DTYPE_TIMESTAMP_TZ)                //ub4      type );
+			unsafe.Pointer(b.ociDateTime), //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ)      //ub4      type );
 
 	}
-	timePtrBind.ocibnd = nil
-	timePtrBind.ociDateTime = nil
-	timePtrBind.valuePtr = nil
-	timePtrBind.isNull = C.sb2(0)
-	timePtrBind.environment.timePtrBindPool.Put(timePtrBind)
+	b.ocibnd = nil
+	b.ociDateTime = nil
+	b.valuePtr = nil
+	b.isNull = C.sb2(0)
+	b.env.timePtrBindPool.Put(b)
 }

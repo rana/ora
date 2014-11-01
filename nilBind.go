@@ -15,20 +15,20 @@ import (
 )
 
 type nilBind struct {
-	environment *Environment
-	ocibnd      *C.OCIBind
+	env    *Environment
+	ocibnd *C.OCIBind
 }
 
-func (nilBind *nilBind) bind(position int, sqlt C.ub2, ocistmt *C.OCIStmt) error {
+func (b *nilBind) bind(position int, sqlt C.ub2, ocistmt *C.OCIStmt) error {
 	indp := C.sb2(-1)
 	r := C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&nilBind.ocibnd), //OCIBind      **bindpp,
-		nilBind.environment.ocierr,     //OCIError     *errhp,
-		C.ub4(position),                //ub4          position,
-		nil,                            //void         *valuep,
-		C.sb8(0),                       //sb8          value_sz,
-		sqlt,                           //C.SQLT_CHR,                                          //ub2          dty,
+		ocistmt,                  //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd), //OCIBind      **bindpp,
+		b.env.ocierr,             //OCIError     *errhp,
+		C.ub4(position),          //ub4          position,
+		nil,                      //void         *valuep,
+		C.sb8(0),                 //sb8          value_sz,
+		sqlt,                     //C.SQLT_CHR,                                          //ub2          dty,
 		unsafe.Pointer(&indp), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
@@ -36,20 +36,20 @@ func (nilBind *nilBind) bind(position int, sqlt C.ub2, ocistmt *C.OCIStmt) error
 		nil,           //ub4          *curelep,
 		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return nilBind.environment.ociError()
+		return b.env.ociError()
 	}
 
 	return nil
 }
 
-func (nilBind *nilBind) setPtr() error {
+func (b *nilBind) setPtr() error {
 	return nil
 }
 
-func (nilBind *nilBind) close() {
+func (b *nilBind) close() {
 	defer func() {
 		recover()
 	}()
-	nilBind.ocibnd = nil
-	nilBind.environment.nilBindPool.Put(nilBind)
+	b.ocibnd = nil
+	b.env.nilBindPool.Put(b)
 }

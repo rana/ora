@@ -16,54 +16,54 @@ import (
 )
 
 type boolDefine struct {
-	environment *Environment
-	resultSet   *ResultSet
-	ocidef      *C.OCIDefine
-	isNull      C.sb2
-	buffer      []byte
+	env    *Environment
+	rst    *ResultSet
+	ocidef *C.OCIDefine
+	isNull C.sb2
+	buf    []byte
 }
 
-func (boolDefine *boolDefine) define(columnSize int, position int, resultSet *ResultSet, ocistmt *C.OCIStmt) error {
-	boolDefine.resultSet = resultSet
-	if cap(boolDefine.buffer) < columnSize {
-		boolDefine.buffer = make([]byte, columnSize)
+func (d *boolDefine) define(columnSize int, position int, rst *ResultSet, ocistmt *C.OCIStmt) error {
+	d.rst = rst
+	if cap(d.buf) < columnSize {
+		d.buf = make([]byte, columnSize)
 	}
 	// Create oci define handle
 	r := C.OCIDefineByPos2(
-		ocistmt,                               //OCIStmt     *stmtp,
-		&boolDefine.ocidef,                    //OCIDefine   **defnpp,
-		boolDefine.environment.ocierr,         //OCIError    *errhp,
-		C.ub4(position),                       //ub4         position,
-		unsafe.Pointer(&boolDefine.buffer[0]), //void        *valuep,
-		C.sb8(columnSize),                     //sb8         value_sz,
-		C.SQLT_CHR,                            //ub2         dty,
-		unsafe.Pointer(&boolDefine.isNull),    //void        *indp,
+		ocistmt,                   //OCIStmt     *stmtp,
+		&d.ocidef,                 //OCIDefine   **defnpp,
+		d.env.ocierr,              //OCIError    *errhp,
+		C.ub4(position),           //ub4         position,
+		unsafe.Pointer(&d.buf[0]), //void        *valuep,
+		C.sb8(columnSize),         //sb8         value_sz,
+		C.SQLT_CHR,                //ub2         dty,
+		unsafe.Pointer(&d.isNull), //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
 	if r == C.OCI_ERROR {
-		return boolDefine.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (boolDefine *boolDefine) value() (value interface{}, err error) {
-	if boolDefine.isNull > -1 {
-		value = bytes.Runes(boolDefine.buffer)[0] == boolDefine.resultSet.statement.Config.ResultSet.TrueRune
+func (d *boolDefine) value() (value interface{}, err error) {
+	if d.isNull > -1 {
+		value = bytes.Runes(d.buf)[0] == d.rst.stmt.Config.ResultSet.TrueRune
 	}
 	return value, err
 }
-func (boolDefine *boolDefine) alloc() error {
+func (d *boolDefine) alloc() error {
 	return nil
 }
-func (boolDefine *boolDefine) free() {
+func (d *boolDefine) free() {
 
 }
-func (boolDefine *boolDefine) close() {
+func (d *boolDefine) close() {
 	defer func() {
 		recover()
 	}()
-	boolDefine.ocidef = nil
-	boolDefine.isNull = C.sb2(0)
-	clear(boolDefine.buffer, 0)
-	boolDefine.environment.boolDefinePool.Put(boolDefine)
+	d.ocidef = nil
+	d.isNull = C.sb2(0)
+	clear(d.buf, 0)
+	d.env.boolDefinePool.Put(d)
 }

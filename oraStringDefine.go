@@ -15,54 +15,54 @@ import (
 )
 
 type oraStringDefine struct {
-	environment *Environment
-	ocidef      *C.OCIDefine
-	isNull      C.sb2
-	buffer      []byte
+	env    *Environment
+	ocidef *C.OCIDefine
+	isNull C.sb2
+	buffer []byte
 }
 
-func (oraStringDefine *oraStringDefine) define(columnSize int, position int, ocistmt *C.OCIStmt) error {
-	if cap(oraStringDefine.buffer) < columnSize {
-		oraStringDefine.buffer = make([]byte, columnSize)
+func (d *oraStringDefine) define(columnSize int, position int, ocistmt *C.OCIStmt) error {
+	if cap(d.buffer) < columnSize {
+		d.buffer = make([]byte, columnSize)
 	}
 	r := C.OCIDefineByPos2(
-		ocistmt,                                    //OCIStmt     *stmtp,
-		&oraStringDefine.ocidef,                    //OCIDefine   **defnpp,
-		oraStringDefine.environment.ocierr,         //OCIError    *errhp,
-		C.ub4(position),                            //ub4         position,
-		unsafe.Pointer(&oraStringDefine.buffer[0]), //void        *valuep,
-		C.sb8(columnSize),                          //sb8         value_sz,
-		C.SQLT_CHR,                                 //ub2         dty,
-		unsafe.Pointer(&oraStringDefine.isNull),    //void        *indp,
+		ocistmt,                      //OCIStmt     *stmtp,
+		&d.ocidef,                    //OCIDefine   **defnpp,
+		d.env.ocierr,                 //OCIError    *errhp,
+		C.ub4(position),              //ub4         position,
+		unsafe.Pointer(&d.buffer[0]), //void        *valuep,
+		C.sb8(columnSize),            //sb8         value_sz,
+		C.SQLT_CHR,                   //ub2         dty,
+		unsafe.Pointer(&d.isNull),    //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
 	if r == C.OCI_ERROR {
-		return oraStringDefine.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (oraStringDefine *oraStringDefine) value() (value interface{}, err error) {
-	stringValue := String{IsNull: oraStringDefine.isNull < 0}
+func (d *oraStringDefine) value() (value interface{}, err error) {
+	stringValue := String{IsNull: d.isNull < 0}
 	if !stringValue.IsNull {
 		// Buffer is padded with Space char (32)
-		stringValue.Value = stringTrimmed(oraStringDefine.buffer, 32)
+		stringValue.Value = stringTrimmed(d.buffer, 32)
 	}
 	value = stringValue
 	return value, err
 }
-func (oraStringDefine *oraStringDefine) alloc() error {
+func (d *oraStringDefine) alloc() error {
 	return nil
 }
-func (oraStringDefine *oraStringDefine) free() {
+func (d *oraStringDefine) free() {
 
 }
-func (oraStringDefine *oraStringDefine) close() {
+func (d *oraStringDefine) close() {
 	defer func() {
 		recover()
 	}()
-	oraStringDefine.ocidef = nil
-	oraStringDefine.isNull = C.sb2(0)
-	clear(oraStringDefine.buffer, 32)
-	oraStringDefine.environment.oraStringDefinePool.Put(oraStringDefine)
+	d.ocidef = nil
+	d.isNull = C.sb2(0)
+	clear(d.buffer, 32)
+	d.env.oraStringDefinePool.Put(d)
 }

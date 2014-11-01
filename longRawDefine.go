@@ -15,7 +15,7 @@ import (
 )
 
 type longRawDefine struct {
-	environment  *Environment
+	env          *Environment
 	ocidef       *C.OCIDefine
 	isNull       C.sb2
 	buffer       []byte
@@ -23,47 +23,47 @@ type longRawDefine struct {
 	returnType   GoColumnType
 }
 
-func (longRawDefine *longRawDefine) define(columnSize int, position int, returnType GoColumnType, longRawBufferSize uint32, ocistmt *C.OCIStmt) error {
-	longRawDefine.returnType = returnType
-	longRawDefine.buffer = make([]byte, int(longRawBufferSize))
+func (d *longRawDefine) define(columnSize int, position int, returnType GoColumnType, longRawBufferSize uint32, ocistmt *C.OCIStmt) error {
+	d.returnType = returnType
+	d.buffer = make([]byte, int(longRawBufferSize))
 	// Create oci define handle
 	r := C.OCIDefineByPos2(
-		ocistmt,                                  //OCIStmt     *stmtp,
-		&longRawDefine.ocidef,                    //OCIDefine   **defnpp,
-		longRawDefine.environment.ocierr,         //OCIError    *errhp,
-		C.ub4(position),                          //ub4         position,
-		unsafe.Pointer(&longRawDefine.buffer[0]), //void        *valuep,
-		C.sb8(len(longRawDefine.buffer)),         //sb8         value_sz,
-		C.SQLT_LBI,                               //ub2         dty,
-		unsafe.Pointer(&longRawDefine.isNull),    //void        *indp,
-		&longRawDefine.returnLength,              //ub4         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
+		ocistmt,                      //OCIStmt     *stmtp,
+		&d.ocidef,                    //OCIDefine   **defnpp,
+		d.env.ocierr,                 //OCIError    *errhp,
+		C.ub4(position),              //ub4         position,
+		unsafe.Pointer(&d.buffer[0]), //void        *valuep,
+		C.sb8(len(d.buffer)),         //sb8         value_sz,
+		C.SQLT_LBI,                   //ub2         dty,
+		unsafe.Pointer(&d.isNull),    //void        *indp,
+		&d.returnLength,              //ub4         *rlenp,
+		nil,                          //ub2         *rcodep,
+		C.OCI_DEFAULT)                //ub4         mode );
 	if r == C.OCI_ERROR {
-		return longRawDefine.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (longRawDefine *longRawDefine) value() (value interface{}, err error) {
-	if longRawDefine.returnType == Bits {
-		if longRawDefine.isNull > -1 {
+func (d *longRawDefine) value() (value interface{}, err error) {
+	if d.returnType == Bits {
+		if d.isNull > -1 {
 			// Make a slice of length equal to the return length
-			result := make([]byte, longRawDefine.returnLength)
+			result := make([]byte, d.returnLength)
 			// Copy returned data
-			copyLength := copy(result, longRawDefine.buffer)
-			if C.ub4(copyLength) != longRawDefine.returnLength {
+			copyLength := copy(result, d.buffer)
+			if C.ub4(copyLength) != d.returnLength {
 				return nil, errNew("unable to copy LONG RAW result data from buffer")
 			}
 			value = result
 		}
 	} else {
-		bytesValue := Bytes{IsNull: longRawDefine.isNull < 0}
+		bytesValue := Bytes{IsNull: d.isNull < 0}
 		if !bytesValue.IsNull {
 			// Make a slice of length equal to the return length
-			bytesValue.Value = make([]byte, longRawDefine.returnLength)
+			bytesValue.Value = make([]byte, d.returnLength)
 			// Copy returned data
-			copyLength := copy(bytesValue.Value, longRawDefine.buffer)
-			if C.ub4(copyLength) != longRawDefine.returnLength {
+			copyLength := copy(bytesValue.Value, d.buffer)
+			if C.ub4(copyLength) != d.returnLength {
 				return nil, errNew("unable to copy LONG RAW result data from buffer")
 			}
 		}
@@ -72,19 +72,19 @@ func (longRawDefine *longRawDefine) value() (value interface{}, err error) {
 
 	return value, err
 }
-func (longRawDefine *longRawDefine) alloc() error {
+func (d *longRawDefine) alloc() error {
 	return nil
 }
-func (longRawDefine *longRawDefine) free() {
+func (d *longRawDefine) free() {
 
 }
-func (longRawDefine *longRawDefine) close() {
+func (d *longRawDefine) close() {
 	defer func() {
 		recover()
 	}()
-	longRawDefine.ocidef = nil
-	longRawDefine.returnLength = 0
-	longRawDefine.buffer = nil
-	longRawDefine.isNull = C.sb2(0)
-	longRawDefine.environment.longRawDefinePool.Put(longRawDefine)
+	d.ocidef = nil
+	d.returnLength = 0
+	d.buffer = nil
+	d.isNull = C.sb2(0)
+	d.env.longRawDefinePool.Put(d)
 }

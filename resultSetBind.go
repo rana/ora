@@ -15,66 +15,68 @@ import (
 )
 
 type resultSetBind struct {
-	environment *Environment
-	statement   *Statement
-	ocibnd      *C.OCIBind
-	isNull      C.sb2
-	value       *ResultSet
-	ocistmt     *C.OCIStmt
+	env     *Environment
+	stmt    *Statement
+	ocistmt *C.OCIStmt
+	ocibnd  *C.OCIBind
+	isNull  C.sb2
+	value   *ResultSet
 }
 
-func (resultSetBind *resultSetBind) bind(value *ResultSet, position int, statement *Statement) error {
-	resultSetBind.statement = statement
-	resultSetBind.value = value
+func (b *resultSetBind) bind(value *ResultSet, position int, stmt *Statement) error {
+	b.stmt = stmt
+	b.value = value
 	// Allocate a statement handle
-	ocistmt, err := resultSetBind.environment.allocateOciHandle(C.OCI_HTYPE_STMT)
-	resultSetBind.ocistmt = (*C.OCIStmt)(ocistmt)
+	ocistmt, err := b.env.allocateOciHandle(C.OCI_HTYPE_STMT)
+	b.ocistmt = (*C.OCIStmt)(ocistmt)
 	if err != nil {
 		return err
 	}
 	r := C.OCIBindByPos2(
-		statement.ocistmt,                      //OCIStmt      *stmtp,
-		(**C.OCIBind)(&resultSetBind.ocibnd),   //OCIBind      **bindpp,
-		resultSetBind.environment.ocierr,       //OCIError     *errhp,
-		C.ub4(position),                        //ub4          position,
-		unsafe.Pointer(&resultSetBind.ocistmt), //void         *valuep,
-		C.sb8(0),                              //sb8          value_sz,
-		C.SQLT_RSET,                           //ub2          dty,
-		unsafe.Pointer(&resultSetBind.isNull), //void         *indp,
+		stmt.ocistmt,               //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),   //OCIBind      **bindpp,
+		b.env.ocierr,               //OCIError     *errhp,
+		C.ub4(position),            //ub4          position,
+		unsafe.Pointer(&b.ocistmt), //void         *valuep,
+		C.sb8(0),                   //sb8          value_sz,
+		C.SQLT_RSET,                //ub2          dty,
+		unsafe.Pointer(&b.isNull),  //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
 		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return resultSetBind.environment.ociError()
+		return b.env.ociError()
 	}
 
 	return nil
 }
 
-func (resultSetBind *resultSetBind) setPtr() error {
-	err := resultSetBind.value.open(resultSetBind.statement, resultSetBind.ocistmt)
-	resultSetBind.statement.resultSets.PushBack(resultSetBind.value)
+func (b *resultSetBind) setPtr() error {
+	err := b.value.open(b.stmt, b.ocistmt)
+	b.stmt.rsts.PushBack(b.value)
 	if err == nil {
 		// open result set is successful; will be freed by ResultSet
-		resultSetBind.ocistmt = nil
+		b.ocistmt = nil
 	}
 
 	return err
 }
 
-func (resultSetBind *resultSetBind) close() {
+func (b *resultSetBind) close() {
 	defer func() {
 		recover()
 	}()
 	// release ocistmt handle for failed ResultSet binding
 	// ResultSet will release handle for successful bind
-	if resultSetBind.ocistmt != nil {
-		resultSetBind.environment.freeOciHandle(unsafe.Pointer(resultSetBind.ocistmt), C.OCI_HTYPE_STMT)
+	if b.ocistmt != nil {
+		b.env.freeOciHandle(unsafe.Pointer(b.ocistmt), C.OCI_HTYPE_STMT)
 	}
-	resultSetBind.statement = nil
-	resultSetBind.ocibnd = nil
-	resultSetBind.isNull = C.sb2(0)
-	resultSetBind.environment.resultSetBindPool.Put(resultSetBind)
+	b.stmt = nil
+	b.ocistmt=nil
+	b.ocistmt = nil
+	b.isNull = C.sb2(0)
+	b.value = nil
+	b.env.resultSetBindPool.Put(b)
 }

@@ -15,43 +15,43 @@ import (
 )
 
 type stringBind struct {
-	environment *Environment
-	ocibnd      *C.OCIBind
-	cstringp    *C.char
+	env      *Environment
+	ocibnd   *C.OCIBind
+	cstringp *C.char
 }
 
-func (stringBind *stringBind) bind(value string, position int, ocistmt *C.OCIStmt) error {
-	stringBind.cstringp = C.CString(value)
+func (b *stringBind) bind(value string, position int, ocistmt *C.OCIStmt) error {
+	b.cstringp = C.CString(value)
 	r := C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&stringBind.ocibnd),    //OCIBind      **bindpp,
-		stringBind.environment.ocierr,        //OCIError     *errhp,
-		C.ub4(position),                      //ub4          position,
-		unsafe.Pointer(stringBind.cstringp),  //void         *valuep,
-		C.sb8(C.strlen(stringBind.cstringp)), //sb8          value_sz,
-		C.SQLT_CHR,                           //ub2          dty,
-		nil,                                  //void         *indp,
-		nil,                                  //ub2          *alenp,
-		nil,                                  //ub2          *rcodep,
-		0,                                    //ub4          maxarr_len,
-		nil,                                  //ub4          *curelep,
-		C.OCI_DEFAULT)                        //ub4          mode );
+		ocistmt,                     //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),    //OCIBind      **bindpp,
+		b.env.ocierr,                //OCIError     *errhp,
+		C.ub4(position),             //ub4          position,
+		unsafe.Pointer(b.cstringp),  //void         *valuep,
+		C.sb8(C.strlen(b.cstringp)), //sb8          value_sz,
+		C.SQLT_CHR,                  //ub2          dty,
+		nil,                         //void         *indp,
+		nil,                         //ub2          *alenp,
+		nil,                         //ub2          *rcodep,
+		0,                           //ub4          maxarr_len,
+		nil,                         //ub4          *curelep,
+		C.OCI_DEFAULT)               //ub4          mode );
 	if r == C.OCI_ERROR {
-		return stringBind.environment.ociError()
+		return b.env.ociError()
 	}
 	return nil
 }
 
-func (stringBind *stringBind) setPtr() error {
+func (b *stringBind) setPtr() error {
 	return nil
 }
 
-func (stringBind *stringBind) close() {
+func (b *stringBind) close() {
 	defer func() {
 		recover()
 	}()
 	// free c-string memory
-	C.free(unsafe.Pointer(stringBind.cstringp))
-	stringBind.ocibnd = nil
-	stringBind.environment.stringBindPool.Put(stringBind)
+	C.free(unsafe.Pointer(b.cstringp))
+	b.ocibnd = nil
+	b.env.stringBindPool.Put(b)
 }

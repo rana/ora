@@ -12,7 +12,7 @@ import (
 func main() {
 	// example usage of the oracle package driver
 	// connect to a server and open a session
-	env := ora.NewEnvironment()
+	env := ora.NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, err := env.OpenServer("orcl")
@@ -80,15 +80,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	resultSet, err := stmtFetch.Fetch()
+	rst, err := stmtFetch.Fetch()
 	if err != nil {
 		panic(err)
 	}
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0], resultSet.Row[1])
+	for rst.Next() {
+		fmt.Println(rst.Row[0], rst.Row[1])
 	}
-	if resultSet.Err != nil {
-		panic(resultSet.Err)
+	if rst.Err != nil {
+		panic(rst.Err)
 	}
 
 	// commit first transaction
@@ -126,23 +126,23 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	resultSet, err = stmtCount.Fetch()
+	rst, err = stmtCount.Fetch()
 	if err != nil {
 		panic(err)
 	}
-	row := resultSet.NextRow()
+	row := rst.NextRow()
 	if row != nil {
 		fmt.Println(row[0])
 	}
-	if resultSet.Err != nil {
-		panic(resultSet.Err)
+	if rst.Err != nil {
+		panic(rst.Err)
 	}
 
 	// create stored procedure with sys_refcursor
 	stmtProcCreate, err := ses.Prepare(
 		"create or replace procedure proc1(p1 out sys_refcursor) as begin " +
-		"open p1 for select c1, c2 from t1 where c1 > 2 order by c1; " +
-		"end proc1;")
+			"open p1 for select c1, c2 from t1 where c1 > 2 order by c1; " +
+			"end proc1;")
 	defer stmtProcCreate.Close()
 	rowsAffected, err = stmtProcCreate.Execute()
 	if err != nil {

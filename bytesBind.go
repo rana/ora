@@ -15,14 +15,14 @@ import (
 )
 
 type bytesBind struct {
-	environment   *Environment
+	env           *Environment
 	ocibnd        *C.OCIBind
 	ocisvcctx     *C.OCISvcCtx
 	ociLobLocator *C.OCILobLocator
-	buffer        []byte
+	buf           []byte
 }
 
-func (bytesBind *bytesBind) bind(value []byte, position int, lobBufferSize int, ocisvcctx *C.OCISvcCtx, ocistmt *C.OCIStmt) error {
+func (b *bytesBind) bind(value []byte, position int, lobBufferSize int, ocisvcctx *C.OCISvcCtx, ocistmt *C.OCIStmt) error {
 	//fmt.Printf("bytesBind.bind \n")
 	// OCILobWrite2 doesn't support writing zero bytes
 	// nor is writing 1 byte and erasing the one byte supported
@@ -30,35 +30,35 @@ func (bytesBind *bytesBind) bind(value []byte, position int, lobBufferSize int, 
 	if len(value) == 0 {
 		return errNew("writing a zero-length BLOB is unsupported")
 	}
-	bytesBind.ocisvcctx = ocisvcctx
-	if len(bytesBind.buffer) < lobBufferSize {
-		bytesBind.buffer = make([]byte, lobBufferSize)
+	b.ocisvcctx = ocisvcctx
+	if len(b.buf) < lobBufferSize {
+		b.buf = make([]byte, lobBufferSize)
 	}
 
 	// Allocate lob locator handle
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(bytesBind.environment.ocienv),                //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&bytesBind.ociLobLocator)), //dvoid         **descpp,
-		C.OCI_DTYPE_LOB,                                             //ub4           type,
-		0,                                                           //size_t        xtramem_sz,
-		nil)                                                         //dvoid         **usrmempp);
+		unsafe.Pointer(b.env.ocienv),                        //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(&b.ociLobLocator)), //dvoid         **descpp,
+		C.OCI_DTYPE_LOB,                                     //ub4           type,
+		0,                                                   //size_t        xtramem_sz,
+		nil)                                                 //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
-		return bytesBind.environment.ociError()
+		return b.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
 		return errNew("unable to allocate oci lob handle during bind")
 	}
 	// Create temporary lob
 	r = C.OCILobCreateTemporary(
-		ocisvcctx,                    //OCISvcCtx          *svchp,
-		bytesBind.environment.ocierr, //OCIError           *errhp,
-		bytesBind.ociLobLocator,      //OCILobLocator      *locp,
-		C.OCI_DEFAULT,                //ub2                csid,
-		C.SQLCS_IMPLICIT,             //ub1                csfrm,
-		C.OCI_TEMP_BLOB,              //ub1                lobtype,
-		C.FALSE,                      //boolean            cache,
-		C.OCI_DURATION_SESSION)       //OCIDuration        duration);
+		ocisvcctx,              //OCISvcCtx          *svchp,
+		b.env.ocierr,           //OCIError           *errhp,
+		b.ociLobLocator,        //OCILobLocator      *locp,
+		C.OCI_DEFAULT,          //ub2                csid,
+		C.SQLCS_IMPLICIT,       //ub1                csfrm,
+		C.OCI_TEMP_BLOB,        //ub1                lobtype,
+		C.FALSE,                //boolean            cache,
+		C.OCI_DURATION_SESSION) //OCIDuration        duration);
 	if r == C.OCI_ERROR {
-		return bytesBind.environment.ociError()
+		return b.env.ociError()
 	}
 	// write bytes to lob locator
 	var currentBytesToWrite int
@@ -69,27 +69,27 @@ func (bytesBind *bytesBind) bind(value []byte, position int, lobBufferSize int, 
 	var writing bool = true
 	for writing {
 		// Copy bytes from slice to buffer
-		if remainingBytesToWrite < len(bytesBind.buffer) {
+		if remainingBytesToWrite < len(b.buf) {
 			currentBytesToWrite = remainingBytesToWrite
 		} else {
-			currentBytesToWrite = len(bytesBind.buffer)
+			currentBytesToWrite = len(b.buf)
 		}
 		for n := 0; n < currentBytesToWrite; n++ {
-			bytesBind.buffer[n] = value[readIndex]
+			b.buf[n] = value[readIndex]
 			readIndex++
 		}
 		remainingBytesToWrite = len(value) - readIndex
 
 		// Write to Oracle
 		r = C.OCILobWrite2(
-			ocisvcctx,                            //OCISvcCtx          *svchp,
-			bytesBind.environment.ocierr,         //OCIError           *errhp,
-			bytesBind.ociLobLocator,              //OCILobLocator      *locp,
-			&byte_amtp,                           //oraub8          *byte_amtp,
-			nil,                                  //oraub8          *char_amtp,
-			C.oraub8(1),                          //oraub8          offset, starting position is 1
-			unsafe.Pointer(&bytesBind.buffer[0]), //void            *bufp,
-			C.oraub8(currentBytesToWrite),        //oraub8          buflen,
+			ocisvcctx,                     //OCISvcCtx          *svchp,
+			b.env.ocierr,                  //OCIError           *errhp,
+			b.ociLobLocator,               //OCILobLocator      *locp,
+			&byte_amtp,                    //oraub8          *byte_amtp,
+			nil,                           //oraub8          *char_amtp,
+			C.oraub8(1),                   //oraub8          offset, starting position is 1
+			unsafe.Pointer(&b.buf[0]),     //void            *bufp,
+			C.oraub8(currentBytesToWrite), //oraub8          buflen,
 			piece,            //ub1             piece,
 			nil,              //void            *ctxp,
 			nil,              //OCICallbackLobWrite2 (cbfp)
@@ -98,11 +98,11 @@ func (bytesBind *bytesBind) bind(value []byte, position int, lobBufferSize int, 
 		//fmt.Printf("r %v, currentBytesToWrite %v, buffer %v\n", r, currentBytesToWrite, buffer)
 		//fmt.Printf("C.OCI_NEED_DATA %v, C.OCI_SUCCESS %v\n", C.OCI_NEED_DATA, C.OCI_SUCCESS)
 		if r == C.OCI_ERROR {
-			return bytesBind.environment.ociError()
+			return b.env.ociError()
 		} else {
 			// Determine action for next cycle
 			if r == C.OCI_NEED_DATA {
-				if remainingBytesToWrite > len(bytesBind.buffer) {
+				if remainingBytesToWrite > len(b.buf) {
 					piece = C.OCI_NEXT_PIECE
 				} else {
 					piece = C.OCI_LAST_PIECE
@@ -114,59 +114,59 @@ func (bytesBind *bytesBind) bind(value []byte, position int, lobBufferSize int, 
 	}
 
 	r = C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bytesBind.ocibnd),              //OCIBind      **bindpp,
-		bytesBind.environment.ocierr,                  //OCIError     *errhp,
-		C.ub4(position),                               //ub4          position,
-		unsafe.Pointer(&bytesBind.ociLobLocator),      //void         *valuep,
-		C.sb8(unsafe.Sizeof(bytesBind.ociLobLocator)), //sb8          value_sz,
-		C.SQLT_BLOB,   //ub2          dty,
-		nil,           //void         *indp,
-		nil,           //ub2          *alenp,
-		nil,           //ub2          *rcodep,
-		0,             //ub4          maxarr_len,
-		nil,           //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
+		ocistmt,                               //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),              //OCIBind      **bindpp,
+		b.env.ocierr,                          //OCIError     *errhp,
+		C.ub4(position),                       //ub4          position,
+		unsafe.Pointer(&b.ociLobLocator),      //void         *valuep,
+		C.sb8(unsafe.Sizeof(b.ociLobLocator)), //sb8          value_sz,
+		C.SQLT_BLOB,                           //ub2          dty,
+		nil,                                   //void         *indp,
+		nil,                                   //ub2          *alenp,
+		nil,                                   //ub2          *rcodep,
+		0,                                     //ub4          maxarr_len,
+		nil,                                   //ub4          *curelep,
+		C.OCI_DEFAULT)                         //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bytesBind.environment.ociError()
+		return b.env.ociError()
 	}
 
 	return nil
 }
 
-func (bytesBind *bytesBind) setPtr() error {
+func (b *bytesBind) setPtr() error {
 	return nil
 }
 
-func (bytesBind *bytesBind) close() {
+func (b *bytesBind) close() {
 	defer func() {
 		recover()
 	}()
-	bytesBind.freeLob()
-	bytesBind.freeDescriptor()
-	bytesBind.ocibnd = nil
-	bytesBind.ocisvcctx = nil
-	bytesBind.ociLobLocator = nil
-	bytesBind.environment.bytesBindPool.Put(bytesBind)
+	b.freeLob()
+	b.freeDescriptor()
+	b.ocibnd = nil
+	b.ocisvcctx = nil
+	b.ociLobLocator = nil
+	b.env.bytesBindPool.Put(b)
 }
 
-func (bytesBind *bytesBind) freeLob() {
+func (b *bytesBind) freeLob() {
 	defer func() {
 		recover()
 	}()
 	// free temporary lob
 	C.OCILobFreeTemporary(
-		bytesBind.ocisvcctx,          //OCISvcCtx          *svchp,
-		bytesBind.environment.ocierr, //OCIError           *errhp,
-		bytesBind.ociLobLocator)      //OCILobLocator      *locp,
+		b.ocisvcctx,     //OCISvcCtx          *svchp,
+		b.env.ocierr,    //OCIError           *errhp,
+		b.ociLobLocator) //OCILobLocator      *locp,
 }
 
-func (bytesBind *bytesBind) freeDescriptor() {
+func (b *bytesBind) freeDescriptor() {
 	defer func() {
 		recover()
 	}()
 	// free lob locator handle
 	C.OCIDescriptorFree(
-		unsafe.Pointer(bytesBind.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_LOB)                         //ub4      type );
+		unsafe.Pointer(b.ociLobLocator), //void     *descp,
+		C.OCI_DTYPE_LOB)                 //ub4      type );
 }

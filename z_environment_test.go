@@ -9,7 +9,7 @@ import (
 )
 
 func TestEnvironment_OpenClose(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	testErr(err, t)
 	err = env.Close()
@@ -17,7 +17,7 @@ func TestEnvironment_OpenClose(t *testing.T) {
 }
 
 func TestEnvironment_IsOpen_unopened(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	var expected bool = false
 	var actual bool = env.IsOpen()
 	if actual != expected {
@@ -26,7 +26,7 @@ func TestEnvironment_IsOpen_unopened(t *testing.T) {
 }
 
 func TestEnvironment_IsOpen_opened(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)
@@ -39,7 +39,7 @@ func TestEnvironment_IsOpen_opened(t *testing.T) {
 }
 
 func TestEnvironment_IsOpen_opened_closed(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	testErr(err, t)
 	err = env.Close()
@@ -53,7 +53,7 @@ func TestEnvironment_IsOpen_opened_closed(t *testing.T) {
 }
 
 func TestEnvironment_OpenCloseServer(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)
@@ -66,7 +66,7 @@ func TestEnvironment_OpenCloseServer(t *testing.T) {
 }
 
 func TestEnvironment_OpenCloseConnection(t *testing.T) {
-	env := NewEnvironment()
+	env := NewEnv()
 	err := env.Open()
 	defer env.Close()
 	testErr(err, t)

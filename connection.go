@@ -12,60 +12,60 @@ import (
 //
 // Implements the driver.Conn interface.
 type Connection struct {
-	environment *Environment
-	server      *Server
-	session     *Session
+	env *Environment
+	srv *Server
+	ses *Session
 }
 
 // Ping makes a round-trip call to an Oracle server to confirm that the connection is active.
-func (connection *Connection) Ping() error {
+func (con *Connection) Ping() error {
 	// Validate that the connection is open
-	err := connection.checkIsOpen()
+	err := con.checkIsOpen()
 	if err != nil {
 		return err
 	}
-	return connection.server.Ping()
+	return con.srv.Ping()
 }
 
 // Prepare readies a sql string for use.
 //
 // Prepare is a member of the driver.Conn interface.
-func (connection *Connection) Prepare(sql string) (driver.Stmt, error) {
+func (con *Connection) Prepare(sql string) (driver.Stmt, error) {
 	// Validate that the connection is open
-	err := connection.checkIsOpen()
+	err := con.checkIsOpen()
 	if err != nil {
 		return nil, err
 	}
 
-	statement, err := connection.session.Prepare(sql)
+	stmt, err := con.ses.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
-	return statement, err
+	return stmt, err
 }
 
 // Begin starts a transaction.
 //
 // Begin is a member of the driver.Conn interface.
-func (connection *Connection) Begin() (driver.Tx, error) {
+func (con *Connection) Begin() (driver.Tx, error) {
 	// Validate that the connection is open
-	err := connection.checkIsOpen()
+	err := con.checkIsOpen()
 	if err != nil {
 		return nil, err
 	}
 
-	transaction, err := connection.session.BeginTransaction()
+	tx, err := con.ses.BeginTransaction()
 	if err != nil {
 		return nil, err
 	}
-	return transaction, nil
+	return tx, nil
 }
 
 // checkIsOpen validates that the connection is open.
 //
 // ErrClosedConnection is returned if the connection is closed.
-func (connection *Connection) checkIsOpen() error {
-	if !connection.IsOpen() {
+func (con *Connection) checkIsOpen() error {
+	if !con.IsOpen() {
 		return errNew("open connection prior to method call")
 	}
 	return nil
@@ -77,28 +77,28 @@ func (connection *Connection) checkIsOpen() error {
 // Calling Close will cause IsOpen to return false.
 // Once closed, a connection cannot be re-opened.
 // To open a new connection call Open on a driver.
-func (connection *Connection) IsOpen() bool {
-	return connection.server != nil
+func (con *Connection) IsOpen() bool {
+	return con.srv != nil
 }
 
 // Close ends a session and disconnects from an Oracle server.
 //
 // Close is a member of the driver.Conn interface.
-func (connection *Connection) Close() (err error) {
-	if connection.IsOpen() {
-		err = connection.session.Close()
+func (con *Connection) Close() (err error) {
+	if con.IsOpen() {
+		err = con.ses.Close()
 		if err != nil {
 			return err
 		}
-		err = connection.server.Close()
+		err = con.srv.Close()
 		if err != nil {
 			return err
 		}
-		connection.server = nil
-		connection.session = nil
+		con.srv = nil
+		con.ses = nil
 
 		// Put connection in pool
-		connection.environment.connectionPool.Put(connection)
+		con.env.conPool.Put(con)
 	}
 	return nil
 }

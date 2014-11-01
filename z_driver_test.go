@@ -9,8 +9,8 @@ import (
 )
 
 func TestDriver_OpenCloseConnection(t *testing.T) {
-	drv := &Driver{environment: NewEnvironment()}
-	defer drv.environment.Close()
+	drv := &Driver{env: NewEnv()}
+	defer drv.env.Close()
 	conn, err := drv.Open(testConnectionStr)
 	defer conn.Close()
 	testErr(err, t)

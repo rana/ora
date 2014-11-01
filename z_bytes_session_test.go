@@ -164,32 +164,32 @@ func TestWorkload_blob_session(t *testing.T) {
 }
 
 func TestBindDefine_bytes_blob_bufferSize_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes(sc.lobBufferSize), blob, t, nil, Bits)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMinusOne_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes(sc.lobBufferSize-1), blob, t, nil, Bits)
 }
 
 func TestBindDefine_bytes_blob_bufferSizePlusOne_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes(sc.lobBufferSize+1), blob, t, nil, Bits)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultiple_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes(sc.lobBufferSize*3), blob, t, nil, Bits)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultipleMinusOne_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes((sc.lobBufferSize*3)-1), blob, t, nil, Bits)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	testBindDefine(gen_bytes((sc.lobBufferSize*3)+1), blob, t, nil, Bits)
 }
 

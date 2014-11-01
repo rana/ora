@@ -30,17 +30,17 @@ type ExecResult struct {
 //	result, err := db.Exec("insert into t1 (c2) values ('go') returning c1 into :c1", nil)
 //
 //	id, err := result.LastInsertId()
-func (execResult *ExecResult) LastInsertId() (int64, error) {
-	return execResult.lastInsertId, nil
+func (er *ExecResult) LastInsertId() (int64, error) {
+	return er.lastInsertId, nil
 }
 
 // RowsAffected returns the number of rows affected by the exec statement.
-func (execResult *ExecResult) RowsAffected() (int64, error) {
+func (er *ExecResult) RowsAffected() (int64, error) {
 	var rowsAffected int64
-	if execResult.rowsAffected > math.MaxInt64 {
+	if er.rowsAffected > math.MaxInt64 {
 		rowsAffected = math.MaxInt64
 	} else {
-		rowsAffected = int64(execResult.rowsAffected)
+		rowsAffected = int64(er.rowsAffected)
 	}
 	return rowsAffected, nil
 }

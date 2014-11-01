@@ -15,45 +15,45 @@ import (
 )
 
 type stringDefine struct {
-	environment *Environment
-	ocidef      *C.OCIDefine
-	isNull      C.sb2
-	buffer      []byte
+	env    *Environment
+	ocidef *C.OCIDefine
+	isNull C.sb2
+	buffer []byte
 }
 
-func (stringDefine *stringDefine) define(columnSize int, position int, ocistmt *C.OCIStmt) error {
-	if cap(stringDefine.buffer) < columnSize {
-		stringDefine.buffer = make([]byte, columnSize)
+func (d *stringDefine) define(columnSize int, position int, ocistmt *C.OCIStmt) error {
+	if cap(d.buffer) < columnSize {
+		d.buffer = make([]byte, columnSize)
 	}
 	// Create oci define handle
 	r := C.OCIDefineByPos2(
-		ocistmt,                                 //OCIStmt     *stmtp,
-		&stringDefine.ocidef,                    //OCIDefine   **defnpp,
-		stringDefine.environment.ocierr,         //OCIError    *errhp,
-		C.ub4(position),                         //ub4         position,
-		unsafe.Pointer(&stringDefine.buffer[0]), //void        *valuep,
-		C.sb8(columnSize),                       //sb8         value_sz,
-		C.SQLT_CHR,                              //ub2         dty,
-		unsafe.Pointer(&stringDefine.isNull),    //void        *indp,
+		ocistmt,                      //OCIStmt     *stmtp,
+		&d.ocidef,                    //OCIDefine   **defnpp,
+		d.env.ocierr,                 //OCIError    *errhp,
+		C.ub4(position),              //ub4         position,
+		unsafe.Pointer(&d.buffer[0]), //void        *valuep,
+		C.sb8(columnSize),            //sb8         value_sz,
+		C.SQLT_CHR,                   //ub2         dty,
+		unsafe.Pointer(&d.isNull),    //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
 	if r == C.OCI_ERROR {
-		return stringDefine.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (stringDefine *stringDefine) value() (value interface{}, err error) {
-	if stringDefine.isNull > -1 {
+func (d *stringDefine) value() (value interface{}, err error) {
+	if d.isNull > -1 {
 		// Buffer is padded with Space char (32)
-		value = stringTrimmed(stringDefine.buffer, 32)
+		value = stringTrimmed(d.buffer, 32)
 	}
 	return value, err
 }
-func (stringDefine *stringDefine) alloc() error {
+func (d *stringDefine) alloc() error {
 	return nil
 }
-func (stringDefine *stringDefine) free() {
+func (d *stringDefine) free() {
 
 }
 func (stringDefine *stringDefine) close() {
@@ -63,5 +63,5 @@ func (stringDefine *stringDefine) close() {
 	stringDefine.ocidef = nil
 	stringDefine.isNull = C.sb2(0)
 	clear(stringDefine.buffer, 32)
-	stringDefine.environment.stringDefinePool.Put(stringDefine)
+	stringDefine.env.stringDefinePool.Put(stringDefine)
 }

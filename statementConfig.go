@@ -33,30 +33,30 @@ type StatementConfig struct {
 	ResultSet ResultSetConfig
 }
 
-// NewStatementConfig returns a StatementConfig with default values.
-func NewStatementConfig() StatementConfig {
-	var sc StatementConfig
-	sc.Reset()
-	return sc
+// NewStmtConfig returns a StatementConfig with default values.
+func NewStmtConfig() StatementConfig {
+	var c StatementConfig
+	c.Reset()
+	return c
 }
 
 // Reset sets driver-defined values to all fields.
-func (statementConfig *StatementConfig) Reset() {
-	statementConfig.prefetchRowCount = 0
-	statementConfig.prefetchMemorySize = 1 << 27 // 134,217,728
-	statementConfig.longBufferSize = 1 << 24     // 16,777,216
-	statementConfig.longRawBufferSize = 1 << 24  // 16,777,216
-	statementConfig.lobBufferSize = 1 << 24      // 16,777,216
-	statementConfig.stringPtrBufferSize = 4000
+func (c *StatementConfig) Reset() {
+	c.prefetchRowCount = 0
+	c.prefetchMemorySize = 1 << 27 // 134,217,728
+	c.longBufferSize = 1 << 24     // 16,777,216
+	c.longRawBufferSize = 1 << 24  // 16,777,216
+	c.lobBufferSize = 1 << 24      // 16,777,216
+	c.stringPtrBufferSize = 4000
 
-	statementConfig.FalseRune = '0'
-	statementConfig.TrueRune = '1'
-	statementConfig.ResultSet.Reset()
+	c.FalseRune = '0'
+	c.TrueRune = '1'
+	c.ResultSet.Reset()
 }
 
 // SetPrefetchRowCount sets the number of rows to prefetch during a select query.
-func (statementConfig *StatementConfig) SetPrefetchRowCount(prefetchRowCount uint32) error {
-	statementConfig.prefetchRowCount = prefetchRowCount
+func (c *StatementConfig) SetPrefetchRowCount(prefetchRowCount uint32) error {
+	c.prefetchRowCount = prefetchRowCount
 	return nil
 }
 
@@ -67,14 +67,14 @@ func (statementConfig *StatementConfig) SetPrefetchRowCount(prefetchRowCount uin
 // PrefetchRowCount works in coordination with PrefetchMemorySize. When
 // PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 // otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
-func (statementConfig *StatementConfig) PrefetchRowCount() uint32 {
-	return statementConfig.prefetchRowCount
+func (c *StatementConfig) PrefetchRowCount() uint32 {
+	return c.prefetchRowCount
 }
 
 // SetPrefetchMemorySize sets the prefetch memory size in bytes used during a SQL
 // select command.
-func (statementConfig *StatementConfig) SetPrefetchMemorySize(prefetchMemorySize uint32) error {
-	statementConfig.prefetchMemorySize = prefetchMemorySize
+func (c *StatementConfig) SetPrefetchMemorySize(prefetchMemorySize uint32) error {
+	c.prefetchMemorySize = prefetchMemorySize
 	return nil
 }
 
@@ -86,8 +86,8 @@ func (statementConfig *StatementConfig) SetPrefetchMemorySize(prefetchMemorySize
 // PrefetchMemorySize works in coordination with PrefetchRowCount. When
 // PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 // otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
-func (statementConfig *StatementConfig) PrefetchMemorySize() uint32 {
-	return statementConfig.prefetchMemorySize
+func (c *StatementConfig) PrefetchMemorySize() uint32 {
+	return c.prefetchMemorySize
 }
 
 // SetLongBufferSize sets the long buffer size in bytes.
@@ -95,7 +95,7 @@ func (statementConfig *StatementConfig) PrefetchMemorySize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is less than 1 or greater than 2,147,483,642.
-func (statementConfig *StatementConfig) SetLongBufferSize(size uint32) error {
+func (c *StatementConfig) SetLongBufferSize(size uint32) error {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
@@ -104,7 +104,7 @@ func (statementConfig *StatementConfig) SetLongBufferSize(size uint32) error {
 	if size < 1 {
 		return errNew("SetLongBufferSize parameter 'size' must be greater than zero")
 	}
-	statementConfig.longBufferSize = size
+	c.longBufferSize = size
 	return nil
 }
 
@@ -115,8 +115,8 @@ func (statementConfig *StatementConfig) SetLongBufferSize(size uint32) error {
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (statementConfig *StatementConfig) LongBufferSize() uint32 {
-	return statementConfig.longBufferSize
+func (c *StatementConfig) LongBufferSize() uint32 {
+	return c.longBufferSize
 }
 
 // SetLongRawBufferSize sets the LONG RAW buffer size in bytes.
@@ -124,13 +124,13 @@ func (statementConfig *StatementConfig) LongBufferSize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is greater than 2,147,483,642.
-func (statementConfig *StatementConfig) SetLongRawBufferSize(size uint32) error {
+func (c *StatementConfig) SetLongRawBufferSize(size uint32) error {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
 		return errNew("long raw buffer size too large")
 	}
-	statementConfig.longRawBufferSize = size
+	c.longRawBufferSize = size
 	return nil
 }
 
@@ -141,8 +141,8 @@ func (statementConfig *StatementConfig) SetLongRawBufferSize(size uint32) error 
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (statementConfig *StatementConfig) LongRawBufferSize() uint32 {
-	return statementConfig.longRawBufferSize
+func (c *StatementConfig) LongRawBufferSize() uint32 {
+	return c.longRawBufferSize
 }
 
 // SetLobBufferSize sets the LOB buffer size in bytes.
@@ -150,13 +150,13 @@ func (statementConfig *StatementConfig) LongRawBufferSize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is greater than 2,147,483,642.
-func (statementConfig *StatementConfig) SetLobBufferSize(size int) error {
+func (c *StatementConfig) SetLobBufferSize(size int) error {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
 		return errNew("lob buffer size too large")
 	}
-	statementConfig.lobBufferSize = size
+	c.lobBufferSize = size
 	return nil
 }
 
@@ -167,17 +167,17 @@ func (statementConfig *StatementConfig) SetLobBufferSize(size int) error {
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (statementConfig *StatementConfig) LobBufferSize() int {
-	return statementConfig.lobBufferSize
+func (c *StatementConfig) LobBufferSize() int {
+	return c.lobBufferSize
 }
 
 // SetStringPtrBufferSize sets the size of a buffer used to store a string during
 // *string parameter binding and []*string parameter binding in a SQL statement.
-func (statementConfig *StatementConfig) SetStringPtrBufferSize(size int) error {
+func (c *StatementConfig) SetStringPtrBufferSize(size int) error {
 	if size < 1 {
 		return errNew("SetStringPtrBufferSize parameter 'size' must be greater than zero")
 	}
-	statementConfig.stringPtrBufferSize = size
+	c.stringPtrBufferSize = size
 	return nil
 }
 
@@ -190,8 +190,8 @@ func (statementConfig *StatementConfig) SetStringPtrBufferSize(size int) error {
 // StringPtrBufferSize depending on the Oracle column type. For VARCHAR2,
 // NVARCHAR2, and RAW oracle columns the Oracle MAX_STRING_SIZE is usually 4000
 // but may be set up to 32767.
-func (statementConfig *StatementConfig) StringPtrBufferSize() int {
-	return statementConfig.stringPtrBufferSize
+func (c *StatementConfig) StringPtrBufferSize() int {
+	return c.stringPtrBufferSize
 }
 
 // SetByteSlice sets a GoColumnType associated to SQL statement []byte parameter.
@@ -199,10 +199,10 @@ func (statementConfig *StatementConfig) StringPtrBufferSize() int {
 // Valid values are U8 and Bits.
 //
 // Returns an error if U8 or Bits is not specified.
-func (statementConfig *StatementConfig) SetByteSlice(gct GoColumnType) (err error) {
+func (c *StatementConfig) SetByteSlice(gct GoColumnType) (err error) {
 	err = checkBitsOrU8Column(gct)
 	if err == nil {
-		statementConfig.byteSlice = gct
+		c.byteSlice = gct
 	}
 	return err
 }
@@ -217,6 +217,6 @@ func (statementConfig *StatementConfig) SetByteSlice(gct GoColumnType) (err erro
 // requires knowing the destination column type ahead of time. Set ByteSlice to
 // Bits if the destination column is BLOB, RAW or LONG RAW. Set ByteSlice to U8
 // if the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
-func (statementConfig *StatementConfig) ByteSlice() GoColumnType {
-	return statementConfig.byteSlice
+func (c *StatementConfig) ByteSlice() GoColumnType {
+	return c.byteSlice
 }

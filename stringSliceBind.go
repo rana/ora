@@ -16,13 +16,13 @@ import (
 )
 
 type stringSliceBind struct {
-	environment *Environment
-	ocibnd      *C.OCIBind
-	bytes       []byte
-	buffer      bytes.Buffer
+	env    *Environment
+	ocibnd *C.OCIBind
+	bytes  []byte
+	buffer bytes.Buffer
 }
 
-func (stringSliceBind *stringSliceBind) bindOraStringSlice(values []String, position int, ocistmt *C.OCIStmt) error {
+func (b *stringSliceBind) bindOraStringSlice(values []String, position int, ocistmt *C.OCIStmt) error {
 	stringValues := make([]string, len(values))
 	nullInds := make([]C.sb2, len(values))
 	for n, _ := range values {
@@ -32,10 +32,10 @@ func (stringSliceBind *stringSliceBind) bindOraStringSlice(values []String, posi
 			stringValues[n] = values[n].Value
 		}
 	}
-	return stringSliceBind.bindStringSlice(stringValues, nullInds, position, ocistmt)
+	return b.bindStringSlice(stringValues, nullInds, position, ocistmt)
 }
 
-func (stringSliceBind *stringSliceBind) bindStringSlice(values []string, nullInds []C.sb2, position int, ocistmt *C.OCIStmt) (err error) {
+func (b *stringSliceBind) bindStringSlice(values []string, nullInds []C.sb2, position int, ocistmt *C.OCIStmt) (err error) {
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
 	}
@@ -49,61 +49,61 @@ func (stringSliceBind *stringSliceBind) bindStringSlice(values []string, nullInd
 		}
 	}
 	for n, str := range values {
-		_, err = stringSliceBind.buffer.WriteString(str)
+		_, err = b.buffer.WriteString(str)
 		if err != nil {
 			return err
 		}
 		// pad to make equal to max len if necessary
 		padLen := maxLen - len(str)
 		for n := 0; n < padLen; n++ {
-			_, err = stringSliceBind.buffer.WriteRune('0')
+			_, err = b.buffer.WriteRune('0')
 			if err != nil {
 				return err
 			}
 		}
 		alenp[n] = C.ub4(len(str))
 	}
-	stringSliceBind.bytes = stringSliceBind.buffer.Bytes()
+	b.bytes = b.buffer.Bytes()
 	r := C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&stringSliceBind.ocibnd),    //OCIBind      **bindpp,
-		stringSliceBind.environment.ocierr,        //OCIError     *errhp,
-		C.ub4(position),                           //ub4          position,
-		unsafe.Pointer(&stringSliceBind.bytes[0]), //void         *valuep,
-		C.sb8(maxLen),                             //sb8          value_sz,
-		C.SQLT_CHR,                                //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),              //void         *indp,
-		&alenp[0],                                 //ub4          *alenp,
-		&rcodep[0],                                //ub2          *rcodep,
-		0,                                         //ub4          maxarr_len,
-		nil,                                       //ub4          *curelep,
-		C.OCI_DEFAULT)                             //ub4          mode );
+		ocistmt,                      //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),     //OCIBind      **bindpp,
+		b.env.ocierr,                 //OCIError     *errhp,
+		C.ub4(position),              //ub4          position,
+		unsafe.Pointer(&b.bytes[0]),  //void         *valuep,
+		C.sb8(maxLen),                //sb8          value_sz,
+		C.SQLT_CHR,                   //ub2          dty,
+		unsafe.Pointer(&nullInds[0]), //void         *indp,
+		&alenp[0],                    //ub4          *alenp,
+		&rcodep[0],                   //ub2          *rcodep,
+		0,                            //ub4          maxarr_len,
+		nil,                          //ub4          *curelep,
+		C.OCI_DEFAULT)                //ub4          mode );
 	if r == C.OCI_ERROR {
-		return stringSliceBind.environment.ociError()
+		return b.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
-		stringSliceBind.ocibnd,
-		stringSliceBind.environment.ocierr,
+		b.ocibnd,
+		b.env.ocierr,
 		C.ub4(maxLen),       //ub4         pvskip,
 		C.ub4(C.sizeof_sb2), //ub4         indskip,
 		C.ub4(C.sizeof_ub4), //ub4         alskip,
 		C.ub4(C.sizeof_ub2)) //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return stringSliceBind.environment.ociError()
+		return b.env.ociError()
 	}
 	return nil
 }
 
-func (stringSliceBind *stringSliceBind) setPtr() error {
+func (b *stringSliceBind) setPtr() error {
 	return nil
 }
 
-func (stringSliceBind *stringSliceBind) close() {
+func (b *stringSliceBind) close() {
 	defer func() {
 		recover()
 	}()
-	stringSliceBind.ocibnd = nil
-	stringSliceBind.bytes = nil
-	stringSliceBind.buffer.Reset()
-	stringSliceBind.environment.stringSliceBindPool.Put(stringSliceBind)
+	b.ocibnd = nil
+	b.bytes = nil
+	b.buffer.Reset()
+	b.env.stringSliceBindPool.Put(b)
 }

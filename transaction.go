@@ -8,19 +8,19 @@ package ora
 //
 // Implements the driver.Tx interface.
 type Transaction struct {
-	session *Session
+	ses *Session
 }
 
 // Commit commits a transaction.
 //
 // Commit is a member of the driver.Tx interface.
-func (transaction *Transaction) Commit() (err error) {
-	return transaction.session.CommitTransaction()
+func (tx *Transaction) Commit() (err error) {
+	return tx.ses.CommitTransaction()
 }
 
 // Rollback rolls back a transaction.
 //
 // Rollback is a member of the driver.Tx interface.
-func (transaction *Transaction) Rollback() (err error) {
-	return transaction.session.RollbackTransaction()
+func (tx *Transaction) Rollback() (err error) {
+	return tx.ses.RollbackTransaction()
 }

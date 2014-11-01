@@ -39,26 +39,26 @@ func NewResultSetConfig() ResultSetConfig {
 }
 
 // Reset sets driver-defined values to all fields.
-func (resultSetConfig *ResultSetConfig) Reset() {
-	resultSetConfig.TrueRune = '1'
+func (c *ResultSetConfig) Reset() {
+	c.TrueRune = '1'
 
-	resultSetConfig.numberScaless = I64
-	resultSetConfig.numberScaled = F64
-	resultSetConfig.binaryDouble = F64
-	resultSetConfig.binaryFloat = F32
-	resultSetConfig.float = F64
-	resultSetConfig.date = T
-	resultSetConfig.timestamp = T
-	resultSetConfig.timestampTz = T
-	resultSetConfig.timestampLtz = T
-	resultSetConfig.char1 = B
-	resultSetConfig.char = S
-	resultSetConfig.varchar = S
-	resultSetConfig.long = S
-	resultSetConfig.clob = S
-	resultSetConfig.blob = Bits
-	resultSetConfig.raw = Bits
-	resultSetConfig.longRaw = Bits
+	c.numberScaless = I64
+	c.numberScaled = F64
+	c.binaryDouble = F64
+	c.binaryFloat = F32
+	c.float = F64
+	c.date = T
+	c.timestamp = T
+	c.timestampTz = T
+	c.timestampLtz = T
+	c.char1 = B
+	c.char = S
+	c.varchar = S
+	c.long = S
+	c.clob = S
+	c.blob = Bits
+	c.raw = Bits
+	c.longRaw = Bits
 }
 
 // SetNumberScaless sets a GoColumnType associated to an Oracle select-list
@@ -68,10 +68,10 @@ func (resultSetConfig *ResultSetConfig) Reset() {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetNumberScaless(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetNumberScaless(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct)
 	if err == nil {
-		resultSetConfig.numberScaless = gct
+		c.numberScaless = gct
 	}
 	return err
 }
@@ -86,8 +86,8 @@ func (resultSetConfig *ResultSetConfig) SetNumberScaless(gct GoColumnType) (err 
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, NumberScaless is used.
-func (resultSetConfig *ResultSetConfig) NumberScaless() GoColumnType {
-	return resultSetConfig.numberScaless
+func (c *ResultSetConfig) NumberScaless() GoColumnType {
+	return c.numberScaless
 }
 
 // SetNumberScaled sets a GoColumnType associated to an Oracle select-list
@@ -97,10 +97,10 @@ func (resultSetConfig *ResultSetConfig) NumberScaless() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetNumberScaled(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetNumberScaled(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct)
 	if err == nil {
-		resultSetConfig.numberScaled = gct
+		c.numberScaled = gct
 	}
 	return err
 }
@@ -115,8 +115,8 @@ func (resultSetConfig *ResultSetConfig) SetNumberScaled(gct GoColumnType) (err e
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, NumberScaled is used.
-func (resultSetConfig *ResultSetConfig) NumberScaled() GoColumnType {
-	return resultSetConfig.numberScaled
+func (c *ResultSetConfig) NumberScaled() GoColumnType {
+	return c.numberScaled
 }
 
 // SetBinaryDouble sets a GoColumnType associated to an Oracle select-list
@@ -126,10 +126,10 @@ func (resultSetConfig *ResultSetConfig) NumberScaled() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetBinaryDouble(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetBinaryDouble(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct)
 	if err == nil {
-		resultSetConfig.binaryDouble = gct
+		c.binaryDouble = gct
 	}
 	return err
 }
@@ -144,8 +144,8 @@ func (resultSetConfig *ResultSetConfig) SetBinaryDouble(gct GoColumnType) (err e
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, BinaryDouble is used.
-func (resultSetConfig *ResultSetConfig) BinaryDouble() GoColumnType {
-	return resultSetConfig.binaryDouble
+func (c *ResultSetConfig) BinaryDouble() GoColumnType {
+	return c.binaryDouble
 }
 
 // SetBinaryFloat sets a GoColumnType associated to an Oracle select-list
@@ -155,10 +155,10 @@ func (resultSetConfig *ResultSetConfig) BinaryDouble() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetBinaryFloat(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetBinaryFloat(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct)
 	if err == nil {
-		resultSetConfig.binaryFloat = gct
+		c.binaryFloat = gct
 	}
 	return err
 }
@@ -175,8 +175,8 @@ func (resultSetConfig *ResultSetConfig) SetBinaryFloat(gct GoColumnType) (err er
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, BinaryFloat is used.
-func (resultSetConfig *ResultSetConfig) BinaryFloat() GoColumnType {
-	return resultSetConfig.binaryFloat
+func (c *ResultSetConfig) BinaryFloat() GoColumnType {
+	return c.binaryFloat
 }
 
 // SetFloat sets a GoColumnType associated to an Oracle select-list
@@ -186,10 +186,10 @@ func (resultSetConfig *ResultSetConfig) BinaryFloat() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetFloat(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetFloat(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct)
 	if err == nil {
-		resultSetConfig.float = gct
+		c.float = gct
 	}
 	return err
 }
@@ -204,8 +204,8 @@ func (resultSetConfig *ResultSetConfig) SetFloat(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Float is used.
-func (resultSetConfig *ResultSetConfig) Float() GoColumnType {
-	return resultSetConfig.float
+func (c *ResultSetConfig) Float() GoColumnType {
+	return c.float
 }
 
 // SetDate sets a GoColumnType associated to an Oracle select-list
@@ -214,10 +214,10 @@ func (resultSetConfig *ResultSetConfig) Float() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetDate(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetDate(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
-		resultSetConfig.date = gct
+		c.date = gct
 	}
 	return err
 }
@@ -232,8 +232,8 @@ func (resultSetConfig *ResultSetConfig) SetDate(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Date is used.
-func (resultSetConfig *ResultSetConfig) Date() GoColumnType {
-	return resultSetConfig.date
+func (c *ResultSetConfig) Date() GoColumnType {
+	return c.date
 }
 
 // SetTimestamp sets a GoColumnType associated to an Oracle select-list
@@ -242,10 +242,10 @@ func (resultSetConfig *ResultSetConfig) Date() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetTimestamp(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetTimestamp(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
-		resultSetConfig.timestamp = gct
+		c.timestamp = gct
 	}
 	return err
 }
@@ -260,8 +260,8 @@ func (resultSetConfig *ResultSetConfig) SetTimestamp(gct GoColumnType) (err erro
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Timestamp is used.
-func (resultSetConfig *ResultSetConfig) Timestamp() GoColumnType {
-	return resultSetConfig.timestamp
+func (c *ResultSetConfig) Timestamp() GoColumnType {
+	return c.timestamp
 }
 
 // SetTimestampTz sets a GoColumnType associated to an Oracle select-list
@@ -270,10 +270,10 @@ func (resultSetConfig *ResultSetConfig) Timestamp() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetTimestampTz(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetTimestampTz(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
-		resultSetConfig.timestampTz = gct
+		c.timestampTz = gct
 	}
 	return err
 }
@@ -288,8 +288,8 @@ func (resultSetConfig *ResultSetConfig) SetTimestampTz(gct GoColumnType) (err er
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, TimestampTz is used.
-func (resultSetConfig *ResultSetConfig) TimestampTz() GoColumnType {
-	return resultSetConfig.timestampTz
+func (c *ResultSetConfig) TimestampTz() GoColumnType {
+	return c.timestampTz
 }
 
 // SetTimestampLtz sets a GoColumnType associated to an Oracle select-list
@@ -298,10 +298,10 @@ func (resultSetConfig *ResultSetConfig) TimestampTz() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetTimestampLtz(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetTimestampLtz(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
-		resultSetConfig.timestampLtz = gct
+		c.timestampLtz = gct
 	}
 	return err
 }
@@ -316,8 +316,8 @@ func (resultSetConfig *ResultSetConfig) SetTimestampLtz(gct GoColumnType) (err e
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, TimestampLtz is used.
-func (resultSetConfig *ResultSetConfig) TimestampLtz() GoColumnType {
-	return resultSetConfig.timestampLtz
+func (c *ResultSetConfig) TimestampLtz() GoColumnType {
+	return c.timestampLtz
 }
 
 // SetChar1 sets a GoColumnType associated to an Oracle select-list
@@ -326,10 +326,10 @@ func (resultSetConfig *ResultSetConfig) TimestampLtz() GoColumnType {
 // Valid values are B, OraB, S and OraS.
 //
 // Returns an error if a non-bool or non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetChar1(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetChar1(gct GoColumnType) (err error) {
 	err = checkBoolOrStringColumn(gct)
 	if err == nil {
-		resultSetConfig.char1 = gct
+		c.char1 = gct
 	}
 	return err
 }
@@ -344,8 +344,8 @@ func (resultSetConfig *ResultSetConfig) SetChar1(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Char1 is used.
-func (resultSetConfig *ResultSetConfig) Char1() GoColumnType {
-	return resultSetConfig.char1
+func (c *ResultSetConfig) Char1() GoColumnType {
+	return c.char1
 }
 
 // SetChar sets a GoColumnType associated to an Oracle select-list
@@ -354,10 +354,10 @@ func (resultSetConfig *ResultSetConfig) Char1() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetChar(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetChar(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
-		resultSetConfig.char = gct
+		c.char = gct
 	}
 	return err
 }
@@ -372,8 +372,8 @@ func (resultSetConfig *ResultSetConfig) SetChar(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Char is used.
-func (resultSetConfig *ResultSetConfig) Char() GoColumnType {
-	return resultSetConfig.char
+func (c *ResultSetConfig) Char() GoColumnType {
+	return c.char
 }
 
 // SetVarchar sets a GoColumnType associated to an Oracle select-list
@@ -382,10 +382,10 @@ func (resultSetConfig *ResultSetConfig) Char() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetVarchar(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetVarchar(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
-		resultSetConfig.varchar = gct
+		c.varchar = gct
 	}
 	return err
 }
@@ -400,8 +400,8 @@ func (resultSetConfig *ResultSetConfig) SetVarchar(gct GoColumnType) (err error)
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Varchar is used.
-func (resultSetConfig *ResultSetConfig) Varchar() GoColumnType {
-	return resultSetConfig.varchar
+func (c *ResultSetConfig) Varchar() GoColumnType {
+	return c.varchar
 }
 
 // SetLong sets a GoColumnType associated to an Oracle select-list
@@ -410,10 +410,10 @@ func (resultSetConfig *ResultSetConfig) Varchar() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetLong(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetLong(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
-		resultSetConfig.long = gct
+		c.long = gct
 	}
 	return err
 }
@@ -428,8 +428,8 @@ func (resultSetConfig *ResultSetConfig) SetLong(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Long is used.
-func (resultSetConfig *ResultSetConfig) Long() GoColumnType {
-	return resultSetConfig.long
+func (c *ResultSetConfig) Long() GoColumnType {
+	return c.long
 }
 
 // SetClob sets a GoColumnType associated to an Oracle select-list
@@ -438,10 +438,10 @@ func (resultSetConfig *ResultSetConfig) Long() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetClob(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetClob(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
-		resultSetConfig.clob = gct
+		c.clob = gct
 	}
 	return err
 }
@@ -456,8 +456,8 @@ func (resultSetConfig *ResultSetConfig) SetClob(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Clob is used.
-func (resultSetConfig *ResultSetConfig) Clob() GoColumnType {
-	return resultSetConfig.clob
+func (c *ResultSetConfig) Clob() GoColumnType {
+	return c.clob
 }
 
 // SetBlob sets a GoColumnType associated to an Oracle select-list
@@ -466,10 +466,10 @@ func (resultSetConfig *ResultSetConfig) Clob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetBlob(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetBlob(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
-		resultSetConfig.blob = gct
+		c.blob = gct
 	}
 	return err
 }
@@ -484,8 +484,8 @@ func (resultSetConfig *ResultSetConfig) SetBlob(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Blob is used.
-func (resultSetConfig *ResultSetConfig) Blob() GoColumnType {
-	return resultSetConfig.blob
+func (c *ResultSetConfig) Blob() GoColumnType {
+	return c.blob
 }
 
 // SetRaw sets a GoColumnType associated to an Oracle select-list
@@ -494,10 +494,10 @@ func (resultSetConfig *ResultSetConfig) Blob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetRaw(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetRaw(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
-		resultSetConfig.raw = gct
+		c.raw = gct
 	}
 	return err
 }
@@ -512,8 +512,8 @@ func (resultSetConfig *ResultSetConfig) SetRaw(gct GoColumnType) (err error) {
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, Raw is used.
-func (resultSetConfig *ResultSetConfig) Raw() GoColumnType {
-	return resultSetConfig.raw
+func (c *ResultSetConfig) Raw() GoColumnType {
+	return c.raw
 }
 
 // SetLongRaw sets a GoColumnType associated to an Oracle select-list
@@ -522,10 +522,10 @@ func (resultSetConfig *ResultSetConfig) Raw() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (resultSetConfig *ResultSetConfig) SetLongRaw(gct GoColumnType) (err error) {
+func (c *ResultSetConfig) SetLongRaw(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
-		resultSetConfig.longRaw = gct
+		c.longRaw = gct
 	}
 	return err
 }
@@ -540,6 +540,6 @@ func (resultSetConfig *ResultSetConfig) SetLongRaw(gct GoColumnType) (err error)
 // When using the oracle package directly, custom GoColumnType associations may
 // be specified to the Session.Prepare method. If no custom GoColumnType association
 // is specified, LongRaw is used.
-func (resultSetConfig *ResultSetConfig) LongRaw() GoColumnType {
-	return resultSetConfig.longRaw
+func (c *ResultSetConfig) LongRaw() GoColumnType {
+	return c.longRaw
 }

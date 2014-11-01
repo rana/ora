@@ -114,10 +114,16 @@ func init() {
 
 	// setup test db
 	testDb, err = sql.Open(DriverName, testConnectionStr)
+	if err != nil {
+		fmt.Println("initError: ", err)
+	}
 
 	// setup test environment, server and session
-	testEnv = NewEnvironment()
-	testEnv.Open()
+	testEnv = NewEnv()
+	err = testEnv.Open()
+	if err != nil {
+		fmt.Println("initError: ", err)
+	}
 	testSrv, err = testEnv.OpenServer(testServerName)
 	if err != nil {
 		fmt.Println("initError: ", err)
@@ -130,7 +136,7 @@ func init() {
 	// load session time zone
 	testDbsessiontimezone, err = loadDbtimezone()
 	if err != nil {
-		fmt.Println("Error loading session time zone form database: ", err)
+		fmt.Println("Error loading session time zone from database: ", err)
 	} else {
 		fmt.Println("Read session time zone from database...")
 	}
@@ -197,11 +203,11 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, sc
 		selectStmt, err := testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName), gct)
 		defer selectStmt.Close()
 		testErr(err, t)
-		resultSet, err := selectStmt.Fetch()
+		rst, err := selectStmt.Fetch()
 		testErr(err, t)
 
 		// validate
-		validate(expected, resultSet, t)
+		validate(expected, rst, t)
 	}
 }
 
@@ -332,7 +338,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 
 		// select
 		var selectStmt *Statement
-		var resultSet *ResultSet
+		var rst *ResultSet
 		if isNumeric(expected) {
 			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32)
 			defer selectStmt.Close()
@@ -354,51 +360,51 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		}
-		resultSet, err = selectStmt.Fetch()
+		rst, err = selectStmt.Fetch()
 		testErr(err, t)
 
 		// validate
-		hasRow := resultSet.Next()
-		testErr(resultSet.Err, t)
+		hasRow := rst.Next()
+		testErr(rst.Err, t)
 		if !hasRow {
 			t.Fatalf("no row returned")
-		} else if len(resultSet.Row) != len(selectStmt.goColumnTypes) {
-			t.Fatalf("select column count: expected(%v), actual(%v)", len(selectStmt.goColumnTypes), len(resultSet.Row))
+		} else if len(rst.Row) != len(selectStmt.goColumnTypes) {
+			t.Fatalf("select column count: expected(%v), actual(%v)", len(selectStmt.goColumnTypes), len(rst.Row))
 		} else {
 			for n, goColumnType := range selectStmt.goColumnTypes {
 				if isNumeric(expected) {
-					compare(castInt(expected, goColumnType), resultSet.Row[n], goColumnType, t)
+					compare(castInt(expected, goColumnType), rst.Row[n], goColumnType, t)
 				}
 				switch goColumnType {
 				case T:
-					compare_time(expected, resultSet.Row[n], t)
+					compare_time(expected, rst.Row[n], t)
 				case OraT:
-					value, ok := resultSet.Row[n].(Time)
+					value, ok := rst.Row[n].(Time)
 					if ok {
 						compare_time(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected resultSet.Row[n] value. (%v, %v)", reflect.TypeOf(resultSet.Row[n]).Name(), resultSet.Row[n])
+						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
 					}
 				case S:
-					compare_string(expected, resultSet.Row[n], t)
+					compare_string(expected, rst.Row[n], t)
 				case OraS:
-					value, ok := resultSet.Row[n].(String)
+					value, ok := rst.Row[n].(String)
 					if ok {
 						compare_string(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected resultSet.Row[n] value. (%v, %v)", reflect.TypeOf(resultSet.Row[n]).Name(), resultSet.Row[n])
+						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
 					}
 				case B:
-					compare_bool(expected, resultSet.Row[n], t)
+					compare_bool(expected, rst.Row[n], t)
 				case OraB:
-					value, ok := resultSet.Row[n].(Bool)
+					value, ok := rst.Row[n].(Bool)
 					if ok {
 						compare_bool(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected resultSet.Row[n] value. (%v, %v)", reflect.TypeOf(resultSet.Row[n]).Name(), resultSet.Row[n])
+						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
 					}
 				case Bits, OraBits:
-					compare_bytes(expected, resultSet.Row[n], t)
+					compare_bytes(expected, rst.Row[n], t)
 				}
 			}
 		}
@@ -478,19 +484,19 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 			fetchStmt, err := testSes.Prepare(sql.String())
 			testErr(err, t)
 			fetchStmt.goColumnTypes = goColumnTypes
-			resultSet, err := fetchStmt.Fetch()
+			rst, err := fetchStmt.Fetch()
 			testErr(err, t)
-			for resultSet.Next() {
-				if currentMultiple != len(resultSet.Row) {
-					t.Fatalf("select column count: expected(%v), actual(%v)", currentMultiple, len(resultSet.Row))
+			for rst.Next() {
+				if currentMultiple != len(rst.Row) {
+					t.Fatalf("select column count: expected(%v), actual(%v)", currentMultiple, len(rst.Row))
 				} else {
 					for n := 0; n < currentMultiple; n++ {
 						expectedElem := elemAt(expected, n)
-						compare(expectedElem, resultSet.Row[n], goColumnTypes[n], t)
+						compare(expectedElem, rst.Row[n], goColumnTypes[n], t)
 					}
 				}
 			}
-			testErr(resultSet.Err, t)
+			testErr(rst.Err, t)
 			fetchStmt.Close()
 
 			// Reduce the multiple by half
@@ -505,15 +511,15 @@ func loadDbtimezone() (*time.Location, error) {
 	if err != nil {
 		return nil, err
 	}
-	resultSet, err := stmt.Fetch()
+	rst, err := stmt.Fetch()
 	if err != nil {
 		return nil, err
 	}
-	hasRow := resultSet.Next()
+	hasRow := rst.Next()
 	if !hasRow {
 		return nil, errNew("no time zone returned from database")
 	}
-	if value, ok := resultSet.Row[0].(string); ok {
+	if value, ok := rst.Row[0].(string); ok {
 		value = strings.Trim(value, " ")
 		var sign int
 		if strings.HasPrefix(value, "-") {
@@ -546,97 +552,97 @@ func loadDbtimezone() (*time.Location, error) {
 	}
 }
 
-func validate(expected interface{}, resultSet *ResultSet, t *testing.T) {
-	if 1 != len(resultSet.Row) {
-		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(resultSet.Row))
+func validate(expected interface{}, rst *ResultSet, t *testing.T) {
+	if 1 != len(rst.Row) {
+		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rst.Row))
 	}
 	switch expected.(type) {
 	case int64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_int64(expected, row[0], t)
 	case int32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_int32(expected, row[0], t)
 	case int16:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_int16(expected, row[0], t)
 	case int8:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_int8(expected, row[0], t)
 	case uint64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_uint64(expected, row[0], t)
 	case uint32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_uint32(expected, row[0], t)
 	case uint16:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_uint16(expected, row[0], t)
 	case uint8:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_uint8(expected, row[0], t)
 	case float64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_float64(expected, row[0], t)
 	case float32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_float32(expected, row[0], t)
 	case Int64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraInt64(expected, row[0], t)
 	case Int32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraInt32(expected, row[0], t)
 	case Int16:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraInt16(expected, row[0], t)
 	case Int8:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraInt8(expected, row[0], t)
 	case Uint64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraUint64(expected, row[0], t)
 	case Uint32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraUint32(expected, row[0], t)
 	case Uint16:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraUint16(expected, row[0], t)
 	case Uint8:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraUint8(expected, row[0], t)
 	case Float64:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraFloat64(expected, row[0], t)
 	case Float32:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraFloat32(expected, row[0], t)
 
 	case IntervalYM:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraIntervalYM(expected, row[0], t)
 	case IntervalDS:
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		compare_OraIntervalDS(expected, row[0], t)
 
 	case []int64:
-		for resultSet.Next() {
-			expectedElem := elemAt(expected, resultSet.Index)
-			compare_int64(expectedElem, resultSet.Row[0], t)
+		for rst.Next() {
+			expectedElem := elemAt(expected, rst.Index)
+			compare_int64(expectedElem, rst.Row[0], t)
 		}
 
 	case []IntervalYM:
-		for resultSet.Next() {
-			expectedElem := elemAt(expected, resultSet.Index)
-			compare_OraIntervalYM(expectedElem, resultSet.Row[0], t)
+		for rst.Next() {
+			expectedElem := elemAt(expected, rst.Index)
+			compare_OraIntervalYM(expectedElem, rst.Row[0], t)
 		}
 	case []IntervalDS:
-		for resultSet.Next() {
-			expectedElem := elemAt(expected, resultSet.Index)
-			compare_OraIntervalDS(expectedElem, resultSet.Row[0], t)
+		for rst.Next() {
+			expectedElem := elemAt(expected, rst.Index)
+			compare_OraIntervalDS(expectedElem, rst.Row[0], t)
 		}
 	}
-	testErr(resultSet.Err, t)
+	testErr(rst.Err, t)
 }
 
 func compare2(expected interface{}, actual interface{}, t *testing.T) {

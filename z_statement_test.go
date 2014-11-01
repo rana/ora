@@ -127,18 +127,18 @@ func TestStatement_Execute_select(t *testing.T) {
 	stmt, err = testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	resultSet, err := stmt.Fetch()
+	rst, err := stmt.Fetch()
 	testErr(err, t)
 
-	for resultSet.Next() {
-		switch resultSet.Index {
+	for rst.Next() {
+		switch rst.Index {
 		case 0:
-			compare_int64(int64(9), resultSet.Row[0], t)
+			compare_int64(int64(9), rst.Row[0], t)
 		case 1:
-			compare_int64(int64(11), resultSet.Row[0], t)
+			compare_int64(int64(11), rst.Row[0], t)
 		}
 	}
-	if 2 != resultSet.Len() {
-		t.Fatalf("rows affected: expected(%v), actual(%v)", 2, resultSet.Len())
+	if 2 != rst.Len() {
+		t.Fatalf("rows affected: expected(%v), actual(%v)", 2, rst.Len())
 	}
 }

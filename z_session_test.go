@@ -12,7 +12,7 @@ import (
 func TestSession_PrepareCloseStatement(t *testing.T) {
 
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, err := env.OpenServer(testServerName)
@@ -53,14 +53,14 @@ func TestSession_Transaction_BeginCommit(t *testing.T) {
 	stmt, err = testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
-	resultSet, err := stmt.Fetch()
+	rst, err := stmt.Fetch()
 	testErr(err, t)
 
-	for resultSet.Next() {
+	for rst.Next() {
 
 	}
-	if 2 != resultSet.Len() {
-		t.Fatalf("row count: expected(%v), actual(%v)", 2, resultSet.Len())
+	if 2 != rst.Len() {
+		t.Fatalf("row count: expected(%v), actual(%v)", 2, rst.Len())
 	}
 }
 
@@ -88,12 +88,12 @@ func TestSession_Transaction_BeginRollback(t *testing.T) {
 	stmt, err = testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
-	resultSet, err := stmt.Fetch()
+	rst, err := stmt.Fetch()
 	testErr(err, t)
 
-	for resultSet.Next() {
+	for rst.Next() {
 	}
-	if 0 != resultSet.Len() {
-		t.Fatalf("row count: expected(%v), actual(%v)", 0, resultSet.Len())
+	if 0 != rst.Len() {
+		t.Fatalf("row count: expected(%v), actual(%v)", 0, rst.Len())
 	}
 }

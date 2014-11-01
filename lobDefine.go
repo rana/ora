@@ -15,7 +15,7 @@ import (
 )
 
 type lobDefine struct {
-	environment   *Environment
+	env           *Environment
 	ocidef        *C.OCIDefine
 	ocisvcctx     *C.OCISvcCtx
 	ociLobLocator *C.OCILobLocator
@@ -25,47 +25,47 @@ type lobDefine struct {
 	returnType    GoColumnType
 }
 
-func (lobDefine *lobDefine) define(sqlt C.ub2, charsetForm C.ub1, columnSize int, position int, returnType GoColumnType, ocisvcctx *C.OCISvcCtx, ocistmt *C.OCIStmt) error {
-	lobDefine.ocisvcctx = ocisvcctx
-	lobDefine.sqlt = sqlt
-	lobDefine.charsetForm = charsetForm
-	lobDefine.returnType = returnType
+func (d *lobDefine) define(sqlt C.ub2, charsetForm C.ub1, columnSize int, position int, returnType GoColumnType, ocisvcctx *C.OCISvcCtx, ocistmt *C.OCIStmt) error {
+	d.ocisvcctx = ocisvcctx
+	d.sqlt = sqlt
+	d.charsetForm = charsetForm
+	d.returnType = returnType
 	r := C.OCIDefineByPos2(
-		ocistmt,                                  //OCIStmt     *stmtp,
-		&lobDefine.ocidef,                        //OCIDefine   **defnpp,
-		lobDefine.environment.ocierr,             //OCIError    *errhp,
-		C.ub4(position),                          //ub4         position,
-		unsafe.Pointer(&lobDefine.ociLobLocator), //void        *valuep,
-		C.sb8(columnSize),                        //sb8         value_sz,
-		sqlt,                                     //ub2         dty,
-		unsafe.Pointer(&lobDefine.isNull), //void        *indp,
+		ocistmt,                          //OCIStmt     *stmtp,
+		&d.ocidef,                        //OCIDefine   **defnpp,
+		d.env.ocierr,                     //OCIError    *errhp,
+		C.ub4(position),                  //ub4         position,
+		unsafe.Pointer(&d.ociLobLocator), //void        *valuep,
+		C.sb8(columnSize),                //sb8         value_sz,
+		sqlt,                             //ub2         dty,
+		unsafe.Pointer(&d.isNull), //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
 	if r == C.OCI_ERROR {
-		return lobDefine.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (lobDefine *lobDefine) Bytes() (value []byte, err error) {
+func (d *lobDefine) Bytes() (value []byte, err error) {
 	var lobLength C.oraub8
 	// Open the lob to obtain length; round-trip to database
 	r := C.OCILobOpen(
-		lobDefine.ocisvcctx,          //OCISvcCtx          *svchp,
-		lobDefine.environment.ocierr, //OCIError           *errhp,
-		lobDefine.ociLobLocator,      //OCILobLocator      *locp,
-		C.OCI_LOB_READONLY)           //ub1              mode );
+		d.ocisvcctx,        //OCISvcCtx          *svchp,
+		d.env.ocierr,       //OCIError           *errhp,
+		d.ociLobLocator,    //OCILobLocator      *locp,
+		C.OCI_LOB_READONLY) //ub1              mode );
 	if r == C.OCI_ERROR {
-		return nil, lobDefine.environment.ociError()
+		return nil, d.env.ociError()
 	}
 	// get the length of the lob
 	r = C.OCILobGetLength2(
-		lobDefine.ocisvcctx,          //OCISvcCtx          *svchp,
-		lobDefine.environment.ocierr, //OCIError           *errhp,
-		lobDefine.ociLobLocator,      //OCILobLocator      *locp,
-		&lobLength)                   //oraub8 *lenp)
+		d.ocisvcctx,     //OCISvcCtx          *svchp,
+		d.env.ocierr,    //OCIError           *errhp,
+		d.ociLobLocator, //OCILobLocator      *locp,
+		&lobLength)      //oraub8 *lenp)
 	if r == C.OCI_ERROR {
-		return nil, lobDefine.environment.ociError()
+		return nil, d.env.ociError()
 	}
 
 	if lobLength > 0 {
@@ -79,22 +79,22 @@ func (lobDefine *lobDefine) Bytes() (value []byte, err error) {
 		var loading bool = true
 		for loading {
 			r = C.OCILobRead2(
-				lobDefine.ocisvcctx,          //OCISvcCtx          *svchp,
-				lobDefine.environment.ocierr, //OCIError           *errhp,
-				lobDefine.ociLobLocator,      //OCILobLocator      *locp,
-				&byte_amtp,                   //oraub8             *byte_amtp,
-				nil,                          //oraub8             *char_amtp,
-				C.oraub8(1),                  //oraub8             offset, offset is 1-based
-				unsafe.Pointer(&buffer[0]),   //void               *bufp,
-				C.oraub8(len(buffer)),        //oraub8             bufl,
-				piece,                 //ub1                piece,
-				nil,                   //void               *ctxp,
-				nil,                   //OCICallbackLobRead2 (cbfp)
-				C.ub2(0),              //ub2                csid,
-				lobDefine.charsetForm) //ub1                csfrm );
+				d.ocisvcctx,                //OCISvcCtx          *svchp,
+				d.env.ocierr,               //OCIError           *errhp,
+				d.ociLobLocator,            //OCILobLocator      *locp,
+				&byte_amtp,                 //oraub8             *byte_amtp,
+				nil,                        //oraub8             *char_amtp,
+				C.oraub8(1),                //oraub8             offset, offset is 1-based
+				unsafe.Pointer(&buffer[0]), //void               *bufp,
+				C.oraub8(len(buffer)),      //oraub8             bufl,
+				piece,         //ub1                piece,
+				nil,           //void               *ctxp,
+				nil,           //OCICallbackLobRead2 (cbfp)
+				C.ub2(0),      //ub2                csid,
+				d.charsetForm) //ub1                csfrm );
 
 			if r == C.OCI_ERROR {
-				return nil, lobDefine.environment.ociError()
+				return nil, d.env.ociError()
 			} else {
 				// Write buffer to return slice
 				// byte_amtp represents the amount copied into buffer by oci
@@ -113,80 +113,80 @@ func (lobDefine *lobDefine) Bytes() (value []byte, err error) {
 	}
 
 	r = C.OCILobClose(
-		lobDefine.ocisvcctx,          //OCISvcCtx          *svchp,
-		lobDefine.environment.ocierr, //OCIError           *errhp,
-		lobDefine.ociLobLocator)      //OCILobLocator      *locp,
+		d.ocisvcctx,     //OCISvcCtx          *svchp,
+		d.env.ocierr,    //OCIError           *errhp,
+		d.ociLobLocator) //OCILobLocator      *locp,
 	if r == C.OCI_ERROR {
-		return nil, lobDefine.environment.ociError()
+		return nil, d.env.ociError()
 	}
 
 	return value, nil
 
 }
-func (lobDefine *lobDefine) String() (value string, err error) {
+func (d *lobDefine) String() (value string, err error) {
 	var bytes []byte
-	bytes, err = lobDefine.Bytes()
+	bytes, err = d.Bytes()
 	value = string(bytes)
 	return value, err
 }
-func (lobDefine *lobDefine) value() (value interface{}, err error) {
-	if lobDefine.sqlt == C.SQLT_BLOB {
-		if lobDefine.returnType == Bits {
-			if lobDefine.isNull > -1 {
-				value, err = lobDefine.Bytes()
+func (d *lobDefine) value() (value interface{}, err error) {
+	if d.sqlt == C.SQLT_BLOB {
+		if d.returnType == Bits {
+			if d.isNull > -1 {
+				value, err = d.Bytes()
 			}
 		} else {
-			bytesValue := Bytes{IsNull: lobDefine.isNull < 0}
+			bytesValue := Bytes{IsNull: d.isNull < 0}
 			if !bytesValue.IsNull {
-				bytesValue.Value, err = lobDefine.Bytes()
+				bytesValue.Value, err = d.Bytes()
 			}
 			value = bytesValue
 		}
 	} else {
-		if lobDefine.returnType == S {
-			if lobDefine.isNull > -1 {
-				value, err = lobDefine.String()
+		if d.returnType == S {
+			if d.isNull > -1 {
+				value, err = d.String()
 			}
 		} else {
-			oraString := String{IsNull: lobDefine.isNull < 0}
+			oraString := String{IsNull: d.isNull < 0}
 			if !oraString.IsNull {
-				oraString.Value, err = lobDefine.String()
+				oraString.Value, err = d.String()
 			}
 			value = oraString
 		}
 	}
 	return value, err
 }
-func (lobDefine *lobDefine) alloc() error {
+func (d *lobDefine) alloc() error {
 	// Allocate lob locator handle
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(lobDefine.environment.ocienv),                //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&lobDefine.ociLobLocator)), //dvoid         **descpp,
-		C.OCI_DTYPE_LOB,                                             //ub4           type,
-		0,                                                           //size_t        xtramem_sz,
-		nil)                                                         //dvoid         **usrmempp);
+		unsafe.Pointer(d.env.ocienv),                        //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(&d.ociLobLocator)), //dvoid         **descpp,
+		C.OCI_DTYPE_LOB,                                     //ub4           type,
+		0,                                                   //size_t        xtramem_sz,
+		nil)                                                 //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
-		return lobDefine.environment.ociError()
+		return d.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
 		return errNew("unable to allocate oci lob handle during define")
 	}
 	return nil
 }
-func (lobDefine *lobDefine) free() {
+func (d *lobDefine) free() {
 	defer func() {
 		recover()
 	}()
 	C.OCIDescriptorFree(
-		unsafe.Pointer(lobDefine.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_LOB)                         //ub4      type );
+		unsafe.Pointer(d.ociLobLocator), //void     *descp,
+		C.OCI_DTYPE_LOB)                 //ub4      type );
 }
-func (lobDefine *lobDefine) close() {
+func (d *lobDefine) close() {
 	defer func() {
 		recover()
 	}()
-	lobDefine.ocidef = nil
-	lobDefine.ocisvcctx = nil
-	lobDefine.isNull = C.sb2(0)
-	lobDefine.environment.lobDefinePool.Put(lobDefine)
+	d.ocidef = nil
+	d.ocisvcctx = nil
+	d.isNull = C.sb2(0)
+	d.env.lobDefinePool.Put(d)
 }

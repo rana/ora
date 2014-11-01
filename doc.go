@@ -66,7 +66,7 @@ is placed. The SQL placeholder is an Oracle identifier, from 1 to 30
 characters, prefixed with a colon (:). For example:
 
 	// example Oracle placeholder uses a colon
-	insert into t1 (c1) values (:c1)
+	INSERT INTO T1 (C1) VALUES (:C1)
 
 Placeholders within a SQL statement are bound by position. The actual name is not
 used by the ora package driver e.g., placeholder names :c1, :1, or :xyz are
@@ -124,7 +124,7 @@ numerics of various sizes, Oracle-specific types, Go return type configuration, 
 Oracle abstractions such as environment, server and session. When working with the
 ora package directly, the API is slightly different than database/sql.
 
-When using the ora package directly, the mapping between Go types and Oracle types 
+When using the ora package directly, the mapping between Go types and Oracle types
 is mutable. The Go-to-Oracle type mapping for the ora package is:
 
 	Go type				Oracle type
@@ -133,36 +133,36 @@ is mutable. The Go-to-Oracle type mapping for the ora package is:
 	uint64, uint32, uint16, uint8
 	Int64, Int32, Int16, Int8
 	Uint64, Uint32, Uint16, Uint8
-	
+
 	float64, float32		NUMBER¹, BINARY_DOUBLE, BINARY_FLOAT, FLOAT
 	Float64, Float32
-	
-	time.Time			TIMESTAMP, TIMESTAMP WITH TIME ZONE, 
+
+	time.Time			TIMESTAMP, TIMESTAMP WITH TIME ZONE,
 	Time				TIMESTAMP WITH LOCAL TIME ZONE, DATE
-	
-	string				CHAR², NCHAR, VARCHAR, VARCHAR2, 
+
+	string				CHAR², NCHAR, VARCHAR, VARCHAR2,
 	String				NVARCHAR2, LONG, CLOB, NCLOB, ROWID
-	
+
 	bool				CHAR(1 BYTE)³, CHAR(1 CHAR)³
 	Bool
-	
+
 	[]byte				BLOB, LONG RAW, RAW
 	Bytes
 
 	IntervalYM			INTERVAL MONTH TO YEAR
-	
+
 	IntervalDS			INTERVAL DAY TO SECOND
-	
+
 	Bfile				BFILE
-	
+
 	° A select-list column defined as an Oracle NUMBER with zero scale e.g.,
-	NUMBER(10,0) is returned as an int64 by default. Integer and floating point 
-	numerics may be inserted into a NUMBER column with zero scale. Inserting a 
+	NUMBER(10,0) is returned as an int64 by default. Integer and floating point
+	numerics may be inserted into a NUMBER column with zero scale. Inserting a
 	floating point numeric will have its fractional part truncated.
 
 	¹ A select-list column defined as an Oracle NUMBER with a scale greater than
-	zero e.g., NUMBER(10,4) is returned as a float64 by default. Integer and 
-	floating point numerics may be inserted into a NUMBER column with a scale 
+	zero e.g., NUMBER(10,4) is returned as a float64 by default. Integer and
+	floating point numerics may be inserted into a NUMBER column with a scale
 	greater than zero.
 
 	² A select-list column defined as an Oracle CHAR with a length greater than 1
@@ -184,7 +184,7 @@ An example of using the ora package directly:
 	func main() {
 		// example usage of the oracle package driver
 		// connect to a server and open a session
-		env := ora.NewEnvironment()
+		env := ora.NewEnv()
 		env.Open()
 		defer env.Close()
 		srv, err := env.OpenServer("orcl")
@@ -199,9 +199,9 @@ An example of using the ora package directly:
 		}
 
 		// create table
-		stmtTbl, err := ses.Prepare("create table t1 " +
-			"(c1 number(19,0) generated always as identity (start with 1 increment by 1), " +
-			"c2 varchar2(48 char))")
+		stmtTbl, err := ses.Prepare("CREATE TABLE T1 " +
+			"(C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), " +
+			"C2 VARCHAR2(48 CHAR))")
 		defer stmtTbl.Close()
 		if err != nil {
 			panic(err)
@@ -221,7 +221,7 @@ An example of using the ora package directly:
 		// insert record
 		var id uint64
 		str := "Go is expressive, concise, clean, and efficient."
-		stmtIns, err := ses.Prepare("insert into t1 (c2) values (:c2) returning c1 into :c1")
+		stmtIns, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2) RETURNING C1 INTO :C1")
 		defer stmtIns.Close()
 		rowsAffected, err = stmtIns.Execute(str, &id)
 		if err != nil {
@@ -247,20 +247,20 @@ An example of using the ora package directly:
 		fmt.Println(rowsAffected)
 
 		// fetch records
-		stmtFetch, err := ses.Prepare("select c1, c2 from t1")
+		stmtFetch, err := ses.Prepare("SELECT C1, C2 FROM T1")
 		defer stmtFetch.Close()
 		if err != nil {
 			panic(err)
 		}
-		resultSet, err := stmtFetch.Fetch()
+		rst, err := stmtFetch.Fetch()
 		if err != nil {
 			panic(err)
 		}
-		for resultSet.Next() {
-			fmt.Println(resultSet.Row[0], resultSet.Row[1])
+		for rst.Next() {
+			fmt.Println(rst.Row[0], rst.Row[1])
 		}
-		if resultSet.Err != nil {
-			panic(resultSet.Err)
+		if rst.Err != nil {
+			panic(rst.Err)
 		}
 
 		// commit first transaction
@@ -276,7 +276,7 @@ An example of using the ora package directly:
 		}
 		// insert null String
 		nullableStr := ora.String{IsNull: true}
-		stmtTrans, err := ses.Prepare("insert into t1 (c2) values (:c2)")
+		stmtTrans, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2)")
 		defer stmtTrans.Close()
 		if err != nil {
 			panic(err)
@@ -293,28 +293,28 @@ An example of using the ora package directly:
 		}
 
 		// fetch and specify return type
-		stmtCount, err := ses.Prepare("select count(c1) from t1 where c2 is null", ora.U8)
+		stmtCount, err := ses.Prepare("SELECT COUNT(C1) FROM T1 WHERE C2 IS NULL", ora.U8)
 		defer stmtCount.Close()
 		if err != nil {
 			panic(err)
 		}
-		resultSet, err = stmtCount.Fetch()
+		rst, err = stmtCount.Fetch()
 		if err != nil {
 			panic(err)
 		}
-		row := resultSet.NextRow()
+		row := rst.NextRow()
 		if row != nil {
 			fmt.Println(row[0])
 		}
-		if resultSet.Err != nil {
-			panic(resultSet.Err)
+		if rst.Err != nil {
+			panic(rst.Err)
 		}
 
 		// create stored procedure with sys_refcursor
 		stmtProcCreate, err := ses.Prepare(
-			"create or replace procedure proc1(p1 out sys_refcursor) as begin " +
-			"open p1 for select c1, c2 from t1 where c1 > 2 order by c1; " +
-			"end proc1;")
+			"CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR) AS BEGIN " +
+			"OPEN P1 FOR SELECT C1, C2 FROM T1 WHERE C1 > 2 ORDER BY C1; " +
+			"END PROC1;")
 		defer stmtProcCreate.Close()
 		rowsAffected, err = stmtProcCreate.Execute()
 		if err != nil {
@@ -323,7 +323,7 @@ An example of using the ora package directly:
 
 		// call stored procedure
 		// pass *ResultSet to Execute to receive the results of a sys_refcursor
-		stmtProcCall, err := ses.Prepare("call proc1(:1)")
+		stmtProcCall, err := ses.Prepare("CALL PROC1(:1)")
 		defer stmtProcCall.Close()
 		if err != nil {
 			panic(err)
@@ -363,21 +363,21 @@ An example of using the ora package directly:
 Pointers may be used to capture out-bound values from a SQL statement such as
 an insert or stored procedure call. For example, a numeric pointer captures an
 identity value:
-	
+
 	// given:
-	// create table t1 (
-	// c1 number(19,0) generated always as identity (start with 1 increment by 1),
-	// c2 varchar2(48 char))
+	// CREATE TABLE T1 (
+	// C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1),
+	// C2 VARCHAR2(48 CHAR))
 	var id int64
-	stmt, err = ses.Prepare("insert into t1 (c2) values ('go') returning c1 into :c1")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 INTO :C1")
 	stmt.Execute(&id)
 
 A string pointer captures an out parameter from a stored procedure:
 
 	// given:
-	// create or replace procedure proc1 (p1 out varchar2) as begin p1 := 'go'; end proc1;
+	// CREATE OR REPLACE PROCEDURE PROC1 (P1 OUT VARCHAR2) AS BEGIN P1 := 'GO'; END PROC1;
 	var str string
-	stmt, err = ses.Prepare("call proc1(:1)")
+	stmt, err = ses.Prepare("CALL PROC1(:1)")
 	stmt.Execute(&str)
 
 Slices may be used to insert multiple records with a single insert statement:
@@ -388,7 +388,7 @@ Slices may be used to insert multiple records with a single insert statement:
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Execute(values)
 
 The ora package provides nullable Go types to support DML operations such as
@@ -398,7 +398,7 @@ IntervalYM, IntervalDS, String, Bool, Bytes and Bfile. For example, you may inse
 nullable Strings and select nullable Strings:
 
 	// insert String slice
-	// given: create table t1 (c1 varchar2(48 char))
+	// given: CREATE TABLE T1 (C1 VARCHAR2(48 CHAR))
 	a := make([]ora.String, 5)
 	a[0] = ora.String{Value: "Go is expressive, concise, clean, and efficient."}
 	a[1] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
@@ -410,10 +410,10 @@ nullable Strings and select nullable Strings:
 
 	// Specify OraS to Prepare method to return ora.String values
 	// fetch records
-	stmt, err = ses.Prepare("select c1 from t1", OraS)
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	stmt, err = ses.Prepare("SELECT C1 FROM T1", OraS)
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 
 The Statement.Prepare method is variadic accepting zero or more GoColumnType
@@ -422,10 +422,10 @@ call can be configured to return an int64 and a nullable Int64 from the same
 column:
 
 	// given: create table t1 (c1 number)
-	stmt, err = ses.Prepare("select c1, c1 from t1", ora.I64, ora.OraI64)
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0], resultSet.Row[1])
+	stmt, err = ses.Prepare("SELECT C1, C1 FROM T1", ora.I64, ora.OraI64)
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0], rst.Row[1])
 	}
 
 Go numerics of various sizes are supported in DML operations. The ora package
@@ -435,16 +435,16 @@ float32. For example, you may insert a uint16 and select numerics of various siz
 	// insert uint16
 	// given: create table t1 (c1 number)
 	value := uint16(9)
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Execute(value)
 
 	// select numerics of various sizes from the same column
 	stmt, err = ses.Prepare(
-		"select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, from t1",
-		ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, 
+		"SELECT C1, C1, C1, C1, C1, C1, C1, C1, C1, C1, FROM T1",
+		ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8,
 		ora.F64, ora.F32)
-	resultSet, err := stmt.Fetch()
-	row := resultSet.NextRow()
+	rst, err := stmt.Fetch()
+	row := rst.NextRow()
 
 If a non-nullable type is defined for a nullable column returning null, the Go
 type's zero value is returned.
@@ -512,9 +512,9 @@ GoColumnTypes defined by the ora package are:
 	° D represents a default mapping between a select-list column and a Go type.
 	The default mapping is defined in ResultSetConfig.
 
-When Statement.Prepare doesn't receive a GoColumnType, or receives an incorrect GoColumnType, 
-the default value defined in ResultSetConfig is used. 
-	
+When Statement.Prepare doesn't receive a GoColumnType, or receives an incorrect GoColumnType,
+the default value defined in ResultSetConfig is used.
+
 There are two configuration structs, StatementConfig and ResultSetConfig.
 StatementConfig configures various aspects of a Statement. ResultSetConfig configures
 various aspects of a ResultSet, including the default mapping between an Oracle select-list
@@ -534,10 +534,10 @@ Configuration of Statement.Config takes effect prior to calls to Statement.Execu
 Statement.Fetch; consequently, any updates to Statement.Config after a call to Statement.Execute
 or Statement.Fetch are not observed.
 
-One configuration scenario may be to set a server's select statements to return nullable Go types by 
+One configuration scenario may be to set a server's select statements to return nullable Go types by
 default:
 
-	sc := NewStatementConfig()
+	sc := NewStmtConfig()
 	sc.ResultSet.SetNumberScaless(ora.OraI64)
 	sc.ResultSet.SetNumberScaled(ora.OraF64)
 	sc.ResultSet.SetBinaryDouble(ora.OraF64)
@@ -561,102 +561,102 @@ default:
 	srv.SetStatementConfig(sc)
 
 Another scenario may be to configure the runes mapped to bool values:
-	
+
 	// update StatementConfig to change the FalseRune and TrueRune inserted into the database
-	// given: create table t1 (c1 char(1 byte))
-	
+	// given: CREATE TABLE T1 (C1 CHAR(1 BYTE))
+
 	// insert 'false' record
 	var falseValue bool = false
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Config.FalseRune = 'N'
 	stmt.Execute(falseValue)
-	
+
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Config.TrueRune = 'Y'
 	stmt.Execute(trueValue)
 
 	// update ResultSetConfig to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, err = ses.Prepare("select c1 from t1")
+	stmt, err = ses.Prepare("SELECT C1 FROM T1")
 	stmt.Config.TrueRune = 'Y'
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 
 Oracle-specific types offered by the ora package are ResultSet, IntervalYM, IntervalDS, and Bfile.
 ResultSet represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle INTERVAL YEAR TO MONTH.
-IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID 
-columns are returned as strings and don't have a unique Go type. 
+IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID
+columns are returned as strings and don't have a unique Go type.
 
-ResultSet is used to obtain Go values from a SQL select statement. Methods ResultSet.Next, 
-ResultSet.NextRow, and ResultSet.Len are available. Fields ResultSet.Row, ResultSet.Err, 
-ResultSet.Index, and ResultSet.ColumnNames are also available. The Next method attempts to 
-load data from an Oracle buffer into Row, returning true when successful. When no data is available, 
-or if an error occurs, Next returns false setting Row to nil. Any error in Next is assigned to Err. 
-Calling Next increments Index and method Len returns the total number of rows processed. The NextRow 
-method is convenient for returning a single row. NextRow calls Next and returns Row. 
+ResultSet is used to obtain Go values from a SQL select statement. Methods ResultSet.Next,
+ResultSet.NextRow, and ResultSet.Len are available. Fields ResultSet.Row, ResultSet.Err,
+ResultSet.Index, and ResultSet.ColumnNames are also available. The Next method attempts to
+load data from an Oracle buffer into Row, returning true when successful. When no data is available,
+or if an error occurs, Next returns false setting Row to nil. Any error in Next is assigned to Err.
+Calling Next increments Index and method Len returns the total number of rows processed. The NextRow
+method is convenient for returning a single row. NextRow calls Next and returns Row.
 ColumnNames returns the names of columns defined by the SQL select statement.
 
-ResultSet has two usages. ResultSet may be returned from Statement.Fetch when prepared with a SQL select 
+ResultSet has two usages. ResultSet may be returned from Statement.Fetch when prepared with a SQL select
 statement:
 
-	// given: create table t1 (c1 number, c2, char(1 byte), c3 varchar2(48 char))
-	stmt, err = ses.Prepare("select c1, c2, c3 from t1")
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Index, resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
+	// given: CREATE TABLE T1 (C1 NUMBER, C2, CHAR(1 BYTE), C3 VARCHAR2(48 CHAR))
+	stmt, err = ses.Prepare("SELECT C1, C2, C3 FROM T1")
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Index, rst.Row[0], rst.Row[1], rst.Row[2])
 	}
 
-Or, a *ResultSet may be passed to Statement.Execute when prepared with a stored procedure accepting 
+Or, a *ResultSet may be passed to Statement.Execute when prepared with a stored procedure accepting
 an OUT SYS_REFCURSOR parameter:
-	
+
 	// given:
-	// create table t1 (c1 number, c2 varchar2(48 char))
-	// create or replace procedure proc1(p1 out sys_refcursor) as 
-	// begin open p1 for select c1, c2 from t1 order by c1; end proc1;
-	stmt, err = ses.Prepare("call proc1(:1)")
-	resultSet := &ora.ResultSet{}
-	stmt.Execute(resultSet)
-	if resultSet.IsOpen() {
-		for resultSet.Next() {
-			fmt.Println(resultSet.Row[0], resultSet.Row[1])
+	// CREATE TABLE T1 (C1 NUMBER, C2 VARCHAR2(48 CHAR))
+	// CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR) AS
+	// BEGIN OPEN P1 FOR SELECT C1, C2 FROM T1 ORDER BY C1; END PROC1;
+	stmt, err = ses.Prepare("CALL PROC1(:1)")
+	rst := &ora.ResultSet{}
+	stmt.Execute(rst)
+	if rst.IsOpen() {
+		for rst.Next() {
+			fmt.Println(rst.Row[0], rst.Row[1])
 		}
 	}
 
-Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single Execute call to obtain 
+Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single Execute call to obtain
 multiple ResultSets:
 
 	// given:
-	// create table t1 (c1 number, c2 varchar2(48 char))
-	// create or replace procedure proc1(p1 out sys_refcursor, p2 out sys_refcursor) as 
-	// begin open p1 for select c1 from t1 order by c1; open p2 for select c2 from t1 order by c2; 
-	// end proc1;
-	stmt, err = ses.Prepare("call proc1(:1, :2)")
-	resultSet1 := &ora.ResultSet{}
-	resultSet2 := &ora.ResultSet{}
-	stmt.Execute(resultSet1, resultSet2)
+	// CREATE TABLE T1 (C1 NUMBER, C2 VARCHAR2(48 CHAR))
+	// CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR, P2 OUT SYS_REFCURSOR) AS
+	// BEGIN OPEN P1 FOR SELECT C1 FROM T1 ORDER BY C1; OPEN P2 FOR SELECT C2 FROM T1 ORDER BY C2;
+	// END PROC1;
+	stmt, err = ses.Prepare("CALL PROC1(:1, :2)")
+	rst1 := &ora.ResultSet{}
+	rst2 := &ora.ResultSet{}
+	stmt.Execute(rst1, rst2)
 	// read from first cursor
-	if resultSet1.IsOpen() {
-		for resultSet1.Next() {
-			fmt.Println(resultSet1.Row[0])
+	if rst1.IsOpen() {
+		for rst1.Next() {
+			fmt.Println(rst1.Row[0])
 		}
 	}
 	// read from second cursor
-	if resultSet2.IsOpen() {
-		for resultSet2.Next() {
-			fmt.Println(resultSet2.Row[0])
+	if rst2.IsOpen() {
+		for rst2.Next() {
+			fmt.Println(rst2.Row[0])
 		}
 	}
 
-The types of values assigned to Row may be configured in StatementConfig.ResultSet. For configuration 
-to take effect, assign StatementConfig.ResultSet prior to calling Statement.Fetch or Statement.Execute. 
+The types of values assigned to Row may be configured in StatementConfig.ResultSet. For configuration
+to take effect, assign StatementConfig.ResultSet prior to calling Statement.Fetch or Statement.Execute.
 
 ResultSet prefetching may be controlled by StatementConfig.PrefetchRowCount and
-StatementConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with 
+StatementConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with
 PrefetchMemorySize. When PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
 The default uses a PrefetchMemorySize of 134MB.
@@ -666,72 +666,72 @@ Opening and closing ResultSets is managed internally. ResultSet does not have an
 IntervalYM may be be inserted and selected:
 
 	// insert IntervalYM slice
-	// given: create table t1 (c1 interval year to month)
+	// given: CREATE TABLE T1 (C1 INTERVAL YEAR TO MONTH)
 	a := make([]ora.IntervalYM, 5)
 	a[0] = ora.IntervalYM{Year: 1, Month: 1}
 	a[1] = ora.IntervalYM{Year: 99, Month: 9}
 	a[2] = ora.IntervalYM{IsNull: true}
 	a[3] = ora.IntervalYM{Year: -1, Month: -1}
 	a[4] = ora.IntervalYM{Year: -99, Month: -9}
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Execute(a)
 
 	// fetch IntervalYM
 	stmt, err = ses.Prepare("select c1 from t1")
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 
 IntervalDS may be be inserted and selected:
 
 	// insert IntervalDS slice
-	// given: create table t1 (c1 interval day to second)
+	// given: CREATE TABLE T1 (C1 INTERVAL DAY TO SECOND)
 	a := make([]ora.IntervalDS, 5)
 	a[0] = ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
 	a[1] = ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
 	a[2] = ora.IntervalDS{IsNull: true}
 	a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
 	a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
-	stmt, err = ses.Prepare("insert into t1 (c1) values (:c1)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Execute(a)
 
 	// fetch IntervalDS
 	stmt, err = ses.Prepare("select c1 from t1")
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
-	
+
 Transactions on an Oracle server are supported:
-	
-	// given: create table t1 (c1 number)
-	
+
+	// given: CREATE TABLE T1 (C1 NUMBER)
+
 	// rollback
 	tx, err := ses.BeginTransaction()
-	stmt, err = ses.Prepare("insert into t1 (c1) values (3)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (3)")
 	stmt.Execute()
-	stmt, err = ses.Prepare("insert into t1 (c1) values (5)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (5)")
 	stmt.Execute()
 	tx.Rollback()
 
 	// commit
 	tx, err = ses.BeginTransaction()
-	stmt, err = ses.Prepare("insert into t1 (c1) values (7)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (7)")
 	stmt.Execute()
-	stmt, err = ses.Prepare("insert into t1 (c1) values (9)")
+	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (9)")
 	stmt.Execute()
 	tx.Commit()
 
 	// fetch records
-	stmt, err = ses.Prepare("select c1 from t1")
-	resultSet, err := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	stmt, err = ses.Prepare("SELECT C1 FROM T1")
+	rst, err := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 
-The Server.Ping method checks whether the client's connection to the 
-Oracle server is valid. A call to Ping requires an open Session. Ping 
+The Server.Ping method checks whether the client's connection to the
+Oracle server is valid. A call to Ping requires an open Session. Ping
 will return a nil error when the connection is fine:
 
 	// open a session before calling Ping
@@ -741,7 +741,7 @@ will return a nil error when the connection is fine:
 		fmt.Println("Ping sucessful")
 	}
 
-The Server.Version method is available to obtain the Oracle server version. A call 
+The Server.Version method is available to obtain the Oracle server version. A call
 to Version requires an open Session:
 
 	// open a session before calling Version
@@ -752,7 +752,7 @@ to Version requires an open Session:
 	}
 
 Further code examples are available in the samples folder, example file and test files.
-	
+
 Test Database Setup
 
 Tests are available and require some setup. Setup varies depending on whether
@@ -772,7 +772,7 @@ Non-container test database setup steps:
 	CREATE USER test IDENTIFIED BY test DEFAULT TABLESPACE test_ts;
 
 	// 4. grant permissions to the database
-	GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, 
+	GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE,
 	CREATE PROCEDURE, UNLIMITED TABLESPACE TO test;
 
 	// 5. create OS environment variables
@@ -828,7 +828,7 @@ Some helpful SQL maintenance statements:
 	DROP USER test CASCADE;
 
 Run the tests.
-	
+
 Limitations
 
 database/sql method Stmt.QueryRow is not supported.

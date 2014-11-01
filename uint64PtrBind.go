@@ -15,45 +15,45 @@ import (
 )
 
 type uint64PtrBind struct {
-	environment *Environment
-	ocibnd      *C.OCIBind
-	ociNumber   C.OCINumber
-	isNull      C.sb2
-	value       *uint64
+	env       *Environment
+	ocibnd    *C.OCIBind
+	ociNumber C.OCINumber
+	isNull    C.sb2
+	value     *uint64
 }
 
-func (uint64PtrBind *uint64PtrBind) bind(value *uint64, position int, ocistmt *C.OCIStmt) error {
-	uint64PtrBind.value = value
+func (b *uint64PtrBind) bind(value *uint64, position int, ocistmt *C.OCIStmt) error {
+	b.value = value
 	r := C.OCIBindByPos2(
-		ocistmt, //OCIStmt      *stmtp,
-		(**C.OCIBind)(&uint64PtrBind.ocibnd),     //OCIBind      **bindpp,
-		uint64PtrBind.environment.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                          //ub4          position,
-		unsafe.Pointer(&uint64PtrBind.ociNumber), //void         *valuep,
-		C.sb8(C.sizeof_OCINumber),                //sb8          value_sz,
-		C.SQLT_VNU,                               //ub2          dty,
-		unsafe.Pointer(&uint64PtrBind.isNull),    //void         *indp,
+		ocistmt,                      //OCIStmt      *stmtp,
+		(**C.OCIBind)(&b.ocibnd),     //OCIBind      **bindpp,
+		b.env.ocierr,                 //OCIError     *errhp,
+		C.ub4(position),              //ub4          position,
+		unsafe.Pointer(&b.ociNumber), //void         *valuep,
+		C.sb8(C.sizeof_OCINumber),    //sb8          value_sz,
+		C.SQLT_VNU,                   //ub2          dty,
+		unsafe.Pointer(&b.isNull),    //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
 		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return uint64PtrBind.environment.ociError()
+		return b.env.ociError()
 	}
 	return nil
 }
 
-func (uint64PtrBind *uint64PtrBind) setPtr() error {
-	if uint64PtrBind.isNull > -1 {
+func (b *uint64PtrBind) setPtr() error {
+	if b.isNull > -1 {
 		r := C.OCINumberToInt(
-			uint64PtrBind.environment.ocierr,    //OCIError              *err,
-			&uint64PtrBind.ociNumber,            //const OCINumber       *number,
-			C.uword(8),                          //uword                 rsl_length,
-			C.OCI_NUMBER_UNSIGNED,               //uword                 rsl_flag,
-			unsafe.Pointer(uint64PtrBind.value)) //void                  *rsl );
+			b.env.ocierr,            //OCIError              *err,
+			&b.ociNumber,            //const OCINumber       *number,
+			C.uword(8),              //uword                 rsl_length,
+			C.OCI_NUMBER_UNSIGNED,   //uword                 rsl_flag,
+			unsafe.Pointer(b.value)) //void                  *rsl );
 		if r == C.OCI_ERROR {
-			return uint64PtrBind.environment.ociError()
+			return b.env.ociError()
 		}
 	}
 	return nil
@@ -65,5 +65,5 @@ func (uint64PtrBind *uint64PtrBind) close() {
 	}()
 	uint64PtrBind.ocibnd = nil
 	uint64PtrBind.value = nil
-	uint64PtrBind.environment.uint64PtrBindPool.Put(uint64PtrBind)
+	uint64PtrBind.env.uint64PtrBindPool.Put(uint64PtrBind)
 }

@@ -23,19 +23,19 @@ func TestDefine_string_urowid_session(t *testing.T) {
 func testRowid(isUrowid bool, t *testing.T) {
 	for n := 0; n < testIterations(); n++ {
 		tableName := tableName()
-		statement, err := testSes.Prepare(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))
-		defer statement.Close()
+		stmt, err := testSes.Prepare(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))
+		defer stmt.Close()
 		testErr(err, t)
-		_, err = statement.Execute()
+		_, err = stmt.Execute()
 		defer dropTable(tableName, testSes, t)
 		testErr(err, t)
 		// ROWID is returned from a table without an index
 		// UROWID is returned from indexed tables
 		if isUrowid {
-			statement, err := testSes.Prepare(fmt.Sprintf("create unique index t1_pk on %v (c1)", tableName))
-			defer statement.Close()
+			stmt, err := testSes.Prepare(fmt.Sprintf("create unique index t1_pk on %v (c1)", tableName))
+			defer stmt.Close()
 			testErr(err, t)
-			_, err = statement.Execute()
+			_, err = stmt.Execute()
 			testErr(err, t)
 		}
 
@@ -53,18 +53,18 @@ func testRowid(isUrowid bool, t *testing.T) {
 		selectStmt, err := testSes.Prepare(fmt.Sprintf("select rowid from %v", tableName))
 		defer selectStmt.Close()
 		testErr(err, t)
-		resultSet, err := selectStmt.Fetch()
+		rst, err := selectStmt.Fetch()
 		testErr(err, t)
-		hasRow := resultSet.Next()
-		testErr(resultSet.Err, t)
+		hasRow := rst.Next()
+		testErr(rst.Err, t)
 		if !hasRow {
 			t.Fatalf("no row returned")
-		} else if len(resultSet.Row) != 1 {
-			t.Fatalf("select column count: expected(%v), actual(%v)", 1, len(resultSet.Row))
+		} else if len(rst.Row) != 1 {
+			t.Fatalf("select column count: expected(%v), actual(%v)", 1, len(rst.Row))
 		} else {
-			rowid, ok := resultSet.Row[0].(string)
+			rowid, ok := rst.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string rowid. (%v, %v)", reflect.TypeOf(resultSet.Row[0]).Name(), resultSet.Row[0])
+				t.Fatal("Expected string rowid. (%v, %v)", reflect.TypeOf(rst.Row[0]).Name(), rst.Row[0])
 			}
 			if rowid == "" {
 				t.Fatalf("Expected non-empty rowid string. (%v)", rowid)
@@ -80,16 +80,16 @@ func testRowid(isUrowid bool, t *testing.T) {
 				t.Fatalf("update rows affected: expected(%v), actual(%v)", 1, rowsAffected)
 			}
 
-			selectStmt2, err := testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-			defer selectStmt2.Close()
+			stmtSelect2, err := testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+			defer stmtSelect2.Close()
 			testErr(err, t)
-			resultSet2, err := selectStmt2.Fetch()
+			rst2, err := stmtSelect2.Fetch()
 			testErr(err, t)
-			resultSet2.Next()
-			testErr(resultSet2.Err, t)
-			c1, ok := resultSet2.Row[0].(string)
+			rst2.Next()
+			testErr(rst2.Err, t)
+			c1, ok := rst2.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string for c1 column. (%v, %v)", reflect.TypeOf(resultSet2.Row[0]).Name(), resultSet2.Row[0])
+				t.Fatal("Expected string for c1 column. (%v, %v)", reflect.TypeOf(rst2.Row[0]).Name(), rst2.Row[0])
 			}
 			//fmt.Printf("c1 (%v)\n", c1)
 			if c1 != "go go go" {

@@ -15,56 +15,56 @@ import (
 )
 
 type float64Define struct {
-	environment *Environment
-	ocidef      *C.OCIDefine
-	ociNumber   C.OCINumber
-	isNull      C.sb2
+	env       *Environment
+	ocidef    *C.OCIDefine
+	ociNumber C.OCINumber
+	isNull    C.sb2
 }
 
-func (float64Define *float64Define) define(position int, ocistmt *C.OCIStmt) error {
+func (d *float64Define) define(position int, ocistmt *C.OCIStmt) error {
 	r := C.OCIDefineByPos2(
-		ocistmt,                                  //OCIStmt     *stmtp,
-		&float64Define.ocidef,                    //OCIDefine   **defnpp,
-		float64Define.environment.ocierr,         //OCIError    *errhp,
-		C.ub4(position),                          //ub4         position,
-		unsafe.Pointer(&float64Define.ociNumber), //void        *valuep,
-		C.sb8(C.sizeof_OCINumber),                //sb8         value_sz,
-		C.SQLT_VNU,                               //ub2         dty,
-		unsafe.Pointer(&float64Define.isNull),    //void        *indp,
+		ocistmt,                      //OCIStmt     *stmtp,
+		&d.ocidef,                    //OCIDefine   **defnpp,
+		d.env.ocierr,                 //OCIError    *errhp,
+		C.ub4(position),              //ub4         position,
+		unsafe.Pointer(&d.ociNumber), //void        *valuep,
+		C.sb8(C.sizeof_OCINumber),    //sb8         value_sz,
+		C.SQLT_VNU,                   //ub2         dty,
+		unsafe.Pointer(&d.isNull),    //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
 	if r == C.OCI_ERROR {
-		return float64Define.environment.ociError()
+		return d.env.ociError()
 	}
 	return nil
 }
-func (float64Define *float64Define) value() (value interface{}, err error) {
-	if float64Define.isNull > -1 {
+func (d *float64Define) value() (value interface{}, err error) {
+	if d.isNull > -1 {
 		var float64Value float64
 		r := C.OCINumberToReal(
-			float64Define.environment.ocierr, //OCIError              *err,
-			&float64Define.ociNumber,         //const OCINumber     *number,
-			C.uword(8),                       //uword               rsl_length,
-			unsafe.Pointer(&float64Value))    //void                *rsl );
+			d.env.ocierr,                  //OCIError              *err,
+			&d.ociNumber,                  //const OCINumber     *number,
+			C.uword(8),                    //uword               rsl_length,
+			unsafe.Pointer(&float64Value)) //void                *rsl );
 		if r == C.OCI_ERROR {
-			err = float64Define.environment.ociError()
+			err = d.env.ociError()
 		}
 		value = float64Value
 	}
 	return value, err
 }
-func (float64Define *float64Define) alloc() error {
+func (d *float64Define) alloc() error {
 	return nil
 }
-func (float64Define *float64Define) free() {
+func (d *float64Define) free() {
 
 }
-func (float64Define *float64Define) close() {
+func (d *float64Define) close() {
 	defer func() {
 		recover()
 	}()
-	float64Define.ocidef = nil
-	float64Define.isNull = C.sb2(0)
-	float64Define.environment.float64DefinePool.Put(float64Define)
+	d.ocidef = nil
+	d.isNull = C.sb2(0)
+	d.env.float64DefinePool.Put(d)
 }

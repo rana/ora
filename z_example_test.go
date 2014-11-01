@@ -134,7 +134,7 @@ func ExampleStatement_Exec_Query() {
 
 func ExampleStatement_Execute_insert() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -159,7 +159,7 @@ func ExampleStatement_Execute_insert() {
 
 func ExampleStatement_Execute_insert_return_identity() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -185,7 +185,7 @@ func ExampleStatement_Execute_insert_return_identity() {
 
 func ExampleStatement_Execute_insert_return_rowid() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -213,7 +213,7 @@ func ExampleStatement_Execute_insert_return_rowid() {
 
 func ExampleStatement_Execute_insert_fetch_bool() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -241,16 +241,16 @@ func ExampleStatement_Execute_insert_fetch_bool() {
 	// fetch inserted records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v ", rst.Row[0])
 	}
 	// Output: false true
 }
 
 func ExampleStatement_Execute_insert_fetch_bool_alternate() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -284,16 +284,16 @@ func ExampleStatement_Execute_insert_fetch_bool_alternate() {
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
 	stmt.Config.ResultSet.TrueRune = 'Y'
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v ", rst.Row[0])
 	}
 	// Output: false true
 }
 
 func ExampleStatement_Execute_update() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -323,7 +323,7 @@ func ExampleStatement_Execute_update() {
 
 func ExampleStatement_Execute_delete() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -352,7 +352,7 @@ func ExampleStatement_Execute_delete() {
 
 func ExampleStatement_Execute_insert_slice() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -380,7 +380,7 @@ func ExampleStatement_Execute_insert_slice() {
 
 func ExampleStatement_Execute_insert_nullable() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -408,7 +408,7 @@ func ExampleStatement_Execute_insert_nullable() {
 
 func ExampleStatement_Execute_insert_fetch_blob() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -437,8 +437,8 @@ func ExampleStatement_Execute_insert_fetch_blob() {
 	// fetch record
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	row := resultSet.NextRow()
+	rst, _ := stmt.Fetch()
+	row := rst.NextRow()
 	fmt.Println(row[0])
 
 	// Output:
@@ -448,7 +448,7 @@ func ExampleStatement_Execute_insert_fetch_blob() {
 
 func ExampleStatement_Execute_insert_fetch_byteSlice() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -479,9 +479,9 @@ func ExampleStatement_Execute_insert_fetch_byteSlice() {
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v, ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v, ", rst.Row[0])
 	}
 
 	// Output:
@@ -491,7 +491,7 @@ func ExampleStatement_Execute_insert_fetch_byteSlice() {
 
 func ExampleStatement_Fetch() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -520,16 +520,16 @@ func ExampleStatement_Fetch() {
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v %v %v, ", resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v %v %v, ", rst.Row[0], rst.Row[1], rst.Row[2])
 	}
 	// Output: 3 slice false, 7 map true, 9 channel true,
 }
 
 func ExampleStatement_Fetch_nullable() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -559,16 +559,16 @@ func ExampleStatement_Fetch_nullable() {
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName), OraI64, OraS, OraB)
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v %v %v, ", resultSet.Row[0], resultSet.Row[1], resultSet.Row[2])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v %v %v, ", rst.Row[0], rst.Row[1], rst.Row[2])
 	}
 	// Output: {true 0} {false slice} {false false}, {false 7} {true } {false true}, {false 9} {false channel} {true false},
 }
 
 func ExampleStatement_Fetch_numerics() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -590,8 +590,8 @@ func ExampleStatement_Fetch_numerics() {
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
 	defer stmt.Close()
-	resultSet, _ := stmt.Fetch()
-	row := resultSet.NextRow()
+	rst, _ := stmt.Fetch()
+	row := rst.NextRow()
 	fmt.Printf("%v %v %v %v %v %v %v %v %v %v",
 		reflect.TypeOf(row[0]).Name(),
 		reflect.TypeOf(row[1]).Name(),
@@ -608,7 +608,7 @@ func ExampleStatement_Fetch_numerics() {
 
 func ExampleResultSet_Next() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -634,9 +634,9 @@ func ExampleResultSet_Next() {
 
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), U16)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v, ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v, ", rst.Row[0])
 	}
 	// Output:
 	// 5
@@ -645,7 +645,7 @@ func ExampleResultSet_Next() {
 
 func ExampleResultSet_NextRow() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -666,15 +666,15 @@ func ExampleResultSet_NextRow() {
 
 	// fetch record
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
-	resultSet, _ := stmt.Fetch()
-	row := resultSet.NextRow()
+	rst, _ := stmt.Fetch()
+	row := rst.NextRow()
 	fmt.Printf("%v %v %v", row[0], row[1], row[2])
 	// Output: 7 go true
 }
 
 func ExampleResultSet_cursor_single() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -709,11 +709,11 @@ func ExampleResultSet_cursor_single() {
 	// call proc
 	stmt, _ = ses.Prepare("call proc1(:1)")
 	defer stmt.Close()
-	resultSet := &ResultSet{}
-	stmt.Execute(resultSet)
-	if resultSet.IsOpen() {
-		for resultSet.Next() {
-			fmt.Println(resultSet.Row[0], resultSet.Row[1])
+	rst := &ResultSet{}
+	stmt.Execute(rst)
+	if rst.IsOpen() {
+		for rst.Next() {
+			fmt.Println(rst.Row[0], rst.Row[1])
 		}
 	}
 	// Output:
@@ -724,7 +724,7 @@ func ExampleResultSet_cursor_single() {
 
 func ExampleResultSet_cursor_multiple() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -759,19 +759,19 @@ func ExampleResultSet_cursor_multiple() {
 	// call proc
 	stmt, _ = ses.Prepare("call proc1(:1, :2)")
 	defer stmt.Close()
-	resultSetC1 := &ResultSet{}
-	resultSetC2 := &ResultSet{}
-	stmt.Execute(resultSetC1, resultSetC2)
+	rstC1 := &ResultSet{}
+	rstC2 := &ResultSet{}
+	stmt.Execute(rstC1, rstC2)
 	fmt.Println("--- first result set ---")
-	if resultSetC1.IsOpen() {
-		for resultSetC1.Next() {
-			fmt.Println(resultSetC1.Row[0])
+	if rstC1.IsOpen() {
+		for rstC1.Next() {
+			fmt.Println(rstC1.Row[0])
 		}
 	}
 	fmt.Println("--- second result set ---")
-	if resultSetC2.IsOpen() {
-		for resultSetC2.Next() {
-			fmt.Println(resultSetC2.Row[0])
+	if rstC2.IsOpen() {
+		for rstC2.Next() {
+			fmt.Println(rstC2.Row[0])
 		}
 	}
 	// Output:
@@ -787,7 +787,7 @@ func ExampleResultSet_cursor_multiple() {
 
 func ExampleServer_Ping() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -806,7 +806,7 @@ func ExampleServer_Ping() {
 
 func ExampleServer_Version() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -825,7 +825,7 @@ func ExampleServer_Version() {
 
 func ExampleInt64() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -853,9 +853,9 @@ func ExampleInt64() {
 	// Specify OraI64 to Prepare method to return Int64 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI64)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -867,7 +867,7 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -895,9 +895,9 @@ func ExampleInt32() {
 	// Specify OraI32 to Prepare method to return Int32 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI32)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -909,7 +909,7 @@ func ExampleInt32() {
 
 func ExampleInt16() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -937,9 +937,9 @@ func ExampleInt16() {
 	// Specify OraI16 to Prepare method to return Int16 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI16)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -951,7 +951,7 @@ func ExampleInt16() {
 
 func ExampleInt8() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -979,9 +979,9 @@ func ExampleInt8() {
 	// Specify OraI8 to Prepare method to return Int8 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI8)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -993,7 +993,7 @@ func ExampleInt8() {
 
 func ExampleUint64() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1021,9 +1021,9 @@ func ExampleUint64() {
 	// Specify OraU64 to Prepare method to return Uint64 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU64)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1035,7 +1035,7 @@ func ExampleUint64() {
 
 func ExampleUint32() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1063,9 +1063,9 @@ func ExampleUint32() {
 	// Specify OraU32 to Prepare method to return Uint32 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU32)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1077,7 +1077,7 @@ func ExampleUint32() {
 
 func ExampleUint16() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1105,9 +1105,9 @@ func ExampleUint16() {
 	// Specify OraU16 to Prepare method to return Uint16 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU16)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1119,7 +1119,7 @@ func ExampleUint16() {
 
 func ExampleUint8() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1147,9 +1147,9 @@ func ExampleUint8() {
 	// Specify OraU8 to Prepare method to return Uint8 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU8)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1161,7 +1161,7 @@ func ExampleUint8() {
 
 func ExampleFloat64() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1189,9 +1189,9 @@ func ExampleFloat64() {
 	// Specify OraF64 to Prepare method to return Float64 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraF64)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -6.28318}
@@ -1203,7 +1203,7 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1231,9 +1231,9 @@ func ExampleFloat32() {
 	// Specify OraF32 to Prepare method to return Float32 values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraF32)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false -6.28318}
@@ -1245,7 +1245,7 @@ func ExampleFloat32() {
 
 func ExampleString() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1273,9 +1273,9 @@ func ExampleString() {
 	// Specify OraS to Prepare method to return String values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraS)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false Go is expressive, concise, clean, and efficient.}
@@ -1287,7 +1287,7 @@ func ExampleString() {
 
 func ExampleBool() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1315,9 +1315,9 @@ func ExampleBool() {
 	// Specify OraB to Prepare method to return Bool values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraB)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false true}
@@ -1329,7 +1329,7 @@ func ExampleBool() {
 
 func ExampleTime() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1357,9 +1357,9 @@ func ExampleTime() {
 	// Specify OraT to Prepare method to return Time values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraT)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		t := resultSet.Row[0].(Time)
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		t := rst.Row[0].(Time)
 		fmt.Printf("%v %v-%v-%v %v:%v:%v\n", t.IsNull, t.Value.Year(), t.Value.Month(), t.Value.Day(), t.Value.Hour(), t.Value.Minute(), t.Value.Second())
 	}
 	// Output:
@@ -1372,7 +1372,7 @@ func ExampleTime() {
 
 func ExampleIntervalYM() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1399,9 +1399,9 @@ func ExampleIntervalYM() {
 
 	// fetch IntervalYM
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v, ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v, ", rst.Row[0])
 	}
 	// Output: {false 1 1}, {false 99 9}, {true 0 0}, {false -1 -1}, {false -99 -9},
 }
@@ -1416,7 +1416,7 @@ func ExampleIntervalYM_ShiftTime() {
 
 func ExampleIntervalDS() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1443,9 +1443,9 @@ func ExampleIntervalDS() {
 
 	// fetch IntervalDS
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v, ", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v, ", rst.Row[0])
 	}
 	// Output: {false 1 1 1 1 123457000}, {false 59 59 59 59 123457000}, {true 0 0 0 0 0}, {false -1 -1 -1 -1 -123457000}, {false -59 -59 -59 -59 -123457000},
 }
@@ -1459,7 +1459,7 @@ func ExampleIntervalDS_ShiftTime() {
 
 func ExampleBytes() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1503,9 +1503,9 @@ func ExampleBytes() {
 	// Specify OraBits to Prepare method to return Bytes values
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraBits)
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// {false [0 1 2 3 4 5 6 7 8 9]}
@@ -1517,7 +1517,7 @@ func ExampleBytes() {
 
 func ExampleBfile() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1539,16 +1539,16 @@ func ExampleBfile() {
 
 	// fetch Bfile
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Printf("%v", resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Printf("%v", rst.Row[0])
 	}
 	// Output: {false TEMP_DIR test.txt}
 }
 
 func ExampleTransaction() {
 	// setup
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, _ := env.OpenServer(testServerName)
@@ -1580,9 +1580,9 @@ func ExampleTransaction() {
 
 	// fetch records
 	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	resultSet, _ := stmt.Fetch()
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0])
+	rst, _ := stmt.Fetch()
+	for rst.Next() {
+		fmt.Println(rst.Row[0])
 	}
 	// Output:
 	// 7
@@ -1592,7 +1592,7 @@ func ExampleTransaction() {
 func ExampleDriver_usage() {
 	// example usage of the oracle package driver
 	// connect to a server and open a session
-	env := NewEnvironment()
+	env := NewEnv()
 	env.Open()
 	defer env.Close()
 	srv, err := env.OpenServer(testServerName)
@@ -1659,15 +1659,15 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	resultSet, err := stmtFetch.Fetch()
+	rst, err := stmtFetch.Fetch()
 	if err != nil {
 		panic(err)
 	}
-	for resultSet.Next() {
-		fmt.Println(resultSet.Row[0], resultSet.Row[1])
+	for rst.Next() {
+		fmt.Println(rst.Row[0], rst.Row[1])
 	}
-	if resultSet.Err != nil {
-		panic(resultSet.Err)
+	if rst.Err != nil {
+		panic(rst.Err)
 	}
 
 	// commit first transaction
@@ -1705,16 +1705,16 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	resultSet, err = stmtCount.Fetch()
+	rst, err = stmtCount.Fetch()
 	if err != nil {
 		panic(err)
 	}
-	row := resultSet.NextRow()
+	row := rst.NextRow()
 	if row != nil {
 		fmt.Println(row[0])
 	}
-	if resultSet.Err != nil {
-		panic(resultSet.Err)
+	if rst.Err != nil {
+		panic(rst.Err)
 	}
 
 	// create stored procedure with sys_refcursor

@@ -84,14 +84,14 @@ const (
 //
 // Implements the driver.Driver interface.
 type Driver struct {
-	environment *Environment
+	env *Environment
 }
 
 // Initalizes the driver
 func init() {
-	driver := &Driver{environment: NewEnvironment()}
+	driver := &Driver{env: NewEnv()}
 	// database/sql/driver expects binaryFloat to return float64
-	driver.environment.statementConfig.ResultSet.binaryFloat = F64
+	driver.env.stmtConfig.ResultSet.binaryFloat = F64
 	sql.Register(DriverName, driver)
 }
 
@@ -100,13 +100,14 @@ func init() {
 // The connection string has the form username/password@dbname.
 // dbname is a connection identifier such as a net service name,
 // full connection identifier, or a simple connection identifier.
+// The dbname may be defined in the client machine's tnsnames.ora file.
 //
 // Open is a member of the driver.Driver interface.
 func (driver *Driver) Open(connStr string) (driver.Conn, error) {
-	if !driver.environment.IsOpen() {
-		driver.environment.Open()
+	if !driver.env.IsOpen() {
+		driver.env.Open()
 	}
-	connection, err := driver.environment.OpenConnection(connStr)
+	connection, err := driver.env.OpenConnection(connStr)
 	if err != nil {
 		return nil, err
 	}

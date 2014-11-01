@@ -20,29 +20,30 @@ import (
 // Opening and closing a ResultSet is managed internally.
 // ResultSet doesn't have an Open method or Close method.
 type ResultSet struct {
-	statement   *Statement
-	ocistmt     *C.OCIStmt
-	defines     []define
-	Err         error
-	Index       int
+	ocistmt *C.OCIStmt
+	stmt    *Statement
+	defines []define
+
 	Row         []interface{}
 	ColumnNames []string
+	Index       int
+	Err         error
 }
 
 // Len returns the number of rows retrieved.
-func (resultSet *ResultSet) Len() int {
-	return resultSet.Index + 1
+func (rst *ResultSet) Len() int {
+	return rst.Index + 1
 }
 
 // beginRow allocates handles for each column and fetches one row.
-func (resultSet *ResultSet) beginRow() error {
-	resultSet.Index++
+func (rst *ResultSet) beginRow() error {
+	rst.Index++
 	// check is open
-	if resultSet.ocistmt == nil {
+	if rst.ocistmt == nil {
 		return errNew("ResultSet is closed")
 	}
 	// allocate define descriptor handles
-	for _, define := range resultSet.defines {
+	for _, define := range rst.defines {
 		err := define.alloc()
 		if err != nil {
 			return err
@@ -50,25 +51,25 @@ func (resultSet *ResultSet) beginRow() error {
 	}
 	// fetch one row
 	r := C.OCIStmtFetch2(
-		resultSet.ocistmt,                                     //OCIStmt     *stmthp,
-		resultSet.statement.session.server.environment.ocierr, //OCIError    *errhp,
-		C.ub4(1),         //ub4         nrows,
-		C.OCI_FETCH_NEXT, //ub2         orientation,
-		C.sb4(0),         //sb4         fetchOffset,
-		C.OCI_DEFAULT)    //ub4         mode );
+		rst.ocistmt,                 //OCIStmt     *stmthp,
+		rst.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
+		C.ub4(1),                    //ub4         nrows,
+		C.OCI_FETCH_NEXT,            //ub2         orientation,
+		C.sb4(0),                    //sb4         fetchOffset,
+		C.OCI_DEFAULT)               //ub4         mode );
 	if r == C.OCI_ERROR {
-		return resultSet.statement.session.server.environment.ociError()
+		return rst.stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_NO_DATA {
 		// Adjust Index so that Len() returns correct value when all rows read
-		resultSet.Index--
+		rst.Index--
 		return io.EOF
 	}
 	return nil
 }
 
 // endRow deallocates a handle for each column.
-func (resultSet *ResultSet) endRow() {
-	for _, define := range resultSet.defines {
+func (rst *ResultSet) endRow() {
+	for _, define := range rst.defines {
 		define.free()
 	}
 }
@@ -80,27 +81,27 @@ func (resultSet *ResultSet) endRow() {
 // on each call to Next. ResultSet.Row is set to nil when Next returns false.
 //
 // When Next returns false check ResultSet.Err for any error that may have occured.
-func (resultSet *ResultSet) Next() bool {
-	err := resultSet.beginRow()
-	defer resultSet.endRow()
+func (rst *ResultSet) Next() bool {
+	err := rst.beginRow()
+	defer rst.endRow()
 	if err != nil {
 		// io.EOF means no more data; return nil err
 		if err == io.EOF {
 			err = nil
 		}
-		resultSet.Err = err
-		resultSet.Row = nil
+		rst.Err = err
+		rst.Row = nil
 		return false
 	}
 	// populate column values
-	for n, define := range resultSet.defines {
+	for n, define := range rst.defines {
 		value, err := define.value()
 		if err != nil {
-			resultSet.Err = err
-			resultSet.Row = nil
+			rst.Err = err
+			rst.Row = nil
 			return false
 		}
-		resultSet.Row[n] = value
+		rst.Row[n] = value
 	}
 	return true
 }
@@ -109,47 +110,47 @@ func (resultSet *ResultSet) Next() bool {
 // Nil is returned when there's no data.
 //
 // When NextRow returns nil check ResultSet.Err for any error that may have occured.
-func (resultSet *ResultSet) NextRow() []interface{} {
-	resultSet.Next()
-	return resultSet.Row
+func (rst *ResultSet) NextRow() []interface{} {
+	rst.Next()
+	return rst.Row
 }
 
 // IsOpen returns true when a result set is open; otherwise, false.
-func (resultSet *ResultSet) IsOpen() bool {
-	return resultSet.ocistmt != nil
+func (rst *ResultSet) IsOpen() bool {
+	return rst.ocistmt != nil
 }
 
 // Open defines select-list columns.
-func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error {
-	resultSet.statement = statement
-	resultSet.ocistmt = ocistmt
-	resultSet.Index = -1
+func (rst *ResultSet) open(stmt *Statement, ocistmt *C.OCIStmt) error {
+	rst.stmt = stmt
+	rst.ocistmt = ocistmt
+	rst.Index = -1
 	// Get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
-		resultSet.statement.session.server.ocisvcctx,          //OCISvcCtx           *svchp,
-		resultSet.ocistmt,                                     //OCIStmt             *stmtp,
-		resultSet.statement.session.server.environment.ocierr, //OCIError            *errhp,
-		C.ub4(1),            //ub4                 iters,
-		C.ub4(0),            //ub4                 rowoff,
-		nil,                 //const OCISnapshot   *snap_in,
-		nil,                 //OCISnapshot         *snap_out,
-		C.OCI_DESCRIBE_ONLY) //ub4                 mode );
+		rst.stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
+		rst.ocistmt,                 //OCIStmt             *stmtp,
+		rst.stmt.ses.srv.env.ocierr, //OCIError            *errhp,
+		C.ub4(1),                    //ub4                 iters,
+		C.ub4(0),                    //ub4                 rowoff,
+		nil,                         //const OCISnapshot   *snap_in,
+		nil,                         //OCISnapshot         *snap_out,
+		C.OCI_DESCRIBE_ONLY)         //ub4                 mode );
 	if r == C.OCI_ERROR {
-		return resultSet.statement.session.server.environment.ociError()
+		return rst.stmt.ses.srv.env.ociError()
 	}
 
 	// Get the parameter count
 	var paramCount C.ub4
-	err := resultSet.attr(unsafe.Pointer(&paramCount), 4, C.OCI_ATTR_PARAM_COUNT)
+	err := rst.attr(unsafe.Pointer(&paramCount), 4, C.OCI_ATTR_PARAM_COUNT)
 	if err != nil {
 		return err
 	}
 
 	// Make defines slice
-	resultSet.defines = make([]define, int(paramCount))
-	resultSet.ColumnNames = make([]string, int(paramCount))
-	resultSet.Row = make([]interface{}, int(paramCount))
-	//fmt.Printf("resultSet.open (paramCount %v)\n", paramCount)
+	rst.defines = make([]define, int(paramCount))
+	rst.ColumnNames = make([]string, int(paramCount))
+	rst.Row = make([]interface{}, int(paramCount))
+	//fmt.Printf("rst.open (paramCount %v)\n", paramCount)
 
 	// Create parameters for each select-list column
 	var goColumnType GoColumnType
@@ -159,25 +160,25 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		// parameter position is 1-based
 		var ocipar *C.OCIParam
 		r := C.OCIParamGet(
-			unsafe.Pointer(resultSet.ocistmt),                     //const void        *hndlp,
-			C.OCI_HTYPE_STMT,                                      //ub4               htype,
-			resultSet.statement.session.server.environment.ocierr, //OCIError          *errhp,
-			(*unsafe.Pointer)(unsafe.Pointer(&ocipar)),            //void              **parmdpp,
-			C.ub4(n+1))                                            //ub4               pos );
+			unsafe.Pointer(rst.ocistmt),                //const void        *hndlp,
+			C.OCI_HTYPE_STMT,                           //ub4               htype,
+			rst.stmt.ses.srv.env.ocierr,                //OCIError          *errhp,
+			(*unsafe.Pointer)(unsafe.Pointer(&ocipar)), //void              **parmdpp,
+			C.ub4(n+1))                                 //ub4               pos );
 		if r == C.OCI_ERROR {
-			return resultSet.statement.session.server.environment.ociError()
+			return rst.stmt.ses.srv.env.ociError()
 		}
 
 		// Get column size in bytes
 		var columnSize uint32
-		err = resultSet.paramAttr(ocipar, unsafe.Pointer(&columnSize), 0, C.OCI_ATTR_DATA_SIZE)
+		err = rst.paramAttr(ocipar, unsafe.Pointer(&columnSize), 0, C.OCI_ATTR_DATA_SIZE)
 		if err != nil {
 			return err
 		}
 
 		// Get oci data type code
 		var ociTypeCode C.ub2
-		err = resultSet.paramAttr(ocipar, unsafe.Pointer(&ociTypeCode), 0, C.OCI_ATTR_DATA_TYPE)
+		err = rst.paramAttr(ocipar, unsafe.Pointer(&ociTypeCode), 0, C.OCI_ATTR_DATA_TYPE)
 		if err != nil {
 			return err
 		}
@@ -188,299 +189,299 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 			// NUMBER
 			// Get precision
 			var precision C.sb2
-			err = resultSet.paramAttr(ocipar, unsafe.Pointer(&precision), 0, C.OCI_ATTR_PRECISION)
+			err = rst.paramAttr(ocipar, unsafe.Pointer(&precision), 0, C.OCI_ATTR_PRECISION)
 			if err != nil {
 				return err
 			}
 			// Get scale (the number of decimal places)
 			var numericScale C.sb1
-			err = resultSet.paramAttr(ocipar, unsafe.Pointer(&numericScale), 0, C.OCI_ATTR_SCALE)
+			err = rst.paramAttr(ocipar, unsafe.Pointer(&numericScale), 0, C.OCI_ATTR_SCALE)
 			if err != nil {
 				return err
 			}
 			// If the precision is nonzero and scale is -127, then it is a FLOAT;
 			// otherwise, it's a NUMBER(precision, scale).
 			if precision != 0 && (numericScale > 0 || numericScale == -127) {
-				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
+				if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
 					if numericScale == -127 {
-						goColumnType = resultSet.statement.Config.ResultSet.float
+						goColumnType = rst.stmt.Config.ResultSet.float
 					} else {
-						goColumnType = resultSet.statement.Config.ResultSet.numberScaled
+						goColumnType = rst.stmt.Config.ResultSet.numberScaled
 					}
 				} else {
-					err = checkNumericColumn(statement.goColumnTypes[n])
+					err = checkNumericColumn(stmt.goColumnTypes[n])
 					if err != nil {
 						return err
 					}
-					goColumnType = statement.goColumnTypes[n]
+					goColumnType = stmt.goColumnTypes[n]
 				}
-				err := resultSet.defineNumeric(n, goColumnType)
+				err := rst.defineNumeric(n, goColumnType)
 				if err != nil {
 					return err
 				}
 			} else {
-				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.statement.Config.ResultSet.numberScaless
+				if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+					goColumnType = rst.stmt.Config.ResultSet.numberScaless
 				} else {
-					err = checkNumericColumn(statement.goColumnTypes[n])
+					err = checkNumericColumn(stmt.goColumnTypes[n])
 					if err != nil {
 						return err
 					}
-					goColumnType = statement.goColumnTypes[n]
+					goColumnType = stmt.goColumnTypes[n]
 				}
-				err := resultSet.defineNumeric(n, goColumnType)
+				err := rst.defineNumeric(n, goColumnType)
 				if err != nil {
 					return err
 				}
 			}
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.binaryDouble
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.binaryDouble
 			} else {
-				err = checkNumericColumn(statement.goColumnTypes[n])
+				err = checkNumericColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			err := resultSet.defineNumeric(n, goColumnType)
+			err := rst.defineNumeric(n, goColumnType)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_IBFLOAT:
 			// BINARY_FLOAT
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.binaryFloat
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.binaryFloat
 			} else {
-				err = checkNumericColumn(statement.goColumnTypes[n])
+				err = checkNumericColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			err := resultSet.defineNumeric(n, goColumnType)
+			err := rst.defineNumeric(n, goColumnType)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_DAT, C.SQLT_TIMESTAMP, C.SQLT_TIMESTAMP_TZ, C.SQLT_TIMESTAMP_LTZ:
 			// DATE, TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIMEZONE
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
 				switch ociTypeCode {
 				case C.SQLT_DAT:
-					goColumnType = resultSet.statement.Config.ResultSet.date
+					goColumnType = rst.stmt.Config.ResultSet.date
 				case C.SQLT_TIMESTAMP:
-					goColumnType = resultSet.statement.Config.ResultSet.timestamp
+					goColumnType = rst.stmt.Config.ResultSet.timestamp
 				case C.SQLT_TIMESTAMP_TZ:
-					goColumnType = resultSet.statement.Config.ResultSet.timestampTz
+					goColumnType = rst.stmt.Config.ResultSet.timestampTz
 				case C.SQLT_TIMESTAMP_LTZ:
-					goColumnType = resultSet.statement.Config.ResultSet.timestampLtz
+					goColumnType = rst.stmt.Config.ResultSet.timestampLtz
 				}
 			} else {
-				err = checkTimeColumn(statement.goColumnTypes[n])
+				err = checkTimeColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
 			if goColumnType == T {
-				timeDefine := resultSet.statement.session.server.environment.timeDefinePool.Get().(*timeDefine)
-				resultSet.defines[n] = timeDefine
-				err = timeDefine.define(n+1, resultSet.ocistmt)
+				timeDefine := rst.stmt.ses.srv.env.timeDefinePool.Get().(*timeDefine)
+				rst.defines[n] = timeDefine
+				err = timeDefine.define(n+1, rst.ocistmt)
 				if err != nil {
 					return err
 				}
 			} else {
-				oraTimeDefine := resultSet.statement.session.server.environment.oraTimeDefinePool.Get().(*oraTimeDefine)
-				resultSet.defines[n] = oraTimeDefine
-				err = oraTimeDefine.define(n+1, resultSet.ocistmt)
+				oraTimeDefine := rst.stmt.ses.srv.env.oraTimeDefinePool.Get().(*oraTimeDefine)
+				rst.defines[n] = oraTimeDefine
+				err = oraTimeDefine.define(n+1, rst.ocistmt)
 				if err != nil {
 					return err
 				}
 			}
 		case C.SQLT_INTERVAL_YM:
-			intervalYMDefine := resultSet.statement.session.server.environment.intervalYMDefinePool.Get().(*intervalYMDefine)
-			resultSet.defines[n] = intervalYMDefine
-			err = intervalYMDefine.define(n+1, resultSet.ocistmt)
+			intervalYMDefine := rst.stmt.ses.srv.env.intervalYMDefinePool.Get().(*intervalYMDefine)
+			rst.defines[n] = intervalYMDefine
+			err = intervalYMDefine.define(n+1, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_INTERVAL_DS:
-			intervalDSDefine := resultSet.statement.session.server.environment.intervalDSDefinePool.Get().(*intervalDSDefine)
-			resultSet.defines[n] = intervalDSDefine
-			err = intervalDSDefine.define(n+1, resultSet.ocistmt)
+			intervalDSDefine := rst.stmt.ses.srv.env.intervalDSDefinePool.Get().(*intervalDSDefine)
+			rst.defines[n] = intervalDSDefine
+			err = intervalDSDefine.define(n+1, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_CHR:
 			// VARCHAR, VARCHAR2, NVARCHAR2
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.varchar
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.varchar
 			} else {
-				err = checkStringColumn(statement.goColumnTypes[n])
+				err = checkStringColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			err = resultSet.defineString(columnSize, n, goColumnType)
+			err = rst.defineString(columnSize, n, goColumnType)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_AFC:
 			// CHAR, NCHAR
 			if columnSize == 1 {
-				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.statement.Config.ResultSet.char1
+				if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+					goColumnType = rst.stmt.Config.ResultSet.char1
 				} else {
-					err = checkBoolOrStringColumn(statement.goColumnTypes[n])
+					err = checkBoolOrStringColumn(stmt.goColumnTypes[n])
 					if err != nil {
 						return err
 					}
-					goColumnType = statement.goColumnTypes[n]
+					goColumnType = stmt.goColumnTypes[n]
 				}
 				switch goColumnType {
 				case B:
 					// Interpret single char as bool
-					boolDefine := resultSet.statement.session.server.environment.boolDefinePool.Get().(*boolDefine)
-					resultSet.defines[n] = boolDefine
-					err = boolDefine.define(int(columnSize), n+1, resultSet, resultSet.ocistmt)
+					boolDefine := rst.stmt.ses.srv.env.boolDefinePool.Get().(*boolDefine)
+					rst.defines[n] = boolDefine
+					err = boolDefine.define(int(columnSize), n+1, rst, rst.ocistmt)
 					if err != nil {
 						return err
 					}
 				case OraB:
 					// Interpret single char as nullable bool
-					oraBoolDefine := resultSet.statement.session.server.environment.oraBoolDefinePool.Get().(*oraBoolDefine)
-					resultSet.defines[n] = oraBoolDefine
-					err = oraBoolDefine.define(int(columnSize), n+1, resultSet, resultSet.ocistmt)
+					oraBoolDefine := rst.stmt.ses.srv.env.oraBoolDefinePool.Get().(*oraBoolDefine)
+					rst.defines[n] = oraBoolDefine
+					err = oraBoolDefine.define(int(columnSize), n+1, rst, rst.ocistmt)
 					if err != nil {
 						return err
 					}
 				case S, OraS:
-					err = resultSet.defineString(columnSize, n, goColumnType)
+					err = rst.defineString(columnSize, n, goColumnType)
 					if err != nil {
 						return err
 					}
 				}
 			} else {
 				// Interpret as string
-				if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-					goColumnType = resultSet.statement.Config.ResultSet.char
+				if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+					goColumnType = rst.stmt.Config.ResultSet.char
 				} else {
-					err = checkStringColumn(statement.goColumnTypes[n])
+					err = checkStringColumn(stmt.goColumnTypes[n])
 					if err != nil {
 						return err
 					}
-					goColumnType = statement.goColumnTypes[n]
+					goColumnType = stmt.goColumnTypes[n]
 				}
-				err = resultSet.defineString(columnSize, n, goColumnType)
+				err = rst.defineString(columnSize, n, goColumnType)
 				if err != nil {
 					return err
 				}
 			}
 		case C.SQLT_LNG:
 			// LONG
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.long
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.long
 			} else {
-				err = checkStringColumn(statement.goColumnTypes[n])
+				err = checkStringColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
-			err = resultSet.defineString(statement.Config.longBufferSize, n, goColumnType)
+			err = rst.defineString(stmt.Config.longBufferSize, n, goColumnType)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_CLOB:
 			// CLOB, NCLOB
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.clob
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.clob
 			} else {
-				err = checkStringColumn(statement.goColumnTypes[n])
+				err = checkStringColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
 			// Get character set form
 			var charsetForm C.ub1
-			err = resultSet.paramAttr(ocipar, unsafe.Pointer(&charsetForm), 0, C.OCI_ATTR_CHARSET_FORM)
+			err = rst.paramAttr(ocipar, unsafe.Pointer(&charsetForm), 0, C.OCI_ATTR_CHARSET_FORM)
 			if err != nil {
 				return err
 			}
-			lobDefine := resultSet.statement.session.server.environment.lobDefinePool.Get().(*lobDefine)
-			resultSet.defines[n] = lobDefine
-			err = lobDefine.define(C.SQLT_CLOB, charsetForm, int(columnSize), n+1, goColumnType, resultSet.statement.session.server.ocisvcctx, resultSet.ocistmt)
+			lobDefine := rst.stmt.ses.srv.env.lobDefinePool.Get().(*lobDefine)
+			rst.defines[n] = lobDefine
+			err = lobDefine.define(C.SQLT_CLOB, charsetForm, int(columnSize), n+1, goColumnType, rst.stmt.ses.srv.ocisvcctx, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_LBI:
 			// LONG RAW
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.longRaw
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.longRaw
 			} else {
-				err = checkBitsColumn(statement.goColumnTypes[n])
+				err = checkBitsColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			longRawDefine := resultSet.statement.session.server.environment.longRawDefinePool.Get().(*longRawDefine)
-			resultSet.defines[n] = longRawDefine
-			err = longRawDefine.define(int(columnSize), n+1, goColumnType, resultSet.statement.Config.longRawBufferSize, resultSet.ocistmt)
+			longRawDefine := rst.stmt.ses.srv.env.longRawDefinePool.Get().(*longRawDefine)
+			rst.defines[n] = longRawDefine
+			err = longRawDefine.define(int(columnSize), n+1, goColumnType, rst.stmt.Config.longRawBufferSize, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_BIN:
 			// RAW
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.raw
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.raw
 			} else {
-				err = checkBitsColumn(statement.goColumnTypes[n])
+				err = checkBitsColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			rawDefine := resultSet.statement.session.server.environment.rawDefinePool.Get().(*rawDefine)
-			resultSet.defines[n] = rawDefine
-			err = rawDefine.define(int(columnSize), n+1, goColumnType, resultSet.ocistmt)
+			rawDefine := rst.stmt.ses.srv.env.rawDefinePool.Get().(*rawDefine)
+			rst.defines[n] = rawDefine
+			err = rawDefine.define(int(columnSize), n+1, goColumnType, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_BLOB:
 			// BLOB
-			if statement.goColumnTypes == nil || n >= len(statement.goColumnTypes) || statement.goColumnTypes[n] == D {
-				goColumnType = resultSet.statement.Config.ResultSet.blob
+			if stmt.goColumnTypes == nil || n >= len(stmt.goColumnTypes) || stmt.goColumnTypes[n] == D {
+				goColumnType = rst.stmt.Config.ResultSet.blob
 			} else {
-				err = checkBitsColumn(statement.goColumnTypes[n])
+				err = checkBitsColumn(stmt.goColumnTypes[n])
 				if err != nil {
 					return err
 				}
-				goColumnType = statement.goColumnTypes[n]
+				goColumnType = stmt.goColumnTypes[n]
 			}
-			lobDefine := resultSet.statement.session.server.environment.lobDefinePool.Get().(*lobDefine)
-			resultSet.defines[n] = lobDefine
-			err = lobDefine.define(C.SQLT_BLOB, C.SQLCS_IMPLICIT, int(columnSize), n+1, goColumnType, resultSet.statement.session.server.ocisvcctx, resultSet.ocistmt)
+			lobDefine := rst.stmt.ses.srv.env.lobDefinePool.Get().(*lobDefine)
+			rst.defines[n] = lobDefine
+			err = lobDefine.define(C.SQLT_BLOB, C.SQLCS_IMPLICIT, int(columnSize), n+1, goColumnType, rst.stmt.ses.srv.ocisvcctx, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_FILE:
 			// BFILE
-			bfileDefine := resultSet.statement.session.server.environment.bfileDefinePool.Get().(*bfileDefine)
-			resultSet.defines[n] = bfileDefine
-			err = bfileDefine.define(int(columnSize), n+1, resultSet.ocistmt)
+			bfileDefine := rst.stmt.ses.srv.env.bfileDefinePool.Get().(*bfileDefine)
+			rst.defines[n] = bfileDefine
+			err = bfileDefine.define(int(columnSize), n+1, rst.ocistmt)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_RDD:
 			// ROWID, UROWID
-			rowidDefine := resultSet.statement.session.server.environment.rowidDefinePool.Get().(*rowidDefine)
-			resultSet.defines[n] = rowidDefine
-			err = rowidDefine.define(int(columnSize), n+1, resultSet.ocistmt)
+			rowidDefine := rst.stmt.ses.srv.env.rowidDefinePool.Get().(*rowidDefine)
+			rst.defines[n] = rowidDefine
+			err = rowidDefine.define(int(columnSize), n+1, rst.ocistmt)
 			if err != nil {
 				return err
 			}
@@ -490,13 +491,13 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 		}
 
 		// Get column name
-		if resultSet.defines[n] != nil {
+		if rst.defines[n] != nil {
 			var columnName *C.char
-			err := resultSet.paramAttr(ocipar, unsafe.Pointer(&columnName), 0, C.OCI_ATTR_NAME)
+			err := rst.paramAttr(ocipar, unsafe.Pointer(&columnName), 0, C.OCI_ATTR_NAME)
 			if err != nil {
 				return err
 			}
-			resultSet.ColumnNames[n] = C.GoString(columnName)
+			rst.ColumnNames[n] = C.GoString(columnName)
 		}
 	}
 
@@ -504,11 +505,11 @@ func (resultSet *ResultSet) open(statement *Statement, ocistmt *C.OCIStmt) error
 }
 
 // close releases allocated resources.
-func (resultSet *ResultSet) close() {
+func (rst *ResultSet) close() {
 	// Close defines
-	if resultSet.ocistmt != nil {
-		if len(resultSet.defines) > 0 {
-			for _, define := range resultSet.defines {
+	if rst.ocistmt != nil {
+		if len(rst.defines) > 0 {
+			for _, define := range rst.defines {
 				//fmt.Printf("close define %v\n", define)
 				if define != nil {
 					define.close()
@@ -516,141 +517,141 @@ func (resultSet *ResultSet) close() {
 			}
 		}
 
-		resultSet.statement = nil
-		resultSet.ocistmt = nil
-		resultSet.defines = nil
-		resultSet.Err = nil
-		resultSet.Index = -1
-		resultSet.Row = nil
-		resultSet.ColumnNames = nil
+		rst.stmt = nil
+		rst.ocistmt = nil
+		rst.defines = nil
+		rst.Err = nil
+		rst.Index = -1
+		rst.Row = nil
+		rst.ColumnNames = nil
 	}
 }
 
-func (resultSet *ResultSet) defineString(columnSize uint32, n int, goColumnType GoColumnType) (err error) {
+func (rst *ResultSet) defineString(columnSize uint32, n int, goColumnType GoColumnType) (err error) {
 	if goColumnType == S {
-		stringDefine := resultSet.statement.session.server.environment.stringDefinePool.Get().(*stringDefine)
-		resultSet.defines[n] = stringDefine
-		err = stringDefine.define(int(columnSize), n+1, resultSet.ocistmt)
+		stringDefine := rst.stmt.ses.srv.env.stringDefinePool.Get().(*stringDefine)
+		rst.defines[n] = stringDefine
+		err = stringDefine.define(int(columnSize), n+1, rst.ocistmt)
 	} else {
-		oraStringDefine := resultSet.statement.session.server.environment.oraStringDefinePool.Get().(*oraStringDefine)
-		resultSet.defines[n] = oraStringDefine
-		err = oraStringDefine.define(int(columnSize), n+1, resultSet.ocistmt)
+		oraStringDefine := rst.stmt.ses.srv.env.oraStringDefinePool.Get().(*oraStringDefine)
+		rst.defines[n] = oraStringDefine
+		err = oraStringDefine.define(int(columnSize), n+1, rst.ocistmt)
 	}
 	return err
 }
 
-func (resultSet *ResultSet) defineNumeric(n int, goColumnType GoColumnType) (err error) {
+func (rst *ResultSet) defineNumeric(n int, goColumnType GoColumnType) (err error) {
 	switch goColumnType {
 	case I64:
-		int64Define := resultSet.statement.session.server.environment.int64DefinePool.Get().(*int64Define)
-		resultSet.defines[n] = int64Define
-		err = int64Define.define(n+1, resultSet.ocistmt)
+		int64Define := rst.stmt.ses.srv.env.int64DefinePool.Get().(*int64Define)
+		rst.defines[n] = int64Define
+		err = int64Define.define(n+1, rst.ocistmt)
 	case I32:
-		int32Define := resultSet.statement.session.server.environment.int32DefinePool.Get().(*int32Define)
-		resultSet.defines[n] = int32Define
-		err = int32Define.define(n+1, resultSet.ocistmt)
+		int32Define := rst.stmt.ses.srv.env.int32DefinePool.Get().(*int32Define)
+		rst.defines[n] = int32Define
+		err = int32Define.define(n+1, rst.ocistmt)
 	case I16:
-		int16Define := resultSet.statement.session.server.environment.int16DefinePool.Get().(*int16Define)
-		resultSet.defines[n] = int16Define
-		err = int16Define.define(n+1, resultSet.ocistmt)
+		int16Define := rst.stmt.ses.srv.env.int16DefinePool.Get().(*int16Define)
+		rst.defines[n] = int16Define
+		err = int16Define.define(n+1, rst.ocistmt)
 	case I8:
-		int8Define := resultSet.statement.session.server.environment.int8DefinePool.Get().(*int8Define)
-		resultSet.defines[n] = int8Define
-		err = int8Define.define(n+1, resultSet.ocistmt)
+		int8Define := rst.stmt.ses.srv.env.int8DefinePool.Get().(*int8Define)
+		rst.defines[n] = int8Define
+		err = int8Define.define(n+1, rst.ocistmt)
 	case U64:
-		uint64Define := resultSet.statement.session.server.environment.uint64DefinePool.Get().(*uint64Define)
-		resultSet.defines[n] = uint64Define
-		err = uint64Define.define(n+1, resultSet.ocistmt)
+		uint64Define := rst.stmt.ses.srv.env.uint64DefinePool.Get().(*uint64Define)
+		rst.defines[n] = uint64Define
+		err = uint64Define.define(n+1, rst.ocistmt)
 	case U32:
-		uint32Define := resultSet.statement.session.server.environment.uint32DefinePool.Get().(*uint32Define)
-		resultSet.defines[n] = uint32Define
-		err = uint32Define.define(n+1, resultSet.ocistmt)
+		uint32Define := rst.stmt.ses.srv.env.uint32DefinePool.Get().(*uint32Define)
+		rst.defines[n] = uint32Define
+		err = uint32Define.define(n+1, rst.ocistmt)
 	case U16:
-		uint16Define := resultSet.statement.session.server.environment.uint16DefinePool.Get().(*uint16Define)
-		resultSet.defines[n] = uint16Define
-		err = uint16Define.define(n+1, resultSet.ocistmt)
+		uint16Define := rst.stmt.ses.srv.env.uint16DefinePool.Get().(*uint16Define)
+		rst.defines[n] = uint16Define
+		err = uint16Define.define(n+1, rst.ocistmt)
 	case U8:
-		uint8Define := resultSet.statement.session.server.environment.uint8DefinePool.Get().(*uint8Define)
-		resultSet.defines[n] = uint8Define
-		err = uint8Define.define(n+1, resultSet.ocistmt)
+		uint8Define := rst.stmt.ses.srv.env.uint8DefinePool.Get().(*uint8Define)
+		rst.defines[n] = uint8Define
+		err = uint8Define.define(n+1, rst.ocistmt)
 	case F64:
-		float64Define := resultSet.statement.session.server.environment.float64DefinePool.Get().(*float64Define)
-		resultSet.defines[n] = float64Define
-		err = float64Define.define(n+1, resultSet.ocistmt)
+		float64Define := rst.stmt.ses.srv.env.float64DefinePool.Get().(*float64Define)
+		rst.defines[n] = float64Define
+		err = float64Define.define(n+1, rst.ocistmt)
 	case F32:
-		float32Define := resultSet.statement.session.server.environment.float32DefinePool.Get().(*float32Define)
-		resultSet.defines[n] = float32Define
-		err = float32Define.define(n+1, resultSet.ocistmt)
+		float32Define := rst.stmt.ses.srv.env.float32DefinePool.Get().(*float32Define)
+		rst.defines[n] = float32Define
+		err = float32Define.define(n+1, rst.ocistmt)
 	case OraI64:
-		oraInt64Define := resultSet.statement.session.server.environment.oraInt64DefinePool.Get().(*oraInt64Define)
-		resultSet.defines[n] = oraInt64Define
-		err = oraInt64Define.define(n+1, resultSet.ocistmt)
+		oraInt64Define := rst.stmt.ses.srv.env.oraInt64DefinePool.Get().(*oraInt64Define)
+		rst.defines[n] = oraInt64Define
+		err = oraInt64Define.define(n+1, rst.ocistmt)
 	case OraI32:
-		oraInt32Define := resultSet.statement.session.server.environment.oraInt32DefinePool.Get().(*oraInt32Define)
-		resultSet.defines[n] = oraInt32Define
-		err = oraInt32Define.define(n+1, resultSet.ocistmt)
+		oraInt32Define := rst.stmt.ses.srv.env.oraInt32DefinePool.Get().(*oraInt32Define)
+		rst.defines[n] = oraInt32Define
+		err = oraInt32Define.define(n+1, rst.ocistmt)
 	case OraI16:
-		oraInt16Define := resultSet.statement.session.server.environment.oraInt16DefinePool.Get().(*oraInt16Define)
-		resultSet.defines[n] = oraInt16Define
-		err = oraInt16Define.define(n+1, resultSet.ocistmt)
+		oraInt16Define := rst.stmt.ses.srv.env.oraInt16DefinePool.Get().(*oraInt16Define)
+		rst.defines[n] = oraInt16Define
+		err = oraInt16Define.define(n+1, rst.ocistmt)
 	case OraI8:
-		oraInt8Define := resultSet.statement.session.server.environment.oraInt8DefinePool.Get().(*oraInt8Define)
-		resultSet.defines[n] = oraInt8Define
-		err = oraInt8Define.define(n+1, resultSet.ocistmt)
+		oraInt8Define := rst.stmt.ses.srv.env.oraInt8DefinePool.Get().(*oraInt8Define)
+		rst.defines[n] = oraInt8Define
+		err = oraInt8Define.define(n+1, rst.ocistmt)
 	case OraU64:
-		oraUint64Define := resultSet.statement.session.server.environment.oraUint64DefinePool.Get().(*oraUint64Define)
-		resultSet.defines[n] = oraUint64Define
-		err = oraUint64Define.define(n+1, resultSet.ocistmt)
+		oraUint64Define := rst.stmt.ses.srv.env.oraUint64DefinePool.Get().(*oraUint64Define)
+		rst.defines[n] = oraUint64Define
+		err = oraUint64Define.define(n+1, rst.ocistmt)
 	case OraU32:
-		oraUint32Define := resultSet.statement.session.server.environment.oraUint32DefinePool.Get().(*oraUint32Define)
-		resultSet.defines[n] = oraUint32Define
-		err = oraUint32Define.define(n+1, resultSet.ocistmt)
+		oraUint32Define := rst.stmt.ses.srv.env.oraUint32DefinePool.Get().(*oraUint32Define)
+		rst.defines[n] = oraUint32Define
+		err = oraUint32Define.define(n+1, rst.ocistmt)
 	case OraU16:
-		oraUint16Define := resultSet.statement.session.server.environment.oraUint16DefinePool.Get().(*oraUint16Define)
-		resultSet.defines[n] = oraUint16Define
-		err = oraUint16Define.define(n+1, resultSet.ocistmt)
+		oraUint16Define := rst.stmt.ses.srv.env.oraUint16DefinePool.Get().(*oraUint16Define)
+		rst.defines[n] = oraUint16Define
+		err = oraUint16Define.define(n+1, rst.ocistmt)
 	case OraU8:
-		oraUint8Define := resultSet.statement.session.server.environment.oraUint8DefinePool.Get().(*oraUint8Define)
-		resultSet.defines[n] = oraUint8Define
-		err = oraUint8Define.define(n+1, resultSet.ocistmt)
+		oraUint8Define := rst.stmt.ses.srv.env.oraUint8DefinePool.Get().(*oraUint8Define)
+		rst.defines[n] = oraUint8Define
+		err = oraUint8Define.define(n+1, rst.ocistmt)
 	case OraF64:
-		oraFloat64Define := resultSet.statement.session.server.environment.oraFloat64DefinePool.Get().(*oraFloat64Define)
-		resultSet.defines[n] = oraFloat64Define
-		err = oraFloat64Define.define(n+1, resultSet.ocistmt)
+		oraFloat64Define := rst.stmt.ses.srv.env.oraFloat64DefinePool.Get().(*oraFloat64Define)
+		rst.defines[n] = oraFloat64Define
+		err = oraFloat64Define.define(n+1, rst.ocistmt)
 	case OraF32:
-		oraFloat32Define := resultSet.statement.session.server.environment.oraFloat32DefinePool.Get().(*oraFloat32Define)
-		resultSet.defines[n] = oraFloat32Define
-		err = oraFloat32Define.define(n+1, resultSet.ocistmt)
+		oraFloat32Define := rst.stmt.ses.srv.env.oraFloat32DefinePool.Get().(*oraFloat32Define)
+		rst.defines[n] = oraFloat32Define
+		err = oraFloat32Define.define(n+1, rst.ocistmt)
 	}
 	return err
 }
 
 // paramAttr gets an attribute from the parameter handle.
-func (resultSet *ResultSet) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
+func (rst *ResultSet) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
 	r := C.OCIAttrGet(
-		unsafe.Pointer(ocipar), //const void     *trgthndlp,
-		C.OCI_DTYPE_PARAM,      //ub4            trghndltyp,
-		attrup,                 //void           *attributep,
-		&attrSize,              //ub4            *sizep,
-		attrType,               //ub4            attrtype,
-		resultSet.statement.session.server.environment.ocierr) //OCIError       *errhp );
+		unsafe.Pointer(ocipar),      //const void     *trgthndlp,
+		C.OCI_DTYPE_PARAM,           //ub4            trghndltyp,
+		attrup,                      //void           *attributep,
+		&attrSize,                   //ub4            *sizep,
+		attrType,                    //ub4            attrtype,
+		rst.stmt.ses.srv.env.ocierr) //OCIError       *errhp );
 	if r == C.OCI_ERROR {
-		return resultSet.statement.session.server.environment.ociError()
+		return rst.stmt.ses.srv.env.ociError()
 	}
 	return nil
 }
 
 // attr gets an attribute from the statement handle.
-func (resultSet *ResultSet) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
+func (rst *ResultSet) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
 	r := C.OCIAttrGet(
-		unsafe.Pointer(resultSet.ocistmt), //const void     *trgthndlp,
-		C.OCI_HTYPE_STMT,                  //ub4            trghndltyp,
-		attrup,                            //void           *attributep,
-		&attrSize,                         //ub4            *sizep,
-		attrType,                          //ub4            attrtype,
-		resultSet.statement.session.server.environment.ocierr) //OCIError       *errhp );
+		unsafe.Pointer(rst.ocistmt), //const void     *trgthndlp,
+		C.OCI_HTYPE_STMT,            //ub4            trghndltyp,
+		attrup,                      //void           *attributep,
+		&attrSize,                   //ub4            *sizep,
+		attrType,                    //ub4            attrtype,
+		rst.stmt.ses.srv.env.ocierr) //OCIError       *errhp );
 	if r == C.OCI_ERROR {
-		return resultSet.statement.session.server.environment.ociError()
+		return rst.stmt.ses.srv.env.ociError()
 	}
 	return nil
 }

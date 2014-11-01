@@ -12,7 +12,7 @@ import (
 //
 // Implements the driver.Rows interface.
 type QueryResult struct {
-	resultSet *ResultSet
+	rst *ResultSet
 }
 
 // Next populates the specified slice with the next row of data.
@@ -20,14 +20,14 @@ type QueryResult struct {
 // Returns io.EOF when there are no more rows.
 //
 // Next is a member of the driver.Rows interface.
-func (queryResult *QueryResult) Next(dest []driver.Value) (err error) {
-	err = queryResult.resultSet.beginRow()
-	defer queryResult.resultSet.endRow()
+func (qr *QueryResult) Next(dest []driver.Value) (err error) {
+	err = qr.rst.beginRow()
+	defer qr.rst.endRow()
 	if err != nil {
 		return err
 	}
 	// Populate column values into destination slice
-	for n, define := range queryResult.resultSet.defines {
+	for n, define := range qr.rst.defines {
 		value, err := define.value()
 		if err != nil {
 			return err
@@ -40,13 +40,13 @@ func (queryResult *QueryResult) Next(dest []driver.Value) (err error) {
 // Columns returns query column names.
 //
 // Columns is a member of the driver.Rows interface.
-func (queryResult *QueryResult) Columns() []string {
-	return queryResult.resultSet.ColumnNames
+func (qr *QueryResult) Columns() []string {
+	return qr.rst.ColumnNames
 }
 
 // Close performs no operations.
 //
 // Close is a member of the driver.Rows interface.
-func (queryResult *QueryResult) Close() error {
+func (qr *QueryResult) Close() error {
 	return nil
 }
