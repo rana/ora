@@ -20,7 +20,7 @@ type Server struct {
 	environment *Environment
 	element     *list.Element
 	sessions    *list.List
-	dblink      string
+	dbname      string
 	ocisvcctx   *C.OCISvcCtx
 	ocisvr      *C.OCIServer
 
@@ -195,7 +195,7 @@ func (server *Server) Close() error {
 		environment := server.environment
 		server.environment = nil
 		server.element = nil
-		server.dblink = ""
+		server.dbname = ""
 		server.ocisvr = nil
 		server.ocisvcctx = nil
 

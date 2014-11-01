@@ -478,9 +478,9 @@ func (environment *Environment) Close() error {
 
 // OpenConnection starts a connection to an Oracle server and returns a driver.Conn.
 //
-// The connection string has the form username/password@dblink
-// where dblink is defined on your client machine's tnsnames.ora file.
-// For example, scott/tiger@orcl.
+// The connection string has the form username/password@dbname.
+// dbname is a connection identifier such as a net service name,
+// full connection identifier, or a simple connection identifier.
 func (environment *Environment) OpenConnection(connStr string) (driver.Conn, error) {
 	// Validate that the environment is open
 	err := environment.checkIsOpen()
@@ -490,16 +490,16 @@ func (environment *Environment) OpenConnection(connStr string) (driver.Conn, err
 
 	var username string
 	var password string
-	var dblink string
+	var dbname string
 
 	// Parse connection string
 	connStr = strings.Trim(connStr, " ")
 	connStr = strings.Replace(connStr, "/", " / ", 1)
 	connStr = strings.Replace(connStr, "@", " @ ", 1)
-	_, err = fmt.Sscanf(connStr, "%s / %s @ %s", &username, &password, &dblink)
+	_, err = fmt.Sscanf(connStr, "%s / %s @ %s", &username, &password, &dbname)
 
 	// Connect to server
-	server, err := environment.OpenServer(dblink)
+	server, err := environment.OpenServer(dbname)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +519,7 @@ func (environment *Environment) OpenConnection(connStr string) (driver.Conn, err
 }
 
 // OpenServer connects to an Oracle server.
-func (environment *Environment) OpenServer(dblink string) (*Server, error) {
+func (environment *Environment) OpenServer(dbname string) (*Server, error) {
 	// Validate that the environment is open
 	err := environment.checkIsOpen()
 	if err != nil {
@@ -535,13 +535,13 @@ func (environment *Environment) OpenServer(dblink string) (*Server, error) {
 
 	// Attach to server
 	//OCIServerAttach(srvhp, errhp, (text *)"inst1_alias", strlen ("inst1_alias"), OCI_DEFAULT);
-	dblinkp := C.CString(dblink)
-	defer C.free(unsafe.Pointer(dblinkp))
+	dbnamep := C.CString(dbname)
+	defer C.free(unsafe.Pointer(dbnamep))
 	r := C.OCIServerAttach(
 		(*C.OCIServer)(serverHandle),          //OCIServer     *srvhp,
 		environment.ocierr,                    //OCIError      *errhp,
-		(*C.OraText)(unsafe.Pointer(dblinkp)), //const OraText *dblink,
-		C.sb4(C.strlen(dblinkp)),              //sb4           dblink_len,
+		(*C.OraText)(unsafe.Pointer(dbnamep)), //const OraText *dbname,
+		C.sb4(C.strlen(dbnamep)),              //sb4           dbname_len,
 		C.OCI_DEFAULT)                         //ub4           mode);
 	if r == C.OCI_ERROR {
 		return nil, environment.ociError()
@@ -565,7 +565,7 @@ func (environment *Environment) OpenServer(dblink string) (*Server, error) {
 	// Get server from pool
 	server := environment.serverPool.Get().(*Server)
 	server.environment = environment
-	server.dblink = dblink
+	server.dbname = dbname
 	server.ocisvr = (*C.OCIServer)(serverHandle)
 	server.ocisvcctx = (*C.OCISvcCtx)(svcctxHandle)
 	server.statementConfig = environment.statementConfig

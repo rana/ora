@@ -97,9 +97,9 @@ func init() {
 
 // Open starts a connection to an Oracle server.
 //
-// The connection string has the form username/password@dblink
-// where dblink is defined on your client machine's tnsnames.ora file.
-// For example, rob/pike@orcl.
+// The connection string has the form username/password@dbname.
+// dbname is a connection identifier such as a net service name,
+// full connection identifier, or a simple connection identifier.
 //
 // Open is a member of the driver.Driver interface.
 func (driver *Driver) Open(connStr string) (driver.Conn, error) {
