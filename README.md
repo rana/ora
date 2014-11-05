@@ -174,12 +174,13 @@ is mutable. The Go-to-Oracle type mapping for the ora package is:
 
 	bool							CHAR(1 BYTE)³, CHAR(1 CHAR)³
 	Bool
-
-	[]byte							BLOB, LONG RAW, RAW
-	Bytes
 	*bool
 	[]bool
 	[]Bool
+	
+	[]byte							BLOB, LONG RAW, RAW
+	Binary
+	[]Binary
 
 	IntervalYM						INTERVAL MONTH TO YEAR
 	[]IntervalYM
@@ -546,9 +547,9 @@ GoColumnTypes defined by the ora package are:
 
 	Bool		OraB
 
-	[]byte		Bits
+	[]byte		Bin
 
-	Bytes		OraBits
+	Binary		OraBin
 
 	default°	D
 
@@ -595,9 +596,9 @@ sc.Rset.SetChar1(ora.OraB)
 sc.Rset.SetVarchar(ora.OraS)
 sc.Rset.SetLong(ora.OraS)
 sc.Rset.SetClob(ora.OraS)
-sc.Rset.SetBlob(ora.OraBits)
-sc.Rset.SetRaw(ora.OraBits)
-sc.Rset.SetLongRaw(ora.OraBits)
+sc.Rset.SetBlob(ora.OraBin)
+sc.Rset.SetRaw(ora.OraBin)
+sc.Rset.SetLongRaw(ora.OraBin)
 srv, err := env.OpenSrv("orcl")
 // setting the server StmtConfig will cascade to any open Sess, Stmts
 // any new Ses, Stmt will receive this StmtConfig
