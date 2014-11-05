@@ -10,7 +10,7 @@ const (
 
 	// The driver version sent to an Oracle server and visible in
 	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
-	Version string = "v1.0"
+	Version string = "v1.01"
 )
 
 // ColumnGoType defines the Go type returned from a sql select column.
