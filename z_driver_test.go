@@ -8,13 +8,12 @@ import (
 	"testing"
 )
 
-func TestDriver_OpenCloseConnection(t *testing.T) {
-	drv := &Driver{env: NewEnv()}
-	defer drv.env.Close()
-	conn, err := drv.Open(testConnectionStr)
-	defer conn.Close()
+func TestDriver_OpenCloseCon(t *testing.T) {
+	drv := GetDrv()
+	con, err := drv.Open(testConStr)
+	defer con.Close()
 	testErr(err, t)
-	if conn == nil {
-		t.Fatal("connection is nil")
+	if con == nil {
+		t.Fatal("Con is nil")
 	}
 }

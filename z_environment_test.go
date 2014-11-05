@@ -8,26 +8,16 @@ import (
 	"testing"
 )
 
-func TestEnvironment_OpenClose(t *testing.T) {
-	env := NewEnv()
-	err := env.Open()
+func TestEnv_OpenClose(t *testing.T) {
+	env, err := GetDrv().OpenEnv()
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
 }
 
-func TestEnvironment_IsOpen_unopened(t *testing.T) {
-	env := NewEnv()
-	var expected bool = false
-	var actual bool = env.IsOpen()
-	if actual != expected {
-		t.Fatalf("actual(%v), expected(%v)", actual, expected)
-	}
-}
-
-func TestEnvironment_IsOpen_opened(t *testing.T) {
-	env := NewEnv()
-	err := env.Open()
+func TestEnv_IsOpen_opened(t *testing.T) {
+	env, err := GetDrv().OpenEnv()
+	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
 
@@ -38,9 +28,9 @@ func TestEnvironment_IsOpen_opened(t *testing.T) {
 	}
 }
 
-func TestEnvironment_IsOpen_opened_closed(t *testing.T) {
-	env := NewEnv()
-	err := env.Open()
+func TestEnv_IsOpen_opened_closed(t *testing.T) {
+	env, err := GetDrv().OpenEnv()
+	testErr(err, t)
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
@@ -52,26 +42,26 @@ func TestEnvironment_IsOpen_opened_closed(t *testing.T) {
 	}
 }
 
-func TestEnvironment_OpenCloseServer(t *testing.T) {
-	env := NewEnv()
-	err := env.Open()
+func TestEnv_OpenCloseServer(t *testing.T) {
+	env, err := GetDrv().OpenEnv()
+	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
 
-	srv, err := env.OpenServer(testServerName)
+	srv, err := env.OpenSrv(testServerName)
 	testErr(err, t)
 
 	err = srv.Close()
 	testErr(err, t)
 }
 
-func TestEnvironment_OpenCloseConnection(t *testing.T) {
-	env := NewEnv()
-	err := env.Open()
+func TestEnv_OpenCloseCon(t *testing.T) {
+	env, err := GetDrv().OpenEnv()
+	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
 
-	conn, err := env.OpenConnection(testConnectionStr)
+	conn, err := env.OpenCon(testConStr)
 	testErr(err, t)
 
 	err = conn.Close()

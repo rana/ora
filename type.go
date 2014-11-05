@@ -11,6 +11,8 @@ package ora
 */
 import "C"
 import (
+	"bytes"
+	"container/list"
 	"time"
 )
 
@@ -18,16 +20,18 @@ import (
 // freed, and can no longer be used. For example, when a statement handle is freed,
 // any bind and define handles associated with it are also freed.
 
-// bind represents an association between a Go parameter and a sql statement placeholder.
-type bind interface {
+// bnd represents an between a Go parameter and a sql statement placeholder and
+// contains logic to transfer a Go type to an Oracle OCI type.
+type bnd interface {
 	// setPtr enables some bind types to set out-bound pointers for some types such as time.Time, etc.
 	setPtr() error
 	// close releases resources and resets fields.
-	close()
+	close() error
 }
 
-// define represents a select-list column containing logic to translate an Oracle OCI type to a Go type.
-type define interface {
+// def represents a select-list column definition containing logic to transfer
+// an Oracle OCI type to a Go type.
+type def interface {
 	// value gets a Go value from an Oracle buffer.
 	value() (interface{}, error)
 	// alloc allocates an OCI descriptor.
@@ -35,7 +39,7 @@ type define interface {
 	// free releases an OCI descriptor.
 	free()
 	// close releases resources and resets fields.
-	close()
+	close() error
 }
 
 // Int64 is a nullable int64.
@@ -207,15 +211,15 @@ func (this Bool) Equals(other Bool) bool {
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 
-// Bytes is a nullable byte slice.
-type Bytes struct {
+// Binary represents a nullable byte slice for BLOB, RAW or LONG RAW Oracle values.
+type Binary struct {
 	IsNull bool
 	Value  []byte
 }
 
-// Equals returns true when the receiver and specified Bytes are both null,
-// or when the receiver and specified Bytes are both not null and Values are equal.
-func (this Bytes) Equals(other Bytes) bool {
+// Equals returns true when the receiver and specified Binary are both null,
+// or when the receiver and specified Binary are both not null and Values are equal.
+func (this Binary) Equals(other Binary) bool {
 	if this.IsNull && other.IsNull {
 		return true
 	}
@@ -234,7 +238,7 @@ func (this Bytes) Equals(other Bytes) bool {
 	return false
 }
 
-// Bfile represents a nullable Oracle BFILE.
+// Bfile represents a nullable BFILE Oracle value.
 type Bfile struct {
 	IsNull         bool
 	DirectoryAlias string
@@ -249,7 +253,7 @@ func (this Bfile) Equals(other Bfile) bool {
 		(this.IsNull == other.IsNull && this.DirectoryAlias == other.DirectoryAlias && this.Filename == other.Filename)
 }
 
-// IntervalYM represents a nullable Oracle INTERVAL YEAR TO MONTH.
+// IntervalYM represents a nullable INTERVAL YEAR TO MONTH Oracle value.
 type IntervalYM struct {
 	IsNull bool
 	Year   int32
@@ -269,7 +273,7 @@ func (this IntervalYM) ShiftTime(t time.Time) time.Time {
 	return t.AddDate(int(this.Year), int(this.Month), 0)
 }
 
-// IntervalDS represents a nullable Oracle INTERVAL DAY TO SECOND.
+// IntervalDS represents a nullable INTERVAL DAY TO SECOND Oracle value.
 type IntervalDS struct {
 	IsNull     bool
 	Day        int32
@@ -297,4 +301,55 @@ func (this IntervalDS) ShiftTime(t time.Time) time.Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
 	return time.Date(year, month, day+int(this.Day), hour+int(this.Hour), min+int(this.Minute), sec+int(this.Second), t.Nanosecond()+int(this.Nanosecond), t.Location())
+}
+
+// MultiErr holds multiple errors in a single string.
+type MultiErr struct {
+	str string
+}
+
+// Error returns one or more errors.
+//
+// Error is a member of the 'error' interface.
+func (m MultiErr) Error() string {
+	return m.str
+}
+
+// newMultiErr returns a MultiErr or nil.
+// It is valid to pass nil errors to newMultiErr.
+// Nil errors will be filtered out. If all errors
+// are nil newMultiError will return nil.
+func newMultiErr(errs ...error) *MultiErr {
+	var buf bytes.Buffer
+	for _, err := range errs {
+		if err != nil {
+			buf.WriteString(err.Error())
+			buf.WriteString(", ")
+		}
+	}
+	if buf.Len() > 0 {
+		return &MultiErr{str: buf.String()}
+	} else {
+		return nil
+	}
+}
+
+// newMultiErrL returns a MultiErr or nil.
+// It is valid to pass nil errors to newMultiErr.
+// Nil errors will be filtered out. If all errors
+// are nil newMultiError will return nil.
+func newMultiErrL(errs *list.List) *MultiErr {
+	var buf bytes.Buffer
+	for e := errs.Front(); e != nil; e = e.Next() {
+		if e.Value != nil {
+			err := e.Value.(error)
+			buf.WriteString(err.Error())
+			buf.WriteString(", ")
+		}
+	}
+	if buf.Len() > 0 {
+		return &MultiErr{str: buf.String()}
+	} else {
+		return nil
+	}
 }

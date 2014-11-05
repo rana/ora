@@ -20,10 +20,6 @@ Installation
 Minimum requirements are Go 1.3 with CGO enabled, a GCC C compiler, and
 Oracle 12c (12.1.0.1.0) or Oracle Instant Client (12.1.0.1.0).
 
-Get the ora package from GitHub:
-
-	go get github.com/ranaian/ora
-
 Install Oracle 12c or Oracle Instant Client.
 
 Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
@@ -38,7 +34,11 @@ the location of the OCI library. These locations will vary based on whether an O
 database is locally installed or whether the Oracle instant client libraries are
 locally installed.
 
-The ora package does not have any external Go package dependencies.
+The ora package uses glog for logging. The ora package and glog package are available
+from GitHub:
+
+	go get github.com/ranaian/ora
+	go get github.com/golang/glog
 
 Data Types
 
@@ -133,25 +133,47 @@ is mutable. The Go-to-Oracle type mapping for the ora package is:
 	uint64, uint32, uint16, uint8
 	Int64, Int32, Int16, Int8
 	Uint64, Uint32, Uint16, Uint8
+	*int64, *int32, *int16, *int8
+	*uint64, *uint32, *uint16, *uint8
+	[]int64, []int32, []int16, []int8
+	[]uint64, []uint32, []uint16, []uint8
+	[]Int64, []Int32, []Int16, []Int8
+	[]Uint64, []Uint32, []Uint16, []Uint8
+
 
 	float64, float32		NUMBER¹, BINARY_DOUBLE, BINARY_FLOAT, FLOAT
 	Float64, Float32
+	*float64, *float32
+	[]float64, []float32
+	[]Float64, []Float32
 
 	time.Time			TIMESTAMP, TIMESTAMP WITH TIME ZONE,
 	Time				TIMESTAMP WITH LOCAL TIME ZONE, DATE
+	*time.Time
+	[]time.Time
+	[]Time
 
 	string				CHAR², NCHAR, VARCHAR, VARCHAR2,
 	String				NVARCHAR2, LONG, CLOB, NCLOB, ROWID
+	*string
+	[]string
+	[]String
 
 	bool				CHAR(1 BYTE)³, CHAR(1 CHAR)³
 	Bool
+	*bool
+	[]bool
+	[]Bool
 
 	[]byte				BLOB, LONG RAW, RAW
-	Bytes
+	Binary
+	[]Binary
 
 	IntervalYM			INTERVAL MONTH TO YEAR
+	[]IntervalYM
 
 	IntervalDS			INTERVAL DAY TO SECOND
+	[]IntervalDS
 
 	Bfile				BFILE
 
@@ -182,38 +204,36 @@ An example of using the ora package directly:
 	)
 
 	func main() {
-		// example usage of the oracle package driver
+		// example usage of the ora package driver
 		// connect to a server and open a session
-		env := ora.NewEnv()
-		env.Open()
+		env, _ := ora.GetDrv().OpenEnv()
 		defer env.Close()
-		srv, err := env.OpenServer("orcl")
+		srv, err := env.OpenSrv("orcl")
 		defer srv.Close()
 		if err != nil {
 			panic(err)
 		}
-		ses, err := srv.OpenSession("test", "test")
+		ses, err := srv.OpenSes("test", "test")
 		defer ses.Close()
 		if err != nil {
 			panic(err)
 		}
 
 		// create table
-		stmtTbl, err := ses.Prepare("CREATE TABLE T1 " +
-			"(C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), " +
-			"C2 VARCHAR2(48 CHAR))")
+		tableName := "t1"
+		stmtTbl, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
 		defer stmtTbl.Close()
 		if err != nil {
 			panic(err)
 		}
-		rowsAffected, err := stmtTbl.Execute()
+		rowsAffected, err := stmtTbl.Exec()
 		if err != nil {
 			panic(err)
 		}
 		fmt.Println(rowsAffected)
 
 		// begin first transaction
-		tx1, err := ses.BeginTransaction()
+		tx1, err := ses.StartTx()
 		if err != nil {
 			panic(err)
 		}
@@ -221,9 +241,9 @@ An example of using the ora package directly:
 		// insert record
 		var id uint64
 		str := "Go is expressive, concise, clean, and efficient."
-		stmtIns, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2) RETURNING C1 INTO :C1")
+		stmtIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2) returning c1 into :c1", tableName))
 		defer stmtIns.Close()
-		rowsAffected, err = stmtIns.Execute(str, &id)
+		rowsAffected, err = stmtIns.Exec(str, &id)
 		if err != nil {
 			panic(err)
 		}
@@ -235,32 +255,32 @@ An example of using the ora package directly:
 		a[1] = ora.String{IsNull: true}
 		a[2] = ora.String{Value: "It's a fast, statically typed, compiled"}
 		a[3] = ora.String{Value: "One of Go's key design goals is code"}
-		stmtSliceIns, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2)")
+		stmtSliceIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 		defer stmtSliceIns.Close()
 		if err != nil {
 			panic(err)
 		}
-		rowsAffected, err = stmtSliceIns.Execute(a)
+		rowsAffected, err = stmtSliceIns.Exec(a)
 		if err != nil {
 			panic(err)
 		}
 		fmt.Println(rowsAffected)
 
 		// fetch records
-		stmtFetch, err := ses.Prepare("SELECT C1, C2 FROM T1")
-		defer stmtFetch.Close()
+		stmtQuery, err := ses.Prep(fmt.Sprintf("select c1, c2 from %v", tableName))
+		defer stmtQuery.Close()
 		if err != nil {
 			panic(err)
 		}
-		rst, err := stmtFetch.Fetch()
+		rset, err := stmtQuery.Query()
 		if err != nil {
 			panic(err)
 		}
-		for rst.Next() {
-			fmt.Println(rst.Row[0], rst.Row[1])
+		for rset.Next() {
+			fmt.Println(rset.Row[0], rset.Row[1])
 		}
-		if rst.Err != nil {
-			panic(rst.Err)
+		if rset.Err != nil {
+			panic(rset.Err)
 		}
 
 		// commit first transaction
@@ -270,18 +290,18 @@ An example of using the ora package directly:
 		}
 
 		// begin second transaction
-		tx2, err := ses.BeginTransaction()
+		tx2, err := ses.StartTx()
 		if err != nil {
 			panic(err)
 		}
 		// insert null String
 		nullableStr := ora.String{IsNull: true}
-		stmtTrans, err := ses.Prepare("INSERT INTO T1 (C2) VALUES (:C2)")
+		stmtTrans, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 		defer stmtTrans.Close()
 		if err != nil {
 			panic(err)
 		}
-		rowsAffected, err = stmtTrans.Execute(nullableStr)
+		rowsAffected, err = stmtTrans.Exec(nullableStr)
 		if err != nil {
 			panic(err)
 		}
@@ -293,54 +313,51 @@ An example of using the ora package directly:
 		}
 
 		// fetch and specify return type
-		stmtCount, err := ses.Prepare("SELECT COUNT(C1) FROM T1 WHERE C2 IS NULL", ora.U8)
+		stmtCount, err := ses.Prep(fmt.Sprintf("select count(c1) from %v where c2 is null", tableName), ora.U8)
 		defer stmtCount.Close()
 		if err != nil {
 			panic(err)
 		}
-		rst, err = stmtCount.Fetch()
+		rset, err = stmtCount.Query()
 		if err != nil {
 			panic(err)
 		}
-		row := rst.NextRow()
+		row := rset.NextRow()
 		if row != nil {
 			fmt.Println(row[0])
 		}
-		if rst.Err != nil {
-			panic(rst.Err)
+		if rset.Err != nil {
+			panic(rset.Err)
 		}
 
 		// create stored procedure with sys_refcursor
-		stmtProcCreate, err := ses.Prepare(
-			"CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR) AS BEGIN " +
-			"OPEN P1 FOR SELECT C1, C2 FROM T1 WHERE C1 > 2 ORDER BY C1; " +
-			"END PROC1;")
+		stmtProcCreate, err := ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v where c1 > 2 order by c1; end proc1;", tableName))
 		defer stmtProcCreate.Close()
-		rowsAffected, err = stmtProcCreate.Execute()
+		rowsAffected, err = stmtProcCreate.Exec()
 		if err != nil {
 			panic(err)
 		}
 
 		// call stored procedure
-		// pass *ResultSet to Execute to receive the results of a sys_refcursor
-		stmtProcCall, err := ses.Prepare("CALL PROC1(:1)")
+		// pass *Rset to Exec to receive the results of a sys_refcursor
+		stmtProcCall, err := ses.Prep("call proc1(:1)")
 		defer stmtProcCall.Close()
 		if err != nil {
 			panic(err)
 		}
-		procResultSet := &ora.ResultSet{}
-		rowsAffected, err = stmtProcCall.Execute(procResultSet)
+		procRset := &ora.Rset{}
+		rowsAffected, err = stmtProcCall.Exec(procRset)
 		if err != nil {
 			panic(err)
 		}
-		if procResultSet.IsOpen() {
-			for procResultSet.Next() {
-				fmt.Println(procResultSet.Row[0], procResultSet.Row[1])
+		if procRset.IsOpen() {
+			for procRset.Next() {
+				fmt.Println(procRset.Row[0], procRset.Row[1])
 			}
-			if procResultSet.Err != nil {
-				panic(procResultSet.Err)
+			if procRset.Err != nil {
+				panic(procRset.Err)
 			}
-			fmt.Println(procResultSet.Len())
+			fmt.Println(procRset.Len())
 		}
 
 		// Output:
@@ -349,16 +366,17 @@ An example of using the ora package directly:
 		// 4
 		// 1 Go is expressive, concise, clean, and efficient.
 		// 2 Its concurrency mechanisms make it easy to
-		// 3 <nil>
+		// 3 <empty>
 		// 4 It's a fast, statically typed, compiled
 		// 5 One of Go's key design goals is code
 		// 1
 		// 1
-		// 3 <nil>
+		// 3 <empty>
 		// 4 It's a fast, statically typed, compiled
 		// 5 One of Go's key design goals is code
 		// 3
 	}
+
 
 Pointers may be used to capture out-bound values from a SQL statement such as
 an insert or stored procedure call. For example, a numeric pointer captures an
@@ -369,16 +387,16 @@ identity value:
 	// C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1),
 	// C2 VARCHAR2(48 CHAR))
 	var id int64
-	stmt, err = ses.Prepare("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 INTO :C1")
-	stmt.Execute(&id)
+	stmt, err = ses.Prep("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 INTO :C1")
+	stmt.Exec(&id)
 
 A string pointer captures an out parameter from a stored procedure:
 
 	// given:
 	// CREATE OR REPLACE PROCEDURE PROC1 (P1 OUT VARCHAR2) AS BEGIN P1 := 'GO'; END PROC1;
 	var str string
-	stmt, err = ses.Prepare("CALL PROC1(:1)")
-	stmt.Execute(&str)
+	stmt, err = ses.Prep("CALL PROC1(:1)")
+	stmt.Exec(&str)
 
 Slices may be used to insert multiple records with a single insert statement:
 
@@ -388,13 +406,13 @@ Slices may be used to insert multiple records with a single insert statement:
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Execute(values)
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt.Exec(values)
 
 The ora package provides nullable Go types to support DML operations such as
 insert and select. The nullable Go types provided by the ora package are Int64,
 Int32, Int16, Int8, Uint64, Uint32, Uint16, Uint8, Float64, Float32, Time,
-IntervalYM, IntervalDS, String, Bool, Bytes and Bfile. For example, you may insert
+IntervalYM, IntervalDS, String, Bool, Binary and Bfile. For example, you may insert
 nullable Strings and select nullable Strings:
 
 	// insert String slice
@@ -405,27 +423,27 @@ nullable Strings and select nullable Strings:
 	a[2] = ora.String{IsNull: true}
 	a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
 	a[4] = ora.String{Value: "One of Go's key design goals is code"}
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Execute(a)
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt.Exec(a)
 
-	// Specify OraS to Prepare method to return ora.String values
+	// Specify OraS to Prep method to return ora.String values
 	// fetch records
-	stmt, err = ses.Prepare("SELECT C1 FROM T1", OraS)
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, err = ses.Prep("SELECT C1 FROM T1", OraS)
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 
-The Statement.Prepare method is variadic accepting zero or more GoColumnType
-which define a Go return type for a select-list column. For example, a Prepare
+The Stmt.Prep method is variadic accepting zero or more GoColumnType
+which define a Go return type for a select-list column. For example, a Prep
 call can be configured to return an int64 and a nullable Int64 from the same
 column:
 
 	// given: create table t1 (c1 number)
-	stmt, err = ses.Prepare("SELECT C1, C1 FROM T1", ora.I64, ora.OraI64)
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0], rst.Row[1])
+	stmt, err = ses.Prep("SELECT C1, C1 FROM T1", ora.I64, ora.OraI64)
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0], rset.Row[1])
 	}
 
 Go numerics of various sizes are supported in DML operations. The ora package
@@ -435,16 +453,16 @@ float32. For example, you may insert a uint16 and select numerics of various siz
 	// insert uint16
 	// given: create table t1 (c1 number)
 	value := uint16(9)
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Execute(value)
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt.Exec(value)
 
 	// select numerics of various sizes from the same column
-	stmt, err = ses.Prepare(
+	stmt, err = ses.Prep(
 		"SELECT C1, C1, C1, C1, C1, C1, C1, C1, C1, C1, FROM T1",
 		ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8,
 		ora.F64, ora.F32)
-	rst, err := stmt.Fetch()
-	row := rst.NextRow()
+	rset, err := stmt.Query()
+	row := rset.NextRow()
 
 If a non-nullable type is defined for a nullable column returning null, the Go
 type's zero value is returned.
@@ -503,165 +521,167 @@ GoColumnTypes defined by the ora package are:
 
 	Bool		OraB
 
-	[]byte		Bits
+	[]byte		Bin
 
-	Bytes		OraBits
+	Binary		OraBin
 
 	default°	D
 
 	° D represents a default mapping between a select-list column and a Go type.
-	The default mapping is defined in ResultSetConfig.
+	The default mapping is defined in RsetConfig.
 
-When Statement.Prepare doesn't receive a GoColumnType, or receives an incorrect GoColumnType,
-the default value defined in ResultSetConfig is used.
+When Stmt.Prep doesn't receive a GoColumnType, or receives an incorrect GoColumnType,
+the default value defined in RsetConfig is used.
 
-There are two configuration structs, StatementConfig and ResultSetConfig.
-StatementConfig configures various aspects of a Statement. ResultSetConfig configures
-various aspects of a ResultSet, including the default mapping between an Oracle select-list
-column and a Go type. StatementConfig may be set in an Environment, Server, Session
-and Statement. ResultSetConfig may be set in a StatementConfig.
+There are two configuration structs, StmtConfig and RsetConfig.
+StmtConfig configures various aspects of a Stmt. RsetConfig configures
+various aspects of Rset, including the default mapping between an Oracle select-list
+column and a Go type. StmtConfig may be set in an Env, Srv, Ses
+and Stmt. RsetConfig may be set in a StmtConfig.
 
-Setting StatementConfig on Environment, Server, Session
-or Statement cascades the StatementConfig to all current and future descendent structs.
-An Environment may contain multiple Servers. A Server may contain multiple Sessions.
-A Session may contain multiple Statements. A Statement may contain multiple ResultSets.
+Setting StmtConfig on Env, Srv, Ses or Stmt cascades the StmtConfig to all current
+and future descendent structs. An Env may contain multiple Srvs. A Srv may contain
+multiple Ses. A Ses may contain multiple Stmt. A Stmt may contain multiple Rset.
 
-	// setting StatementConfig cascades to descendent structs
-	// Environment -> Server -> Session -> Statement -> ResultSet
+	// setting StmtConfig cascades to descendent structs
+	// Env -> Srv -> Ses -> Stmt -> Rset
 
-Setting a ResultSetConfig on a StatementConfig does not cascade through descendent structs.
-Configuration of Statement.Config takes effect prior to calls to Statement.Execute and
-Statement.Fetch; consequently, any updates to Statement.Config after a call to Statement.Execute
-or Statement.Fetch are not observed.
+Setting a RsetConfig on a StmtConfig does not cascade through descendent structs.
+Configuration of Stmt.Config takes effect prior to calls to Stmt.Exec and
+Stmt.Query; consequently, any updates to Stmt.Config after a call to Stmt.Exec
+or Stmt.Query are not observed.
 
-One configuration scenario may be to set a server's select statements to return nullable Go types by
-default:
+One configuration scenario may be to set a server's select statements to return
+nullable Go types by default:
 
 	sc := NewStmtConfig()
-	sc.ResultSet.SetNumberScaless(ora.OraI64)
-	sc.ResultSet.SetNumberScaled(ora.OraF64)
-	sc.ResultSet.SetBinaryDouble(ora.OraF64)
-	sc.ResultSet.SetBinaryFloat(ora.OraF64)
-	sc.ResultSet.SetFloat(ora.OraF64)
-	sc.ResultSet.SetDate(ora.OraT)
-	sc.ResultSet.SetTimestamp(ora.OraT)
-	sc.ResultSet.SetTimestampTz(ora.OraT)
-	sc.ResultSet.SetTimestampLtz(ora.OraT)
-	sc.ResultSet.SetChar1(ora.OraB)
-	sc.ResultSet.SetVarchar(ora.OraS)
-	sc.ResultSet.SetLong(ora.OraS)
-	sc.ResultSet.SetClob(ora.OraS)
-	sc.ResultSet.SetBlob(ora.OraBits)
-	sc.ResultSet.SetRaw(ora.OraBits)
-	sc.ResultSet.SetLongRaw(ora.OraBits)
-	srv, err := env.OpenServer("orcl")
-	// setting the server StatementConfig will cascade to any open Sessions, Statements
-	// any new Session, Statement will receive this StatementConfig
-	// any new ResultSet will receive the StatementConfig.ResultSet configuration
-	srv.SetStatementConfig(sc)
+	sc.Rset.SetNumberScaless(ora.OraI64)
+	sc.Rset.SetNumberScaled(ora.OraF64)
+	sc.Rset.SetBinaryDouble(ora.OraF64)
+	sc.Rset.SetBinaryFloat(ora.OraF64)
+	sc.Rset.SetFloat(ora.OraF64)
+	sc.Rset.SetDate(ora.OraT)
+	sc.Rset.SetTimestamp(ora.OraT)
+	sc.Rset.SetTimestampTz(ora.OraT)
+	sc.Rset.SetTimestampLtz(ora.OraT)
+	sc.Rset.SetChar1(ora.OraB)
+	sc.Rset.SetVarchar(ora.OraS)
+	sc.Rset.SetLong(ora.OraS)
+	sc.Rset.SetClob(ora.OraS)
+	sc.Rset.SetBlob(ora.OraBin)
+	sc.Rset.SetRaw(ora.OraBin)
+	sc.Rset.SetLongRaw(ora.OraBin)
+	srv, err := env.OpenSrv("orcl")
+	// setting the server StmtConfig will cascade to any open Sess, Stmts
+	// any new Ses, Stmt will receive this StmtConfig
+	// any new Rset will receive the StmtConfig.Rset configuration
+	srv.SetStmtConfig(sc)
 
 Another scenario may be to configure the runes mapped to bool values:
 
-	// update StatementConfig to change the FalseRune and TrueRune inserted into the database
+	// update StmtConfig to change the FalseRune and TrueRune inserted into the database
 	// given: CREATE TABLE T1 (C1 CHAR(1 BYTE))
 
 	// insert 'false' record
 	var falseValue bool = false
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Config.FalseRune = 'N'
-	stmt.Execute(falseValue)
+	stmt.Exec(falseValue)
 
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
 	stmt.Config.TrueRune = 'Y'
-	stmt.Execute(trueValue)
+	stmt.Exec(trueValue)
 
-	// update ResultSetConfig to change the TrueRune
+	// update RsetConfig to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, err = ses.Prepare("SELECT C1 FROM T1")
-	stmt.Config.TrueRune = 'Y'
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, err = ses.Prep("SELECT C1 FROM T1")
+	stmt.Config.Rset.TrueRune = 'Y'
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 
-Oracle-specific types offered by the ora package are ResultSet, IntervalYM, IntervalDS, and Bfile.
-ResultSet represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle INTERVAL YEAR TO MONTH.
-IntervalDS represents an Oracle INTERVAL DAY TO SECOND. And Bfile represents an Oracle BFILE. ROWID
-columns are returned as strings and don't have a unique Go type.
+Oracle-specific types offered by the ora package are Rset, IntervalYM, IntervalDS,
+Binary and Bfile.
+Rset represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle INTERVAL YEAR TO MONTH.
+IntervalDS represents an Oracle INTERVAL DAY TO SECOND. Binary represents an Oracle
+BLOB. And Bfile represents an Oracle BFILE. ROWID columns are returned as strings
+and don't have a unique Go type.
 
-ResultSet is used to obtain Go values from a SQL select statement. Methods ResultSet.Next,
-ResultSet.NextRow, and ResultSet.Len are available. Fields ResultSet.Row, ResultSet.Err,
-ResultSet.Index, and ResultSet.ColumnNames are also available. The Next method attempts to
+Rset is used to obtain Go values from a SQL select statement. Methods Rset.Next,
+Rset.NextRow, and Rset.Len are available. Fields Rset.Row, Rset.Err,
+Rset.Index, and Rset.ColumnNames are also available. The Next method attempts to
 load data from an Oracle buffer into Row, returning true when successful. When no data is available,
 or if an error occurs, Next returns false setting Row to nil. Any error in Next is assigned to Err.
 Calling Next increments Index and method Len returns the total number of rows processed. The NextRow
 method is convenient for returning a single row. NextRow calls Next and returns Row.
 ColumnNames returns the names of columns defined by the SQL select statement.
 
-ResultSet has two usages. ResultSet may be returned from Statement.Fetch when prepared with a SQL select
+Rset has two usages. Rset may be returned from Stmt.Query when prepared with a SQL select
 statement:
 
 	// given: CREATE TABLE T1 (C1 NUMBER, C2, CHAR(1 BYTE), C3 VARCHAR2(48 CHAR))
-	stmt, err = ses.Prepare("SELECT C1, C2, C3 FROM T1")
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Index, rst.Row[0], rst.Row[1], rst.Row[2])
+	stmt, err = ses.Prep("SELECT C1, C2, C3 FROM T1")
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Index, rset.Row[0], rset.Row[1], rset.Row[2])
 	}
 
-Or, a *ResultSet may be passed to Statement.Execute when prepared with a stored procedure accepting
+Or, *Rset may be passed to Stmt.Exec when prepared with a stored procedure accepting
 an OUT SYS_REFCURSOR parameter:
 
 	// given:
 	// CREATE TABLE T1 (C1 NUMBER, C2 VARCHAR2(48 CHAR))
 	// CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR) AS
 	// BEGIN OPEN P1 FOR SELECT C1, C2 FROM T1 ORDER BY C1; END PROC1;
-	stmt, err = ses.Prepare("CALL PROC1(:1)")
-	rst := &ora.ResultSet{}
-	stmt.Execute(rst)
-	if rst.IsOpen() {
-		for rst.Next() {
-			fmt.Println(rst.Row[0], rst.Row[1])
+	stmt, err = ses.Prep("CALL PROC1(:1)")
+	rset := &ora.Rset{}
+	stmt.Exec(rset)
+	if rset.IsOpen() {
+		for rset.Next() {
+			fmt.Println(rset.Row[0], rset.Row[1])
 		}
 	}
 
-Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single Execute call to obtain
-multiple ResultSets:
+Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single Exec call to obtain
+multiple Rsets:
 
 	// given:
 	// CREATE TABLE T1 (C1 NUMBER, C2 VARCHAR2(48 CHAR))
 	// CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR, P2 OUT SYS_REFCURSOR) AS
 	// BEGIN OPEN P1 FOR SELECT C1 FROM T1 ORDER BY C1; OPEN P2 FOR SELECT C2 FROM T1 ORDER BY C2;
 	// END PROC1;
-	stmt, err = ses.Prepare("CALL PROC1(:1, :2)")
-	rst1 := &ora.ResultSet{}
-	rst2 := &ora.ResultSet{}
-	stmt.Execute(rst1, rst2)
+	stmt, err = ses.Prep("CALL PROC1(:1, :2)")
+	rset1 := &ora.Rset{}
+	rset2 := &ora.Rset{}
+	stmt.Exec(rset1, rset2)
 	// read from first cursor
-	if rst1.IsOpen() {
-		for rst1.Next() {
-			fmt.Println(rst1.Row[0])
+	if rset1.IsOpen() {
+		for rset1.Next() {
+			fmt.Println(rset1.Row[0])
 		}
 	}
 	// read from second cursor
-	if rst2.IsOpen() {
-		for rst2.Next() {
-			fmt.Println(rst2.Row[0])
+	if rset2.IsOpen() {
+		for rset2.Next() {
+			fmt.Println(rset2.Row[0])
 		}
 	}
 
-The types of values assigned to Row may be configured in StatementConfig.ResultSet. For configuration
-to take effect, assign StatementConfig.ResultSet prior to calling Statement.Fetch or Statement.Execute.
+The types of values assigned to Row may be configured in StmtConfig.Rset. For configuration
+to take effect, assign StmtConfig.Rset prior to calling Stmt.Query or Stmt.Exec.
 
-ResultSet prefetching may be controlled by StatementConfig.PrefetchRowCount and
-StatementConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with
+Rset prefetching may be controlled by StmtConfig.PrefetchRowCount and
+StmtConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with
 PrefetchMemorySize. When PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
 The default uses a PrefetchMemorySize of 134MB.
 
-Opening and closing ResultSets is managed internally. ResultSet does not have an Open method or Close method.
+Opening and closing Rsets is managed internally. Rset does not have an Open
+method or Close method.
 
 IntervalYM may be be inserted and selected:
 
@@ -673,14 +693,14 @@ IntervalYM may be be inserted and selected:
 	a[2] = ora.IntervalYM{IsNull: true}
 	a[3] = ora.IntervalYM{Year: -1, Month: -1}
 	a[4] = ora.IntervalYM{Year: -99, Month: -9}
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Execute(a)
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt.Exec(a)
 
-	// fetch IntervalYM
-	stmt, err = ses.Prepare("SELECT C1 FROM T1")
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	// query IntervalYM
+	stmt, err = ses.Prep("SELECT C1 FROM T1")
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 
 IntervalDS may be be inserted and selected:
@@ -693,59 +713,60 @@ IntervalDS may be be inserted and selected:
 	a[2] = ora.IntervalDS{IsNull: true}
 	a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
 	a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Execute(a)
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
+	stmt.Exec(a)
 
-	// fetch IntervalDS
-	stmt, err = ses.Prepare("SELECT C1 FROM T1")
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	// query IntervalDS
+	stmt, err = ses.Prep("SELECT C1 FROM T1")
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 
-Transactions on an Oracle server are supported:
+Transactions on an Oracle server are supported. DML statements auto-commit
+unless a transaction has started:
 
 	// given: CREATE TABLE T1 (C1 NUMBER)
 
 	// rollback
-	tx, err := ses.BeginTransaction()
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (3)")
-	stmt.Execute()
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (5)")
-	stmt.Execute()
+	tx, err := ses.StartTx()
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (3)")
+	stmt.Exec()
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (5)")
+	stmt.Exec()
 	tx.Rollback()
 
 	// commit
-	tx, err = ses.BeginTransaction()
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (7)")
-	stmt.Execute()
-	stmt, err = ses.Prepare("INSERT INTO T1 (C1) VALUES (9)")
-	stmt.Execute()
+	tx, err = ses.StartTx()
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (7)")
+	stmt.Exec()
+	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (9)")
+	stmt.Exec()
 	tx.Commit()
 
 	// fetch records
-	stmt, err = ses.Prepare("SELECT C1 FROM T1")
-	rst, err := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, err = ses.Prep("SELECT C1 FROM T1")
+	rset, err := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 
-The Server.Ping method checks whether the client's connection to the
-Oracle server is valid. A call to Ping requires an open Session. Ping
+The Srv.Ping method checks whether the client's connection to an
+Oracle server is valid. A call to Ping requires an open Ses. Ping
 will return a nil error when the connection is fine:
 
 	// open a session before calling Ping
-	ses, _ := srv.OpenSession("username", "password")
+	ses, _ := srv.OpenSes("username", "password")
 	err := srv.Ping()
 	if err == nil {
 		fmt.Println("Ping sucessful")
 	}
 
-The Server.Version method is available to obtain the Oracle server version. A call
-to Version requires an open Session:
+The Srv.Version method is available to obtain the Oracle server version. A call
+to Version requires an open Ses:
 
 	// open a session before calling Version
-	ses, err := srv.OpenSession("username", "password")
+	ses, err := srv.OpenSes("username", "password")
 	version, err := srv.Version()
 	if version != "" && err == nil {
 		fmt.Println("Received version from server")

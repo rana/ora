@@ -20,11 +20,11 @@ import (
 //// longRaw
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_longRaw_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), longRaw, t, nil, Bits)
+	testBindDefine(gen_bytes(9), longRaw, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_longRaw_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, false), longRaw, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(9, false), longRaw, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_longRaw_session(t *testing.T) {
@@ -49,11 +49,11 @@ func TestMultiDefine_longRaw_session(t *testing.T) {
 // longRawNull
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_longRawNull_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), longRawNull, t, nil, Bits)
+	testBindDefine(gen_bytes(9), longRawNull, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_longRawNull_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, true), longRawNull, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(9, true), longRawNull, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_longRawNull_session(t *testing.T) {
@@ -82,11 +82,11 @@ func TestBindDefine_longRawNull_nil_session(t *testing.T) {
 // raw2000
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_raw2000_session(t *testing.T) {
-	testBindDefine(gen_bytes(2000), raw2000, t, nil, Bits)
+	testBindDefine(gen_bytes(2000), raw2000, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_raw2000_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(2000, false), raw2000, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(2000, false), raw2000, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_raw2000_session(t *testing.T) {
@@ -109,11 +109,11 @@ func TestWorkload_raw2000_session(t *testing.T) {
 // raw2000Null
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_raw2000Null_session(t *testing.T) {
-	testBindDefine(gen_bytes(2000), raw2000Null, t, nil, Bits)
+	testBindDefine(gen_bytes(2000), raw2000Null, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_raw2000Null_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(2000, true), raw2000Null, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(2000, true), raw2000Null, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_raw2000Null_session(t *testing.T) {
@@ -140,11 +140,11 @@ func TestBindDefine_raw2000Null_nil_session(t *testing.T) {
 // blob
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_blob_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), blob, t, nil, Bits)
+	testBindDefine(gen_bytes(9), blob, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_blob_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, false), blob, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(9, false), blob, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_blob_session(t *testing.T) {
@@ -165,43 +165,43 @@ func TestWorkload_blob_session(t *testing.T) {
 
 func TestBindDefine_bytes_blob_bufferSize_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes(sc.lobBufferSize), blob, t, nil, Bits)
+	testBindDefine(gen_bytes(sc.lobBufferSize), blob, t, nil, Bin)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMinusOne_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes(sc.lobBufferSize-1), blob, t, nil, Bits)
+	testBindDefine(gen_bytes(sc.lobBufferSize-1), blob, t, nil, Bin)
 }
 
 func TestBindDefine_bytes_blob_bufferSizePlusOne_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes(sc.lobBufferSize+1), blob, t, nil, Bits)
+	testBindDefine(gen_bytes(sc.lobBufferSize+1), blob, t, nil, Bin)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultiple_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes(sc.lobBufferSize*3), blob, t, nil, Bits)
+	testBindDefine(gen_bytes(sc.lobBufferSize*3), blob, t, nil, Bin)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultipleMinusOne_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes((sc.lobBufferSize*3)-1), blob, t, nil, Bits)
+	testBindDefine(gen_bytes((sc.lobBufferSize*3)-1), blob, t, nil, Bin)
 }
 
 func TestBindDefine_bytes_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
 	sc := NewStmtConfig()
-	testBindDefine(gen_bytes((sc.lobBufferSize*3)+1), blob, t, nil, Bits)
+	testBindDefine(gen_bytes((sc.lobBufferSize*3)+1), blob, t, nil, Bin)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // blobNull
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), blobNull, t, nil, Bits)
+	testBindDefine(gen_bytes(9), blobNull, t, nil, Bin)
 }
 
 func TestBindDefine_OraBytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, true), blobNull, t, nil, OraBits)
+	testBindDefine(gen_OraBytes(9, true), blobNull, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_blobNull_session(t *testing.T) {

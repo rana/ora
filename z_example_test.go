@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-func ExampleStatement_Exec_insert() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_insert() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -26,8 +26,8 @@ func ExampleStatement_Exec_insert() {
 	// Output: 1
 }
 
-func ExampleStatement_Exec_insert_return_identity() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_insert_return_identity() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -41,8 +41,8 @@ func ExampleStatement_Exec_insert_return_identity() {
 	// Output: 1
 }
 
-func ExampleStatement_Exec_insert_bool() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_insert_bool() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -58,8 +58,8 @@ func ExampleStatement_Exec_insert_bool() {
 	// Output: 1
 }
 
-func ExampleStatement_Exec_update() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_update() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -75,8 +75,8 @@ func ExampleStatement_Exec_update() {
 	// Output: 1
 }
 
-func ExampleStatement_Exec_delete() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_delete() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -91,8 +91,8 @@ func ExampleStatement_Exec_delete() {
 	// Output: 1
 }
 
-func ExampleStatement_Exec_Query() {
-	db, _ := sql.Open("oracle", testConnectionStr)
+func ExampleDrvStmt_Exec_Query() {
+	db, _ := sql.Open("ora", testConStr)
 	defer db.Close()
 
 	tableName := tableName()
@@ -116,8 +116,8 @@ func ExampleStatement_Exec_Query() {
 }
 
 // TODO: Fix QueryRow
-//func ExampleStatement_Exec_QueryRow() {
-//	db, _ := sql.Open("oracle", testConnectionStr)
+//func ExampleDrvStmt_Exec_QueryRow() {
+//	db, _ := sql.Open("ora", testConStr)
 //	defer db.Close()
 
 //	tableName := tableName()
@@ -132,295 +132,285 @@ func ExampleStatement_Exec_Query() {
 //	// Output: go
 //}
 
-func ExampleStatement_Execute_insert() {
+func ExampleStmt_Exec_insert() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert record
 	var value int64 = 9
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(value)
+	rowsAffected, _ := stmt.Exec(value)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
 
-func ExampleStatement_Execute_insert_return_identity() {
+func ExampleStmt_Exec_insert_return_identity() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert record
 	var id int64
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName))
 	defer stmt.Close()
 	// pass a numeric pointer to rereive a database generated identity value
-	stmt.Execute(&id)
+	stmt.Exec(&id)
 	fmt.Println(id)
 	// Output: 1
 }
 
-func ExampleStatement_Execute_insert_return_rowid() {
+func ExampleStmt_Exec_insert_return_rowid() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert record
 	var rowid string
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9) returning rowid into :r", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9) returning rowid into :r", tableName))
 	defer stmt.Close()
 	// pass a string pointer to rereive a rowid
-	stmt.Execute(&rowid)
+	stmt.Exec(&rowid)
 	if rowid != "" {
 		fmt.Println("Retrieved rowid")
 	}
 	// Output: Retrieved rowid
 }
 
-func ExampleStatement_Execute_insert_fetch_bool() {
+func ExampleStmt_Exec_insert_fetch_bool() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert 'false' record
 	var falseValue bool = false
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(falseValue)
+	stmt.Exec(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(trueValue)
+	stmt.Exec(trueValue)
 
 	// fetch inserted records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v ", rst.Row[0])
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v ", rset.Row[0])
 	}
 	// Output: false true
 }
 
-func ExampleStatement_Execute_insert_fetch_bool_alternate() {
+func ExampleStmt_Exec_insert_fetch_bool_alternate() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// Update StatementConfig to change the FalseRune and TrueRune inserted into the database
+	// Update StmtConfig to change the FalseRune and TrueRune inserted into the database
 	// insert 'false' record
 	var falseValue bool = false
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Config.FalseRune = 'N'
-	stmt.Execute(falseValue)
+	stmt.Exec(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Config.TrueRune = 'Y'
-	stmt.Execute(trueValue)
+	stmt.Exec(trueValue)
 
-	// Update ResultSetConfig to change the TrueRune
+	// Update RsetConfig to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	stmt.Config.ResultSet.TrueRune = 'Y'
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v ", rst.Row[0])
+	stmt.Config.Rset.TrueRune = 'Y'
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v ", rset.Row[0])
 	}
 	// Output: false true
 }
 
-func ExampleStatement_Execute_update() {
+func ExampleStmt_Exec_update() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// update record
 	var a int64 = 3
 	var b int64 = 9
-	stmt, _ = ses.Prepare(fmt.Sprintf("update %v set c1 = :three where c1 = :nine", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("update %v set c1 = :three where c1 = :nine", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(a, b)
+	rowsAffected, _ := stmt.Exec(a, b)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
 
-func ExampleStatement_Execute_delete() {
+func ExampleStmt_Exec_delete() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// delete record
 	var value int64 = 9
-	stmt, _ = ses.Prepare(fmt.Sprintf("delete from %v where c1 = :1", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("delete from %v where c1 = :1", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(value)
+	rowsAffected, _ := stmt.Exec(value)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
 
-func ExampleStatement_Execute_insert_slice() {
+func ExampleStmt_Exec_insert_slice() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert one million rows with single round-trip to server
 	values := make([]int64, 1000000)
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(values)
+	rowsAffected, _ := stmt.Exec(values)
 	fmt.Println(rowsAffected)
 	// Output: 1000000
 }
 
-func ExampleStatement_Execute_insert_nullable() {
+func ExampleStmt_Exec_insert_nullable() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// create nullable Go types for inserting null
 	// insert record
 	a := Int64{IsNull: true}
 	b := String{IsNull: true}
 	c := Bool{IsNull: true}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (:c1, :c2, :c3)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (:c1, :c2, :c3)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(a, b, c)
+	rowsAffected, _ := stmt.Exec(a, b, c)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
 
-func ExampleStatement_Execute_insert_fetch_blob() {
+func ExampleStmt_Exec_insert_fetch_blob() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 blob)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 blob)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// by default, byte slices are expected to be bound and retrieved
 	// to/from a binary column such as a blob
@@ -429,16 +419,16 @@ func ExampleStatement_Execute_insert_fetch_blob() {
 	for n, _ := range a {
 		a[n] = byte(n)
 	}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(a)
+	rowsAffected, _ := stmt.Exec(a)
 	fmt.Println(rowsAffected)
 
 	// fetch record
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	row := rst.NextRow()
+	rset, _ := stmt.Query()
+	row := rset.NextRow()
 	fmt.Println(row[0])
 
 	// Output:
@@ -446,22 +436,21 @@ func ExampleStatement_Execute_insert_fetch_blob() {
 	// [0 1 2 3 4 5 6 7 8 9]
 }
 
-func ExampleStatement_Execute_insert_fetch_byteSlice() {
+func ExampleStmt_Exec_insert_fetch_byteSlice() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// note the NUMBER column
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// Specify stmt.Config.SetByteSlice(U8)
 	// Specify byte slice to be inserted into a NUMBER column
@@ -470,18 +459,18 @@ func ExampleStatement_Execute_insert_fetch_byteSlice() {
 	for n, _ := range a {
 		a[n] = byte(n)
 	}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Config.SetByteSlice(U8)
-	rowsAffected, _ := stmt.Execute(a)
+	rowsAffected, _ := stmt.Exec(a)
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v, ", rst.Row[0])
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v, ", rset.Row[0])
 	}
 
 	// Output:
@@ -489,109 +478,106 @@ func ExampleStatement_Execute_insert_fetch_byteSlice() {
 	// 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 }
 
-func ExampleStatement_Fetch() {
+func ExampleStmt_Query() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (3, 'slice', '0')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (3, 'slice', '0')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'map', '1')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'map', '1')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', '1')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', '1')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v %v %v, ", rst.Row[0], rst.Row[1], rst.Row[2])
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
 	// Output: 3 slice false, 7 map true, 9 channel true,
 }
 
-func ExampleStatement_Fetch_nullable() {
+func ExampleStmt_Query_nullable() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (null, 'slice', '0')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (null, 'slice', '0')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, null, '1')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, null, '1')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', null)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', null)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// Specify nullable return types to the Prepare method
+	// Specify nullable return types to the Prep method
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName), OraI64, OraS, OraB)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName), OraI64, OraS, OraB)
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v %v %v, ", rst.Row[0], rst.Row[1], rst.Row[2])
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
 	// Output: {true 0} {false slice} {false false}, {false 7} {true } {false true}, {false 9} {false channel} {true false},
 }
 
-func ExampleStatement_Fetch_numerics() {
+func ExampleStmt_Query_numerics() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// Specify various numeric return types to the Prepare method
+	// Specify various numeric return types to the Prep method
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
 	defer stmt.Close()
-	rst, _ := stmt.Fetch()
-	row := rst.NextRow()
+	rset, _ := stmt.Query()
+	row := rset.NextRow()
 	fmt.Printf("%v %v %v %v %v %v %v %v %v %v",
 		reflect.TypeOf(row[0]).Name(),
 		reflect.TypeOf(row[1]).Name(),
@@ -606,87 +592,84 @@ func ExampleStatement_Fetch_numerics() {
 	// Output: int64 int32 int16 int8 uint64 uint32 uint16 uint8 float64 float32
 }
 
-func ExampleResultSet_Next() {
+func ExampleRset_Next() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert records
 	a := make([]uint16, 5)
 	for n, _ := range a {
 		a[n] = uint16(n)
 	}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Execute(a)
+	rowsAffected, _ := stmt.Exec(a)
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), U16)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v, ", rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), U16)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v, ", rset.Row[0])
 	}
 	// Output:
 	// 5
 	// 0, 1, 2, 3, 4,
 }
 
-func ExampleResultSet_NextRow() {
+func ExampleRset_NextRow() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert record
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'go', '1')", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'go', '1')", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// fetch record
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
-	rst, _ := stmt.Fetch()
-	row := rst.NextRow()
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
+	rset, _ := stmt.Query()
+	row := rset.NextRow()
 	fmt.Printf("%v %v %v", row[0], row[1], row[2])
 	// Output: 7 go true
 }
 
-func ExampleResultSet_cursor_single() {
+func ExampleRset_cursor_single() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert records
 	a := make([]int64, 3)
@@ -697,23 +680,23 @@ func ExampleResultSet_cursor_single() {
 	b[0] = "Go is expressive, concise, clean, and efficient."
 	b[1] = "Its concurrency mechanisms make it easy to"
 	b[2] = "Go compiles quickly to machine code yet has"
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
-	stmt.Execute(a, b)
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
+	stmt.Exec(a, b)
 
 	// create proc
-	stmt, _ = ses.Prepare(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c1; end proc1;", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c1; end proc1;", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// pass *ResultSet to Execute for an out sys_refcursor
+	// pass *Rset to Exec for an out sys_refcursor
 	// call proc
-	stmt, _ = ses.Prepare("call proc1(:1)")
+	stmt, _ = ses.Prep("call proc1(:1)")
 	defer stmt.Close()
-	rst := &ResultSet{}
-	stmt.Execute(rst)
-	if rst.IsOpen() {
-		for rst.Next() {
-			fmt.Println(rst.Row[0], rst.Row[1])
+	rset := &Rset{}
+	stmt.Exec(rset)
+	if rset.IsOpen() {
+		for rset.Next() {
+			fmt.Println(rset.Row[0], rset.Row[1])
 		}
 	}
 	// Output:
@@ -722,21 +705,20 @@ func ExampleResultSet_cursor_single() {
 	// 9 Go compiles quickly to machine code yet has
 }
 
-func ExampleResultSet_cursor_multiple() {
+func ExampleRset_cursor_multiple() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert records
 	a := make([]int64, 3)
@@ -747,31 +729,31 @@ func ExampleResultSet_cursor_multiple() {
 	b[0] = "Go is expressive, concise, clean, and efficient."
 	b[1] = "Its concurrency mechanisms make it easy to"
 	b[2] = "Go compiles quickly to machine code yet has"
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
-	stmt.Execute(a, b)
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
+	stmt.Exec(a, b)
 
 	// create proc
-	stmt, _ = ses.Prepare(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor, p2 out sys_refcursor) as begin open p1 for select c1 from %v order by c1; open p2 for select c2 from %v order by c2; end proc1;", tableName, tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor, p2 out sys_refcursor) as begin open p1 for select c1 from %v order by c1; open p2 for select c2 from %v order by c2; end proc1;", tableName, tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// pass *ResultSet to Execute for an out sys_refcursor
+	// pass *Rset to Exec for an out sys_refcursor
 	// call proc
-	stmt, _ = ses.Prepare("call proc1(:1, :2)")
+	stmt, _ = ses.Prep("call proc1(:1, :2)")
 	defer stmt.Close()
-	rstC1 := &ResultSet{}
-	rstC2 := &ResultSet{}
-	stmt.Execute(rstC1, rstC2)
+	rsetC1 := &Rset{}
+	rsetC2 := &Rset{}
+	stmt.Exec(rsetC1, rsetC2)
 	fmt.Println("--- first result set ---")
-	if rstC1.IsOpen() {
-		for rstC1.Next() {
-			fmt.Println(rstC1.Row[0])
+	if rsetC1.IsOpen() {
+		for rsetC1.Next() {
+			fmt.Println(rsetC1.Row[0])
 		}
 	}
 	fmt.Println("--- second result set ---")
-	if rstC2.IsOpen() {
-		for rstC2.Next() {
-			fmt.Println(rstC2.Row[0])
+	if rsetC2.IsOpen() {
+		for rsetC2.Next() {
+			fmt.Println(rsetC2.Row[0])
 		}
 	}
 	// Output:
@@ -787,14 +769,13 @@ func ExampleResultSet_cursor_multiple() {
 
 func ExampleServer_Ping() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
 
 	// open a session before calling Ping
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	err := srv.Ping()
@@ -806,14 +787,13 @@ func ExampleServer_Ping() {
 
 func ExampleServer_Version() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
 
 	// open a session before calling Version
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	version, err := srv.Version()
@@ -825,19 +805,18 @@ func ExampleServer_Version() {
 
 func ExampleInt64() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Int64 slice
 	a := make([]Int64, 5)
@@ -846,16 +825,16 @@ func ExampleInt64() {
 	a[2] = Int64{IsNull: true}
 	a[3] = Int64{Value: 1}
 	a[4] = Int64{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraI64 to Prepare method to return Int64 values
+	// Specify OraI64 to Prep method to return Int64 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI64)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI64)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -867,19 +846,18 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Int32 slice
 	a := make([]Int32, 5)
@@ -888,16 +866,16 @@ func ExampleInt32() {
 	a[2] = Int32{IsNull: true}
 	a[3] = Int32{Value: 1}
 	a[4] = Int32{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraI32 to Prepare method to return Int32 values
+	// Specify OraI32 to Prep method to return Int32 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI32)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI32)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -909,19 +887,18 @@ func ExampleInt32() {
 
 func ExampleInt16() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Int16 slice
 	a := make([]Int16, 5)
@@ -930,16 +907,16 @@ func ExampleInt16() {
 	a[2] = Int16{IsNull: true}
 	a[3] = Int16{Value: 1}
 	a[4] = Int16{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraI16 to Prepare method to return Int16 values
+	// Specify OraI16 to Prep method to return Int16 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI16)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI16)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -951,19 +928,18 @@ func ExampleInt16() {
 
 func ExampleInt8() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Int8 slice
 	a := make([]Int8, 5)
@@ -972,16 +948,16 @@ func ExampleInt8() {
 	a[2] = Int8{IsNull: true}
 	a[3] = Int8{Value: 1}
 	a[4] = Int8{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraI8 to Prepare method to return Int8 values
+	// Specify OraI8 to Prep method to return Int8 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraI8)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI8)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -9}
@@ -993,19 +969,18 @@ func ExampleInt8() {
 
 func ExampleUint64() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Uint64 slice
 	a := make([]Uint64, 5)
@@ -1014,16 +989,16 @@ func ExampleUint64() {
 	a[2] = Uint64{IsNull: true}
 	a[3] = Uint64{Value: 7}
 	a[4] = Uint64{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraU64 to Prepare method to return Uint64 values
+	// Specify OraU64 to Prep method to return Uint64 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU64)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU64)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1035,19 +1010,18 @@ func ExampleUint64() {
 
 func ExampleUint32() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Uint32 slice
 	a := make([]Uint32, 5)
@@ -1056,16 +1030,16 @@ func ExampleUint32() {
 	a[2] = Uint32{IsNull: true}
 	a[3] = Uint32{Value: 7}
 	a[4] = Uint32{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraU32 to Prepare method to return Uint32 values
+	// Specify OraU32 to Prep method to return Uint32 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU32)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU32)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1077,19 +1051,18 @@ func ExampleUint32() {
 
 func ExampleUint16() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Uint16 slice
 	a := make([]Uint16, 5)
@@ -1098,16 +1071,16 @@ func ExampleUint16() {
 	a[2] = Uint16{IsNull: true}
 	a[3] = Uint16{Value: 7}
 	a[4] = Uint16{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraU16 to Prepare method to return Uint16 values
+	// Specify OraU16 to Prep method to return Uint16 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU16)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU16)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1119,19 +1092,18 @@ func ExampleUint16() {
 
 func ExampleUint8() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Uint8 slice
 	a := make([]Uint8, 5)
@@ -1140,16 +1112,16 @@ func ExampleUint8() {
 	a[2] = Uint8{IsNull: true}
 	a[3] = Uint8{Value: 7}
 	a[4] = Uint8{Value: 9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraU8 to Prepare method to return Uint8 values
+	// Specify OraU8 to Prep method to return Uint8 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraU8)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU8)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false 0}
@@ -1161,19 +1133,18 @@ func ExampleUint8() {
 
 func ExampleFloat64() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Float64 slice
 	a := make([]Float64, 5)
@@ -1182,16 +1153,16 @@ func ExampleFloat64() {
 	a[2] = Float64{IsNull: true}
 	a[3] = Float64{Value: float64(3.14159)}
 	a[4] = Float64{Value: float64(6.28318)}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraF64 to Prepare method to return Float64 values
+	// Specify OraF64 to Prep method to return Float64 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraF64)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF64)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -6.28318}
@@ -1203,19 +1174,18 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Float32 slice
 	a := make([]Float32, 5)
@@ -1224,16 +1194,16 @@ func ExampleFloat32() {
 	a[2] = Float32{IsNull: true}
 	a[3] = Float32{Value: float32(3.14159)}
 	a[4] = Float32{Value: float32(6.28318)}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraF32 to Prepare method to return Float32 values
+	// Specify OraF32 to Prep method to return Float32 values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraF32)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF32)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false -6.28318}
@@ -1245,19 +1215,18 @@ func ExampleFloat32() {
 
 func ExampleString() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 varchar2(48 char))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert String slice
 	a := make([]String, 5)
@@ -1266,16 +1235,16 @@ func ExampleString() {
 	a[2] = String{IsNull: true}
 	a[3] = String{Value: "It's a fast, statically typed, compiled"}
 	a[4] = String{Value: "One of Go's key design goals is code"}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraS to Prepare method to return String values
+	// Specify OraS to Prep method to return String values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraS)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraS)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false Go is expressive, concise, clean, and efficient.}
@@ -1287,19 +1256,18 @@ func ExampleString() {
 
 func ExampleBool() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Bool slice
 	a := make([]Bool, 5)
@@ -1308,16 +1276,16 @@ func ExampleBool() {
 	a[2] = Bool{IsNull: true}
 	a[3] = Bool{Value: false}
 	a[4] = Bool{Value: true}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraB to Prepare method to return Bool values
+	// Specify OraB to Prep method to return Bool values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraB)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraB)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false true}
@@ -1329,19 +1297,18 @@ func ExampleBool() {
 
 func ExampleTime() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 timestamp)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 timestamp)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Time slice
 	a := make([]Time, 5)
@@ -1350,16 +1317,16 @@ func ExampleTime() {
 	a[2] = Time{IsNull: true}
 	a[3] = Time{Value: time.Date(2003, 4, 5, 6, 7, 8, 0, testDbsessiontimezone)}
 	a[4] = Time{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraT to Prepare method to return Time values
+	// Specify OraT to Prep method to return Time values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraT)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		t := rst.Row[0].(Time)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraT)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		t := rset.Row[0].(Time)
 		fmt.Printf("%v %v-%v-%v %v:%v:%v\n", t.IsNull, t.Value.Year(), t.Value.Month(), t.Value.Day(), t.Value.Hour(), t.Value.Minute(), t.Value.Second())
 	}
 	// Output:
@@ -1372,19 +1339,18 @@ func ExampleTime() {
 
 func ExampleIntervalYM() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 interval year to month)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 interval year to month)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert IntervalYM slice
 	a := make([]IntervalYM, 5)
@@ -1393,15 +1359,15 @@ func ExampleIntervalYM() {
 	a[2] = IntervalYM{IsNull: true}
 	a[3] = IntervalYM{Year: -1, Month: -1}
 	a[4] = IntervalYM{Year: -99, Month: -9}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
 	// fetch IntervalYM
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v, ", rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v, ", rset.Row[0])
 	}
 	// Output: {false 1 1}, {false 99 9}, {true 0 0}, {false -1 -1}, {false -99 -9},
 }
@@ -1416,19 +1382,18 @@ func ExampleIntervalYM_ShiftTime() {
 
 func ExampleIntervalDS() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 interval day to second)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 interval day to second)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert IntervalDS slice
 	a := make([]IntervalDS, 5)
@@ -1437,15 +1402,15 @@ func ExampleIntervalDS() {
 	a[2] = IntervalDS{IsNull: true}
 	a[3] = IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
 	a[4] = IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
 	// fetch IntervalDS
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v, ", rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v, ", rset.Row[0])
 	}
 	// Output: {false 1 1 1 1 123457000}, {false 59 59 59 59 123457000}, {true 0 0 0 0 0}, {false -1 -1 -1 -1 -123457000}, {false -59 -59 -59 -59 -123457000},
 }
@@ -1459,53 +1424,52 @@ func ExampleIntervalDS_ShiftTime() {
 
 func ExampleBytes() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 blob)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 blob)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
-	// insert Bytes slice
-	a := make([]Bytes, 5)
+	// insert Binary slice
+	a := make([]Binary, 5)
 	b := make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n)
 	}
-	a[0] = Bytes{Value: b}
+	a[0] = Binary{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 2)
 	}
-	a[1] = Bytes{Value: b}
-	a[2] = Bytes{IsNull: true}
+	a[1] = Binary{Value: b}
+	a[2] = Binary{IsNull: true}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 3)
 	}
-	a[3] = Bytes{Value: b}
+	a[3] = Binary{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 4)
 	}
-	a[4] = Bytes{Value: b}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	a[4] = Binary{Value: b}
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
-	// Specify OraBits to Prepare method to return Bytes values
+	// Specify OraBin to Prep method to return ora.Binary values
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName), OraBits)
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraBin)
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// {false [0 1 2 3 4 5 6 7 8 9]}
@@ -1517,76 +1481,74 @@ func ExampleBytes() {
 
 func ExampleBfile() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 bfile)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 bfile)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// insert Bfile
 	a := Bfile{IsNull: false, DirectoryAlias: "TEMP_DIR", Filename: "test.txt"}
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Execute(a)
+	stmt.Exec(a)
 
 	// fetch Bfile
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Printf("%v", rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Printf("%v", rset.Row[0])
 	}
 	// Output: {false TEMP_DIR test.txt}
 }
 
-func ExampleTransaction() {
+func ExampleTx() {
 	// setup
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenServer(testServerName)
+	srv, _ := env.OpenSrv(testServerName)
 	defer srv.Close()
-	ses, _ := srv.OpenSession(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prepare(fmt.Sprintf("create table %v (c1 number)", tableName))
+	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Execute()
+	stmt.Exec()
 
 	// rollback
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (3)", tableName))
-	tx, _ := ses.BeginTransaction()
-	stmt.Execute()
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (5)", tableName))
-	stmt.Execute()
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (3)", tableName))
+	tx, _ := ses.StartTx()
+	stmt.Exec()
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (5)", tableName))
+	stmt.Exec()
 	tx.Rollback()
 
 	// commit
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (7)", tableName))
-	tx, _ = ses.BeginTransaction()
-	stmt.Execute()
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
-	stmt.Execute()
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (7)", tableName))
+	tx, _ = ses.StartTx()
+	stmt.Exec()
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	stmt.Exec()
 	tx.Commit()
 
 	// check that auto commit is reenabled
-	stmt, _ = ses.Prepare(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
-	stmt.Execute()
+	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
+	stmt.Exec()
 
 	// fetch records
-	stmt, _ = ses.Prepare(fmt.Sprintf("select c1 from %v", tableName))
-	rst, _ := stmt.Fetch()
-	for rst.Next() {
-		fmt.Println(rst.Row[0])
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	rset, _ := stmt.Query()
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
 	}
 	// Output:
 	// 7
@@ -1595,17 +1557,16 @@ func ExampleTransaction() {
 }
 
 func ExampleDriver_usage() {
-	// example usage of the oracle package driver
+	// example usage of the ora package driver
 	// connect to a server and open a session
-	env := NewEnv()
-	env.Open()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, err := env.OpenServer(testServerName)
+	srv, err := env.OpenSrv(testServerName)
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
-	ses, err := srv.OpenSession(testUsername, testPassword)
+	ses, err := srv.OpenSes(testUsername, testPassword)
 	defer ses.Close()
 	if err != nil {
 		panic(err)
@@ -1613,19 +1574,19 @@ func ExampleDriver_usage() {
 
 	// create table
 	tableName := tableName()
-	stmtTbl, err := ses.Prepare(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
+	stmtTbl, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
 	defer stmtTbl.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err := stmtTbl.Execute()
+	rowsAffected, err := stmtTbl.Exec()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(rowsAffected)
 
 	// begin first transaction
-	tx1, err := ses.BeginTransaction()
+	tx1, err := ses.StartTx()
 	if err != nil {
 		panic(err)
 	}
@@ -1633,9 +1594,9 @@ func ExampleDriver_usage() {
 	// insert record
 	var id uint64
 	str := "Go is expressive, concise, clean, and efficient."
-	stmtIns, err := ses.Prepare(fmt.Sprintf("insert into %v (c2) values (:c2) returning c1 into :c1", tableName))
+	stmtIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2) returning c1 into :c1", tableName))
 	defer stmtIns.Close()
-	rowsAffected, err = stmtIns.Execute(str, &id)
+	rowsAffected, err = stmtIns.Exec(str, &id)
 	if err != nil {
 		panic(err)
 	}
@@ -1647,32 +1608,32 @@ func ExampleDriver_usage() {
 	a[1] = String{IsNull: true}
 	a[2] = String{Value: "It's a fast, statically typed, compiled"}
 	a[3] = String{Value: "One of Go's key design goals is code"}
-	stmtSliceIns, err := ses.Prepare(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
+	stmtSliceIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 	defer stmtSliceIns.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Execute(a)
+	rowsAffected, err = stmtSliceIns.Exec(a)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtFetch, err := ses.Prepare(fmt.Sprintf("select c1, c2 from %v", tableName))
-	defer stmtFetch.Close()
+	stmtQuery, err := ses.Prep(fmt.Sprintf("select c1, c2 from %v", tableName))
+	defer stmtQuery.Close()
 	if err != nil {
 		panic(err)
 	}
-	rst, err := stmtFetch.Fetch()
+	rset, err := stmtQuery.Query()
 	if err != nil {
 		panic(err)
 	}
-	for rst.Next() {
-		fmt.Println(rst.Row[0], rst.Row[1])
+	for rset.Next() {
+		fmt.Println(rset.Row[0], emptyString(rset.Row[1].(string)))
 	}
-	if rst.Err != nil {
-		panic(rst.Err)
+	if rset.Err != nil {
+		panic(rset.Err)
 	}
 
 	// commit first transaction
@@ -1682,18 +1643,18 @@ func ExampleDriver_usage() {
 	}
 
 	// begin second transaction
-	tx2, err := ses.BeginTransaction()
+	tx2, err := ses.StartTx()
 	if err != nil {
 		panic(err)
 	}
 	// insert null String
 	nullableStr := String{IsNull: true}
-	stmtTrans, err := ses.Prepare(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
+	stmtTrans, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 	defer stmtTrans.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtTrans.Execute(nullableStr)
+	rowsAffected, err = stmtTrans.Exec(nullableStr)
 	if err != nil {
 		panic(err)
 	}
@@ -1705,51 +1666,51 @@ func ExampleDriver_usage() {
 	}
 
 	// fetch and specify return type
-	stmtCount, err := ses.Prepare(fmt.Sprintf("select count(c1) from %v where c2 is null", tableName), U8)
+	stmtCount, err := ses.Prep(fmt.Sprintf("select count(c1) from %v where c2 is null", tableName), U8)
 	defer stmtCount.Close()
 	if err != nil {
 		panic(err)
 	}
-	rst, err = stmtCount.Fetch()
+	rset, err = stmtCount.Query()
 	if err != nil {
 		panic(err)
 	}
-	row := rst.NextRow()
+	row := rset.NextRow()
 	if row != nil {
 		fmt.Println(row[0])
 	}
-	if rst.Err != nil {
-		panic(rst.Err)
+	if rset.Err != nil {
+		panic(rset.Err)
 	}
 
 	// create stored procedure with sys_refcursor
-	stmtProcCreate, err := ses.Prepare(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v where c1 > 2 order by c1; end proc1;", tableName))
+	stmtProcCreate, err := ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v where c1 > 2 order by c1; end proc1;", tableName))
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Execute()
+	rowsAffected, err = stmtProcCreate.Exec()
 	if err != nil {
 		panic(err)
 	}
 
 	// call stored procedure
-	// pass *ResultSet to Execute to receive the results of a sys_refcursor
-	stmtProcCall, err := ses.Prepare("call proc1(:1)")
+	// pass *Rset to Exec to receive the results of a sys_refcursor
+	stmtProcCall, err := ses.Prep("call proc1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
 	}
-	procResultSet := &ResultSet{}
-	rowsAffected, err = stmtProcCall.Execute(procResultSet)
+	procRset := &Rset{}
+	rowsAffected, err = stmtProcCall.Exec(procRset)
 	if err != nil {
 		panic(err)
 	}
-	if procResultSet.IsOpen() {
-		for procResultSet.Next() {
-			fmt.Println(procResultSet.Row[0], procResultSet.Row[1])
+	if procRset.IsOpen() {
+		for procRset.Next() {
+			fmt.Println(procRset.Row[0], emptyString(procRset.Row[1].(string)))
 		}
-		if procResultSet.Err != nil {
-			panic(procResultSet.Err)
+		if procRset.Err != nil {
+			panic(procRset.Err)
 		}
-		fmt.Println(procResultSet.Len())
+		fmt.Println(procRset.Len())
 	}
 
 	// Output:
@@ -1758,13 +1719,20 @@ func ExampleDriver_usage() {
 	// 4
 	// 1 Go is expressive, concise, clean, and efficient.
 	// 2 Its concurrency mechanisms make it easy to
-	// 3 <nil>
+	// 3 <empty>
 	// 4 It's a fast, statically typed, compiled
 	// 5 One of Go's key design goals is code
 	// 1
 	// 1
-	// 3 <nil>
+	// 3 <empty>
 	// 4 It's a fast, statically typed, compiled
 	// 5 One of Go's key design goals is code
 	// 3
+}
+
+func emptyString(s string) string {
+	if s == "" {
+		return "<empty>"
+	}
+	return s
 }

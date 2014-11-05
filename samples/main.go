@@ -10,38 +10,36 @@ import (
 )
 
 func main() {
-	// example usage of the oracle package driver
+	// example usage of the ora package driver
 	// connect to a server and open a session
-	env := ora.NewEnv()
-	env.Open()
+	env, _ := ora.GetDrv().OpenEnv()
 	defer env.Close()
-	srv, err := env.OpenServer("orcl")
+	srv, err := env.OpenSrv("orcl")
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
-	ses, err := srv.OpenSession("test", "test")
+	ses, err := srv.OpenSes("test", "test")
 	defer ses.Close()
 	if err != nil {
 		panic(err)
 	}
 
 	// create table
-	stmtTbl, err := ses.Prepare("create table t1 " +
-		"(c1 number(19,0) generated always as identity (start with 1 increment by 1), " +
-		"c2 varchar2(48 char))")
+	tableName := "t1"
+	stmtTbl, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
 	defer stmtTbl.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err := stmtTbl.Execute()
+	rowsAffected, err := stmtTbl.Exec()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(rowsAffected)
 
 	// begin first transaction
-	tx1, err := ses.BeginTransaction()
+	tx1, err := ses.StartTx()
 	if err != nil {
 		panic(err)
 	}
@@ -49,9 +47,9 @@ func main() {
 	// insert record
 	var id uint64
 	str := "Go is expressive, concise, clean, and efficient."
-	stmtIns, err := ses.Prepare("insert into t1 (c2) values (:c2) returning c1 into :c1")
+	stmtIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2) returning c1 into :c1", tableName))
 	defer stmtIns.Close()
-	rowsAffected, err = stmtIns.Execute(str, &id)
+	rowsAffected, err = stmtIns.Exec(str, &id)
 	if err != nil {
 		panic(err)
 	}
@@ -63,32 +61,32 @@ func main() {
 	a[1] = ora.String{IsNull: true}
 	a[2] = ora.String{Value: "It's a fast, statically typed, compiled"}
 	a[3] = ora.String{Value: "One of Go's key design goals is code"}
-	stmtSliceIns, err := ses.Prepare("insert into t1 (c2) values (:c2)")
+	stmtSliceIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 	defer stmtSliceIns.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Execute(a)
+	rowsAffected, err = stmtSliceIns.Exec(a)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtFetch, err := ses.Prepare("select c1, c2 from t1")
-	defer stmtFetch.Close()
+	stmtQuery, err := ses.Prep(fmt.Sprintf("select c1, c2 from %v", tableName))
+	defer stmtQuery.Close()
 	if err != nil {
 		panic(err)
 	}
-	rst, err := stmtFetch.Fetch()
+	rset, err := stmtQuery.Query()
 	if err != nil {
 		panic(err)
 	}
-	for rst.Next() {
-		fmt.Println(rst.Row[0], rst.Row[1])
+	for rset.Next() {
+		fmt.Println(rset.Row[0], rset.Row[1])
 	}
-	if rst.Err != nil {
-		panic(rst.Err)
+	if rset.Err != nil {
+		panic(rset.Err)
 	}
 
 	// commit first transaction
@@ -98,18 +96,18 @@ func main() {
 	}
 
 	// begin second transaction
-	tx2, err := ses.BeginTransaction()
+	tx2, err := ses.StartTx()
 	if err != nil {
 		panic(err)
 	}
 	// insert null String
 	nullableStr := ora.String{IsNull: true}
-	stmtTrans, err := ses.Prepare("insert into t1 (c2) values (:c2)")
+	stmtTrans, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
 	defer stmtTrans.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtTrans.Execute(nullableStr)
+	rowsAffected, err = stmtTrans.Exec(nullableStr)
 	if err != nil {
 		panic(err)
 	}
@@ -121,54 +119,51 @@ func main() {
 	}
 
 	// fetch and specify return type
-	stmtCount, err := ses.Prepare("select count(c1) from t1 where c2 is null", ora.U8)
+	stmtCount, err := ses.Prep(fmt.Sprintf("select count(c1) from %v where c2 is null", tableName), ora.U8)
 	defer stmtCount.Close()
 	if err != nil {
 		panic(err)
 	}
-	rst, err = stmtCount.Fetch()
+	rset, err = stmtCount.Query()
 	if err != nil {
 		panic(err)
 	}
-	row := rst.NextRow()
+	row := rset.NextRow()
 	if row != nil {
 		fmt.Println(row[0])
 	}
-	if rst.Err != nil {
-		panic(rst.Err)
+	if rset.Err != nil {
+		panic(rset.Err)
 	}
 
 	// create stored procedure with sys_refcursor
-	stmtProcCreate, err := ses.Prepare(
-		"create or replace procedure proc1(p1 out sys_refcursor) as begin " +
-			"open p1 for select c1, c2 from t1 where c1 > 2 order by c1; " +
-			"end proc1;")
+	stmtProcCreate, err := ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v where c1 > 2 order by c1; end proc1;", tableName))
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Execute()
+	rowsAffected, err = stmtProcCreate.Exec()
 	if err != nil {
 		panic(err)
 	}
 
 	// call stored procedure
-	// pass *ResultSet to Execute to receive the results of a sys_refcursor
-	stmtProcCall, err := ses.Prepare("call proc1(:1)")
+	// pass *Rset to Exec to receive the results of a sys_refcursor
+	stmtProcCall, err := ses.Prep("call proc1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
 	}
-	procResultSet := &ora.ResultSet{}
-	rowsAffected, err = stmtProcCall.Execute(procResultSet)
+	procRset := &ora.Rset{}
+	rowsAffected, err = stmtProcCall.Exec(procRset)
 	if err != nil {
 		panic(err)
 	}
-	if procResultSet.IsOpen() {
-		for procResultSet.Next() {
-			fmt.Println(procResultSet.Row[0], procResultSet.Row[1])
+	if procRset.IsOpen() {
+		for procRset.Next() {
+			fmt.Println(procRset.Row[0], procRset.Row[1])
 		}
-		if procResultSet.Err != nil {
-			panic(procResultSet.Err)
+		if procRset.Err != nil {
+			panic(procRset.Err)
 		}
-		fmt.Println(procResultSet.Len())
+		fmt.Println(procRset.Len())
 	}
 
 	// Output:
@@ -177,12 +172,12 @@ func main() {
 	// 4
 	// 1 Go is expressive, concise, clean, and efficient.
 	// 2 Its concurrency mechanisms make it easy to
-	// 3 <nil>
+	// 3 <empty>
 	// 4 It's a fast, statically typed, compiled
 	// 5 One of Go's key design goals is code
 	// 1
 	// 1
-	// 3 <nil>
+	// 3 <empty>
 	// 4 It's a fast, statically typed, compiled
 	// 5 One of Go's key design goals is code
 	// 3

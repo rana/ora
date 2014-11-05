@@ -90,21 +90,22 @@ const (
 var testServerName string
 var testUsername string
 var testPassword string
-var testConnectionStr string
+var testConStr string
 var testDbsessiontimezone *time.Location
 var testTableId int
 var testWorkloadColumnCount int
-var testEnv *Environment
-var testSrv *Server
-var testSes *Session
+var testEnv *Env
+var testSrv *Srv
+var testSes *Ses
 var testDb *sql.DB
+var testCon driver.Conn
 
 func init() {
 	testWorkloadColumnCount = 20
 	testServerName = os.Getenv("GO_ORA_DRV_TEST_DB")
 	testUsername = os.Getenv("GO_ORA_DRV_TEST_USERNAME")
 	testPassword = os.Getenv("GO_ORA_DRV_TEST_PASSWORD")
-	testConnectionStr = fmt.Sprintf("%v/%v@%v", testUsername, testPassword, testServerName)
+	testConStr = fmt.Sprintf("%v/%v@%v", testUsername, testPassword, testServerName)
 
 	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_DB = '%v'\n", testServerName)
 	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_USERNAME = '%v'\n", testUsername)
@@ -112,23 +113,16 @@ func init() {
 
 	var err error
 
-	// setup test db
-	testDb, err = sql.Open(DriverName, testConnectionStr)
-	if err != nil {
-		fmt.Println("initError: ", err)
-	}
-
 	// setup test environment, server and session
-	testEnv = NewEnv()
-	err = testEnv.Open()
+	testEnv, err := GetDrv().OpenEnv()
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
-	testSrv, err = testEnv.OpenServer(testServerName)
+	testSrv, err = testEnv.OpenSrv(testServerName)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
-	testSes, err = testSrv.OpenSession(testUsername, testPassword)
+	testSes, err = testSrv.OpenSes(testUsername, testPassword)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -143,18 +137,28 @@ func init() {
 
 	// drop all tables from previous test run
 	fmt.Println("Dropping previous tables...")
-	var sql bytes.Buffer
-	sql.WriteString("BEGIN ")
-	sql.WriteString("FOR c IN (SELECT table_name FROM user_tables) LOOP ")
-	sql.WriteString("EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS'); ")
-	sql.WriteString("END LOOP; ")
-	sql.WriteString("END;")
-	stmt, err := testSes.Prepare(sql.String())
+	var buf bytes.Buffer
+	buf.WriteString("BEGIN ")
+	buf.WriteString("FOR c IN (SELECT table_name FROM user_tables) LOOP ")
+	buf.WriteString("EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS'); ")
+	buf.WriteString("END LOOP; ")
+	buf.WriteString("END;")
+	stmt, err := testSes.Prep(buf.String())
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Execute()
+	_, err = stmt.Exec()
+	if err != nil {
+		fmt.Println("initError: ", err)
+	}
+
+	// setup test db
+	testDb, err = sql.Open(Name, testConStr)
+	if err != nil {
+		fmt.Println("initError: ", err)
+	}
+	testCon, err = GetDrv().Open(testConStr)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -168,7 +172,7 @@ func testIterations() int {
 	}
 }
 
-func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, sc *StatementConfig, goColumnTypes ...GoColumnType) {
+func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c *StmtConfig, goColumnTypes ...GoColumnType) {
 	var gct GoColumnType
 	if len(goColumnTypes) > 0 {
 		gct = goColumnTypes[0]
@@ -183,16 +187,16 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, sc
 		defer dropTable(tableName, testSes, t)
 
 		// insert
-		insertStmt, err := testSes.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
-		if sc != nil {
-			insertStmt.Config = *sc
+		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+		if c != nil {
+			insertStmt.Config = *c
 		}
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Execute(expected)
+		rowsAffected, err := insertStmt.Exec(expected)
 		testErr(err, t)
 		expLen := length(expected)
-		if gct == Bits || gct == OraBits {
+		if gct == Bin || gct == OraBin {
 			expLen = 1
 		}
 		if expLen != int(rowsAffected) {
@@ -200,14 +204,14 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, sc
 		}
 
 		// select
-		selectStmt, err := testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName), gct)
+		selectStmt, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), gct)
 		defer selectStmt.Close()
 		testErr(err, t)
-		rst, err := selectStmt.Fetch()
+		rset, err := selectStmt.Query()
 		testErr(err, t)
 
 		// validate
-		validate(expected, rst, t)
+		validate(expected, rset, t)
 	}
 }
 
@@ -237,7 +241,7 @@ func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) 
 			var rowCount int
 			var goColumnType GoColumnType
 			if oct == longRaw || oct == longRawNull || oct == raw2000 || oct == raw2000Null || oct == blob || oct == blobNull {
-				goColumnType = Bits
+				goColumnType = Bin
 			} else {
 				goColumnType = goColumnTypeFromValue(expected)
 			}
@@ -306,10 +310,10 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 		}
 
 		// insert
-		stmt, err := testSes.Prepare(fmt.Sprintf("insert into %v (c1) values (:1) returning c1 into :2", tableName))
+		stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:1) returning c1 into :2", tableName))
 		defer stmt.Close()
 		testErr(err, t)
-		rowsAffected, err := stmt.Execute(expected, actual)
+		rowsAffected, err := stmt.Exec(expected, actual)
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -327,84 +331,77 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 		defer dropTable(tableName, testSes, t)
 
 		// insert
-		insertStmt, err := testSes.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Execute(expected)
+		rowsAffected, err := insertStmt.Exec(expected)
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
 		}
 
 		// select
-		var selectStmt *Statement
-		var rst *ResultSet
+		var selectStmt *Stmt
+		var rset *Rset
 		if isNumeric(expected) {
-			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isTime(expected) {
-			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1 from %v", tableName), T, OraT)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), T, OraT)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isString(expected) {
-			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1 from %v", tableName), S, S)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), S, S)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBool(expected) {
-			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1 from %v", tableName), B, OraB)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), B, OraB)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBytes(expected) {
-			selectStmt, err = testSes.Prepare(fmt.Sprintf("select c1, c1 from %v", tableName), Bits, OraBits)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), Bin, OraBin)
 			defer selectStmt.Close()
 			testErr(err, t)
 		}
-		rst, err = selectStmt.Fetch()
+		rset, err = selectStmt.Query()
 		testErr(err, t)
 
 		// validate
-		hasRow := rst.Next()
-		testErr(rst.Err, t)
+		hasRow := rset.Next()
+		testErr(rset.Err, t)
 		if !hasRow {
 			t.Fatalf("no row returned")
-		} else if len(rst.Row) != len(selectStmt.goColumnTypes) {
-			t.Fatalf("select column count: expected(%v), actual(%v)", len(selectStmt.goColumnTypes), len(rst.Row))
+		} else if len(rset.Row) != len(selectStmt.gcts) {
+			t.Fatalf("select column count: expected(%v), actual(%v)", len(selectStmt.gcts), len(rset.Row))
 		} else {
-			for n, goColumnType := range selectStmt.goColumnTypes {
+			for n, goColumnType := range selectStmt.gcts {
 				if isNumeric(expected) {
-					compare(castInt(expected, goColumnType), rst.Row[n], goColumnType, t)
+					compare(castInt(expected, goColumnType), rset.Row[n], goColumnType, t)
 				}
 				switch goColumnType {
 				case T:
-					compare_time(expected, rst.Row[n], t)
+					compare_time(expected, rset.Row[n], t)
 				case OraT:
-					value, ok := rst.Row[n].(Time)
+					value, ok := rset.Row[n].(Time)
 					if ok {
 						compare_time(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
+						t.Fatalf("Unpexected rset.Row[n] value. (%v, %v)", reflect.TypeOf(rset.Row[n]).Name(), rset.Row[n])
 					}
 				case S:
-					compare_string(expected, rst.Row[n], t)
+					compare_string(expected, rset.Row[n], t)
 				case OraS:
-					value, ok := rst.Row[n].(String)
+					value, ok := rset.Row[n].(String)
 					if ok {
 						compare_string(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
+						t.Fatalf("Unpexected rset.Row[n] value. (%v, %v)", reflect.TypeOf(rset.Row[n]).Name(), rset.Row[n])
 					}
-				case B:
-					compare_bool(expected, rst.Row[n], t)
-				case OraB:
-					value, ok := rst.Row[n].(Bool)
-					if ok {
-						compare_bool(expected, value.Value, t)
-					} else {
-						t.Fatalf("Unpexected rst.Row[n] value. (%v, %v)", reflect.TypeOf(rst.Row[n]).Name(), rst.Row[n])
-					}
-				case Bits, OraBits:
-					compare_bytes(expected, rst.Row[n], t)
+				case B, OraB:
+					compare_bool(expected, rset.Row[n], t)
+				case Bin, OraBin:
+					compare_bytes(expected, rset.Row[n], t)
 				}
 			}
 		}
@@ -436,32 +433,31 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 				sql.WriteString(fmt.Sprintf("c%v", c))
 			}
 			sql.WriteString(") values (")
-
 			expected := make([]driver.Value, currentMultiple)
-			goColumnTypes := make([]GoColumnType, currentMultiple)
+			gcts := make([]GoColumnType, currentMultiple)
 			for c := 0; c < currentMultiple; c++ {
 				switch oct {
 				case numberP38S0, numberP38S0Null, numberP16S15, numberP16S15Null, binaryDouble, binaryDoubleNull, binaryFloat, binaryFloatNull, floatP126, floatP126Null:
 					expected[c] = gen_int64()
-					goColumnTypes[c] = I64
+					gcts[c] = I64
 				case date, dateNull:
 					expected[c] = gen_date()
-					goColumnTypes[c] = T
+					gcts[c] = T
 				case timestampP9, timestampP9Null, timestampTzP9, timestampTzP9Null, timestampLtzP9, timestampLtzP9Null:
 					expected[c] = gen_time()
-					goColumnTypes[c] = T
+					gcts[c] = T
 				case charB48, charB48Null, charC48, charC48Null, nchar48, nchar48Null, varcharB48, varcharB48Null, varcharC48, varcharC48Null, varchar2B48, varchar2B48Null, varchar2C48, varchar2C48Null, nvarchar248, nvarchar248Null, long, longNull, clob, clobNull, nclob, nclobNull:
 					expected[c] = gen_string()
-					goColumnTypes[c] = S
+					gcts[c] = S
 				case charB1, charB1Null, charC1, charC1Null:
 					expected[c] = gen_boolTrue()
-					goColumnTypes[c] = B
+					gcts[c] = B
 				case blob, blobNull, longRaw, longRawNull:
 					expected[c] = gen_bytes(9)
-					goColumnTypes[c] = Bits
+					gcts[c] = Bin
 				case raw2000, raw2000Null:
 					expected[c] = gen_bytes(2000)
-					goColumnTypes[c] = Bits
+					gcts[c] = Bin
 				}
 				if c > 0 {
 					sql.WriteString(", ")
@@ -469,10 +465,10 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 				sql.WriteString(fmt.Sprintf(":c%v", c+1))
 			}
 			sql.WriteString(")")
-			//fmt.Printf("testWorkload (%v)\n", sql.String())
 
 			// insert values
-			insertStmt, err := testSes.Prepare(sql.String())
+			//fmt.Println(sql.String())
+			insertStmt, err := testCon.Prepare(sql.String())
 			testErr(err, t)
 			_, err = insertStmt.Exec(expected)
 			testErr(err, t)
@@ -481,22 +477,22 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 			// fetch values and compare
 			sql.Reset()
 			sql.WriteString(fmt.Sprintf("select * from %v", tableName))
-			fetchStmt, err := testSes.Prepare(sql.String())
+			fetchStmt, err := testSes.Prep(sql.String())
 			testErr(err, t)
-			fetchStmt.goColumnTypes = goColumnTypes
-			rst, err := fetchStmt.Fetch()
+			fetchStmt.gcts = gcts
+			rset, err := fetchStmt.Query()
 			testErr(err, t)
-			for rst.Next() {
-				if currentMultiple != len(rst.Row) {
-					t.Fatalf("select column count: expected(%v), actual(%v)", currentMultiple, len(rst.Row))
+			for rset.Next() {
+				if currentMultiple != len(rset.Row) {
+					t.Fatalf("select column count: expected(%v), actual(%v)", currentMultiple, len(rset.Row))
 				} else {
 					for n := 0; n < currentMultiple; n++ {
 						expectedElem := elemAt(expected, n)
-						compare(expectedElem, rst.Row[n], goColumnTypes[n], t)
+						compare(expectedElem, rset.Row[n], gcts[n], t)
 					}
 				}
 			}
-			testErr(rst.Err, t)
+			testErr(rset.Err, t)
 			fetchStmt.Close()
 
 			// Reduce the multiple by half
@@ -506,20 +502,20 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 }
 
 func loadDbtimezone() (*time.Location, error) {
-	stmt, err := testSes.Prepare("select tz_offset(sessiontimezone) from dual")
+	stmt, err := testSes.Prep("select tz_offset(sessiontimezone) from dual")
 	defer stmt.Close()
 	if err != nil {
 		return nil, err
 	}
-	rst, err := stmt.Fetch()
+	rset, err := stmt.Query()
 	if err != nil {
 		return nil, err
 	}
-	hasRow := rst.Next()
+	hasRow := rset.Next()
 	if !hasRow {
 		return nil, errNew("no time zone returned from database")
 	}
-	if value, ok := rst.Row[0].(string); ok {
+	if value, ok := rset.Row[0].(string); ok {
 		value = strings.Trim(value, " ")
 		var sign int
 		if strings.HasPrefix(value, "-") {
@@ -552,97 +548,97 @@ func loadDbtimezone() (*time.Location, error) {
 	}
 }
 
-func validate(expected interface{}, rst *ResultSet, t *testing.T) {
-	if 1 != len(rst.Row) {
-		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rst.Row))
+func validate(expected interface{}, rset *Rset, t *testing.T) {
+	if 1 != len(rset.Row) {
+		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rset.Row))
 	}
 	switch expected.(type) {
 	case int64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_int64(expected, row[0], t)
 	case int32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_int32(expected, row[0], t)
 	case int16:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_int16(expected, row[0], t)
 	case int8:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_int8(expected, row[0], t)
 	case uint64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_uint64(expected, row[0], t)
 	case uint32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_uint32(expected, row[0], t)
 	case uint16:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_uint16(expected, row[0], t)
 	case uint8:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_uint8(expected, row[0], t)
 	case float64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_float64(expected, row[0], t)
 	case float32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_float32(expected, row[0], t)
 	case Int64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraInt64(expected, row[0], t)
 	case Int32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraInt32(expected, row[0], t)
 	case Int16:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraInt16(expected, row[0], t)
 	case Int8:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraInt8(expected, row[0], t)
 	case Uint64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraUint64(expected, row[0], t)
 	case Uint32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraUint32(expected, row[0], t)
 	case Uint16:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraUint16(expected, row[0], t)
 	case Uint8:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraUint8(expected, row[0], t)
 	case Float64:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraFloat64(expected, row[0], t)
 	case Float32:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraFloat32(expected, row[0], t)
 
 	case IntervalYM:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraIntervalYM(expected, row[0], t)
 	case IntervalDS:
-		row := rst.NextRow()
+		row := rset.NextRow()
 		compare_OraIntervalDS(expected, row[0], t)
 
 	case []int64:
-		for rst.Next() {
-			expectedElem := elemAt(expected, rst.Index)
-			compare_int64(expectedElem, rst.Row[0], t)
+		for rset.Next() {
+			expectedElem := elemAt(expected, rset.Index)
+			compare_int64(expectedElem, rset.Row[0], t)
 		}
 
 	case []IntervalYM:
-		for rst.Next() {
-			expectedElem := elemAt(expected, rst.Index)
-			compare_OraIntervalYM(expectedElem, rst.Row[0], t)
+		for rset.Next() {
+			expectedElem := elemAt(expected, rset.Index)
+			compare_OraIntervalYM(expectedElem, rset.Row[0], t)
 		}
 	case []IntervalDS:
-		for rst.Next() {
-			expectedElem := elemAt(expected, rst.Index)
-			compare_OraIntervalDS(expectedElem, rst.Row[0], t)
+		for rset.Next() {
+			expectedElem := elemAt(expected, rset.Index)
+			compare_OraIntervalDS(expectedElem, rset.Row[0], t)
 		}
 	}
-	testErr(rst.Err, t)
+	testErr(rset.Err, t)
 }
 
 func compare2(expected interface{}, actual interface{}, t *testing.T) {
@@ -694,22 +690,22 @@ func compare2(expected interface{}, actual interface{}, t *testing.T) {
 	}
 }
 
-func createTable(multiple int, oct oracleColumnType, ses *Session) (string, error) {
+func createTable(multiple int, oct oracleColumnType, ses *Ses) (string, error) {
 	tableName := fmt.Sprintf("%v_%v", tableName(), multiple)
-	stmt, err := ses.Prepare(createTableSql(tableName, multiple, oct))
+	stmt, err := ses.Prep(createTableSql(tableName, multiple, oct))
 	if err != nil {
 		return "", err
 	}
 	defer stmt.Close()
-	_, err = stmt.Execute()
+	_, err = stmt.Exec()
 	return tableName, err
 }
 
-func dropTable(tableName string, ses *Session, t *testing.T) {
-	stmt, err := ses.Prepare(fmt.Sprintf("drop table %v", tableName))
+func dropTable(tableName string, ses *Ses, t *testing.T) {
+	stmt, err := ses.Prep(fmt.Sprintf("drop table %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	_, err = stmt.Execute()
+	_, err = stmt.Exec()
 	testErr(err, t)
 }
 
@@ -825,8 +821,8 @@ func goColumnTypeFromValue(value interface{}) GoColumnType {
 		return B
 	case Bool, []Bool:
 		return OraB
-	case Bytes:
-		return OraBits
+	case Binary:
+		return OraBin
 	}
 
 	return D
@@ -930,7 +926,7 @@ func isBytes(value interface{}) bool {
 	if _, ok := value.([]byte); ok {
 		return true
 	}
-	if _, ok := value.(Bytes); ok {
+	if _, ok := value.(Binary); ok {
 		return true
 	}
 	return false
@@ -1173,9 +1169,9 @@ func compare(expected interface{}, actual interface{}, goColumnType GoColumnType
 		compare_bool(expected, actual, t)
 	case OraB:
 		compare_OraBool(expected, actual, t)
-	case Bits:
+	case Bin:
 		compare_bytes(expected, actual, t)
-	case OraBits:
+	case OraBin:
 		compare_Bytes(expected, actual, t)
 	default:
 		compare_nil(expected, actual, t)
@@ -1674,7 +1670,7 @@ func compare_time(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to time.Time, *time.Time, oracle.Time. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to time.Time, *time.Time, ora.Time. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 			}
 		}
 	}
@@ -1687,7 +1683,7 @@ func compare_time(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to time.Time, *time.Time, oracle.Time. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+				t.Fatalf("Unable to cast actual value to time.Time, *time.Time, ora.Time. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 			}
 		}
 	}
@@ -1732,7 +1728,7 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to string, *string, oracle.String. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to string, *string, ora.String. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 			}
 		}
 	}
@@ -1745,7 +1741,7 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to string, *string, oracle.String. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+				t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 			}
 		}
 	}
@@ -1790,7 +1786,7 @@ func compare_bool(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to bool, *bool, oracle.Bool. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to bool, *bool, ora.Bool. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 			}
 		}
 	}
@@ -1803,7 +1799,7 @@ func compare_bool(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to bool, *bool, oracle.Bool. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+				t.Fatalf("Unable to cast actual value to bool, *bool, ora.Bool. (%v, %v)", reflect.TypeOf(actual), actual)
 			}
 		}
 	}
@@ -1840,18 +1836,18 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 	e, eOk := expected.([]byte)
 	a, aOk := actual.([]byte)
 	if !eOk {
-		eOra, eOraOk := expected.(Bytes)
+		eOra, eOraOk := expected.(Binary)
 		if eOraOk {
 			e = eOra.Value
 		} else {
-			t.Fatalf("Unable to cast expected value to []byte or oracle.Bytes. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	} else if !aOk {
-		aOra, aOraOk := actual.(Bytes)
+		aOra, aOraOk := actual.(Binary)
 		if aOraOk {
 			a = aOra.Value
 		} else {
-			t.Fatalf("Unable to cast actual value to []byte or oracle.Bytes. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 		}
 	} else if !areBytesEqual(e, a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1859,12 +1855,12 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 }
 
 func compare_Bytes(expected interface{}, actual interface{}, t *testing.T) {
-	e, eOk := expected.(Bytes)
-	a, aOk := actual.(Bytes)
+	e, eOk := expected.(Binary)
+	a, aOk := actual.(Binary)
 	if !eOk {
-		t.Fatalf("Unable to cast expected value to Bytes. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+		t.Fatalf("Unable to cast expected value to ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 	} else if !aOk {
-		t.Fatalf("Unable to cast actual value to Bytes. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to ora.Binary. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	} else if !e.Equals(a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
@@ -2461,8 +2457,8 @@ func gen_bytes(length int) []byte {
 	return values
 }
 
-func gen_OraBytes(length int, isNull bool) Bytes {
-	return Bytes{Value: gen_bytes(length), IsNull: isNull}
+func gen_OraBytes(length int, isNull bool) Binary {
+	return Binary{Value: gen_bytes(length), IsNull: isNull}
 }
 
 func gen_bytesSlice(length int) [][]byte {
@@ -2476,13 +2472,13 @@ func gen_bytesSlice(length int) [][]byte {
 	return values
 }
 
-func gen_OraBytesSlice(length int, isNull bool) []Bytes {
-	values := make([]Bytes, 5)
-	values[0] = Bytes{Value: gen_bytes(2000)}
-	values[1] = Bytes{Value: gen_bytes(2000)}
-	values[2] = Bytes{Value: gen_bytes(2000), IsNull: isNull}
-	values[3] = Bytes{Value: gen_bytes(2000)}
-	values[4] = Bytes{Value: gen_bytes(2000)}
+func gen_OraBytesSlice(length int, isNull bool) []Binary {
+	values := make([]Binary, 5)
+	values[0] = Binary{Value: gen_bytes(2000)}
+	values[1] = Binary{Value: gen_bytes(2000)}
+	values[2] = Binary{Value: gen_bytes(2000), IsNull: isNull}
+	values[3] = Binary{Value: gen_bytes(2000)}
+	values[4] = Binary{Value: gen_bytes(2000)}
 
 	return values
 }

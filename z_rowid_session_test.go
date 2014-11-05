@@ -23,73 +23,73 @@ func TestDefine_string_urowid_session(t *testing.T) {
 func testRowid(isUrowid bool, t *testing.T) {
 	for n := 0; n < testIterations(); n++ {
 		tableName := tableName()
-		stmt, err := testSes.Prepare(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))
+		stmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))
 		defer stmt.Close()
 		testErr(err, t)
-		_, err = stmt.Execute()
+		_, err = stmt.Exec()
 		defer dropTable(tableName, testSes, t)
 		testErr(err, t)
 		// ROWID is returned from a table without an index
 		// UROWID is returned from indexed tables
 		if isUrowid {
-			stmt, err := testSes.Prepare(fmt.Sprintf("create unique index t1_pk on %v (c1)", tableName))
+			stmt, err := testSes.Prep(fmt.Sprintf("create unique index t1_pk on %v (c1)", tableName))
 			defer stmt.Close()
 			testErr(err, t)
-			_, err = stmt.Execute()
+			_, err = stmt.Exec()
 			testErr(err, t)
 		}
 
 		// insert
-		insertStmt, err := testSes.Prepare(fmt.Sprintf("insert into %v (c1) values ('go')", tableName))
+		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values ('go')", tableName))
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Execute()
+		rowsAffected, err := insertStmt.Exec()
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
 		}
 
 		// select
-		selectStmt, err := testSes.Prepare(fmt.Sprintf("select rowid from %v", tableName))
+		selectStmt, err := testSes.Prep(fmt.Sprintf("select rowid from %v", tableName))
 		defer selectStmt.Close()
 		testErr(err, t)
-		rst, err := selectStmt.Fetch()
+		rset, err := selectStmt.Query()
 		testErr(err, t)
-		hasRow := rst.Next()
-		testErr(rst.Err, t)
+		hasRow := rset.Next()
+		testErr(rset.Err, t)
 		if !hasRow {
 			t.Fatalf("no row returned")
-		} else if len(rst.Row) != 1 {
-			t.Fatalf("select column count: expected(%v), actual(%v)", 1, len(rst.Row))
+		} else if len(rset.Row) != 1 {
+			t.Fatalf("select column count: expected(%v), actual(%v)", 1, len(rset.Row))
 		} else {
-			rowid, ok := rst.Row[0].(string)
+			rowid, ok := rset.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string rowid. (%v, %v)", reflect.TypeOf(rst.Row[0]).Name(), rst.Row[0])
+				t.Fatal("Expected string rowid. (%v, %v)", reflect.TypeOf(rset.Row[0]).Name(), rset.Row[0])
 			}
 			if rowid == "" {
 				t.Fatalf("Expected non-empty rowid string. (%v)", rowid)
 			}
 			//fmt.Printf("rowid (%v)\n", rowid)
 
-			updateStmt, err := testSes.Prepare(fmt.Sprintf("update %v set c1 = 'go go go' where rowid = :1", tableName))
+			updateStmt, err := testSes.Prep(fmt.Sprintf("update %v set c1 = 'go go go' where rowid = :1", tableName))
 			defer updateStmt.Close()
 			testErr(err, t)
-			rowsAffected, err = updateStmt.Execute(rowid)
+			rowsAffected, err = updateStmt.Exec(rowid)
 			testErr(err, t)
 			if rowsAffected != 1 {
 				t.Fatalf("update rows affected: expected(%v), actual(%v)", 1, rowsAffected)
 			}
 
-			stmtSelect2, err := testSes.Prepare(fmt.Sprintf("select c1 from %v", tableName))
+			stmtSelect2, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
 			defer stmtSelect2.Close()
 			testErr(err, t)
-			rst2, err := stmtSelect2.Fetch()
+			rset2, err := stmtSelect2.Query()
 			testErr(err, t)
-			rst2.Next()
-			testErr(rst2.Err, t)
-			c1, ok := rst2.Row[0].(string)
+			rset2.Next()
+			testErr(rset2.Err, t)
+			c1, ok := rset2.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string for c1 column. (%v, %v)", reflect.TypeOf(rst2.Row[0]).Name(), rst2.Row[0])
+				t.Fatal("Expected string for c1 column. (%v, %v)", reflect.TypeOf(rset2.Row[0]).Name(), rset2.Row[0])
 			}
 			//fmt.Printf("c1 (%v)\n", c1)
 			if c1 != "go go go" {
