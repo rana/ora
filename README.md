@@ -236,7 +236,9 @@ func main() {
 
 	// create table
 	tableName := "t1"
-	stmtTbl, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
+	stmtTbl, err := ses.Prep(fmt.Sprintf("CREATE TABLE %v "+
+		"(C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY "+
+		"(START WITH 1 INCREMENT BY 1), C2 VARCHAR2(48 CHAR))", tableName))
 	defer stmtTbl.Close()
 	if err != nil {
 		panic(err)
@@ -256,7 +258,8 @@ func main() {
 	// insert record
 	var id uint64
 	str := "Go is expressive, concise, clean, and efficient."
-	stmtIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2) returning c1 into :c1", tableName))
+	stmtIns, err := ses.Prep(fmt.Sprintf(
+		"INSERT INTO %v (C2) VALUES (:C2) RETURNING C1 INTO :C1", tableName))
 	defer stmtIns.Close()
 	rowsAffected, err = stmtIns.Exec(str, &id)
 	if err != nil {
@@ -270,7 +273,8 @@ func main() {
 	a[1] = ora.String{IsNull: true}
 	a[2] = ora.String{Value: "It's a fast, statically typed, compiled"}
 	a[3] = ora.String{Value: "One of Go's key design goals is code"}
-	stmtSliceIns, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
+	stmtSliceIns, err := ses.Prep(fmt.Sprintf(
+		"INSERT INTO %v (C2) VALUES (:C2)", tableName))
 	defer stmtSliceIns.Close()
 	if err != nil {
 		panic(err)
@@ -282,7 +286,8 @@ func main() {
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtQuery, err := ses.Prep(fmt.Sprintf("select c1, c2 from %v", tableName))
+	stmtQuery, err := ses.Prep(fmt.Sprintf(
+		"SELECT C1, C2 FROM %v", tableName))
 	defer stmtQuery.Close()
 	if err != nil {
 		panic(err)
@@ -311,7 +316,8 @@ func main() {
 	}
 	// insert null String
 	nullableStr := ora.String{IsNull: true}
-	stmtTrans, err := ses.Prep(fmt.Sprintf("insert into %v (c2) values (:c2)", tableName))
+	stmtTrans, err := ses.Prep(fmt.Sprintf(
+		"INSERT INTO %v (C2) VALUES (:C2)", tableName))
 	defer stmtTrans.Close()
 	if err != nil {
 		panic(err)
@@ -328,7 +334,8 @@ func main() {
 	}
 
 	// fetch and specify return type
-	stmtCount, err := ses.Prep(fmt.Sprintf("select count(c1) from %v where c2 is null", tableName), ora.U8)
+	stmtCount, err := ses.Prep(fmt.Sprintf(
+		"SELECT COUNT(C1) FROM %v WHERE C2 IS NULL", tableName), ora.U8)
 	defer stmtCount.Close()
 	if err != nil {
 		panic(err)
@@ -346,7 +353,11 @@ func main() {
 	}
 
 	// create stored procedure with sys_refcursor
-	stmtProcCreate, err := ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v where c1 > 2 order by c1; end proc1;", tableName))
+	stmtProcCreate, err := ses.Prep(fmt.Sprintf(
+		"CREATE OR REPLACE PROCEDURE PROC1(P1 OUT SYS_REFCURSOR) AS BEGIN "+
+			"OPEN P1 FOR SELECT C1, C2 FROM %v WHERE C1 > 2 ORDER BY C1; "+
+			"END PROC1;",
+		tableName))
 	defer stmtProcCreate.Close()
 	rowsAffected, err = stmtProcCreate.Exec()
 	if err != nil {
@@ -355,7 +366,7 @@ func main() {
 
 	// call stored procedure
 	// pass *Rset to Exec to receive the results of a sys_refcursor
-	stmtProcCall, err := ses.Prep("call proc1(:1)")
+	stmtProcCall, err := ses.Prep("CALL PROC1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
