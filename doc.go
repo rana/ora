@@ -166,6 +166,7 @@ is mutable. The Go-to-Oracle type mapping for the ora package is:
 	[]Bool
 
 	[]byte				BLOB, LONG RAW, RAW
+	[][]byte
 	Binary
 	[]Binary
 
