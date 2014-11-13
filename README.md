@@ -437,8 +437,7 @@ values := make([]int64, 1000000)
 for n, _ := range values {
 	values[n] = int64(n)
 }
-stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-stmt.Exec(values)
+rowsAffected, err := ses.PrepAndExec("INSERT INTO T1 (C1) VALUES (:C1)", values)
 ```
 
 The ora package provides nullable Go types to support DML operations such as

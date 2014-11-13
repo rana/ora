@@ -413,13 +413,12 @@ A string pointer captures an out parameter from a stored procedure:
 Slices may be used to insert multiple records with a single insert statement:
 
 	// insert one million rows with single insert statement
-	// given: create table t1 (c1 number)
+	// given: CREATE TABLE T1 (C1 NUMBER)
 	values := make([]int64, 1000000)
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Exec(values)
+	rowsAffected, err := ses.PrepAndExec("INSERT INTO T1 (C1) VALUES (:C1)", values)
 
 The ora package provides nullable Go types to support DML operations such as
 insert and select. The nullable Go types provided by the ora package are Int64,
