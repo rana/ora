@@ -107,6 +107,23 @@ func TestSession_PrepAndExec(t *testing.T) {
 	}
 }
 
+func TestSession_PrepAndExec_Insert(t *testing.T) {
+	tableName, err := createTable(1, numberP38S0, testSes)
+	testErr(err, t)
+	defer dropTable(tableName, testSes, t)
+
+	values := make([]int64, 1000000)
+	for n, _ := range values {
+		values[n] = int64(n)
+	}
+	rowsAffected, err := testSes.PrepAndExec(fmt.Sprintf("INSERT INTO %v (C1) VALUES (:C1)", tableName), values)
+	testErr(err, t)
+
+	if rowsAffected != 1000000 {
+		t.Fatalf("expected(%v), actual(%v)", 1000000, rowsAffected)
+	}
+}
+
 func TestSession_PrepAndQuery(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
