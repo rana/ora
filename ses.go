@@ -117,6 +117,38 @@ func (ses *Ses) Close() (err error) {
 	return err
 }
 
+// PrepAndExec prepares and executes a SQL statement returning the number of rows
+// affected and a possible error.
+func (ses *Ses) PrepAndExec(sql string, params ...interface{}) (uint64, error) {
+	stmt, err := ses.Prep(sql)
+	defer stmt.Close()
+	if err != nil {
+		return 0, err
+	}
+	return stmt.Exec(params...)
+}
+
+// PrepAndQuery prepares a SQL statement and queries an Oracle server returning
+// a *Stmt, *Rset and a possible error.
+//
+// Call *Stmt.Close when down retieving data from *Rset.
+//
+// If an error occurs during Prep or Query a nil *Stmt and nil *Rset will be
+// returned.
+func (ses *Ses) PrepAndQuery(sql string, params ...interface{}) (*Stmt, *Rset, error) {
+	stmt, err := ses.Prep(sql)
+	if err != nil {
+		defer stmt.Close()
+		return nil, nil, err
+	}
+	rset, err := stmt.Query(params...)
+	if err != nil {
+		defer stmt.Close()
+		return nil, nil, err
+	}
+	return stmt, rset, nil
+}
+
 // Prep prepares a sql statement returning a *Stmt and possible error.
 func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	if err := ses.checkIsOpen(); err != nil {
