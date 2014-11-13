@@ -97,3 +97,39 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 		t.Fatalf("row count: expected(%v), actual(%v)", 0, rset.Len())
 	}
 }
+
+func TestSession_PrepAndExec(t *testing.T) {
+	rowsAffected, err := testSes.PrepAndExec(fmt.Sprintf("create table %v (c1 number)", tableName()))
+	testErr(err, t)
+
+	if rowsAffected != 0 {
+		t.Fatalf("expected(%v), actual(%v)", 0, rowsAffected)
+	}
+}
+
+func TestSession_PrepAndQuery(t *testing.T) {
+	tableName, err := createTable(1, numberP38S0, testSes)
+	testErr(err, t)
+	defer dropTable(tableName, testSes, t)
+
+	// insert one row
+	stmtIns, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	testErr(err, t)
+	_, err = stmtIns.Exec()
+	testErr(err, t)
+
+	stmt, rset, err := testSes.PrepAndQuery(fmt.Sprintf("select c1 from %v", tableName))
+	testErr(err, t)
+	if stmt == nil {
+		t.Fatalf("expected non-nil stmt")
+	}
+	defer stmt.Close()
+	if rset == nil {
+		t.Fatalf("expected non-nil rset")
+	}
+
+	row := rset.NextRow()
+	if row[0] == 9 {
+		t.Fatalf("expected(%v), actual(%v)", 9, row[0])
+	}
+}
