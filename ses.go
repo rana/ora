@@ -131,7 +131,7 @@ func (ses *Ses) PrepAndExec(sql string, params ...interface{}) (uint64, error) {
 // PrepAndQuery prepares a SQL statement and queries an Oracle server returning
 // a *Stmt, *Rset and a possible error.
 //
-// Call *Stmt.Close when down retieving data from *Rset.
+// Call *Stmt.Close when done retieving data from *Rset.
 //
 // If an error occurs during Prep or Query a nil *Stmt and nil *Rset will be
 // returned.
