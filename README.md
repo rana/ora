@@ -14,7 +14,7 @@ libraries provided by Oracle. The OCI libraries are a standard for client
 application communication and driver communication with Oracle databases.
 
 The ora package has been verified to work with Oracle Enterprise 12c (12.1.0.1.0),
-Windows 8.1 and 64-bit x86.
+Windows 8.1 and AMD64.
 
 ---
 * [Installation](https://github.com/ranaian/ora#installation)
