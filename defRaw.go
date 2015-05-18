@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -23,7 +22,6 @@ type defRaw struct {
 }
 
 func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.isNullable = isNullable
 	def.buf = make([]byte, columnSize)
@@ -75,7 +73,6 @@ func (def *defRaw) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

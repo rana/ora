@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -69,7 +68,6 @@ func (bnd *bndRset) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	// release ocistmt handle for failed Rset binding
 	// Rset will release handle for successful bind
 	if bnd.ocistmt != nil {

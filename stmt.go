@@ -20,14 +20,14 @@ import (
 
 // Stmt is an Oracle statement associated with a session.
 type Stmt struct {
-	stmtId  uint64
+	id      uint64
 	ses     *Ses
 	ocistmt *C.OCIStmt
 
 	rsetId     uint64
 	rsets      *list.List
 	elem       *list.Element
-	Config     StmtConfig
+	Cfg        StmtCfg
 	bnds       []bnd
 	gcts       []GoColumnType
 	sql        string
@@ -35,13 +35,13 @@ type Stmt struct {
 	hasPtrBind bool
 }
 
-// RsetCount returns the number of open Oracle result sets.
-func (stmt *Stmt) RsetCount() int {
+// NumRset returns the number of open Oracle result sets.
+func (stmt *Stmt) NumRset() int {
 	return stmt.rsets.Len()
 }
 
-// InputCount returns the number of placeholders in a sql statement.
-func (stmt *Stmt) InputCount() int {
+// NumInput returns the number of placeholders in a sql statement.
+func (stmt *Stmt) NumInput() int {
 	var bindCount uint32
 	if err := stmt.attr(unsafe.Pointer(&bindCount), 4, C.OCI_ATTR_BIND_COUNT); err != nil {
 		return 0
@@ -52,7 +52,7 @@ func (stmt *Stmt) InputCount() int {
 // checkIsOpen validates that the statement is open.
 func (stmt *Stmt) checkIsOpen() error {
 	if !stmt.IsOpen() {
-		return errNewF("Stmt is closed (stmtId %v)", stmt.stmtId)
+		return errNewF("Stmt is closed (id %v)", stmt.id)
 	}
 	return nil
 }
@@ -73,13 +73,16 @@ func (stmt *Stmt) Close() (err error) {
 	if err := stmt.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%vS%v Close", stmt.ses.srv.env.envId, stmt.ses.srv.srvId, stmt.ses.sesId, stmt.stmtId)
+	glog.Infof("E%vS%vS%vS%v] Close", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
 	errs := stmt.ses.srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			glog.Errorln(recoverMsg(value))
 			errs.PushBack(errRecover(value))
 		}
+
+		// free ocistmt to release cursor on server
+		stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(stmt.ocistmt), C.OCI_HTYPE_STMT)
 
 		ses := stmt.ses
 		ses.stmts.Remove(stmt.elem)
@@ -120,15 +123,15 @@ func (stmt *Stmt) Close() (err error) {
 	return err
 }
 
-// Exec runs a SQL statement on an Oracle server returning the number of
+// Exe executes a SQL statement on an Oracle server returning the number of
 // rows affected and a possible error.
-func (stmt *Stmt) Exec(params ...interface{}) (rowsAffected uint64, err error) {
-	rowsAffected, _, err = stmt.exec(params)
+func (stmt *Stmt) Exe(params ...interface{}) (rowsAffected uint64, err error) {
+	rowsAffected, _, err = stmt.exe(params)
 	return rowsAffected, err
 }
 
-// exec runs a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
-func (stmt *Stmt) exec(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
+// exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
+func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
 	if err := stmt.checkIsOpen(); err != nil {
 		return 0, 0, err
 	}
@@ -155,7 +158,7 @@ func (stmt *Stmt) exec(params []interface{}) (rowsAffected uint64, lastInsertId 
 	// determine auto-commit state
 	// don't auto comit if there is a transaction occuring
 	var mode C.ub4
-	if stmt.Config.IsAutoCommitting && stmt.ses.txs.Front() == nil {
+	if stmt.Cfg.IsAutoCommitting && stmt.ses.txs.Front() == nil {
 		mode = C.OCI_COMMIT_ON_SUCCESS
 	} else {
 		mode = C.OCI_DEFAULT
@@ -197,13 +200,13 @@ func (stmt *Stmt) exec(params []interface{}) (rowsAffected uint64, lastInsertId 
 	return rowsAffected, lastInsertId, nil
 }
 
-// Query runs a SQL query on an Oracle server returning a *Rset and possible error.
-func (stmt *Stmt) Query(params ...interface{}) (*Rset, error) {
-	return stmt.query(params)
+// Qry runs a SQL query on an Oracle server returning a *Rset and possible error.
+func (stmt *Stmt) Qry(params ...interface{}) (*Rset, error) {
+	return stmt.qry(params)
 }
 
-// query runs a SQL query on an Oracle server returning a *Rset and possible error.
-func (stmt *Stmt) query(params []interface{}) (*Rset, error) {
+// qry runs a SQL query on an Oracle server returning a *Rset and possible error.
+func (stmt *Stmt) qry(params []interface{}) (*Rset, error) {
 	if err := stmt.checkIsOpen(); err != nil {
 		return nil, err
 	}
@@ -271,7 +274,7 @@ func (stmt *Stmt) putBnd(idx int, bnd bnd) {
 }
 
 // bind associates Go variables to SQL string placeholders by the
-// of the position of the variable and the position of the placeholder.
+// position of the variable and the position of the placeholder.
 //
 // The first placeholder starts at position 1.
 //
@@ -605,7 +608,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				}
 				iterations = uint32(len(value))
 			} else if value, ok := params[n].([]uint8); ok {
-				if stmt.Config.byteSlice == U8 {
+				if stmt.Cfg.byteSlice == U8 {
 					bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
 					stmt.bnds[n] = bnd
 					err = bnd.bind(value, nil, n+1, stmt)
@@ -616,7 +619,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				} else {
 					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt.Config.lobBufferSize, stmt)
+					err = bnd.bind(value, n+1, stmt.Cfg.lobBufferSize, stmt)
 					if err != nil {
 						return iterations, err
 					}
@@ -770,7 +773,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].(*string); ok {
 				bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.Config.stringPtrBufferSize, stmt)
+				err = bnd.bind(value, n+1, stmt.Cfg.stringPtrBufferSize, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -805,14 +808,14 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].(bool); ok {
 				bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.Config, stmt)
+				err = bnd.bind(value, n+1, stmt.Cfg, stmt)
 				if err != nil {
 					return iterations, err
 				}
 			} else if value, ok := params[n].(*bool); ok {
 				bnd := stmt.getBnd(bndIdxBoolPtr).(*bndBoolPtr)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.Config.TrueRune, stmt)
+				err = bnd.bind(value, n+1, stmt.Cfg.TrueRune, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -823,7 +826,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				} else {
 					bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt.Config, stmt)
+					err = bnd.bind(value.Value, n+1, stmt.Cfg, stmt)
 					if err != nil {
 						return iterations, err
 					}
@@ -831,7 +834,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].([]bool); ok {
 				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt.Config.FalseRune, stmt.Config.TrueRune, stmt)
+				err = bnd.bind(value, nil, n+1, stmt.Cfg.FalseRune, stmt.Cfg.TrueRune, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -839,7 +842,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].([]Bool); ok {
 				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.Config.FalseRune, stmt.Config.TrueRune, stmt)
+				err = bnd.bindOra(value, n+1, stmt.Cfg.FalseRune, stmt.Cfg.TrueRune, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -850,7 +853,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				} else {
 					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt.Config.lobBufferSize, stmt)
+					err = bnd.bind(value.Value, n+1, stmt.Cfg.lobBufferSize, stmt)
 					if err != nil {
 						return iterations, err
 					}
@@ -858,7 +861,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].([][]byte); ok {
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt.Config.lobBufferSize, stmt)
+				err = bnd.bind(value, nil, n+1, stmt.Cfg.lobBufferSize, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -866,7 +869,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			} else if value, ok := params[n].([]Binary); ok {
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.Config.lobBufferSize, stmt)
+				err = bnd.bindOra(value, n+1, stmt.Cfg.lobBufferSize, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -955,16 +958,16 @@ func (stmt *Stmt) setNilBind(index int, sqlt C.ub2) (err error) {
 
 // set prefetch size
 func (stmt *Stmt) setPrefetchSize() error {
-	if stmt.Config.prefetchRowCount > 0 {
-		//fmt.Println("statement.setPrefetchSize: prefetchRowCount ", statement.Config.prefetchRowCount)
+	if stmt.Cfg.prefetchRowCount > 0 {
+		//fmt.Println("stmt.setPrefetchSize: prefetchRowCount ", stmt.Cfg.prefetchRowCount)
 		// set prefetch row count
-		if err := stmt.setAttr(unsafe.Pointer(&stmt.Config.prefetchRowCount), 4, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
+		if err := stmt.setAttr(unsafe.Pointer(&stmt.Cfg.prefetchRowCount), 4, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
 			return err
 		}
 	} else {
-		//fmt.Println("statement.setPrefetchSize: prefetchMemorySize ", statement.Config.prefetchMemorySize)
+		//fmt.Println("stmt.setPrefetchSize: prefetchMemorySize ", stmt.Cfg.prefetchMemorySize)
 		// Set prefetch memory size
-		if err := stmt.setAttr(unsafe.Pointer(&stmt.Config.prefetchMemorySize), 4, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
+		if err := stmt.setAttr(unsafe.Pointer(&stmt.Cfg.prefetchMemorySize), 4, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
 			return err
 		}
 	}

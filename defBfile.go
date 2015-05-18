@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -23,7 +22,6 @@ type defBfile struct {
 }
 
 func (def *defBfile) define(position int, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	r := C.OCIDefineByPos2(
 		def.rset.ocistmt,                   //OCIStmt     *stmtp,
@@ -99,7 +97,6 @@ func (def *defBfile) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	def.free()
 	for n := range def.directoryAlias {
 		def.directoryAlias[n] = 0

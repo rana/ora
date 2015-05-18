@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -20,7 +19,6 @@ type bndFloat64 struct {
 }
 
 func (bnd *bndFloat64) bind(value float64, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	r := C.OCINumberFromReal(
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
@@ -61,7 +59,6 @@ func (bnd *bndFloat64) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

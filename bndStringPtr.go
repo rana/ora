@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -22,7 +21,6 @@ type bndStringPtr struct {
 }
 
 func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.value = value
 	if cap(bnd.buf) < stringPtrBufferSize {
@@ -68,5 +66,5 @@ func (bnd *bndStringPtr) close() (err error) {
 	bnd.value = nil
 	clear(bnd.buf, 32)
 	stmt.putBnd(bndIdxStringPtr, bnd)
-return nil
+	return nil
 }

@@ -26,7 +26,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 		stmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))
 		defer stmt.Close()
 		testErr(err, t)
-		_, err = stmt.Exec()
+		_, err = stmt.Exe()
 		defer dropTable(tableName, testSes, t)
 		testErr(err, t)
 		// ROWID is returned from a table without an index
@@ -35,7 +35,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 			stmt, err := testSes.Prep(fmt.Sprintf("create unique index t1_pk on %v (c1)", tableName))
 			defer stmt.Close()
 			testErr(err, t)
-			_, err = stmt.Exec()
+			_, err = stmt.Exe()
 			testErr(err, t)
 		}
 
@@ -43,7 +43,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values ('go')", tableName))
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Exec()
+		rowsAffected, err := insertStmt.Exe()
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -53,7 +53,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 		selectStmt, err := testSes.Prep(fmt.Sprintf("select rowid from %v", tableName))
 		defer selectStmt.Close()
 		testErr(err, t)
-		rset, err := selectStmt.Query()
+		rset, err := selectStmt.Qry()
 		testErr(err, t)
 		hasRow := rset.Next()
 		testErr(rset.Err, t)
@@ -74,7 +74,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 			updateStmt, err := testSes.Prep(fmt.Sprintf("update %v set c1 = 'go go go' where rowid = :1", tableName))
 			defer updateStmt.Close()
 			testErr(err, t)
-			rowsAffected, err = updateStmt.Exec(rowid)
+			rowsAffected, err = updateStmt.Exe(rowid)
 			testErr(err, t)
 			if rowsAffected != 1 {
 				t.Fatalf("update rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -83,7 +83,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 			stmtSelect2, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
 			defer stmtSelect2.Close()
 			testErr(err, t)
-			rset2, err := stmtSelect2.Query()
+			rset2, err := stmtSelect2.Qry()
 			testErr(err, t)
 			rset2.Next()
 			testErr(rset2.Err, t)

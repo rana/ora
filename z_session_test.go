@@ -39,12 +39,12 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	stmt, err = testSes.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	err = tx.Commit()
@@ -53,7 +53,7 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
-	rset, err := stmt.Query()
+	rset, err := stmt.Qry()
 	testErr(err, t)
 
 	for rset.Next() {
@@ -74,12 +74,12 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	stmt, err = testSes.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	err = tx.Rollback()
@@ -88,7 +88,7 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
-	rset, err := stmt.Query()
+	rset, err := stmt.Qry()
 	testErr(err, t)
 
 	for rset.Next() {
@@ -124,7 +124,7 @@ func TestSession_PrepAndExec_Insert(t *testing.T) {
 	}
 }
 
-func TestSession_PrepAndQuery(t *testing.T) {
+func TestSession_PrepAndQry(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -132,10 +132,10 @@ func TestSession_PrepAndQuery(t *testing.T) {
 	// insert one row
 	stmtIns, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	testErr(err, t)
-	_, err = stmtIns.Exec()
+	_, err = stmtIns.Exe()
 	testErr(err, t)
 
-	stmt, rset, err := testSes.PrepAndQuery(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, rset, err := testSes.PrepAndQry(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 	if stmt == nil {
 		t.Fatalf("expected non-nil stmt")

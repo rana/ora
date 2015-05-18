@@ -10,7 +10,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -37,7 +36,6 @@ func (bnd *bndBfile) bind(value Bfile, position int, stmt *Stmt) error {
 		return errNew("Filename must be specified when binding a non-null Bfile")
 	}
 
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	// Allocate lob locator handle
 	r := C.OCIDescriptorAlloc(
@@ -96,7 +94,6 @@ func (bnd *bndBfile) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	if bnd.cDirectoryAlias != nil {
 		C.free(unsafe.Pointer(bnd.cDirectoryAlias))
 	}

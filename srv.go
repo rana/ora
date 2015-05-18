@@ -18,7 +18,7 @@ import (
 
 // Srv is an Oracle server associated with an environment.
 type Srv struct {
-	srvId     uint64
+	id        uint64
 	env       *Env
 	ocisvcctx *C.OCISvcCtx
 	ocisrv    *C.OCIServer
@@ -26,19 +26,19 @@ type Srv struct {
 	sesId      uint64
 	sess       *list.List
 	elem       *list.Element
-	stmtConfig StmtConfig
+	stmtCfg StmtCfg
 	dbname     string
 }
 
-// SesCount returns the number of open Oracle sessions.
-func (srv *Srv) SesCount() int {
+// NumSes returns the number of open Oracle sessions.
+func (srv *Srv) NumSes() int {
 	return srv.sess.Len()
 }
 
 // checkIsOpen validates that the server is open.
 func (srv *Srv) checkIsOpen() error {
 	if !srv.IsOpen() {
-		return errNewF("Srv is closed (srvId %v)", srv.srvId)
+		return errNewF("Srv is closed (id %v)", srv.id)
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func (srv *Srv) Close() (err error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%v Close", srv.env.envId, srv.srvId)
+	glog.Infof("E%vS%v] Close", srv.env.id, srv.id)
 	errs := srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -111,7 +111,7 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%v OpenSes (username %v)", srv.env.envId, srv.srvId, username)
+	glog.Infof("E%vS%v] OpenSes (username %v)", srv.env.id, srv.id, username)
 	// allocate session handle
 	ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
 	if err != nil {
@@ -159,15 +159,14 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 
 	// set ses struct
 	ses := srv.env.drv.sesPool.Get().(*Ses)
-	if ses.sesId == 0 {
+	if ses.id == 0 {
 		srv.sesId++
-		ses.sesId = srv.sesId
+		ses.id = srv.sesId
 	}
-	glog.Infof("E%vS%v OpenSes (sesId %v)", srv.env.envId, srv.srvId, ses.sesId)
 	ses.srv = srv
 	ses.ocises = (*C.OCISession)(ocises)
 	ses.username = username
-	ses.stmtConfig = srv.stmtConfig
+	ses.stmtCfg = srv.stmtCfg
 	ses.elem = srv.sess.PushBack(ses)
 
 	return ses, nil
@@ -180,7 +179,7 @@ func (srv *Srv) Ping() error {
 	if err := srv.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%v Ping", srv.env.envId, srv.srvId)
+	glog.Infof("E%vS%v] Ping", srv.env.id, srv.id)
 	r := C.OCIPing(
 		srv.ocisvcctx,  //OCISvcCtx     *svchp,
 		srv.env.ocierr, //OCIError      *errhp,
@@ -198,7 +197,7 @@ func (srv *Srv) Version() (string, error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return "", err
 	}
-	glog.Infof("E%vS%v Version", srv.env.envId, srv.srvId)
+	glog.Infof("E%vS%v] Version", srv.env.id, srv.id)
 	var buf [512]C.char
 	r := C.OCIServerVersion(
 		unsafe.Pointer(srv.ocisrv),            //void         *hndlp,
@@ -212,15 +211,15 @@ func (srv *Srv) Version() (string, error) {
 	return C.GoString(&buf[0]), nil
 }
 
-// Sets the StmtConfig on the Server and all open Server Sessions.
-func (srv *Srv) SetStmtConfig(c StmtConfig) {
-	srv.stmtConfig = c
+// Sets the StmtCfg on the Server and all open Server Sessions.
+func (srv *Srv) SetStmtCfg(c StmtCfg) {
+	srv.stmtCfg = c
 	for e := srv.sess.Front(); e != nil; e = e.Next() {
-		e.Value.(*Ses).SetStmtConfig(c)
+		e.Value.(*Ses).SetStmtCfg(c)
 	}
 }
 
-// StmtConfig returns a *StmtConfig.
-func (srv *Srv) StmtConfig() *StmtConfig {
-	return &srv.stmtConfig
+// StmtCfg returns a *StmtCfg.
+func (srv *Srv) StmtCfg() *StmtCfg {
+	return &srv.stmtCfg
 }

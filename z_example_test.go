@@ -145,13 +145,13 @@ func ExampleStmt_Exec_insert() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert record
 	var value int64 = 9
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(value)
+	rowsAffected, _ := stmt.Exe(value)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
@@ -169,14 +169,14 @@ func ExampleStmt_Exec_insert_return_identity() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert record
 	var id int64
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName))
 	defer stmt.Close()
 	// pass a numeric pointer to rereive a database generated identity value
-	stmt.Exec(&id)
+	stmt.Exe(&id)
 	fmt.Println(id)
 	// Output: 1
 }
@@ -194,14 +194,14 @@ func ExampleStmt_Exec_insert_return_rowid() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert record
 	var rowid string
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9) returning rowid into :r", tableName))
 	defer stmt.Close()
 	// pass a string pointer to rereive a rowid
-	stmt.Exec(&rowid)
+	stmt.Exe(&rowid)
 	if rowid != "" {
 		fmt.Println("Retrieved rowid")
 	}
@@ -221,23 +221,23 @@ func ExampleStmt_Exec_insert_fetch_bool() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert 'false' record
 	var falseValue bool = false
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(falseValue)
+	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(trueValue)
+	stmt.Exe(trueValue)
 
 	// fetch inserted records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
 	}
@@ -257,29 +257,29 @@ func ExampleStmt_Exec_insert_fetch_bool_alternate() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
-	// Update StmtConfig to change the FalseRune and TrueRune inserted into the database
+	// Update StmtCfg to change the FalseRune and TrueRune inserted into the database
 	// insert 'false' record
 	var falseValue bool = false
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Config.FalseRune = 'N'
-	stmt.Exec(falseValue)
+	stmt.Cfg.FalseRune = 'N'
+	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Config.TrueRune = 'Y'
-	stmt.Exec(trueValue)
+	stmt.Cfg.TrueRune = 'Y'
+	stmt.Exe(trueValue)
 
-	// Update RsetConfig to change the TrueRune
+	// Update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	stmt.Config.Rset.TrueRune = 'Y'
-	rset, _ := stmt.Query()
+	stmt.Cfg.Rset.TrueRune = 'Y'
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
 	}
@@ -299,18 +299,18 @@ func ExampleStmt_Exec_update() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// update record
 	var a int64 = 3
 	var b int64 = 9
 	stmt, _ = ses.Prep(fmt.Sprintf("update %v set c1 = :three where c1 = :nine", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(a, b)
+	rowsAffected, _ := stmt.Exe(a, b)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
@@ -328,17 +328,17 @@ func ExampleStmt_Exec_delete() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// delete record
 	var value int64 = 9
 	stmt, _ = ses.Prep(fmt.Sprintf("delete from %v where c1 = :1", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(value)
+	rowsAffected, _ := stmt.Exe(value)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
@@ -356,7 +356,7 @@ func ExampleStmt_Exec_insert_slice() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert one million rows with single round-trip to server
 	values := make([]int64, 1000000)
@@ -365,7 +365,7 @@ func ExampleStmt_Exec_insert_slice() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(values)
+	rowsAffected, _ := stmt.Exe(values)
 	fmt.Println(rowsAffected)
 	// Output: 1000000
 }
@@ -383,7 +383,7 @@ func ExampleStmt_Exec_insert_nullable() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// create nullable Go types for inserting null
 	// insert record
@@ -392,7 +392,7 @@ func ExampleStmt_Exec_insert_nullable() {
 	c := Bool{IsNull: true}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (:c1, :c2, :c3)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(a, b, c)
+	rowsAffected, _ := stmt.Exe(a, b, c)
 	fmt.Println(rowsAffected)
 	// Output: 1
 }
@@ -410,7 +410,7 @@ func ExampleStmt_Exec_insert_fetch_blob() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 blob)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// by default, byte slices are expected to be bound and retrieved
 	// to/from a binary column such as a blob
@@ -421,13 +421,13 @@ func ExampleStmt_Exec_insert_fetch_blob() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(a)
+	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
 	// fetch record
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	row := rset.NextRow()
 	fmt.Println(row[0])
 
@@ -450,9 +450,9 @@ func ExampleStmt_Exec_insert_fetch_byteSlice() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
-	// Specify stmt.Config.SetByteSlice(U8)
+	// Specify stmt.Cfg.SetByteSlice(U8)
 	// Specify byte slice to be inserted into a NUMBER column
 	// insert records
 	a := make([]byte, 10)
@@ -461,14 +461,14 @@ func ExampleStmt_Exec_insert_fetch_byteSlice() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Config.SetByteSlice(U8)
-	rowsAffected, _ := stmt.Exec(a)
+	stmt.Cfg.SetByteSlice(U8)
+	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
@@ -491,24 +491,24 @@ func ExampleStmt_Query() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (3, 'slice', '0')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'map', '1')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', '1')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
@@ -528,25 +528,25 @@ func ExampleStmt_Query_nullable() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (null, 'slice', '0')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, null, '1')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (9, 'channel', null)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// Specify nullable return types to the Prep method
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName), OraI64, OraS, OraB)
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
@@ -566,17 +566,17 @@ func ExampleStmt_Query_numerics() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// Specify various numeric return types to the Prep method
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
 	defer stmt.Close()
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	row := rset.NextRow()
 	fmt.Printf("%v %v %v %v %v %v %v %v %v %v",
 		reflect.TypeOf(row[0]).Name(),
@@ -605,7 +605,7 @@ func ExampleRset_Next() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert records
 	a := make([]uint16, 5)
@@ -614,12 +614,12 @@ func ExampleRset_Next() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	rowsAffected, _ := stmt.Exec(a)
+	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), U16)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
@@ -641,16 +641,16 @@ func ExampleRset_NextRow() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert record
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (7, 'go', '1')", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// fetch record
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName))
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	row := rset.NextRow()
 	fmt.Printf("%v %v %v", row[0], row[1], row[2])
 	// Output: 7 go true
@@ -669,7 +669,7 @@ func ExampleRset_cursor_single() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert records
 	a := make([]int64, 3)
@@ -681,19 +681,19 @@ func ExampleRset_cursor_single() {
 	b[1] = "Its concurrency mechanisms make it easy to"
 	b[2] = "Go compiles quickly to machine code yet has"
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
-	stmt.Exec(a, b)
+	stmt.Exe(a, b)
 
 	// create proc
 	stmt, _ = ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c1; end proc1;", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// pass *Rset to Exec for an out sys_refcursor
 	// call proc
 	stmt, _ = ses.Prep("call proc1(:1)")
 	defer stmt.Close()
 	rset := &Rset{}
-	stmt.Exec(rset)
+	stmt.Exe(rset)
 	if rset.IsOpen() {
 		for rset.Next() {
 			fmt.Println(rset.Row[0], rset.Row[1])
@@ -718,7 +718,7 @@ func ExampleRset_cursor_multiple() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert records
 	a := make([]int64, 3)
@@ -730,12 +730,12 @@ func ExampleRset_cursor_multiple() {
 	b[1] = "Its concurrency mechanisms make it easy to"
 	b[2] = "Go compiles quickly to machine code yet has"
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
-	stmt.Exec(a, b)
+	stmt.Exe(a, b)
 
 	// create proc
 	stmt, _ = ses.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor, p2 out sys_refcursor) as begin open p1 for select c1 from %v order by c1; open p2 for select c2 from %v order by c2; end proc1;", tableName, tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// pass *Rset to Exec for an out sys_refcursor
 	// call proc
@@ -743,7 +743,7 @@ func ExampleRset_cursor_multiple() {
 	defer stmt.Close()
 	rsetC1 := &Rset{}
 	rsetC2 := &Rset{}
-	stmt.Exec(rsetC1, rsetC2)
+	stmt.Exe(rsetC1, rsetC2)
 	fmt.Println("--- first result set ---")
 	if rsetC1.IsOpen() {
 		for rsetC1.Next() {
@@ -816,7 +816,7 @@ func ExampleInt64() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Int64 slice
 	a := make([]Int64, 5)
@@ -827,12 +827,12 @@ func ExampleInt64() {
 	a[4] = Int64{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraI64 to Prep method to return Int64 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI64)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -857,7 +857,7 @@ func ExampleInt32() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Int32 slice
 	a := make([]Int32, 5)
@@ -868,12 +868,12 @@ func ExampleInt32() {
 	a[4] = Int32{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraI32 to Prep method to return Int32 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI32)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -898,7 +898,7 @@ func ExampleInt16() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Int16 slice
 	a := make([]Int16, 5)
@@ -909,12 +909,12 @@ func ExampleInt16() {
 	a[4] = Int16{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraI16 to Prep method to return Int16 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI16)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -939,7 +939,7 @@ func ExampleInt8() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Int8 slice
 	a := make([]Int8, 5)
@@ -950,12 +950,12 @@ func ExampleInt8() {
 	a[4] = Int8{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraI8 to Prep method to return Int8 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI8)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -980,7 +980,7 @@ func ExampleUint64() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Uint64 slice
 	a := make([]Uint64, 5)
@@ -991,12 +991,12 @@ func ExampleUint64() {
 	a[4] = Uint64{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraU64 to Prep method to return Uint64 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU64)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1021,7 +1021,7 @@ func ExampleUint32() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Uint32 slice
 	a := make([]Uint32, 5)
@@ -1032,12 +1032,12 @@ func ExampleUint32() {
 	a[4] = Uint32{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraU32 to Prep method to return Uint32 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU32)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1062,7 +1062,7 @@ func ExampleUint16() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Uint16 slice
 	a := make([]Uint16, 5)
@@ -1073,12 +1073,12 @@ func ExampleUint16() {
 	a[4] = Uint16{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraU16 to Prep method to return Uint16 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU16)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1103,7 +1103,7 @@ func ExampleUint8() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Uint8 slice
 	a := make([]Uint8, 5)
@@ -1114,12 +1114,12 @@ func ExampleUint8() {
 	a[4] = Uint8{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraU8 to Prep method to return Uint8 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU8)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1144,7 +1144,7 @@ func ExampleFloat64() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Float64 slice
 	a := make([]Float64, 5)
@@ -1155,12 +1155,12 @@ func ExampleFloat64() {
 	a[4] = Float64{Value: float64(6.28318)}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraF64 to Prep method to return Float64 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF64)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1185,7 +1185,7 @@ func ExampleFloat32() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Float32 slice
 	a := make([]Float32, 5)
@@ -1196,12 +1196,12 @@ func ExampleFloat32() {
 	a[4] = Float32{Value: float32(6.28318)}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraF32 to Prep method to return Float32 values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF32)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1226,7 +1226,7 @@ func ExampleString() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 char))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert String slice
 	a := make([]String, 5)
@@ -1237,12 +1237,12 @@ func ExampleString() {
 	a[4] = String{Value: "One of Go's key design goals is code"}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraS to Prep method to return String values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraS)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1267,7 +1267,7 @@ func ExampleBool() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 char(1 byte))", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Bool slice
 	a := make([]Bool, 5)
@@ -1278,12 +1278,12 @@ func ExampleBool() {
 	a[4] = Bool{Value: true}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraB to Prep method to return Bool values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraB)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1308,7 +1308,7 @@ func ExampleTime() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 timestamp)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Time slice
 	a := make([]Time, 5)
@@ -1319,12 +1319,12 @@ func ExampleTime() {
 	a[4] = Time{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraT to Prep method to return Time values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraT)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		t := rset.Row[0].(Time)
 		fmt.Printf("%v %v-%v-%v %v:%v:%v\n", t.IsNull, t.Value.Year(), t.Value.Month(), t.Value.Day(), t.Value.Hour(), t.Value.Minute(), t.Value.Second())
@@ -1350,7 +1350,7 @@ func ExampleIntervalYM() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 interval year to month)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert IntervalYM slice
 	a := make([]IntervalYM, 5)
@@ -1361,11 +1361,11 @@ func ExampleIntervalYM() {
 	a[4] = IntervalYM{Year: -99, Month: -9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// fetch IntervalYM
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
@@ -1393,7 +1393,7 @@ func ExampleIntervalDS() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 interval day to second)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert IntervalDS slice
 	a := make([]IntervalDS, 5)
@@ -1404,11 +1404,11 @@ func ExampleIntervalDS() {
 	a[4] = IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// fetch IntervalDS
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
@@ -1435,7 +1435,7 @@ func ExampleBytes() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 blob)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Binary slice
 	a := make([]Binary, 5)
@@ -1462,12 +1462,12 @@ func ExampleBytes() {
 	a[4] = Binary{Value: b}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// Specify OraBin to Prep method to return ora.Binary values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraBin)
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1492,17 +1492,17 @@ func ExampleBfile() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 bfile)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// insert Bfile
 	a := Bfile{IsNull: false, DirectoryAlias: "TEMP_DIR", Filename: "test.txt"}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Exec(a)
+	stmt.Exe(a)
 
 	// fetch Bfile
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v", rset.Row[0])
 	}
@@ -1522,31 +1522,31 @@ func ExampleTx() {
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
-	stmt.Exec()
+	stmt.Exe()
 
 	// rollback
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (3)", tableName))
 	tx, _ := ses.StartTx()
-	stmt.Exec()
+	stmt.Exe()
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (5)", tableName))
-	stmt.Exec()
+	stmt.Exe()
 	tx.Rollback()
 
 	// commit
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (7)", tableName))
 	tx, _ = ses.StartTx()
-	stmt.Exec()
+	stmt.Exe()
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
-	stmt.Exec()
+	stmt.Exe()
 	tx.Commit()
 
 	// check that auto commit is reenabled
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
-	stmt.Exec()
+	stmt.Exe()
 
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
-	rset, _ := stmt.Query()
+	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
@@ -1581,7 +1581,7 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err := stmtTbl.Exec()
+	rowsAffected, err := stmtTbl.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -1599,7 +1599,7 @@ func ExampleDriver_usage() {
 	stmtIns, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v (C2) VALUES (:C2) RETURNING C1 INTO :C1", tableName))
 	defer stmtIns.Close()
-	rowsAffected, err = stmtIns.Exec(str, &id)
+	rowsAffected, err = stmtIns.Exe(str, &id)
 	if err != nil {
 		panic(err)
 	}
@@ -1617,7 +1617,7 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Exec(a)
+	rowsAffected, err = stmtSliceIns.Exe(a)
 	if err != nil {
 		panic(err)
 	}
@@ -1630,7 +1630,7 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	rset, err := stmtQuery.Query()
+	rset, err := stmtQuery.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -1660,7 +1660,7 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtTrans.Exec(nullableStr)
+	rowsAffected, err = stmtTrans.Exe(nullableStr)
 	if err != nil {
 		panic(err)
 	}
@@ -1678,7 +1678,7 @@ func ExampleDriver_usage() {
 	if err != nil {
 		panic(err)
 	}
-	rset, err = stmtCount.Query()
+	rset, err = stmtCount.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -1697,7 +1697,7 @@ func ExampleDriver_usage() {
 			"END PROC1;",
 		tableName))
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Exec()
+	rowsAffected, err = stmtProcCreate.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -1710,7 +1710,7 @@ func ExampleDriver_usage() {
 		panic(err)
 	}
 	procRset := &Rset{}
-	rowsAffected, err = stmtProcCall.Exec(procRset)
+	rowsAffected, err = stmtProcCall.Exe(procRset)
 	if err != nil {
 		panic(err)
 	}

@@ -4,9 +4,9 @@
 
 package ora
 
-// RsetConfig affects the association of Oracle select-list columns to
+// RsetCfg affects the association of Oracle select-list columns to
 // Go types.
-type RsetConfig struct {
+type RsetCfg struct {
 	numberScaless GoColumnType
 	numberScaled  GoColumnType
 	binaryDouble  GoColumnType
@@ -31,15 +31,15 @@ type RsetConfig struct {
 	TrueRune rune
 }
 
-// NewRsetConfig returns a RsetConfig with default values.
-func NewRsetConfig() RsetConfig {
-	var rsc RsetConfig
+// NewRsetCfg returns a RsetCfg with default values.
+func NewRsetCfg() RsetCfg {
+	var rsc RsetCfg
 	rsc.Reset()
 	return rsc
 }
 
 // Reset sets driver-defined values to all fields.
-func (c *RsetConfig) Reset() {
+func (c *RsetCfg) Reset() {
 	c.TrueRune = '1'
 
 	c.numberScaless = I64
@@ -68,8 +68,8 @@ func (c *RsetConfig) Reset() {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetConfig) SetNumberScaless(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct)
+func (c *RsetCfg) SetNumberScaless(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
 	if err == nil {
 		c.numberScaless = gct
 	}
@@ -86,7 +86,7 @@ func (c *RsetConfig) SetNumberScaless(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberScaless is used.
-func (c *RsetConfig) NumberScaless() GoColumnType {
+func (c *RsetCfg) NumberScaless() GoColumnType {
 	return c.numberScaless
 }
 
@@ -97,8 +97,8 @@ func (c *RsetConfig) NumberScaless() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetConfig) SetNumberScaled(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct)
+func (c *RsetCfg) SetNumberScaled(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
 	if err == nil {
 		c.numberScaled = gct
 	}
@@ -115,7 +115,7 @@ func (c *RsetConfig) SetNumberScaled(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberScaled is used.
-func (c *RsetConfig) NumberScaled() GoColumnType {
+func (c *RsetCfg) NumberScaled() GoColumnType {
 	return c.numberScaled
 }
 
@@ -126,8 +126,8 @@ func (c *RsetConfig) NumberScaled() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetConfig) SetBinaryDouble(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct)
+func (c *RsetCfg) SetBinaryDouble(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
 	if err == nil {
 		c.binaryDouble = gct
 	}
@@ -144,7 +144,7 @@ func (c *RsetConfig) SetBinaryDouble(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, BinaryDouble is used.
-func (c *RsetConfig) BinaryDouble() GoColumnType {
+func (c *RsetCfg) BinaryDouble() GoColumnType {
 	return c.binaryDouble
 }
 
@@ -155,8 +155,8 @@ func (c *RsetConfig) BinaryDouble() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetConfig) SetBinaryFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct)
+func (c *RsetCfg) SetBinaryFloat(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
 	if err == nil {
 		c.binaryFloat = gct
 	}
@@ -175,7 +175,7 @@ func (c *RsetConfig) SetBinaryFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, BinaryFloat is used.
-func (c *RsetConfig) BinaryFloat() GoColumnType {
+func (c *RsetCfg) BinaryFloat() GoColumnType {
 	return c.binaryFloat
 }
 
@@ -186,8 +186,8 @@ func (c *RsetConfig) BinaryFloat() GoColumnType {
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetConfig) SetFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct)
+func (c *RsetCfg) SetFloat(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
 	if err == nil {
 		c.float = gct
 	}
@@ -204,7 +204,7 @@ func (c *RsetConfig) SetFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Float is used.
-func (c *RsetConfig) Float() GoColumnType {
+func (c *RsetCfg) Float() GoColumnType {
 	return c.float
 }
 
@@ -214,7 +214,7 @@ func (c *RsetConfig) Float() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetConfig) SetDate(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetDate(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
 		c.date = gct
@@ -232,7 +232,7 @@ func (c *RsetConfig) SetDate(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Date is used.
-func (c *RsetConfig) Date() GoColumnType {
+func (c *RsetCfg) Date() GoColumnType {
 	return c.date
 }
 
@@ -242,7 +242,7 @@ func (c *RsetConfig) Date() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetConfig) SetTimestamp(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetTimestamp(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
 		c.timestamp = gct
@@ -260,7 +260,7 @@ func (c *RsetConfig) SetTimestamp(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Timestamp is used.
-func (c *RsetConfig) Timestamp() GoColumnType {
+func (c *RsetCfg) Timestamp() GoColumnType {
 	return c.timestamp
 }
 
@@ -270,7 +270,7 @@ func (c *RsetConfig) Timestamp() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetConfig) SetTimestampTz(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetTimestampTz(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
 		c.timestampTz = gct
@@ -288,7 +288,7 @@ func (c *RsetConfig) SetTimestampTz(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, TimestampTz is used.
-func (c *RsetConfig) TimestampTz() GoColumnType {
+func (c *RsetCfg) TimestampTz() GoColumnType {
 	return c.timestampTz
 }
 
@@ -298,7 +298,7 @@ func (c *RsetConfig) TimestampTz() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetConfig) SetTimestampLtz(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetTimestampLtz(gct GoColumnType) (err error) {
 	err = checkTimeColumn(gct)
 	if err == nil {
 		c.timestampLtz = gct
@@ -316,7 +316,7 @@ func (c *RsetConfig) SetTimestampLtz(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, TimestampLtz is used.
-func (c *RsetConfig) TimestampLtz() GoColumnType {
+func (c *RsetCfg) TimestampLtz() GoColumnType {
 	return c.timestampLtz
 }
 
@@ -326,7 +326,7 @@ func (c *RsetConfig) TimestampLtz() GoColumnType {
 // Valid values are B, OraB, S and OraS.
 //
 // Returns an error if a non-bool or non-string GoColumnType is specified.
-func (c *RsetConfig) SetChar1(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetChar1(gct GoColumnType) (err error) {
 	err = checkBoolOrStringColumn(gct)
 	if err == nil {
 		c.char1 = gct
@@ -344,7 +344,7 @@ func (c *RsetConfig) SetChar1(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Char1 is used.
-func (c *RsetConfig) Char1() GoColumnType {
+func (c *RsetCfg) Char1() GoColumnType {
 	return c.char1
 }
 
@@ -354,7 +354,7 @@ func (c *RsetConfig) Char1() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetChar(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetChar(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
 		c.char = gct
@@ -372,7 +372,7 @@ func (c *RsetConfig) SetChar(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Char is used.
-func (c *RsetConfig) Char() GoColumnType {
+func (c *RsetCfg) Char() GoColumnType {
 	return c.char
 }
 
@@ -382,7 +382,7 @@ func (c *RsetConfig) Char() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetVarchar(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetVarchar(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
 		c.varchar = gct
@@ -400,7 +400,7 @@ func (c *RsetConfig) SetVarchar(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Varchar is used.
-func (c *RsetConfig) Varchar() GoColumnType {
+func (c *RsetCfg) Varchar() GoColumnType {
 	return c.varchar
 }
 
@@ -410,7 +410,7 @@ func (c *RsetConfig) Varchar() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetLong(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetLong(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
 		c.long = gct
@@ -428,7 +428,7 @@ func (c *RsetConfig) SetLong(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Long is used.
-func (c *RsetConfig) Long() GoColumnType {
+func (c *RsetCfg) Long() GoColumnType {
 	return c.long
 }
 
@@ -438,7 +438,7 @@ func (c *RsetConfig) Long() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetClob(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetClob(gct GoColumnType) (err error) {
 	err = checkStringColumn(gct)
 	if err == nil {
 		c.clob = gct
@@ -456,7 +456,7 @@ func (c *RsetConfig) SetClob(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Clob is used.
-func (c *RsetConfig) Clob() GoColumnType {
+func (c *RsetCfg) Clob() GoColumnType {
 	return c.clob
 }
 
@@ -466,7 +466,7 @@ func (c *RsetConfig) Clob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetBlob(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetBlob(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
 		c.blob = gct
@@ -484,7 +484,7 @@ func (c *RsetConfig) SetBlob(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Blob is used.
-func (c *RsetConfig) Blob() GoColumnType {
+func (c *RsetCfg) Blob() GoColumnType {
 	return c.blob
 }
 
@@ -494,7 +494,7 @@ func (c *RsetConfig) Blob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetRaw(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetRaw(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
 		c.raw = gct
@@ -512,7 +512,7 @@ func (c *RsetConfig) SetRaw(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Raw is used.
-func (c *RsetConfig) Raw() GoColumnType {
+func (c *RsetCfg) Raw() GoColumnType {
 	return c.raw
 }
 
@@ -522,7 +522,7 @@ func (c *RsetConfig) Raw() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetConfig) SetLongRaw(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetLongRaw(gct GoColumnType) (err error) {
 	err = checkBitsColumn(gct)
 	if err == nil {
 		c.longRaw = gct
@@ -540,6 +540,6 @@ func (c *RsetConfig) SetLongRaw(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, LongRaw is used.
-func (c *RsetConfig) LongRaw() GoColumnType {
+func (c *RsetCfg) LongRaw() GoColumnType {
 	return c.longRaw
 }

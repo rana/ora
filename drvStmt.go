@@ -33,7 +33,7 @@ func (ds *DrvStmt) Close() error {
 	if err := ds.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%vS%v Close", ds.stmt.ses.srv.env.envId, ds.stmt.ses.srv.srvId, ds.stmt.ses.sesId, ds.stmt.stmtId)
+	glog.Infof("E%vS%vS%vS%v] Close", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	return ds.stmt.Close()
 }
 
@@ -44,7 +44,7 @@ func (ds *DrvStmt) NumInput() int {
 	if ds.stmt == nil {
 		return 0
 	}
-	return ds.stmt.InputCount()
+	return ds.stmt.NumInput()
 }
 
 // Exec executes an Oracle SQL statement on a server. Exec returns a driver.Result
@@ -55,12 +55,12 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 	if err := ds.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%vS%v Exec", ds.stmt.ses.srv.env.envId, ds.stmt.ses.srv.srvId, ds.stmt.ses.sesId, ds.stmt.stmtId)
+	glog.Infof("E%vS%vS%vS%v] Exec", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
 	for n, _ := range values {
 		params[n] = values[n]
 	}
-	rowsAffected, lastInsertId, err := ds.stmt.exec(params)
+	rowsAffected, lastInsertId, err := ds.stmt.exe(params)
 	if rowsAffected == 0 {
 		result = driver.ResultNoRows
 	} else {
@@ -77,11 +77,11 @@ func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
 	if err := ds.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%vS%v Query", ds.stmt.ses.srv.env.envId, ds.stmt.ses.srv.srvId, ds.stmt.ses.sesId, ds.stmt.stmtId)
+	glog.Infof("E%vS%vS%vS%v] Query", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
 	for n, _ := range values {
 		params[n] = values[n]
 	}
-	rset, err := ds.stmt.query(params)
+	rset, err := ds.stmt.qry(params)
 	return &DrvQueryResult{rset: rset}, err
 }

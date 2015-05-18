@@ -10,7 +10,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"time"
 	"unsafe"
 )
@@ -25,7 +24,6 @@ type bndTimePtr struct {
 }
 
 func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.value = value
 	r := C.OCIDescriptorAlloc(
@@ -73,7 +71,6 @@ func (bnd *bndTimePtr) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	if bnd.cZone != nil {
 		C.free(unsafe.Pointer(bnd.cZone))
 		bnd.cZone = nil

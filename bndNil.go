@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -19,7 +18,6 @@ type bndNil struct {
 }
 
 func (bnd *bndNil) bind(position int, sqlt C.ub2, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	indp := C.sb2(-1)
 	r := C.OCIBindByPos2(
@@ -54,7 +52,6 @@ func (bnd *bndNil) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

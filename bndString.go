@@ -10,7 +10,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -21,7 +20,6 @@ type bndString struct {
 }
 
 func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.cString = C.CString(value)
 	r := C.OCIBindByPos2(

@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -33,7 +32,6 @@ func (bnd *bndUint64Slice) bindOra(values []Uint64, position int, stmt *Stmt) er
 }
 
 func (bnd *bndUint64Slice) bind(values []uint64, nullInds []C.sb2, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
@@ -94,7 +92,6 @@ func (bnd *bndUint64Slice) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

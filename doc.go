@@ -539,33 +539,33 @@ GoColumnTypes defined by the ora package are:
 	default°	D
 
 	° D represents a default mapping between a select-list column and a Go type.
-	The default mapping is defined in RsetConfig.
+	The default mapping is defined in RsetCfg.
 
 When Stmt.Prep doesn't receive a GoColumnType, or receives an incorrect GoColumnType,
-the default value defined in RsetConfig is used.
+the default value defined in RsetCfg is used.
 
-There are two configuration structs, StmtConfig and RsetConfig.
-StmtConfig configures various aspects of a Stmt. RsetConfig configures
+There are two configuration structs, StmtCfg and RsetCfg.
+StmtCfg configures various aspects of a Stmt. RsetCfg configures
 various aspects of Rset, including the default mapping between an Oracle select-list
-column and a Go type. StmtConfig may be set in an Env, Srv, Ses
-and Stmt. RsetConfig may be set in a StmtConfig.
+column and a Go type. StmtCfg may be set in an Env, Srv, Ses
+and Stmt. RsetCfg may be set in a StmtCfg.
 
-Setting StmtConfig on Env, Srv, Ses or Stmt cascades the StmtConfig to all current
+Setting StmtCfg on Env, Srv, Ses or Stmt cascades the StmtCfg to all current
 and future descendent structs. An Env may contain multiple Srvs. A Srv may contain
 multiple Ses. A Ses may contain multiple Stmt. A Stmt may contain multiple Rset.
 
-	// setting StmtConfig cascades to descendent structs
+	// setting StmtCfg cascades to descendent structs
 	// Env -> Srv -> Ses -> Stmt -> Rset
 
-Setting a RsetConfig on a StmtConfig does not cascade through descendent structs.
-Configuration of Stmt.Config takes effect prior to calls to Stmt.Exec and
-Stmt.Query; consequently, any updates to Stmt.Config after a call to Stmt.Exec
+Setting a RsetCfg on a StmtCfg does not cascade through descendent structs.
+Configuration of Stmt.Cfg takes effect prior to calls to Stmt.Exec and
+Stmt.Query; consequently, any updates to Stmt.Cfg after a call to Stmt.Exec
 or Stmt.Query are not observed.
 
 One configuration scenario may be to set a server's select statements to return
 nullable Go types by default:
 
-	sc := NewStmtConfig()
+	sc := NewStmtCfg()
 	sc.Rset.SetNumberScaless(ora.OraI64)
 	sc.Rset.SetNumberScaled(ora.OraF64)
 	sc.Rset.SetBinaryDouble(ora.OraF64)
@@ -583,33 +583,33 @@ nullable Go types by default:
 	sc.Rset.SetRaw(ora.OraBin)
 	sc.Rset.SetLongRaw(ora.OraBin)
 	srv, err := env.OpenSrv("orcl")
-	// setting the server StmtConfig will cascade to any open Sess, Stmts
-	// any new Ses, Stmt will receive this StmtConfig
-	// any new Rset will receive the StmtConfig.Rset configuration
-	srv.SetStmtConfig(sc)
+	// setting the server StmtCfg will cascade to any open Sess, Stmts
+	// any new Ses, Stmt will receive this StmtCfg
+	// any new Rset will receive the StmtCfg.Rset configuration
+	srv.SetStmtCfg(sc)
 
 Another scenario may be to configure the runes mapped to bool values:
 
-	// update StmtConfig to change the FalseRune and TrueRune inserted into the database
+	// update StmtCfg to change the FalseRune and TrueRune inserted into the database
 	// given: CREATE TABLE T1 (C1 CHAR(1 BYTE))
 
 	// insert 'false' record
 	var falseValue bool = false
 	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Config.FalseRune = 'N'
+	stmt.Cfg.FalseRune = 'N'
 	stmt.Exec(falseValue)
 
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Config.TrueRune = 'Y'
+	stmt.Cfg.TrueRune = 'Y'
 	stmt.Exec(trueValue)
 
-	// update RsetConfig to change the TrueRune
+	// update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
 	stmt, err = ses.Prep("SELECT C1 FROM T1")
-	stmt.Config.Rset.TrueRune = 'Y'
+	stmt.Cfg.Rset.TrueRune = 'Y'
 	rset, err := stmt.Query()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -682,11 +682,11 @@ multiple Rsets:
 		}
 	}
 
-The types of values assigned to Row may be configured in StmtConfig.Rset. For configuration
-to take effect, assign StmtConfig.Rset prior to calling Stmt.Query or Stmt.Exec.
+The types of values assigned to Row may be configured in StmtCfg.Rset. For configuration
+to take effect, assign StmtCfg.Rset prior to calling Stmt.Query or Stmt.Exec.
 
-Rset prefetching may be controlled by StmtConfig.PrefetchRowCount and
-StmtConfig.PrefetchMemorySize. PrefetchRowCount works in coordination with
+Rset prefetching may be controlled by StmtCfg.PrefetchRowCount and
+StmtCfg.PrefetchMemorySize. PrefetchRowCount works in coordination with
 PrefetchMemorySize. When PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
 The default uses a PrefetchMemorySize of 134MB.

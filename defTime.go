@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"math"
 	"strings"
 	"time"
@@ -26,7 +25,6 @@ type defTime struct {
 }
 
 func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDefineByPos2(
@@ -92,7 +90,6 @@ func (def *defTime) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
@@ -144,32 +141,39 @@ func getTime(env *Env, ociDateTime *C.OCIDateTime) (result time.Time, err error)
 			buffer.WriteByte(buf[n])
 		}
 		locName := buffer.String()
-		// timestamp_ltz returns numeric offset
-		// time.Time's lookup for numeric offset is unknown;
-		// therefore, create a fixed location for the offset
-		var offsetHour C.sb1
-		var offsetMinute C.sb1
-		if strings.ContainsAny(locName, "-0123456789") {
-			r = C.OCIDateTimeGetTimeZoneOffset(
-				unsafe.Pointer(env.ocienv), //void               *hndl,
-				env.ocierr,                 //OCIError           *err,
-				ociDateTime,                //const OCIDateTime  *datetime,
-				&offsetHour,                //sb1                *hour,
-				&offsetMinute)              //sb1                *min, );
-			if r == C.OCI_ERROR {
-				return result, env.ociError()
+		location = _locations[locName]
+		if location == nil {
+			// timestamp_ltz returns numeric offset
+			// time.Time's lookup for numeric offset is unknown;
+			// therefore, create a fixed location for the offset
+			var offsetHour C.sb1
+			var offsetMinute C.sb1
+			if strings.ContainsAny(locName, "-0123456789") {
+				r = C.OCIDateTimeGetTimeZoneOffset(
+					unsafe.Pointer(env.ocienv), //void               *hndl,
+					env.ocierr,                 //OCIError           *err,
+					ociDateTime,                //const OCIDateTime  *datetime,
+					&offsetHour,                //sb1                *hour,
+					&offsetMinute)              //sb1                *min, );
+				if r == C.OCI_ERROR {
+					return result, env.ociError()
+				}
+				seconds := math.Abs(float64(offsetHour)) * 60 * 60
+				seconds += math.Abs(float64(offsetMinute)) * 60
+				if offsetHour < 0 {
+					seconds *= -1
+				}
+				location = time.FixedZone(locName, int(seconds))
+			} else {
+				location, err = time.LoadLocation(locName)
+				if err != nil {
+					return result, err
+				}
 			}
-			seconds := math.Abs(float64(offsetHour)) * 60 * 60
-			seconds += math.Abs(float64(offsetMinute)) * 60
-			if offsetHour < 0 {
-				seconds *= -1
-			}
-			location = time.FixedZone(locName, int(seconds))
-		} else {
-			location, err = time.LoadLocation(locName)
-			if err != nil {
-				return result, err
-			}
+			// stored location for future reference
+			// important that FixedZone is called as few times as possible
+			// to reduce significant memory allocation
+			_locations[locName] = location
 		}
 	} else {
 		// Date Oracle type doesn't have timezone info

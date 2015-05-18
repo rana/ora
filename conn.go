@@ -14,7 +14,7 @@ import (
 //
 // Implements the driver.Conn interface.
 type Con struct {
-	conId uint64
+	id uint64
 
 	env  *Env
 	srv  *Srv
@@ -25,7 +25,7 @@ type Con struct {
 // checkIsOpen validates that the connection is open.
 func (con *Con) checkIsOpen() error {
 	if !con.IsOpen() {
-		return errNewF("Con is closed (conId %v)", con.conId)
+		return errNewF("Con is closed (id %v)", con.id)
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func (con *Con) Close() (err error) {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vC%v Close", con.env.envId, con.conId)
+	glog.Infof("E%vC%v] Close", con.env.id, con.id)
 	defer func() {
 		if value := recover(); value != nil {
 			glog.Errorln(recoverMsg(value))
@@ -79,7 +79,7 @@ func (con *Con) Prepare(sql string) (driver.Stmt, error) {
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vC%v Prepare", con.env.envId, con.conId)
+	glog.Infof("E%vC%v] Prepare", con.env.id, con.id)
 	stmt, err := con.ses.Prep(sql)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (con *Con) Begin() (driver.Tx, error) {
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vC%v Begin", con.env.envId, con.conId)
+	glog.Infof("E%vC%v] Begin", con.env.id, con.id)
 	tx, err := con.ses.StartTx()
 	if err != nil {
 		return nil, err
@@ -107,6 +107,6 @@ func (con *Con) Ping() error {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vC%v Ping", con.env.envId, con.conId)
+	glog.Infof("E%vC%v] Ping", con.env.id, con.id)
 	return con.srv.Ping()
 }

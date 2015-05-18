@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -20,7 +19,6 @@ type bndIntervalYM struct {
 }
 
 func (bnd *bndIntervalYM) bind(value IntervalYM, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	r := C.OCIDescriptorAlloc(
 		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),         //CONST dvoid   *parenth,
@@ -73,7 +71,6 @@ func (bnd *bndIntervalYM) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	C.OCIDescriptorFree(
 		unsafe.Pointer(bnd.ociInterval), //void     *descp,
 		C.OCI_DTYPE_INTERVAL_YM)         //timeDefine.descTypeCode)                //ub4      type );

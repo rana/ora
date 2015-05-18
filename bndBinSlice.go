@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -34,7 +33,6 @@ func (bnd *bndBinSlice) bindOra(values []Binary, position int, lobBufferSize int
 }
 
 func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lobBufferSize int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.ociLobLocators = make([]*C.OCILobLocator, len(values))
 	if nullInds == nil {
@@ -179,7 +177,6 @@ func (bnd *bndBinSlice) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	for n := 0; n < len(bnd.ociLobLocators); n++ {
 		// free temporary lob
 		C.OCILobFreeTemporary(

@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -24,7 +23,6 @@ type defLob struct {
 }
 
 func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoColumnType, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.gct = gct
 	def.sqlt = sqlt
@@ -189,7 +187,6 @@ func (def *defLob) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	def.free()
 	rset := def.rset
 	def.rset = nil

@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -21,7 +20,6 @@ type defRowid struct {
 }
 
 func (def *defRowid) define(position int, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	// using a character host variable of width between 19
 	// (18 bytes plus the null-terminator) and 4001 as the
@@ -70,7 +68,6 @@ func (def *defRowid) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

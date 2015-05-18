@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -24,7 +23,6 @@ type bndBoolPtr struct {
 }
 
 func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.trueRune = trueRune
@@ -65,7 +63,6 @@ func (bnd *bndBoolPtr) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

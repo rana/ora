@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -21,7 +20,6 @@ type bndBin struct {
 }
 
 func (bnd *bndBin) bind(value []byte, position int, lobBufferSize int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	// OCILobWrite2 doesn't support writing zero bytes
 	// nor is writing 1 byte and erasing the one byte supported
@@ -150,7 +148,6 @@ func (bnd *bndBin) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	// no need to clear bnd.buf
 	// free temporary lob
 	C.OCILobFreeTemporary(

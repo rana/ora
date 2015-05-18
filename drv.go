@@ -17,9 +17,11 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"sync"
+	"time"
 )
 
 var _drv *Drv
+var _locations map[string]*time.Location
 
 // Drv is an Oracle database driver.
 //
@@ -39,7 +41,7 @@ type Drv struct {
 
 	// TODO: make setter,/getter and cascade to env when set
 	// TODO: decide where to load the config file? From env may be best
-	stmtConfig StmtConfig
+	stmtCfg StmtCfg
 
 	envId uint64
 	envs  *list.List
@@ -52,12 +54,13 @@ type Drv struct {
 func GetDrv() *Drv {
 	// place init code in GetDrv to support testing; call order requires it
 	if _drv == nil {
+		_locations = make(map[string]*time.Location)
 		_drv = &Drv{envs: list.New()}
 		_drv.listPool.New = func() interface{} {
 			return list.New()
 		}
 		_drv.envPool.New = func() interface{} {
-			return &Env{srvs: list.New(), cons: list.New(), stmtConfig: NewStmtConfig()}
+			return &Env{srvs: list.New(), cons: list.New(), stmtCfg: NewStmtCfg()}
 		}
 		_drv.conPool.New = func() interface{} {
 			return &Con{}
@@ -382,27 +385,25 @@ func GetDrv() *Drv {
 			glog.Errorln("GetDrv: ", err)
 		}
 		_drv.sqlEnv.isSqlPkg = true
-		_drv.sqlEnv.stmtConfig.Rset.binaryFloat = F64
+		_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64
 		sql.Register(Name, _drv)
 	}
 	return _drv
 }
 
-// EnvCount returns the number of open Oracle environments.
-func (drv *Drv) EnvCount() int {
+// NumEnv returns the number of open Oracle environments.
+func (drv *Drv) NumEnv() int {
 	return drv.envs.Len()
 }
 
 // OpenEnv opens an Oracle environment.
 func (drv *Drv) OpenEnv() (*Env, error) {
-	glog.Infoln("OpenEnv")
-
 	env := drv.envPool.Get().(*Env)
-	if env.envId == 0 {
+	if env.id == 0 {
 		drv.envId++
-		env.envId = drv.envId
+		env.id = drv.envId
 	}
-	glog.Infof("OpenEnv (envId %v)", env.envId)
+	glog.Infof("OpenEnv %v", env.id)
 
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
@@ -454,12 +455,16 @@ func (drv *Drv) Open(conStr string) (driver.Conn, error) {
 }
 
 // checkNumericColumn returns nil when the column type is numeric; otherwise, an error.
-func checkNumericColumn(gct GoColumnType) error {
+func checkNumericColumn(gct GoColumnType, columnName string) error {
 	switch gct {
 	case I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", gctName(gct))
+	if columnName == "" {
+		return errNewF("invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", gctName(gct))
+	} else {
+		return errNewF("invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", gctName(gct), columnName)
+	}
 }
 
 // checkTimeColumn returns nil when the column type is time; otherwise, an error.
@@ -468,7 +473,7 @@ func checkTimeColumn(gct GoColumnType) error {
 	case T, OraT:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected T or OraT.", gctName(gct))
+	return errNewF("invalid go column type (%v) specified for time-based sql column. Expected go column type T or OraT.", gctName(gct))
 }
 
 // checkStringColumn returns nil when the column type is string; otherwise, an error.
@@ -477,7 +482,7 @@ func checkStringColumn(gct GoColumnType) error {
 	case S, OraS:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected S or OraS.", gctName(gct))
+	return errNewF("invalid go column type (%v) specified for string-based sql column. Expected go column type S or OraS.", gctName(gct))
 }
 
 // checkBoolOrStringColumn returns nil when the column type is bool; otherwise, an error.
@@ -486,7 +491,7 @@ func checkBoolOrStringColumn(gct GoColumnType) error {
 	case B, OraB, S, OraS:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected B, OraB, S, or OraS.", gctName(gct))
+	return errNewF("invalid go column type (%v) specified. Expected go column type B, OraB, S, or OraS.", gctName(gct))
 }
 
 // checkBitsOrU8Column returns nil when the column type is Bits or U8; otherwise, an error.
@@ -495,7 +500,7 @@ func checkBitsOrU8Column(gct GoColumnType) error {
 	case Bin, U8:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected Bits or U8.", gctName(gct))
+	return errNewF("invalid go column type (%v) specified. Expected go column type Bits or U8.", gctName(gct))
 }
 
 // checkBitsColumn returns nil when the column type is Bits or OraBits; otherwise, an error.
@@ -504,7 +509,7 @@ func checkBitsColumn(gct GoColumnType) error {
 	case Bin, OraBin:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected Bits or OraBits.", gctName(gct))
+	return errNewF("invalid go column type (%v) specified. Expected go column type Bits or OraBits.", gctName(gct))
 }
 
 func gctName(gct GoColumnType) string {

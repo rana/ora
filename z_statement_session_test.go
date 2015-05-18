@@ -16,21 +16,21 @@ func TestStmt_Exec_table_create_alter_drop(t *testing.T) {
 	stmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 number)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	// alter table
 	stmt, err = testSes.Prep(fmt.Sprintf("alter table %v add c2 number", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 
 	// drop table
 	stmt, err = testSes.Prep(fmt.Sprintf("drop table %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 }
 
@@ -42,7 +42,7 @@ func TestStmt_Exec_insert(t *testing.T) {
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err := stmt.Exec()
+	rowsAffected, err := stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -57,7 +57,7 @@ func TestStmt_Exec_update(t *testing.T) {
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err := stmt.Exec()
+	rowsAffected, err := stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -67,7 +67,7 @@ func TestStmt_Exec_update(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("update %v set c1 = 8 where c1 = 9", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err = stmt.Exec()
+	rowsAffected, err = stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -82,7 +82,7 @@ func TestStmt_Exec_delete(t *testing.T) {
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err := stmt.Exec()
+	rowsAffected, err := stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -92,7 +92,7 @@ func TestStmt_Exec_delete(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("delete %v where c1 = 9", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err = stmt.Exec()
+	rowsAffected, err = stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -107,7 +107,7 @@ func TestStmt_Exec_select(t *testing.T) {
 	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err := stmt.Exec()
+	rowsAffected, err := stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -117,7 +117,7 @@ func TestStmt_Exec_select(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rowsAffected, err = stmt.Exec()
+	rowsAffected, err = stmt.Exe()
 	testErr(err, t)
 	if 1 != rowsAffected {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -127,7 +127,7 @@ func TestStmt_Exec_select(t *testing.T) {
 	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	rset, err := stmt.Query()
+	rset, err := stmt.Qry()
 	testErr(err, t)
 
 	for rset.Next() {

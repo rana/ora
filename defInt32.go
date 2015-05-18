@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -22,7 +21,6 @@ type defInt32 struct {
 }
 
 func (def *defInt32) define(position int, isNullable bool, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDefineByPos2(
@@ -91,7 +89,6 @@ func (def *defInt32) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

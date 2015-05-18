@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -20,7 +19,6 @@ type bndIntervalDSSlice struct {
 }
 
 func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.ociIntervals = make([]*C.OCIInterval, len(values))
 	nullInds := make([]C.sb2, len(values))
@@ -98,7 +96,6 @@ func (bnd *bndIntervalDSSlice) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	for n := 0; n < len(bnd.ociIntervals); n++ {
 		C.OCIDescriptorFree(
 			unsafe.Pointer(bnd.ociIntervals[n]), //void     *descp,

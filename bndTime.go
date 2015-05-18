@@ -12,7 +12,6 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"github.com/golang/glog"
 	"time"
 	"unsafe"
 )
@@ -26,7 +25,6 @@ type bndTime struct {
 }
 
 func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	zone := zoneOffset(value, &bnd.zoneBuf)
 	bnd.cZone = C.CString(zone)
@@ -106,7 +104,6 @@ func (bnd *bndTime) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	if bnd.cZone != nil {
 		C.free(unsafe.Pointer(bnd.cZone))
 		bnd.cZone = nil

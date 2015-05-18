@@ -11,7 +11,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"time"
 	"unsafe"
 )
@@ -37,7 +36,6 @@ func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt) error 
 }
 
 func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int, stmt *Stmt) error {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	bnd.ociDateTimes = make([]*C.OCIDateTime, len(values))
 	if nullInds == nil {
@@ -131,7 +129,6 @@ func (bnd *bndTimeSlice) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	for n := range bnd.ociDateTimes {
 		bnd.free(n)
 	}

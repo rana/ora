@@ -10,7 +10,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"strconv"
 	"unsafe"
 )
@@ -21,8 +20,7 @@ type bndBool struct {
 	cString *C.char
 }
 
-func (bnd *bndBool) bind(value bool, position int, c StmtConfig, stmt *Stmt) (err error) {
-	glog.Infoln("position: ", position)
+func (bnd *bndBool) bind(value bool, position int, c StmtCfg, stmt *Stmt) (err error) {
 	bnd.stmt = stmt
 	var str string
 	if value {
@@ -65,7 +63,6 @@ func (bnd *bndBool) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	C.free(unsafe.Pointer(bnd.cString))
 	stmt := bnd.stmt
 	bnd.stmt = nil

@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -23,7 +22,6 @@ type defBool struct {
 }
 
 func (def *defBool) define(position int, columnSize int, isNullable bool, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.isNullable = isNullable
 	if cap(def.buf) < columnSize {
@@ -52,12 +50,12 @@ func (def *defBool) value() (value interface{}, err error) {
 	if def.isNullable {
 		oraBoolValue := Bool{IsNull: def.null < 0}
 		if !oraBoolValue.IsNull {
-			oraBoolValue.Value = bytes.Runes(def.buf)[0] == def.rset.stmt.Config.Rset.TrueRune
+			oraBoolValue.Value = bytes.Runes(def.buf)[0] == def.rset.stmt.Cfg.Rset.TrueRune
 		}
 		value = oraBoolValue
 	} else {
 		if def.null > -1 {
-			value = bytes.Runes(def.buf)[0] == def.rset.stmt.Config.Rset.TrueRune
+			value = bytes.Runes(def.buf)[0] == def.rset.stmt.Cfg.Rset.TrueRune
 		}
 	}
 
@@ -79,7 +77,6 @@ func (def *defBool) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

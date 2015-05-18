@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -23,7 +22,6 @@ type defLongRaw struct {
 }
 
 func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	def.isNullable = isNullable
 	def.buf = make([]byte, int(bufSize))
@@ -86,7 +84,6 @@ func (def *defLongRaw) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

@@ -17,7 +17,7 @@ func Test_cursor1_session(t *testing.T) {
 	defer createTblStmt.Close()
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
-	_, err = createTblStmt.Exec()
+	_, err = createTblStmt.Exe()
 	testErr(err, t)
 
 	// insert records
@@ -31,7 +31,7 @@ func Test_cursor1_session(t *testing.T) {
 	expectedInt64s[2] = 9
 	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
 	testErr(err, t)
-	rowsAffected, err := insertStmt.Exec(expectedStrs, expectedInt64s)
+	rowsAffected, err := insertStmt.Exe(expectedStrs, expectedInt64s)
 	testErr(err, t)
 	if rowsAffected != 3 {
 		t.Fatalf("Expected 3 rows affected. (rowsAffected %v)", rowsAffected)
@@ -41,7 +41,7 @@ func Test_cursor1_session(t *testing.T) {
 	createProcStmt, err := testSes.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c2; end proc1;", tableName))
 	defer createProcStmt.Close()
 	testErr(err, t)
-	_, err = createProcStmt.Exec()
+	_, err = createProcStmt.Exe()
 	testErr(err, t)
 
 	// call proc
@@ -49,7 +49,7 @@ func Test_cursor1_session(t *testing.T) {
 	defer callProcStmt.Close()
 	testErr(err, t)
 	rset := &Rset{}
-	_, err = callProcStmt.Exec(rset)
+	_, err = callProcStmt.Exe(rset)
 	testErr(err, t)
 	if rset.IsOpen() {
 		for rset.Next() {

@@ -17,7 +17,7 @@ import (
 //
 // Implements the driver.Tx interface.
 type Tx struct {
-	txId uint64
+	id   uint64
 	ses  *Ses
 	elem *list.Element
 }
@@ -25,7 +25,7 @@ type Tx struct {
 // checkIsOpen validates that the session is open.
 func (tx *Tx) checkIsOpen() error {
 	if tx.ses != nil {
-		return errNewF("Tx is closed (txId %v)", tx.txId)
+		return errNewF("Tx is closed (id %v)", tx.id)
 	}
 	return nil
 }

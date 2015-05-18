@@ -19,35 +19,35 @@ import (
 
 // Env is an Oracle environment.
 type Env struct {
-	envId  uint64
+	id     uint64
 	drv    *Drv
 	ocienv *C.OCIEnv
 	ocierr *C.OCIError
 
-	srvId      uint64
-	conId      uint64
-	srvs       *list.List
-	cons       *list.List
-	elem       *list.Element
-	stmtConfig StmtConfig
-	errBuf     [512]C.char
-	isSqlPkg   bool
+	srvId    uint64
+	conId    uint64
+	srvs     *list.List
+	cons     *list.List
+	elem     *list.Element
+	stmtCfg  StmtCfg
+	errBuf   [512]C.char
+	isSqlPkg bool
 }
 
-// SrvCount returns the number of open Oracle servers.
-func (env *Env) SrvCount() int {
+// NumSrv returns the number of open Oracle servers.
+func (env *Env) NumSrv() int {
 	return env.srvs.Len()
 }
 
-// ConCount returns the number of open Oracle connections.
-func (env *Env) ConCount() int {
+// NumCon returns the number of open Oracle connections.
+func (env *Env) NumCon() int {
 	return env.cons.Len()
 }
 
 // checkIsOpen validates that the environment is open.
 func (env *Env) checkIsOpen() error {
 	if !env.IsOpen() {
-		return errNewF("Env is closed (envId %v)", env.envId)
+		return errNewF("Env is closed (id %v)", env.id)
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (env *Env) Close() (err error) {
 	if err := env.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%v Close", env.envId)
+	glog.Infof("E%v] Close", env.id)
 	errs := env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -113,7 +113,7 @@ func (env *Env) OpenSrv(dbname string) (*Srv, error) {
 	if err := env.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%v OpenSrv (dbname %v)", env.envId, dbname)
+	glog.Infof("E%v] OpenSrv (dbname %v)", env.id, dbname)
 	// allocate server handle
 	ocisrv, err := env.allocOciHandle(C.OCI_HTYPE_SERVER)
 	if err != nil {
@@ -144,15 +144,15 @@ func (env *Env) OpenSrv(dbname string) (*Srv, error) {
 
 	// set srv struct
 	srv := env.drv.srvPool.Get().(*Srv)
-	if srv.srvId == 0 {
+	if srv.id == 0 {
 		env.srvId++
-		srv.srvId = env.srvId
+		srv.id = env.srvId
 	}
-	glog.Infof("E%v OpenSrv (srvId %v)", env.envId, srv.srvId)
+	glog.Infof("E%v] OpenSrv (srvId %v)", env.id, srv.id)
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
-	srv.stmtConfig = env.stmtConfig
+	srv.stmtCfg = env.stmtCfg
 	srv.dbname = dbname
 	srv.elem = env.srvs.PushBack(srv)
 	return srv, nil
@@ -168,7 +168,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	if err := env.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%v OpenCon", env.envId)
+	glog.Infof("E%v] OpenCon", env.id)
 	// parse connection string
 	var username string
 	var password string
@@ -177,7 +177,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	str = strings.Replace(str, "/", " / ", 1)
 	str = strings.Replace(str, "@", " @ ", 1)
 	_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
-	glog.Infof("E%v OpenCon (dbname %v, username %v)", env.envId, dbname, username)
+	glog.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
 	if err != nil {
 		return nil, err
 	}
@@ -193,11 +193,11 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	}
 	// set con struct
 	con := env.drv.conPool.Get().(*Con)
-	if con.conId == 0 {
+	if con.id == 0 {
 		env.conId++
-		con.conId = env.conId
+		con.id = env.conId
 	}
-	glog.Infof("E%v OpenCon (conId %v)", env.envId, con.conId)
+	glog.Infof("E%v] OpenCon (conId %v)", env.id, con.id)
 	con.env = env
 	con.srv = srv
 	con.ses = ses
@@ -271,15 +271,15 @@ func (env *Env) ociError() error {
 	return errNew(C.GoString(&env.errBuf[0]))
 }
 
-// Sets the StmtConfig on the Environment and all open Environment Servers.
-func (env *Env) SetStmtConfig(c StmtConfig) {
-	env.stmtConfig = c
+// Sets the StmtCfg on the Environment and all open Environment Servers.
+func (env *Env) SetStmtCfg(c StmtCfg) {
+	env.stmtCfg = c
 	for e := env.srvs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Srv).SetStmtConfig(c)
+		e.Value.(*Srv).SetStmtCfg(c)
 	}
 }
 
-// StmtConfig returns a *StmtConfig.
-func (env *Env) StmtConfig() *StmtConfig {
-	return &env.stmtConfig
+// StmtCfg returns a *StmtCfg.
+func (env *Env) StmtCfg() *StmtCfg {
+	return &env.stmtCfg
 }

@@ -148,7 +148,7 @@ func init() {
 		fmt.Println("initError: ", err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -172,7 +172,7 @@ func testIterations() int {
 	}
 }
 
-func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c *StmtConfig, goColumnTypes ...GoColumnType) {
+func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c *StmtCfg, goColumnTypes ...GoColumnType) {
 	var gct GoColumnType
 	if len(goColumnTypes) > 0 {
 		gct = goColumnTypes[0]
@@ -189,11 +189,11 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 		// insert
 		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 		if c != nil {
-			insertStmt.Config = *c
+			insertStmt.Cfg = *c
 		}
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Exec(expected)
+		rowsAffected, err := insertStmt.Exe(expected)
 		testErr(err, t)
 		expLen := length(expected)
 		if gct == Bin || gct == OraBin {
@@ -207,7 +207,7 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 		selectStmt, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), gct)
 		defer selectStmt.Close()
 		testErr(err, t)
-		rset, err := selectStmt.Query()
+		rset, err := selectStmt.Qry()
 		testErr(err, t)
 
 		// validate
@@ -313,7 +313,7 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 		stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:1) returning c1 into :2", tableName))
 		defer stmt.Close()
 		testErr(err, t)
-		rowsAffected, err := stmt.Exec(expected, actual)
+		rowsAffected, err := stmt.Exe(expected, actual)
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -334,7 +334,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 		defer insertStmt.Close()
 		testErr(err, t)
-		rowsAffected, err := insertStmt.Exec(expected)
+		rowsAffected, err := insertStmt.Exe(expected)
 		testErr(err, t)
 		if rowsAffected != 1 {
 			t.Fatalf("insert rows affected: expected(%v), actual(%v)", 1, rowsAffected)
@@ -364,7 +364,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		}
-		rset, err = selectStmt.Query()
+		rset, err = selectStmt.Qry()
 		testErr(err, t)
 
 		// validate
@@ -480,7 +480,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 			fetchStmt, err := testSes.Prep(sql.String())
 			testErr(err, t)
 			fetchStmt.gcts = gcts
-			rset, err := fetchStmt.Query()
+			rset, err := fetchStmt.Qry()
 			testErr(err, t)
 			for rset.Next() {
 				if currentMultiple != len(rset.Row) {
@@ -507,7 +507,7 @@ func loadDbtimezone() (*time.Location, error) {
 	if err != nil {
 		return nil, err
 	}
-	rset, err := stmt.Query()
+	rset, err := stmt.Qry()
 	if err != nil {
 		return nil, err
 	}
@@ -697,7 +697,7 @@ func createTable(multiple int, oct oracleColumnType, ses *Ses) (string, error) {
 		return "", err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	return tableName, err
 }
 
@@ -705,7 +705,7 @@ func dropTable(tableName string, ses *Ses, t *testing.T) {
 	stmt, err := ses.Prep(fmt.Sprintf("drop table %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
-	_, err = stmt.Exec()
+	_, err = stmt.Exe()
 	testErr(err, t)
 }
 

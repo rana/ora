@@ -9,7 +9,6 @@ package ora
 */
 import "C"
 import (
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -21,7 +20,6 @@ type defIntervalYM struct {
 }
 
 func (def *defIntervalYM) define(position int, rset *Rset) error {
-	glog.Infoln("position: ", position)
 	def.rset = rset
 	r := C.OCIDefineByPos2(
 		def.rset.ocistmt,                      //OCIStmt     *stmtp,
@@ -92,7 +90,6 @@ func (def *defIntervalYM) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil

@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"bytes"
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -35,7 +34,6 @@ func (bnd *bndBoolSlice) bindOra(values []Bool, position int, falseRune rune, tr
 }
 
 func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, falseRune rune, trueRune rune, stmt *Stmt) (err error) {
-	glog.Infoln("position: ", position)
 	bnd.stmt = stmt
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
@@ -102,7 +100,6 @@ func (bnd *bndBoolSlice) close() (err error) {
 		}
 	}()
 
-	glog.Infoln("close")
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
