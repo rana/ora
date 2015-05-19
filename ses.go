@@ -13,9 +13,10 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"github.com/golang/glog"
 	"strings"
 	"unsafe"
+
+	"github.com/golang/glog"
 )
 
 // Ses is an Oracle session associated with a server.
@@ -45,6 +46,9 @@ func (ses *Ses) NumTx() int {
 
 // checkIsOpen validates that the session is open.
 func (ses *Ses) checkIsOpen() error {
+	if ses == nil {
+		return errNew("Ses is not initialized")
+	}
 	if !ses.IsOpen() {
 		return errNewF("Ses is closed (id %v)", ses.id)
 	}

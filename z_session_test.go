@@ -135,12 +135,8 @@ func TestSession_PrepAndQry(t *testing.T) {
 	_, err = stmtIns.Exe()
 	testErr(err, t)
 
-	stmt, rset, err := testSes.PrepAndQry(fmt.Sprintf("select c1 from %v", tableName))
+	rset, err := testSes.PrepAndQry(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
-	if stmt == nil {
-		t.Fatalf("expected non-nil stmt")
-	}
-	defer stmt.Close()
 	if rset == nil {
 		t.Fatalf("expected non-nil rset")
 	}
