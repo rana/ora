@@ -15,9 +15,11 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"sync"
 	"time"
+	"unsafe"
+
+	"github.com/golang/glog"
 )
 
 var _drv *Drv
@@ -396,6 +398,11 @@ func (drv *Drv) NumEnv() int {
 	return drv.envs.Len()
 }
 
+var (
+	csIDAl32UTF8 C.ub2
+	csMu         sync.Mutex
+)
+
 // OpenEnv opens an Oracle environment.
 func (drv *Drv) OpenEnv() (*Env, error) {
 	env := drv.envPool.Get().(*Env)
@@ -405,20 +412,38 @@ func (drv *Drv) OpenEnv() (*Env, error) {
 	}
 	glog.Infof("OpenEnv %v", env.id)
 
+	csMu.Lock()
+	if csIDAl32UTF8 == 0 {
+		// Get the code for AL32UTF8
+		var ocienv *C.OCIEnv
+		r := C.OCIEnvCreate(&ocienv, C.OCI_DEFAULT|C.OCI_THREADED,
+			nil, nil, nil, nil, 0, nil)
+		if r == C.OCI_ERROR {
+			csMu.Unlock()
+			return nil, errNewF("Unable to create environment handle (Return code = %d).", r)
+		}
+		// http://docs.oracle.com/cd/B10501_01/server.920/a96529/ch8.htm#14284
+		csName := []byte("AL32UTF8\x00")
+		csIDAl32UTF8 = C.OCINlsCharSetNameToId(unsafe.Pointer(ocienv),
+			(*C.oratext)(&csName[0]))
+		C.OCIHandleFree(unsafe.Pointer(ocienv), C.OCI_HTYPE_ENV)
+	}
+	csMu.Unlock()
+
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
 	// OCI_OBJECT   - Uses object features such as OCINumber, OCINumberToInt, OCINumberFromInt. These are used in oracle-go type conversions.
 	r := C.OCIEnvNlsCreate(
 		&env.ocienv, //OCIEnv        **envhpp,
 		C.OCI_DEFAULT|C.OCI_OBJECT|C.OCI_THREADED, //ub4           mode,
-		nil, //void          *ctxp,
-		nil, //void          *(*malocfp)
-		nil, //void          *(*ralocfp)
-		nil, //void          (*mfreefp)
-		0,   //size_t        xtramemsz,
-		nil, //void          **usrmempp
-		0,   //ub2           charset,
-		0)   //ub2           ncharset );
+		nil,          //void          *ctxp,
+		nil,          //void          *(*malocfp)
+		nil,          //void          *(*ralocfp)
+		nil,          //void          (*mfreefp)
+		0,            //size_t        xtramemsz,
+		nil,          //void          **usrmempp
+		csIDAl32UTF8, //ub2           charset,
+		csIDAl32UTF8) //ub2           ncharset );
 	if r == C.OCI_ERROR {
 		return nil, errNewF("Unable to create environment handle (Return code = %d).", r)
 	}
