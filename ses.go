@@ -268,87 +268,114 @@ func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (*Rset, error) {
 //
 // Ins offers convenience when specifying a long list of sql columns.
 //
-// Specify hasReturning to true to generate a RETURNING clause with the last
-// column name-value pair. When specifying hasReturning as true the last value
-// is expected to be a pointer capable of receiving the Oracle column value.
-func (ses *Ses) Ins(tbl string, hasReturning bool, columnPairs ...interface{}) (err error) {
+// Ins expects at least two column name-value pairs where the last pair will be
+// a part of a sql RETURNING clause. The last column name is expected to be an
+// identity column returning an Oracle-generated value. The last value specified
+// to the variadic parameter 'columnPairs' is expected to be a pointer capable
+// of receiving the identity value.
+func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 	if tbl == "" {
 		return errNew("tbl is empty")
 	}
-	if len(columnPairs) == 0 {
-		return errNew("no column name-value pairs specified")
+	if len(columnPairs) < 2 {
+		return errNew("'columnPairs' expects at least 2 column name-value pairs")
 	}
 	if len(columnPairs)%2 != 0 {
 		return errNew("variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements")
 	}
-	if hasReturning && len(columnPairs) == 1 {
-		return errNew("len columnPairs must be greater than 1 when hasReturning is true.")
-	}
-	// build INSERT statement and params slice
+	// build INSERT statement, params slice
 	params := make([]interface{}, len(columnPairs)/2)
 	buf := new(bytes.Buffer)
 	buf.WriteString("INSERT INTO ")
 	buf.WriteString(tbl)
 	buf.WriteString(" (")
-	if hasReturning {
-		// returning clause
-		lastColName := ""
-		for p := 0; p < len(params); p++ {
-			n := p * 2
-			columnName, ok := columnPairs[n].(string)
-			if !ok {
-				return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
-			}
-			if p == len(params)-1 {
-				lastColName = columnName
-			} else {
-				buf.WriteString(columnName)
-				if p < len(params)-2 {
-					buf.WriteString(", ")
-				}
-			}
-			params[p] = columnPairs[n+1]
+	lastColName := ""
+	for p := 0; p < len(params); p++ {
+		n := p * 2
+		columnName, ok := columnPairs[n].(string)
+		if !ok {
+			return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
 		}
-		buf.WriteString(") VALUES (")
-		for n := 1; n < len(params); n++ {
-			buf.WriteString(fmt.Sprintf(":%v", n))
-			if n < len(params)-1 {
-				buf.WriteString(", ")
-			}
-		}
-		buf.WriteString(")")
-		buf.WriteString(" RETURNING ")
-		buf.WriteString(lastColName)
-		buf.WriteString(" INTO :RET_VAL")
-	} else {
-		// no returning clause
-		for p := 0; p < len(params); p++ {
-			n := p * 2
-			columnName, ok := columnPairs[n].(string)
-			if !ok {
-				return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
-			}
+		if p == len(params)-1 {
+			lastColName = columnName
+		} else {
 			buf.WriteString(columnName)
-			if p != len(params)-1 {
-				buf.WriteString(", ")
-			}
-			params[p] = columnPairs[n+1]
-		}
-		buf.WriteString(") VALUES (")
-		for n := 1; n <= len(params); n++ {
-			buf.WriteString(fmt.Sprintf(":%v", n))
-			if n != len(params) {
+			if p < len(params)-2 {
 				buf.WriteString(", ")
 			}
 		}
-		buf.WriteString(")")
+		params[p] = columnPairs[n+1]
 	}
+	buf.WriteString(") VALUES (")
+	for n := 1; n < len(params); n++ {
+		buf.WriteString(fmt.Sprintf(":%v", n))
+		if n < len(params)-1 {
+			buf.WriteString(", ")
+		}
+	}
+	buf.WriteString(")")
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(lastColName)
+	buf.WriteString(" INTO :RET_VAL")
 	// prep
 	stmt, err := ses.Prep(buf.String())
 	defer stmt.Close()
 	if err != nil {
 		return err
 	}
+	// exe
+	_, err = stmt.Exe(params...)
+	return err
+}
+
+// Upd composes, prepares and executes a sql UPDATE statement returning a
+// possible error.
+//
+// Upd offers convenience when specifying a long list of sql columns.
+func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
+	if tbl == "" {
+		return errNew("tbl is empty")
+	}
+	if len(columnPairs) < 2 {
+		return errNew("'columnPairs' expects at least 2 column name-value pairs")
+	}
+	if len(columnPairs)%2 != 0 {
+		return errNew("variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements")
+	}
+	// build UPDATE statement, params slice
+	params := make([]interface{}, len(columnPairs)/2)
+	buf := new(bytes.Buffer)
+	buf.WriteString("UPDATE ")
+	buf.WriteString(tbl)
+	buf.WriteString(" SET ")
+	lastColName := ""
+	for p := 0; p < len(params); p++ {
+		n := p * 2
+		columnName, ok := columnPairs[n].(string)
+		if !ok {
+			return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
+		}
+		if p == len(params)-1 {
+			lastColName = columnName
+		} else {
+			buf.WriteString(columnName)
+			buf.WriteString(fmt.Sprintf(" = :%v", p+1))
+			if p < len(params)-2 {
+				buf.WriteString(", ")
+			}
+		}
+		params[p] = columnPairs[n+1]
+	}
+	buf.WriteString(" WHERE ")
+	buf.WriteString(lastColName)
+	buf.WriteString(" = :WHERE_VAL")
+	// prep
+	stmt, err := ses.Prep(buf.String())
+	defer stmt.Close()
+	if err != nil {
+		return err
+	}
+	// exe
 	_, err = stmt.Exe(params...)
 	return err
 }
