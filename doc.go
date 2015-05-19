@@ -83,8 +83,8 @@ The ora package implements interfaces in the database/sql/driver package enablin
 database/sql to communicate with an Oracle database. Using database/sql
 ensures you never have to call the ora package directly.
 
-When using database/sql, the mapping between Go types and Oracle types is immutable.
-The Go-to-Oracle type mapping for database/sql is:
+When using database/sql, the mapping between Go types and Oracle types may not
+be changed. The Go-to-Oracle type mapping for database/sql is:
 
 	Go type		Oracle type
 
@@ -125,7 +125,7 @@ Oracle abstractions such as environment, server and session. When working with t
 ora package directly, the API is slightly different than database/sql.
 
 When using the ora package directly, the mapping between Go types and Oracle types
-is mutable. The Go-to-Oracle type mapping for the ora package is:
+may be changed. The Go-to-Oracle type mapping for the ora package is:
 
 	Go type				Oracle type
 
