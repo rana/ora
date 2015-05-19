@@ -24,7 +24,7 @@ type defBfile struct {
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
 	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,                   //OCIStmt     *stmtp,
+		def.rset.ocistmt,                        //OCIStmt     *stmtp,
 		&def.ocidef,                             //OCIDefine   **defnpp,
 		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
 		C.ub4(position),                         //ub4         position,
@@ -109,5 +109,5 @@ func (def *defBfile) close() (err error) {
 	def.ocidef = nil
 	def.ociLobLocator = nil
 	rset.putDef(defIdxBfile, def)
-return nil
+	return nil
 }

@@ -15,7 +15,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"sync"
 	"time"
 )
@@ -382,7 +381,7 @@ func GetDrv() *Drv {
 		var err error
 		_drv.sqlEnv, err = _drv.OpenEnv()
 		if err != nil {
-			glog.Errorln("GetDrv: ", err)
+			Log.Errorln("GetDrv: ", err)
 		}
 		_drv.sqlEnv.isSqlPkg = true
 		_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64
@@ -403,7 +402,7 @@ func (drv *Drv) OpenEnv() (*Env, error) {
 		drv.envId++
 		env.id = drv.envId
 	}
-	glog.Infof("OpenEnv %v", env.id)
+	Log.Infof("OpenEnv %v", env.id)
 
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
@@ -445,7 +444,7 @@ func (drv *Drv) OpenEnv() (*Env, error) {
 //
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
-	glog.Infoln("Open")
+	Log.Infoln("Open")
 	con, err := drv.sqlEnv.OpenCon(conStr)
 	if err != nil {
 		return nil, err

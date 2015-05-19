@@ -24,7 +24,7 @@ func (def *defInt16) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,            //OCIStmt     *stmtp,
+		def.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&def.ocidef,                      //OCIDefine   **defnpp,
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
 		C.ub4(position),                  //ub4         position,
@@ -93,5 +93,5 @@ func (def *defInt16) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	rset.putDef(defIdxInt16, def)
-return nil
+	return nil
 }

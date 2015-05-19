@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"github.com/golang/glog"
 	"strings"
 	"unsafe"
 )
@@ -69,11 +68,11 @@ func (ses *Ses) Close() (err error) {
 	if err := ses.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%v] Close", ses.srv.env.id, ses.srv.id, ses.id)
+	Log.Infof("E%vS%vS%v] Close", ses.srv.env.id, ses.srv.id, ses.id)
 	errs := ses.srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			glog.Errorln(recoverMsg(value))
+			Log.Errorln(recoverMsg(value))
 			errs.PushBack(errRecover(value))
 		}
 
@@ -158,7 +157,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	if err := ses.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%v] Prep: %v", ses.srv.env.id, ses.srv.id, ses.id, sql)
+	Log.Infof("E%vS%vS%v] Prep: %v", ses.srv.env.id, ses.srv.id, ses.id, sql)
 	// allocate statement handle
 	ocistmt, err := ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
 	if err != nil {
@@ -385,7 +384,7 @@ func (ses *Ses) StartTx() (*Tx, error) {
 	if err := ses.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%v] StartTx", ses.srv.env.id, ses.srv.id, ses.id)
+	Log.Infof("E%vS%vS%v] StartTx", ses.srv.env.id, ses.srv.id, ses.id)
 	// start transaction
 	// the number of seconds the transaction can be inactive
 	// before it is automatically terminated by the system.

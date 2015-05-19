@@ -97,5 +97,5 @@ func (bnd *bndUint8Slice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.ociNumbers = nil
 	stmt.putBnd(bndIdxUint8Slice, bnd)
-return nil
+	return nil
 }

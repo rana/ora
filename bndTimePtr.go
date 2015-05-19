@@ -84,5 +84,5 @@ func (bnd *bndTimePtr) close() (err error) {
 	bnd.ociDateTime = nil
 	bnd.value = nil
 	stmt.putBnd(bndIdxTimePtr, bnd)
-return nil
+	return nil
 }

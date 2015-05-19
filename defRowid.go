@@ -73,5 +73,5 @@ func (def *defRowid) close() (err error) {
 	def.ocidef = nil
 	clear(def.buf, 32)
 	rset.putDef(defIdxRowid, def)
-return nil
+	return nil
 }

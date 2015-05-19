@@ -4,10 +4,7 @@
 
 package ora
 
-import (
-	"database/sql/driver"
-	"github.com/golang/glog"
-)
+import "database/sql/driver"
 
 // DrvStmt is an Oracle statement associated with a session.
 //
@@ -33,7 +30,7 @@ func (ds *DrvStmt) Close() error {
 	if err := ds.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%vS%v] Close", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
+	Log.Infof("E%vS%vS%vS%v] Close", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	return ds.stmt.Close()
 }
 
@@ -55,7 +52,7 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 	if err := ds.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%vS%v] Exec", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
+	Log.Infof("E%vS%vS%vS%v] Exec", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
 	for n, _ := range values {
 		params[n] = values[n]
@@ -77,7 +74,7 @@ func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
 	if err := ds.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%vS%vS%v] Query", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
+	Log.Infof("E%vS%vS%vS%v] Query", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
 	for n, _ := range values {
 		params[n] = values[n]
