@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 	"unsafe"
-
-	"github.com/golang/glog"
 )
 
 // Stmt is an Oracle statement associated with a session.

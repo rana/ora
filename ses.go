@@ -15,8 +15,6 @@ import (
 	"fmt"
 	"strings"
 	"unsafe"
-
-	"github.com/golang/glog"
 )
 
 // Ses is an Oracle session associated with a server.

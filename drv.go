@@ -18,8 +18,6 @@ import (
 	"sync"
 	"time"
 	"unsafe"
-
-	"github.com/golang/glog"
 )
 
 var _drv *Drv
