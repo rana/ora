@@ -12,7 +12,6 @@ import "C"
 import (
 	"container/list"
 	"fmt"
-	"github.com/golang/glog"
 	"unsafe"
 )
 
@@ -23,11 +22,11 @@ type Srv struct {
 	ocisvcctx *C.OCISvcCtx
 	ocisrv    *C.OCIServer
 
-	sesId      uint64
-	sess       *list.List
-	elem       *list.Element
+	sesId   uint64
+	sess    *list.List
+	elem    *list.Element
 	stmtCfg StmtCfg
-	dbname     string
+	dbname  string
 }
 
 // NumSes returns the number of open Oracle sessions.
@@ -61,11 +60,11 @@ func (srv *Srv) Close() (err error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%v] Close", srv.env.id, srv.id)
+	Log.Infof("E%vS%v] Close", srv.env.id, srv.id)
 	errs := srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			glog.Errorln(recoverMsg(value))
+			Log.Errorln(recoverMsg(value))
 			errs.PushBack(errRecover(value))
 		}
 
@@ -111,7 +110,7 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vS%v] OpenSes (username %v)", srv.env.id, srv.id, username)
+	Log.Infof("E%vS%v] OpenSes (username %v)", srv.env.id, srv.id, username)
 	// allocate session handle
 	ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
 	if err != nil {
@@ -179,7 +178,7 @@ func (srv *Srv) Ping() error {
 	if err := srv.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%v] Ping", srv.env.id, srv.id)
+	Log.Infof("E%vS%v] Ping", srv.env.id, srv.id)
 	r := C.OCIPing(
 		srv.ocisvcctx,  //OCISvcCtx     *svchp,
 		srv.env.ocierr, //OCIError      *errhp,
@@ -197,7 +196,7 @@ func (srv *Srv) Version() (string, error) {
 	if err := srv.checkIsOpen(); err != nil {
 		return "", err
 	}
-	glog.Infof("E%vS%v] Version", srv.env.id, srv.id)
+	Log.Infof("E%vS%v] Version", srv.env.id, srv.id)
 	var buf [512]C.char
 	r := C.OCIServerVersion(
 		unsafe.Pointer(srv.ocisrv),            //void         *hndlp,

@@ -79,5 +79,5 @@ func (bnd *bndRset) close() (err error) {
 	bnd.ocistmt = nil
 	bnd.value = nil
 	stmt.putBnd(bndIdxRset, bnd)
-return nil
+	return nil
 }

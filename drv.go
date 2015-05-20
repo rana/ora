@@ -384,7 +384,7 @@ func GetDrv() *Drv {
 		var err error
 		_drv.sqlEnv, err = _drv.OpenEnv()
 		if err != nil {
-			glog.Errorln("GetDrv: ", err)
+			Log.Errorln("GetDrv: ", err)
 		}
 		_drv.sqlEnv.isSqlPkg = true
 		_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64
@@ -410,7 +410,7 @@ func (drv *Drv) OpenEnv() (*Env, error) {
 		drv.envId++
 		env.id = drv.envId
 	}
-	glog.Infof("OpenEnv %v", env.id)
+	Log.Infof("OpenEnv %v", env.id)
 
 	csMu.Lock()
 	if csIDAl32UTF8 == 0 {
@@ -470,7 +470,7 @@ func (drv *Drv) OpenEnv() (*Env, error) {
 //
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
-	glog.Infoln("Open")
+	Log.Infoln("Open")
 	con, err := drv.sqlEnv.OpenCon(conStr)
 	if err != nil {
 		return nil, err

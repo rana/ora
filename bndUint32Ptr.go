@@ -70,5 +70,5 @@ func (bnd *bndUint32Ptr) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.value = nil
 	stmt.putBnd(bndIdxUint32Ptr, bnd)
-return nil
+	return nil
 }

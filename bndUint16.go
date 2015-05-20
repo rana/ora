@@ -64,5 +64,5 @@ func (bnd *bndUint16) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	stmt.putBnd(bndIdxUint16, bnd)
-return nil
+	return nil
 }

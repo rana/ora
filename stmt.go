@@ -77,11 +77,11 @@ func (stmt *Stmt) Close() (err error) {
 	if err := stmt.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%vS%v] Close", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
+	Log.Infof("E%vS%vS%vS%v] Close", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
 	errs := stmt.ses.srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			glog.Errorln(recoverMsg(value))
+			Log.Errorln(recoverMsg(value))
 			errs.PushBack(errRecover(value))
 		}
 

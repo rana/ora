@@ -56,5 +56,5 @@ func (bnd *bndNil) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	stmt.putBnd(bndIdxNil, bnd)
-return nil
+	return nil
 }

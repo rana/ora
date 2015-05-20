@@ -24,7 +24,7 @@ func (def *defFloat32) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,            //OCIStmt     *stmtp,
+		def.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&def.ocidef,                      //OCIDefine   **defnpp,
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
 		C.ub4(position),                  //ub4         position,

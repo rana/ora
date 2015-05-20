@@ -7,7 +7,6 @@ package ora
 import (
 	"container/list"
 	"database/sql/driver"
-	"github.com/golang/glog"
 )
 
 // Con is an Oracle connection associated with a server and session.
@@ -47,10 +46,10 @@ func (con *Con) Close() (err error) {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vC%v] Close", con.env.id, con.id)
+	Log.Infof("E%vC%v] Close", con.env.id, con.id)
 	defer func() {
 		if value := recover(); value != nil {
-			glog.Errorln(recoverMsg(value))
+			Log.Errorln(recoverMsg(value))
 			err = errRecover(value)
 		}
 
@@ -79,7 +78,7 @@ func (con *Con) Prepare(sql string) (driver.Stmt, error) {
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vC%v] Prepare", con.env.id, con.id)
+	Log.Infof("E%vC%v] Prepare", con.env.id, con.id)
 	stmt, err := con.ses.Prep(sql)
 	if err != nil {
 		return nil, err
@@ -94,7 +93,7 @@ func (con *Con) Begin() (driver.Tx, error) {
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%vC%v] Begin", con.env.id, con.id)
+	Log.Infof("E%vC%v] Begin", con.env.id, con.id)
 	tx, err := con.ses.StartTx()
 	if err != nil {
 		return nil, err
@@ -107,6 +106,6 @@ func (con *Con) Ping() error {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vC%v] Ping", con.env.id, con.id)
+	Log.Infof("E%vC%v] Ping", con.env.id, con.id)
 	return con.srv.Ping()
 }

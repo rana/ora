@@ -12,7 +12,6 @@ import "C"
 import (
 	"container/list"
 	"fmt"
-	"github.com/golang/glog"
 	"strings"
 	"unsafe"
 )
@@ -66,11 +65,11 @@ func (env *Env) Close() (err error) {
 	if err := env.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%v] Close", env.id)
+	Log.Infof("E%v] Close", env.id)
 	errs := env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			glog.Errorln(recoverMsg(value))
+			Log.Errorln(recoverMsg(value))
 			errs.PushBack(errRecover(value))
 		}
 
@@ -113,7 +112,7 @@ func (env *Env) OpenSrv(dbname string) (*Srv, error) {
 	if err := env.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%v] OpenSrv (dbname %v)", env.id, dbname)
+	Log.Infof("E%v] OpenSrv (dbname %v)", env.id, dbname)
 	// allocate server handle
 	ocisrv, err := env.allocOciHandle(C.OCI_HTYPE_SERVER)
 	if err != nil {
@@ -148,7 +147,7 @@ func (env *Env) OpenSrv(dbname string) (*Srv, error) {
 		env.srvId++
 		srv.id = env.srvId
 	}
-	glog.Infof("E%v] OpenSrv (srvId %v)", env.id, srv.id)
+	Log.Infof("E%v] OpenSrv (srvId %v)", env.id, srv.id)
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
@@ -168,7 +167,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	if err := env.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	glog.Infof("E%v] OpenCon", env.id)
+	Log.Infof("E%v] OpenCon", env.id)
 	// parse connection string
 	var username string
 	var password string
@@ -177,7 +176,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	str = strings.Replace(str, "/", " / ", 1)
 	str = strings.Replace(str, "@", " @ ", 1)
 	_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
-	glog.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
+	Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +196,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 		env.conId++
 		con.id = env.conId
 	}
-	glog.Infof("E%v] OpenCon (conId %v)", env.id, con.id)
+	Log.Infof("E%v] OpenCon (conId %v)", env.id, con.id)
 	con.env = env
 	con.srv = srv
 	con.ses = ses

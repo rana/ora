@@ -10,7 +10,6 @@ package ora
 import "C"
 import (
 	"container/list"
-	"github.com/golang/glog"
 	"io"
 	"unsafe"
 )
@@ -55,7 +54,7 @@ func (rset *Rset) close() (err error) {
 	if err := rset.checkIsOpen(); err != nil {
 		return err
 	}
-	glog.Infof("E%vS%vS%vS%vR%v] close", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
+	Log.Infof("E%vS%vS%vS%vR%v] close", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
 	errs := rset.stmt.ses.srv.env.drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -203,7 +202,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.ocistmt = ocistmt
 	rset.Index = -1
 	rset.Err = nil
-	glog.Infof("E%vS%vS%vS%vR%v] open", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
+	Log.Infof("E%vS%vS%vS%vR%v] open", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
 		rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
