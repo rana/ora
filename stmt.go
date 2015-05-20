@@ -11,11 +11,12 @@ package ora
 import "C"
 import (
 	"container/list"
-	"github.com/golang/glog"
 	"reflect"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/golang/glog"
 )
 
 // Stmt is an Oracle statement associated with a session.
@@ -51,6 +52,9 @@ func (stmt *Stmt) NumInput() int {
 
 // checkIsOpen validates that the statement is open.
 func (stmt *Stmt) checkIsOpen() error {
+	if stmt == nil {
+		return errNew("Stmt is not initialized")
+	}
 	if !stmt.IsOpen() {
 		return errNewF("Stmt is closed (id %v)", stmt.id)
 	}
