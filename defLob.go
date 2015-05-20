@@ -12,6 +12,8 @@ import (
 	"unsafe"
 )
 
+const lobChunkSize = 1 << 24
+
 type defLob struct {
 	rset          *Rset
 	ocidef        *C.OCIDefine
@@ -69,7 +71,7 @@ func (def *defLob) Bytes() (value []byte, err error) {
 		// Allocate []byte the length of the lob
 		value = make([]byte, int(lobLength))
 		// buffer is size of ora.LobBufferSize
-		var buffer [1 << 24]byte
+		var buffer [lobChunkSize]byte
 		var writeIndex int
 		var byte_amtp C.oraub8 = lobLength
 		var piece C.ub1 = C.OCI_FIRST_PIECE
@@ -95,10 +97,9 @@ func (def *defLob) Bytes() (value []byte, err error) {
 			} else {
 				// Write buffer to return slice
 				// byte_amtp represents the amount copied into buffer by oci
-				for n := 0; n < int(byte_amtp); n++ {
-					value[writeIndex] = buffer[n]
-					writeIndex++
-				}
+				copy(value[writeIndex:], buffer[:int(byte_amtp)])
+				writeIndex += int(byte_amtp)
+
 				// Determine action for next cycle
 				if r == C.OCI_NEED_DATA {
 					piece = C.OCI_NEXT_PIECE
