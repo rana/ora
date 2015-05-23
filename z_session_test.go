@@ -98,8 +98,8 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 	}
 }
 
-func TestSession_PrepAndExec(t *testing.T) {
-	rowsAffected, err := testSes.PrepAndExec(fmt.Sprintf("create table %v (c1 number)", tableName()))
+func TestSession_PrepAndExe(t *testing.T) {
+	rowsAffected, err := testSes.PrepAndExe(fmt.Sprintf("create table %v (c1 number)", tableName()))
 	testErr(err, t)
 
 	if rowsAffected != 0 {
@@ -107,7 +107,7 @@ func TestSession_PrepAndExec(t *testing.T) {
 	}
 }
 
-func TestSession_PrepAndExec_Insert(t *testing.T) {
+func TestSession_PrepAndExe_Insert(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -116,7 +116,7 @@ func TestSession_PrepAndExec_Insert(t *testing.T) {
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	rowsAffected, err := testSes.PrepAndExec(fmt.Sprintf("INSERT INTO %v (C1) VALUES (:C1)", tableName), values)
+	rowsAffected, err := testSes.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (:C1)", tableName), values)
 	testErr(err, t)
 
 	if rowsAffected != 1000000 {

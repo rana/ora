@@ -418,7 +418,7 @@ Slices may be used to insert multiple records with a single insert statement:
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
-	rowsAffected, err := ses.PrepAndExec("INSERT INTO T1 (C1) VALUES (:C1)", values)
+	rowsAffected, err := ses.PrepAndExe("INSERT INTO T1 (C1) VALUES (:C1)", values)
 
 The ora package provides nullable Go types to support DML operations such as
 insert and select. The nullable Go types provided by the ora package are Int64,

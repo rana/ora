@@ -122,9 +122,9 @@ func (ses *Ses) Close() (err error) {
 	return err
 }
 
-// PrepAndExec prepares and executes a SQL statement returning the number of rows
+// PrepAndExe prepares and executes a SQL statement returning the number of rows
 // affected and a possible error.
-func (ses *Ses) PrepAndExec(sql string, params ...interface{}) (uint64, error) {
+func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (uint64, error) {
 	stmt, err := ses.Prep(sql)
 	defer stmt.Close()
 	if err != nil {
