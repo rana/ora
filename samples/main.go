@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err := stmtTbl.Exec()
+	rowsAffected, err := stmtTbl.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +52,7 @@ func main() {
 	stmtIns, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v (C2) VALUES (:C2) RETURNING C1 INTO :C1", tableName))
 	defer stmtIns.Close()
-	rowsAffected, err = stmtIns.Exec(str, &id)
+	rowsAffected, err = stmtIns.Exe(str, &id)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +70,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Exec(a)
+	rowsAffected, err = stmtSliceIns.Exe(a)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +83,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rset, err := stmtQuery.Query()
+	rset, err := stmtQuery.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -113,7 +113,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtTrans.Exec(nullableStr)
+	rowsAffected, err = stmtTrans.Exe(nullableStr)
 	if err != nil {
 		panic(err)
 	}
@@ -131,7 +131,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rset, err = stmtCount.Query()
+	rset, err = stmtCount.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +150,7 @@ func main() {
 			"END PROC1;",
 		tableName))
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Exec()
+	rowsAffected, err = stmtProcCreate.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -163,7 +163,7 @@ func main() {
 		panic(err)
 	}
 	procRset := &ora.Rset{}
-	rowsAffected, err = stmtProcCall.Exec(procRset)
+	rowsAffected, err = stmtProcCall.Exe(procRset)
 	if err != nil {
 		panic(err)
 	}
