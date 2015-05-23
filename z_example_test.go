@@ -132,7 +132,7 @@ func ExampleDrvStmt_Exec_Query() {
 //	// Output: go
 //}
 
-func ExampleStmt_Exec_insert() {
+func ExampleStmt_Exe_insert() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -156,7 +156,7 @@ func ExampleStmt_Exec_insert() {
 	// Output: 1
 }
 
-func ExampleStmt_Exec_insert_return_identity() {
+func ExampleStmt_Exe_insert_return_identity() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -181,7 +181,7 @@ func ExampleStmt_Exec_insert_return_identity() {
 	// Output: 1
 }
 
-func ExampleStmt_Exec_insert_return_rowid() {
+func ExampleStmt_Exe_insert_return_rowid() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -208,7 +208,7 @@ func ExampleStmt_Exec_insert_return_rowid() {
 	// Output: Retrieved rowid
 }
 
-func ExampleStmt_Exec_insert_fetch_bool() {
+func ExampleStmt_Exe_insert_fetch_bool() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -244,7 +244,7 @@ func ExampleStmt_Exec_insert_fetch_bool() {
 	// Output: false true
 }
 
-func ExampleStmt_Exec_insert_fetch_bool_alternate() {
+func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -286,7 +286,7 @@ func ExampleStmt_Exec_insert_fetch_bool_alternate() {
 	// Output: false true
 }
 
-func ExampleStmt_Exec_update() {
+func ExampleStmt_Exe_update() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -315,7 +315,7 @@ func ExampleStmt_Exec_update() {
 	// Output: 1
 }
 
-func ExampleStmt_Exec_delete() {
+func ExampleStmt_Exe_delete() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -343,7 +343,7 @@ func ExampleStmt_Exec_delete() {
 	// Output: 1
 }
 
-func ExampleStmt_Exec_insert_slice() {
+func ExampleStmt_Exe_insert_slice() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -370,7 +370,7 @@ func ExampleStmt_Exec_insert_slice() {
 	// Output: 1000000
 }
 
-func ExampleStmt_Exec_insert_nullable() {
+func ExampleStmt_Exe_insert_nullable() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -397,7 +397,7 @@ func ExampleStmt_Exec_insert_nullable() {
 	// Output: 1
 }
 
-func ExampleStmt_Exec_insert_fetch_blob() {
+func ExampleStmt_Exe_insert_fetch_blob() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -436,7 +436,7 @@ func ExampleStmt_Exec_insert_fetch_blob() {
 	// [0 1 2 3 4 5 6 7 8 9]
 }
 
-func ExampleStmt_Exec_insert_fetch_byteSlice() {
+func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -478,7 +478,7 @@ func ExampleStmt_Exec_insert_fetch_byteSlice() {
 	// 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 }
 
-func ExampleStmt_Query() {
+func ExampleStmt_Qry() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -515,7 +515,7 @@ func ExampleStmt_Query() {
 	// Output: 3 slice false, 7 map true, 9 channel true,
 }
 
-func ExampleStmt_Query_nullable() {
+func ExampleStmt_Qry_nullable() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -553,7 +553,7 @@ func ExampleStmt_Query_nullable() {
 	// Output: {true 0} {false slice} {false false}, {false 7} {true } {false true}, {false 9} {false channel} {true false},
 }
 
-func ExampleStmt_Query_numerics() {
+func ExampleStmt_Qry_numerics() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -1624,13 +1624,13 @@ func ExampleDriver_usage() {
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtQuery, err := ses.Prep(fmt.Sprintf(
+	stmtQry, err := ses.Prep(fmt.Sprintf(
 		"SELECT C1, C2 FROM %v", tableName))
-	defer stmtQuery.Close()
+	defer stmtQry.Close()
 	if err != nil {
 		panic(err)
 	}
-	rset, err := stmtQuery.Qry()
+	rset, err := stmtQry.Qry()
 	if err != nil {
 		panic(err)
 	}

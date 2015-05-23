@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestStmt_Exec_table_create_alter_drop(t *testing.T) {
+func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
 	tableName := tableName()
 
 	// create table
@@ -34,7 +34,7 @@ func TestStmt_Exec_table_create_alter_drop(t *testing.T) {
 	testErr(err, t)
 }
 
-func TestStmt_Exec_insert(t *testing.T) {
+func TestStmt_Exe_insert(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -49,7 +49,7 @@ func TestStmt_Exec_insert(t *testing.T) {
 	}
 }
 
-func TestStmt_Exec_update(t *testing.T) {
+func TestStmt_Exe_update(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -74,7 +74,7 @@ func TestStmt_Exec_update(t *testing.T) {
 	}
 }
 
-func TestStmt_Exec_delete(t *testing.T) {
+func TestStmt_Exe_delete(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -99,7 +99,7 @@ func TestStmt_Exec_delete(t *testing.T) {
 	}
 }
 
-func TestStmt_Exec_select(t *testing.T) {
+func TestStmt_Exe_select(t *testing.T) {
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 

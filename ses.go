@@ -136,7 +136,7 @@ func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (uint64, error) {
 // PrepAndQry prepares a SQL statement and queries an Oracle server returning
 // an *Rset and a possible error.
 //
-// If an error occurs during Prep or Query a nil *Rset will be returned.
+// If an error occurs during Prep or Qry a nil *Rset will be returned.
 //
 // The *Stmt internal to this method is automatically closed when the *Rset
 // retrieves all rows or returns an error.

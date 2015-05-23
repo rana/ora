@@ -77,13 +77,13 @@ func main() {
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtQuery, err := ses.Prep(fmt.Sprintf(
+	stmtQry, err := ses.Prep(fmt.Sprintf(
 		"SELECT C1, C2 FROM %v", tableName))
-	defer stmtQuery.Close()
+	defer stmtQry.Close()
 	if err != nil {
 		panic(err)
 	}
-	rset, err := stmtQuery.Qry()
+	rset, err := stmtQry.Qry()
 	if err != nil {
 		panic(err)
 	}

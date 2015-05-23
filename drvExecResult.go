@@ -20,7 +20,7 @@ type DrvExecResult struct {
 //
 // There are two setup steps required to reteive the LastInsertId.
 // One, specify a 'returning into' clause in the SQL insert statement.
-// And, two, specify a nil parameter to DB.Exec or Stmt.Exec.
+// And, two, specify a nil parameter to DB.Exec or DrvStmt.Exec.
 //
 // For example:
 //	db, err := sql.Open("ora", "scott/tiger@orcl")

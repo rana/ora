@@ -6,8 +6,8 @@ package ora
 
 // StmtCfg affects various aspects of a SQL statement.
 //
-// Assign values to StmtCfg prior to calling Stmt.Exec
-// and Stmt.Query for the configuration values to take effect.
+// Assign values to StmtCfg prior to calling Stmt.Exe
+// and Stmt.Qry for the configuration values to take effect.
 type StmtCfg struct {
 	prefetchRowCount    uint32
 	prefetchMemorySize  uint32
