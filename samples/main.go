@@ -156,7 +156,7 @@ func main() {
 	}
 
 	// call stored procedure
-	// pass *Rset to Exec to receive the results of a sys_refcursor
+	// pass *Rset to Exe to receive the results of a sys_refcursor
 	stmtProcCall, err := ses.Prep("CALL PROC1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
