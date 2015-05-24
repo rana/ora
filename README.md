@@ -939,8 +939,25 @@ Further code examples are available in the [example file](https://github.com/ran
 
 ##### Logging #####
 
-The ora package uses the Go log package to write to os.Stderr by default. A
-sample of the default ora logging looks like:
+The ora package provides a simple ora.Logger interface for logging. Logging is
+disabled by default. Specify one of three optional built-in logging packages to
+enable logging. Or, use your own logging package.
+
+To use the standard Go log package:
+
+```go
+import (
+  "github.com/ranaian/ora"
+  "github.com/ranaian/ora/lg"
+)
+
+func main() {
+  // use the optional log package for ora logging
+  ora.Log = lg.Log
+}
+```
+
+which produces a sample log of:
 
 	ORA I 2015/05/23 16:54:44.615462 drv.go:411: OpenEnv 1
 	ORA I 2015/05/23 16:54:44.626443 drv.go:411: OpenEnv 2
@@ -955,14 +972,11 @@ sample of the default ora logging looks like:
 	ORA I 2015/05/23 16:54:44.666451 srv.go:63: E2S1] Close
 	ORA I 2015/05/23 16:54:44.667451 env.go:68: E2] Close
 
-Default logging statements are prefixed with 'ORA I' for information or 'ORA E'
-for an error.
+Messages are prefixed with 'ORA I' for information or 'ORA E'
+for an error. The log package is configured to write to os.Stderr by default.
+Use the ora/lg.Std type to configure an alternative io.Writer. [Sample code](https://github.com/ranaian/ora/tree/master/samples/lg/main.go) using the log package is available.
 
-A simple ora.Logger interface is available to plug-in a logging package of your
-choice. Currently, the optional [glog](https://github.com/golang/glog) package and the optional [log15](http://gopkg.in/inconshreveable/log15.v2) package have
-built-in support.
-
-To use the optional [glog](https://github.com/golang/glog) package:
+To use the [glog](https://github.com/golang/glog) package:
 
 ```go
 import (
@@ -977,7 +991,7 @@ func main() {
 	// consider specifying cmd line arg -alsologtostderr=true
 	flag.Parse()
 
-	// use the optional glog package for ora logging
+	// use the glog package for ora logging
 	ora.Log = glg.Log
 }
 ```
@@ -997,9 +1011,9 @@ which produces a sample log of:
 	I0523 17:31:41.763365   97708 srv.go:63] E2S1] Close
 	I0523 17:31:41.763365   97708 env.go:68] E2] Close
 
-See [sample code](https://github.com/ranaian/ora/blob/master/samples/glg/main.go) which uses [glog](https://github.com/golang/glog).
+[Sample code](https://github.com/ranaian/ora/blob/master/samples/glg/main.go) using the [glog](https://github.com/golang/glog) package is available.
 
-To use the optional [log15](http://gopkg.in/inconshreveable/log15.v2) package:
+To use the [log15](http://gopkg.in/inconshreveable/log15.v2) package:
 
 ```go
 import (
@@ -1007,7 +1021,7 @@ import (
 	"github.com/ranaian/ora/lg15"
 )
 func main() {
-	// use the optional log15 package for logging
+	// use the optional log15 package for ora logging
 	ora.Log = lg15.Log
 }
 ```
@@ -1027,7 +1041,7 @@ which produces a sample log of:
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1] Close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2] Close" lib=ora
 
-See [sample code](https://github.com/ranaian/ora/blob/master/samples/lg15/main.go) which uses [log15](http://gopkg.in/inconshreveable/log15.v2).
+[Sample code](https://github.com/ranaian/ora/blob/master/samples/lg15/main.go) using the [log15](http://gopkg.in/inconshreveable/log15.v2) package is available.
 
 ##### Test Database Setup #####
 

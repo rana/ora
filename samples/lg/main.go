@@ -26,7 +26,7 @@ import (
 //
 func main() {
 
-	// use the optional lg package for ora logging
+	// use the optional log package for ora logging
 	ora.Log = lg.Log
 
 	env, err := ora.GetDrv().OpenEnv()
