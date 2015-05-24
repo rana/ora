@@ -4,13 +4,24 @@
 
 package glg
 
-import "github.com/golang/glog"
+import (
+	"fmt"
+	"github.com/golang/glog"
+)
 
 var Log = gLogger{}
 
 type gLogger struct{}
 
-func (s gLogger) Infof(format string, args ...interface{})  { glog.Infof(format, args...) }
-func (s gLogger) Infoln(args ...interface{})                { glog.Infoln(args...) }
-func (s gLogger) Errorf(format string, args ...interface{}) { glog.Errorf(format, args...) }
-func (s gLogger) Errorln(args ...interface{})               { glog.Errorln(args...) }
+func (s gLogger) Infof(format string, v ...interface{}) {
+	glog.InfoDepth(2, fmt.Sprintf(format, v...))
+}
+func (s gLogger) Infoln(v ...interface{}) {
+	glog.InfoDepth(2, v...)
+}
+func (s gLogger) Errorf(format string, v ...interface{}) {
+	glog.ErrorDepth(2, fmt.Sprintf(format, v...))
+}
+func (s gLogger) Errorln(v ...interface{}) {
+	glog.ErrorDepth(2, v...)
+}
