@@ -220,8 +220,11 @@ import (
 func main() {
 	// example usage of the ora package driver
 	// connect to a server and open a session
-	env, _ := ora.GetDrv().OpenEnv()
+	env, err := ora.GetDrv().OpenEnv()
 	defer env.Close()
+	if err != nil {
+		panic(err)
+	}
 	srv, err := env.OpenSrv("orcl")
 	defer srv.Close()
 	if err != nil {
@@ -242,7 +245,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err := stmtTbl.Exec()
+	rowsAffected, err := stmtTbl.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -260,7 +263,7 @@ func main() {
 	stmtIns, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v (C2) VALUES (:C2) RETURNING C1 INTO :C1", tableName))
 	defer stmtIns.Close()
-	rowsAffected, err = stmtIns.Exec(str, &id)
+	rowsAffected, err = stmtIns.Exe(str, &id)
 	if err != nil {
 		panic(err)
 	}
@@ -278,20 +281,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Exec(a)
+	rowsAffected, err = stmtSliceIns.Exe(a)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmtQuery, err := ses.Prep(fmt.Sprintf(
+	stmtQry, err := ses.Prep(fmt.Sprintf(
 		"SELECT C1, C2 FROM %v", tableName))
-	defer stmtQuery.Close()
+	defer stmtQry.Close()
 	if err != nil {
 		panic(err)
 	}
-	rset, err := stmtQuery.Query()
+	rset, err := stmtQry.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -321,7 +324,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtTrans.Exec(nullableStr)
+	rowsAffected, err = stmtTrans.Exe(nullableStr)
 	if err != nil {
 		panic(err)
 	}
@@ -339,7 +342,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rset, err = stmtCount.Query()
+	rset, err = stmtCount.Qry()
 	if err != nil {
 		panic(err)
 	}
@@ -358,20 +361,20 @@ func main() {
 			"END PROC1;",
 		tableName))
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Exec()
+	rowsAffected, err = stmtProcCreate.Exe()
 	if err != nil {
 		panic(err)
 	}
 
 	// call stored procedure
-	// pass *Rset to Exec to receive the results of a sys_refcursor
+	// pass *Rset to Exe to receive the results of a sys_refcursor
 	stmtProcCall, err := ses.Prep("CALL PROC1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
 	}
 	procRset := &ora.Rset{}
-	rowsAffected, err = stmtProcCall.Exec(procRset)
+	rowsAffected, err = stmtProcCall.Exe(procRset)
 	if err != nil {
 		panic(err)
 	}
