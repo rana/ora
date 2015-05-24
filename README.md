@@ -2,8 +2,8 @@
 
 Package ora implements an Oracle database driver for the Go programming language.
 
-An Oracle database may be accessed through the database/sql package or through the
-ora package directly. database/sql offers connection pooling, thread safety,
+An Oracle database may be accessed through the [database/sql](http://golang.org/pkg/database/sql/) package or through the
+ora package directly. [database/sql](http://golang.org/pkg/database/sql/) offers connection pooling, thread safety,
 a consistent API to multiple database technologies and a common set of Go types.
 The ora package offers additional features including pointers, slices, nullable
 types, numerics of various sizes, Oracle-specific types, Go return type configuration,
@@ -70,7 +70,7 @@ rune to a CHAR(1 BYTE) column or CHAR(1 CHAR) column.
 
 The default `false` rune is zero `0`. The default `true` rune is one `1`. The `bool` rune
 association may be configured or disabled when directly using the ora package
-but not with the database/sql package.
+but not with the [database/sql](http://golang.org/pkg/database/sql/) package.
 
 ##### SQL Placeholder Syntax #####
 
@@ -87,17 +87,17 @@ treated equally.
 
 ##### Working With The Sql Package #####
 
-You may access an Oracle database through the database/sql package. The database/sql
+You may access an Oracle database through the [database/sql](http://golang.org/pkg/database/sql/) package. The [database/sql](http://golang.org/pkg/database/sql/)
 package offers a consistent API across different databases, connection
-pooling, thread safety and a set of common Go types. database/sql makes working
+pooling, thread safety and a set of common Go types. [database/sql](http://golang.org/pkg/database/sql/) makes working
 with Oracle straight-forward.
 
-The ora package implements interfaces in the database/sql/driver package enabling
-database/sql to communicate with an Oracle database. Using database/sql
+The ora package implements interfaces in the [database/sql/driver](http://golang.org/pkg/database/sql/driver/) package enabling
+[database/sql](http://golang.org/pkg/database/sql/) to communicate with an Oracle database. Using [database/sql](http://golang.org/pkg/database/sql/)
 ensures you never have to call the ora package directly.
 
-When using database/sql, the mapping between Go types and Oracle types may not
-be changed. The Go-to-Oracle type mapping for database/sql is:
+When using [database/sql](http://golang.org/pkg/database/sql/), the mapping between Go types and Oracle types may not
+be changed. The Go-to-Oracle type mapping for [database/sql](http://golang.org/pkg/database/sql/) is:
 
 	Go type		Oracle type
 
@@ -135,7 +135,7 @@ be changed. The Go-to-Oracle type mapping for database/sql is:
 The ora package allows programming with pointers, slices, nullable types,
 numerics of various sizes, Oracle-specific types, Go return type configuration, and
 Oracle abstractions such as environment, server and session. When working with the
-ora package directly, the API is slightly different than database/sql.
+ora package directly, the API is slightly different than [database/sql](http://golang.org/pkg/database/sql/).
 
 When using the ora package directly, the mapping between Go types and Oracle types
 may be changed. The Go-to-Oracle type mapping for the ora package is:
@@ -1026,7 +1026,7 @@ Run the tests.
 
 ##### Limitations #####
 
-database/sql method `Stmt.QueryRow` is not supported.
+[database/sql](http://golang.org/pkg/database/sql/) method `Stmt.QueryRow` is not supported.
 
 ##### License #####
 
