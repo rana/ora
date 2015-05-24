@@ -22,6 +22,7 @@ Windows 8.1 and AMD64.
 * [SQL Placeholder Syntax](https://github.com/ranaian/ora#sql-placeholder-syntax)
 * [Working With The Sql Package](https://github.com/ranaian/ora#working-with-the-sql-package)
 * [Working With The Oracle Package Directly](https://github.com/ranaian/ora#working-with-the-oracle-package-directly)
+* [Logging](https://github.com/ranaian/ora#logging)
 * [Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
 * [Limitations](https://github.com/ranaian/ora#limitations)
 * [License](https://github.com/ranaian/ora#license)
