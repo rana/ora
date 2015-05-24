@@ -9,19 +9,19 @@ import (
 	"github.com/golang/glog"
 )
 
-var Log = gLogger{}
+var Log = gLgr{}
 
-type gLogger struct{}
+type gLgr struct{}
 
-func (s gLogger) Infof(format string, v ...interface{}) {
+func (l gLgr) Infof(format string, v ...interface{}) {
 	glog.InfoDepth(2, fmt.Sprintf(format, v...))
 }
-func (s gLogger) Infoln(v ...interface{}) {
+func (l gLgr) Infoln(v ...interface{}) {
 	glog.InfoDepth(2, v...)
 }
-func (s gLogger) Errorf(format string, v ...interface{}) {
+func (l gLgr) Errorf(format string, v ...interface{}) {
 	glog.ErrorDepth(2, fmt.Sprintf(format, v...))
 }
-func (s gLogger) Errorln(v ...interface{}) {
+func (l gLgr) Errorln(v ...interface{}) {
 	glog.ErrorDepth(2, v...)
 }
