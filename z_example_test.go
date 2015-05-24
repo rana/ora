@@ -767,7 +767,7 @@ func ExampleRset_cursor_multiple() {
 	// Its concurrency mechanisms make it easy to
 }
 
-func ExampleServer_Ping() {
+func ExampleSrv_Ping() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -780,12 +780,12 @@ func ExampleServer_Ping() {
 
 	err := srv.Ping()
 	if err == nil {
-		fmt.Println("Ping sucessful")
+		fmt.Println("Ping successful")
 	}
-	// Output: Ping sucessful
+	// Output: Ping successful
 }
 
-func ExampleServer_Version() {
+func ExampleSrv_Version() {
 	// setup
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
@@ -1464,7 +1464,7 @@ func ExampleBytes() {
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraBin to Prep method to return ora.Binary values
+	// Specify OraBin to Prep method to return Binary values
 	// fetch records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraBin)
 	rset, _ := stmt.Qry()
@@ -1742,7 +1742,7 @@ func Example() {
 }
 
 func ExampleSes_PrepAndExe() {
-	env, _ := ora.GetDrv().OpenEnv()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv("orcl")
 	defer srv.Close()
@@ -1750,14 +1750,14 @@ func ExampleSes_PrepAndExe() {
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
-	rowsAffected, _ = ses.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (3)", tableName))
+	rowsAffected, _ := ses.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (3)", tableName))
 	fmt.Println(rowsAffected)
 	// Output:
-	// 0
+	// 1
 }
 
 func ExampleSes_PrepAndQry() {
-	env, _ := ora.GetDrv().OpenEnv()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv("orcl")
 	defer srv.Close()
@@ -1765,7 +1765,7 @@ func ExampleSes_PrepAndQry() {
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
-	rowsAffected, _ = ses.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (3)", tableName))
+	ses.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (3)", tableName))
 	rset, _ := ses.PrepAndQry(fmt.Sprintf("SELECT C1 FROM %v", tableName))
 	row := rset.NextRow()
 	fmt.Println(row[0])
@@ -1774,7 +1774,7 @@ func ExampleSes_PrepAndQry() {
 }
 
 func ExampleSes_Ins() {
-	env, _ := ora.GetDrv().OpenEnv()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv("orcl")
 	defer srv.Close()
@@ -1838,7 +1838,7 @@ func ExampleSes_Ins() {
 }
 
 func ExampleSes_Upd() {
-	env, _ := ora.GetDrv().OpenEnv()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv("orcl")
 	defer srv.Close()
@@ -1918,13 +1918,15 @@ func ExampleSes_Upd() {
 		"C20", e.C20*2,
 		"C21", e.C21*2,
 		"C1", e.C1)
-	fmt.Println(emptyString(err.Error()))
+	if err == nil {
+		fmt.Println("success")
+	}
 	// Output:
-	// <empty>
+	// success
 }
 
 func ExampleSes_Sel() {
-	env, _ := ora.GetDrv().OpenEnv()
+	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv("orcl")
 	defer srv.Close()
@@ -1982,28 +1984,28 @@ func ExampleSes_Sel() {
 		"C20", e.C20,
 		"C21", e.C21,
 		"C1", &e.C1)
-	rset, err := ses.Sel("T1",
-		"C1", ora.U64,
-		"C2", ora.F64,
-		"C3", ora.I8,
-		"C4", ora.I16,
-		"C5", ora.I32,
-		"C6", ora.I64,
-		"C7", ora.U8,
-		"C8", ora.U16,
-		"C9", ora.U32,
-		"C10", ora.U64,
-		"C11", ora.F32,
-		"C12", ora.F64,
-		"C13", ora.I8,
-		"C14", ora.I16,
-		"C15", ora.I32,
-		"C16", ora.I64,
-		"C17", ora.U8,
-		"C18", ora.U16,
-		"C19", ora.U32,
-		"C20", ora.U64,
-		"C21", ora.F32)
+	rset, _ := ses.Sel(tableName,
+		"C1", U64,
+		"C2", F64,
+		"C3", I8,
+		"C4", I16,
+		"C5", I32,
+		"C6", I64,
+		"C7", U8,
+		"C8", U16,
+		"C9", U32,
+		"C10", U64,
+		"C11", F32,
+		"C12", F64,
+		"C13", I8,
+		"C14", I16,
+		"C15", I32,
+		"C16", I64,
+		"C17", U8,
+		"C18", U16,
+		"C19", U32,
+		"C20", U64,
+		"C21", F32)
 	for rset.Next() {
 		for n := 0; n < len(rset.Row); n++ {
 			fmt.Printf("R%v %v\n", n, rset.Row[n])
