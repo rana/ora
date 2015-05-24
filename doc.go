@@ -766,18 +766,23 @@ unless a transaction has started:
 Ses.PrepAndExe, Ses.PrepAndQry, Ses.Ins, Ses.Upd, and Ses.Sel are convenient
 one-line methods.
 
-Ses.PrepAndExe offers a convenient one-line call to Ses.Prep and Stmt.Exe
+Ses.PrepAndExe offers a convenient one-line call to Ses.Prep and Stmt.Exe.
+Ses.PrepAndExe sample code is available at
+https://github.com/ranaian/ora/blob/master/samples/prepAndExe/main.go.
 
 	rowsAffected, err := ses.PrepAndExe("CREATE TABLE T1 (C1 NUMBER)")
 
 Ses.PrepAndQry offers a convenient one-line call to Ses.Prep and Stmt.Qry.
+Ses.PrepAndQry sample code is available at
+https://github.com/ranaian/ora/blob/master/samples/prepAndQry/main.go.
 
 	rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
 
 Ses.Ins composes, prepares and executes a sql INSERT statement. Ses.Ins is useful
 when you have to create and maintain a simple INSERT statement with a long
 list of columns. As table columns are added and dropped over the lifetime of
-a table Ses.Ins is easy to read and revise.
+a table Ses.Ins is easy to read and revise. Ses.Ins sample code is available at
+https://github.com/ranaian/ora/blob/master/samples/ins/main.go.
 
 	err = ses.Ins("T1",
 		"C2", e.C2,
@@ -805,7 +810,8 @@ a table Ses.Ins is easy to read and revise.
 Ses.Upd composes, prepares and executes a sql UPDATE statement. Ses.Upd is useful
 when you have to create and maintain a simple UPDATE statement with a long list
 of columns. As table columns are added and dropped over the lifetime of
-a table Ses.Upd is easy to read and revise.
+a table Ses.Upd is easy to read and revise. Ses.Upd sample code is available at
+https://github.com/ranaian/ora/blob/master/samples/upd/main.go.
 
 	err = ses.Upd("T1",
 		"C2", e.C2*2,
@@ -834,6 +840,8 @@ Ses.Sel composes, prepares and queries a sql SELECT statement. Ses.Sel is useful
 when you have to create and maintain a simple SELECT statement with a long
 list of columns that have non-default GoColumnTypes. As table columns are added
 and dropped over the lifetime of a table Ses.Sel is easy to read and revise.
+Ses.Sel sample code is available at
+https://github.com/ranaian/ora/blob/master/samples/sel/main.go.
 
 	rset, err := ses.Sel("T1",
 		"C1", ora.U64,
