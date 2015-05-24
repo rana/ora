@@ -804,6 +804,111 @@ for rst.Next() {
 }
 ```
 
+`Ses.PrepAndExe`, `Ses.PrepAndQry`, `Ses.Ins`, `Ses.Upd`, and `Ses.Sel` are convenient
+one-line methods.
+
+`Ses.PrepAndExe` offers a convenient one-line call to `Ses.Prep` and `Stmt.Exe`
+
+```go
+rowsAffected, err := ses.PrepAndExe("CREATE TABLE T1 (C1 NUMBER)")
+```
+
+`Ses.PrepAndQry` offers a convenient one-line call to `Ses.Prep` and `Stmt.Qry`.
+
+```go
+rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
+```
+
+`Ses.Ins` composes, prepares and executes a sql INSERT statement. `Ses.Ins` is useful
+when you have to create and maintain a simple INSERT statement with a long
+list of columns. As table columns are added and dropped over the lifetime of
+a table `Ses.Ins` is easy to read and revise.
+
+```go
+err = ses.Ins("T1",
+  "C2", e.C2,
+  "C3", e.C3,
+  "C4", e.C4,
+  "C5", e.C5,
+  "C6", e.C6,
+  "C7", e.C7,
+  "C8", e.C8,
+  "C9", e.C9,
+  "C10", e.C10,
+  "C11", e.C11,
+  "C12", e.C12,
+  "C13", e.C13,
+  "C14", e.C14,
+  "C15", e.C15,
+  "C16", e.C16,
+  "C17", e.C17,
+  "C18", e.C18,
+  "C19", e.C19,
+  "C20", e.C20,
+  "C21", e.C21,
+  "C1", &e.C1)
+```
+
+`Ses.Upd` composes, prepares and executes a sql UPDATE statement. `Ses.Upd` is useful
+when you have to create and maintain a simple UPDATE statement with a long list
+of columns. As table columns are added and dropped over the lifetime of
+a table `Ses.Upd` is easy to read and revise.
+
+```go
+err = ses.Upd("T1",
+  "C2", e.C2*2,
+  "C3", e.C3*2,
+  "C4", e.C4*2,
+  "C5", e.C5*2,
+  "C6", e.C6*2,
+  "C7", e.C7*2,
+  "C8", e.C8*2,
+  "C9", e.C9*2,
+  "C10", e.C10*2,
+  "C11", e.C11*2,
+  "C12", e.C12*2,
+  "C13", e.C13*2,
+  "C14", e.C14*2,
+  "C15", e.C15*2,
+  "C16", e.C16*2,
+  "C17", e.C17*2,
+  "C18", e.C18*2,
+  "C19", e.C19*2,
+  "C20", e.C20*2,
+  "C21", e.C21*2,
+  "C1", e.C1)
+```
+
+`Ses.Sel` composes, prepares and queries a sql SELECT statement. `Ses.Sel` is useful
+when you have to create and maintain a simple SELECT statement with a long
+list of columns that have non-default GoColumnTypes. As table columns are added
+and dropped over the lifetime of a table `Ses.Sel` is easy to read and revise.
+
+```go
+rset, err := ses.Sel("T1",
+  "C1", ora.U64,
+  "C2", ora.F64,
+  "C3", ora.I8,
+  "C4", ora.I16,
+  "C5", ora.I32,
+  "C6", ora.I64,
+  "C7", ora.U8,
+  "C8", ora.U16,
+  "C9", ora.U32,
+  "C10", ora.U64,
+  "C11", ora.F32,
+  "C12", ora.F64,
+  "C13", ora.I8,
+  "C14", ora.I16,
+  "C15", ora.I32,
+  "C16", ora.I64,
+  "C17", ora.U8,
+  "C18", ora.U16,
+  "C19", ora.U32,
+  "C20", ora.U64,
+  "C21", ora.F32)
+```
+    
 The `Srv.Ping` method checks whether the client's connection to an
 Oracle server is valid. A call to `Ping` requires an open Ses. `Ping`
 will return a nil error when the connection is fine:
@@ -813,7 +918,7 @@ will return a nil error when the connection is fine:
 ses, _ := srv.OpenSes("username", "password")
 err := srv.Ping()
 if err == nil {
-	fmt.Println("Ping sucessful")
+	fmt.Println("Ping successful")
 }
 ```
 
