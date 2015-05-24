@@ -941,7 +941,7 @@ Further code examples are available in the [example file](https://github.com/ran
 
 The ora package provides a simple ora.Logger interface for logging. Logging is
 disabled by default. Specify one of three optional built-in logging packages to
-enable logging. Or, use your own logging package.
+enable logging; or, use your own logging package.
 
 To use the standard Go log package:
 
