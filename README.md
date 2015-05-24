@@ -931,7 +931,7 @@ Non-container test database setup steps:
 
 ```sql
 -- 1. login to an Oracle server with SqlPlus as sysdba:
-sqlplus / as sysdba
+SQLPLUS / AS SYSDBA
 ```
 
 ```sql
@@ -951,7 +951,12 @@ CREATE PROCEDURE, UNLIMITED TABLESPACE TO test;
 ```
 
 ```sql
--- 5. create OS environment variables
+-- 5. increase the number allowable open cursors
+ALTER SYSTEM SET OPEN_CURSORS = 4000 SCOPE=BOTH;
+```
+
+```sql
+-- 6. create OS environment variables
 -- specify your_database_name; varies based on installation; may be 'orcl'
 GO_ORA_DRV_TEST_DB = your_database_name
 GO_ORA_DRV_TEST_USERNAME = test
@@ -962,7 +967,7 @@ Container test database setup steps:
 
 ```sql
 -- 1. login to an Oracle server with SqlPlus as sysdba:
-sqlplus / as sysdba
+SQLPLUS / AS SYSDBA
 ```
 
 ```sql

@@ -896,7 +896,10 @@ Non-container test database setup steps:
 	GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE,
 	CREATE PROCEDURE, UNLIMITED TABLESPACE TO test;
 
-	// 5. create OS environment variables
+	// 5. increase the number allowable open cursors
+	ALTER SYSTEM SET OPEN_CURSORS = 4000 SCOPE=BOTH;
+
+	// 6. create OS environment variables
 	// specify your_database_name; varies based on installation; may be 'orcl'
 	GO_ORA_DRV_TEST_DB = your_database_name
 	GO_ORA_DRV_TEST_USERNAME = test
