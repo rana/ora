@@ -34,8 +34,11 @@ func main() {
 	// use the optional glog package for ora logging
 	ora.Log = glg.Log
 
-	env, _ := ora.GetDrv().OpenEnv()
+	env, err := ora.GetDrv().OpenEnv()
 	defer env.Close()
+	if err != nil {
+		panic(err)
+	}
 	srv, err := env.OpenSrv("orcl")
 	defer srv.Close()
 	if err != nil {
