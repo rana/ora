@@ -417,7 +417,7 @@ identity value:
 // C2 VARCHAR2(48 CHAR))
 var id int64
 stmt, err = ses.Prep("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 INTO :C1")
-stmt.Exec(&id)
+stmt.Exe(&id)
 ```
 
 A `string` pointer captures an out parameter from a stored procedure:
@@ -427,7 +427,7 @@ A `string` pointer captures an out parameter from a stored procedure:
 // CREATE OR REPLACE PROCEDURE PROC1 (P1 OUT VARCHAR2) AS BEGIN P1 := 'GO'; END PROC1;
 var str string
 stmt, err = ses.Prep("CALL PROC1(:1)")
-stmt.Exec(&str)
+stmt.Exe(&str)
 ```
 
 Slices may be used to insert multiple records with a single insert statement:
@@ -439,7 +439,7 @@ values := make([]int64, 1000000)
 for n, _ := range values {
 	values[n] = int64(n)
 }
-rowsAffected, err := ses.PrepAndExec("INSERT INTO T1 (C1) VALUES (:C1)", values)
+rowsAffected, err := ses.PrepAndExe("INSERT INTO T1 (C1) VALUES (:C1)", values)
 ```
 
 The ora package provides nullable Go types to support DML operations such as
@@ -458,12 +458,12 @@ a[2] = ora.String{IsNull: true}
 a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
 a[4] = ora.String{Value: "One of Go's key design goals is code"}
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-stmt.Exec(a)
+stmt.Exe(a)
 
 // Specify OraS to Prep method to return ora.String values
 // fetch records
 stmt, err = ses.Prep("SELECT C1 FROM T1", OraS)
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0])
 }
@@ -477,7 +477,7 @@ column:
 ```go
 // given: create table t1 (c1 number)
 stmt, err = ses.Prep("SELECT C1, C1 FROM T1", ora.I64, ora.OraI64)
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0], rst.Row[1])
 }
@@ -492,14 +492,14 @@ supports `int64`, `int32`, `int16`, `int8`, `uint64`, `uint32`, `uint16`, `uint8
 // given: create table t1 (c1 number)
 value := uint16(9)
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-stmt.Exec(value)
+stmt.Exe(value)
 
 // select numerics of various sizes from the same column
 stmt, err = ses.Prep(
 	"SELECT C1, C1, C1, C1, C1, C1, C1, C1, C1, C1, FROM T1",
 	ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8,
 	ora.F64, ora.F32)
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 row := rst.NextRow()
 ```
 
@@ -587,9 +587,9 @@ A `Ses` may contain multiple `Stmt`. A `Stmt` may contain multiple `Rset`.
 	// Env -> Srv -> Ses -> Stmt -> Rset
 
 Setting a `RsetCfg` on a `StmtCfg` does not cascade through descendent structs.
-Configuration of `Stmt.Cfg` takes effect prior to calls to `Stmt.Exec` and
-`Stmt.Query`; consequently, any updates to `Stmt.Cfg` after a call to `Stmt.Exec`
-or `Stmt.Query` are not observed.
+Configuration of `Stmt.Cfg` takes effect prior to calls to `Stmt.Exe` and
+`Stmt.Qry`; consequently, any updates to `Stmt.Cfg` after a call to `Stmt.Exe`
+or `Stmt.Qry` are not observed.
 
 One configuration scenario may be to set a server's select statements to return nullable Go types by
 default:
@@ -629,20 +629,20 @@ Another scenario may be to configure the runes mapped to `bool` values:
 var falseValue bool = false
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
 stmt.Cfg.FalseRune = 'N'
-stmt.Exec(falseValue)
+stmt.Exe(falseValue)
 
 // insert 'true' record
 var trueValue bool = true
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
 stmt.Cfg.TrueRune = 'Y'
-stmt.Exec(trueValue)
+stmt.Exe(trueValue)
 
 // update RsetCfg to change the TrueRune
 // used to translate an Oracle char to a Go bool
 // fetch inserted records
 stmt, err = ses.Prep("SELECT C1 FROM T1")
 stmt.Cfg.Rset.TrueRune = 'Y'
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0])
 }
@@ -662,19 +662,19 @@ Calling `Next` increments `Index` and method `Len` returns the total number of r
 method is convenient for returning a single row. `NextRow` calls `Next` and returns `Row`.
 `ColumnNames` returns the names of columns defined by the SQL select statement.
 
-`Rset` has two usages. `Rset` may be returned from `Stmt.Query` when prepared with a SQL select
+`Rset` has two usages. `Rset` may be returned from `Stmt.Qry` when prepared with a SQL select
 statement:
 
 ```go
 // given: CREATE TABLE T1 (C1 NUMBER, C2, CHAR(1 BYTE), C3 VARCHAR2(48 CHAR))
 stmt, err = ses.Prep("SELECT C1, C2, C3 FROM T1")
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Index, rst.Row[0], rst.Row[1], rst.Row[2])
 }
 ```
 
-Or, `*Rset` may be passed to `Stmt.Exec` when prepared with a stored procedure accepting
+Or, `*Rset` may be passed to `Stmt.Exe` when prepared with a stored procedure accepting
 an OUT SYS_REFCURSOR parameter:
 
 ```go
@@ -684,7 +684,7 @@ an OUT SYS_REFCURSOR parameter:
 // BEGIN OPEN P1 FOR SELECT C1, C2 FROM T1 ORDER BY C1; END PROC1;
 stmt, err = ses.Prep("CALL PROC1(:1)")
 rst := &ora.Rset{}
-stmt.Exec(rst)
+stmt.Exe(rst)
 if rst.IsOpen() {
 	for rst.Next() {
 		fmt.Println(rst.Row[0], rst.Row[1])
@@ -692,7 +692,7 @@ if rst.IsOpen() {
 }
 ```
 
-Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single `Exec` call to obtain
+Stored procedures with multiple OUT SYS_REFCURSOR parameters enable a single `Exe` call to obtain
 multiple `Rsets`:
 
 ```go
@@ -704,7 +704,7 @@ multiple `Rsets`:
 stmt, err = ses.Prep("CALL PROC1(:1, :2)")
 rst1 := &ora.Rset{}
 rst2 := &ora.Rset{}
-stmt.Exec(rst1, rst2)
+stmt.Exe(rst1, rst2)
 // read from first cursor
 if rst1.IsOpen() {
 	for rst1.Next() {
@@ -720,7 +720,7 @@ if rst2.IsOpen() {
 ```
 
 The types of values assigned to `Row` may be configured in `StmtCfg.Rset`. For configuration
-to take effect, assign `StmtCfg.Rset` prior to calling `Stmt.Query` or `Stmt.Exec`.
+to take effect, assign `StmtCfg.Rset` prior to calling `Stmt.Qry` or `Stmt.Exe`.
 
 `Rset` prefetching may be controlled by `StmtCfg.PrefetchRowCount` and
 `StmtCfg.PrefetchMemorySize`. `PrefetchRowCount` works in coordination with
@@ -742,11 +742,11 @@ a[2] = ora.IntervalYM{IsNull: true}
 a[3] = ora.IntervalYM{Year: -1, Month: -1}
 a[4] = ora.IntervalYM{Year: -99, Month: -9}
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-stmt.Exec(a)
+stmt.Exe(a)
 
 // query IntervalYM
 stmt, err = ses.Prep("SELECT C1 FROM T1")
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0])
 }
@@ -764,11 +764,11 @@ a[2] = ora.IntervalDS{IsNull: true}
 a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
 a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-stmt.Exec(a)
+stmt.Exe(a)
 
 // query IntervalDS
 stmt, err = ses.Prep("SELECT C1 FROM T1")
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0])
 }
@@ -783,22 +783,22 @@ unless a transaction has started:
 // rollback
 tx, err := ses.BeginTransaction()
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (3)")
-stmt.Exec()
+stmt.Exe()
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (5)")
-stmt.Exec()
+stmt.Exe()
 tx.Rollback()
 
 // commit
 tx, err = ses.BeginTransaction()
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (7)")
-stmt.Exec()
+stmt.Exe()
 stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (9)")
-stmt.Exec()
+stmt.Exe()
 tx.Commit()
 
 // query records
 stmt, err = ses.Prep("SELECT C1 FROM T1")
-rst, err := stmt.Query()
+rst, err := stmt.Qry()
 for rst.Next() {
 	fmt.Println(rst.Row[0])
 }
