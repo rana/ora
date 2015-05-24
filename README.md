@@ -888,7 +888,7 @@ which produces a sample log of:
 	I0523 17:31:41.763365   97708 srv.go:63] E2S1] Close
 	I0523 17:31:41.763365   97708 env.go:68] E2] Close
 
-See https://github.com/ranaian/ora/tree/master/samples/glg for sample code which uses [glog](https://github.com/golang/glog).
+See https://github.com/ranaian/ora/blob/master/samples/glg/main.go for sample code which uses [glog](https://github.com/golang/glog).
 
 To use the optional [log15](http://gopkg.in/inconshreveable/log15.v2) package:
 
@@ -918,7 +918,7 @@ which produces a sample log of:
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1] Close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2] Close" lib=ora
 
-See https://github.com/ranaian/ora/tree/master/samples/lg15 for sample code which uses [log15](http://gopkg.in/inconshreveable/log15.v2).
+See https://github.com/ranaian/ora/blob/master/samples/lg15/main.go for sample code which uses [log15](http://gopkg.in/inconshreveable/log15.v2).
 
 ##### Test Database Setup #####
 
