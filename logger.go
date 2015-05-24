@@ -4,12 +4,6 @@
 
 package ora
 
-import (
-	"fmt"
-	"log"
-	"os"
-)
-
 // Log can be replaced with any type implementing the Logger interface.
 //
 // The default implementation uses the standard lib's log package.
