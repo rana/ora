@@ -887,8 +887,8 @@ to Version requires an open Ses:
 		fmt.Println("Received version from server")
 	}
 
-Further code examples are available in the samples folder
-https://github.com/ranaian/ora/tree/master/samples and test files.
+Further code examples are available in the example file, test files and samples
+folder.
 
 Logging
 

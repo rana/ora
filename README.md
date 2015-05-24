@@ -935,7 +935,7 @@ if version != "" && err == nil {
 }
 ```
 
-Further code examples are available in the [samples folder](https://github.com/ranaian/ora/tree/master/samples) and test files.
+Further code examples are available in the [example file](https://github.com/ranaian/ora/blob/master/z_example_test.go), test files and [samples folder](https://github.com/ranaian/ora/tree/master/samples).
 
 ##### Logging #####
 
