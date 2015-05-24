@@ -787,7 +787,7 @@ https://github.com/ranaian/ora/tree/master/samples and test files.
 Logging
 
 The ora package uses the Go log package to write to os.Stderr by default. A
-sample of the default ora logging:
+sample of the default ora logging looks like:
 
 	ORA I 2015/05/23 16:54:44.615462 drv.go:411: OpenEnv 1
 	ORA I 2015/05/23 16:54:44.626443 drv.go:411: OpenEnv 2
