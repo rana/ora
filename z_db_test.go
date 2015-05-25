@@ -10,10 +10,19 @@ import (
 )
 
 func Test_numberP38S0Identity_db(t *testing.T) {
-	tableName := createTableDB(testDb, t, numberP38S0Identity, varchar2C48)
+	tableName := tableName()
+	stmt, err := testDb.Prepare(createTableSql(tableName, 1, numberP38S0Identity, varchar2C48))
+	if err == nil {
+		defer stmt.Close()
+		_, err = stmt.Exec()
+	}
+	if err != nil {
+		t.Skipf("SKIP create table with identity: %v", err)
+		return
+	}
 	defer dropTableDB(testDb, t, tableName)
 
-	stmt, err := testDb.Prepare(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName))
+	stmt, err = testDb.Prepare(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName))
 	defer stmt.Close()
 
 	// pass nil to Exec when using 'returning into' clause with sql.DB

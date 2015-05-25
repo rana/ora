@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -751,7 +752,9 @@ func tableName() string {
 func testErr(err error, t *testing.T, expectedErrs ...error) {
 	if err != nil {
 		if expectedErrs == nil {
-			t.Fatal(err)
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			t.Fatalf("%v: %s", err, buf[:n])
 		} else {
 			var isSkipping bool
 			for _, expectedErr := range expectedErrs {
