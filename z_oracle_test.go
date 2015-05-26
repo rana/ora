@@ -12,8 +12,10 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -748,10 +750,36 @@ func tableName() string {
 	return "t" + strconv.Itoa(testTableId)
 }
 
+func getStack(stripHeadCalls int) string {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	buf = buf[:n]
+	i := bytes.IndexByte(buf, '\n')
+	if i < 0 {
+		return string(buf)
+	}
+	var prefix string
+	if bytes.Contains(buf[:i], []byte("goroutine")) {
+		prefix, buf = string(buf[:i+1]), buf[i+1:]
+	}
+Loop:
+	for stripHeadCalls > 0 {
+		stripHeadCalls--
+		for i := 0; i < 2; i++ {
+			if j := bytes.IndexByte(buf, '\n'); j < 0 {
+				break Loop
+			} else {
+				buf = buf[j+1:]
+			}
+		}
+	}
+	return prefix + string(buf)
+}
+
 func testErr(err error, t *testing.T, expectedErrs ...error) {
 	if err != nil {
 		if expectedErrs == nil {
-			t.Fatal(err)
+			t.Fatalf("%v: %s", err, getStack(1))
 		} else {
 			var isSkipping bool
 			for _, expectedErr := range expectedErrs {
@@ -1746,7 +1774,7 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 		}
 	}
 	if e != a {
-		t.Fatalf("expected(%v), actual(%v)", e, a)
+		t.Fatalf("expected(%v), actual(%v)\n%s", e, a, getStack(2))
 	}
 }
 
@@ -2451,10 +2479,21 @@ func gen_OraBoolSlice(isNull bool) interface{} {
 	return expected
 }
 
+var (
+	_gen_bytes    []byte
+	_gen_bytes_mu sync.Mutex
+)
+
 func gen_bytes(length int) []byte {
-	values := make([]byte, length)
+	_gen_bytes_mu.Lock()
+	defer _gen_bytes_mu.Unlock()
+	if len(_gen_bytes) >= length {
+		return _gen_bytes[:length:length]
+	}
+	values := make([]byte, length-len(_gen_bytes))
 	rand.Read(values)
-	return values
+	_gen_bytes = append(_gen_bytes, values...)
+	return _gen_bytes[:length:length]
 }
 
 func gen_OraBytes(length int, isNull bool) Binary {
