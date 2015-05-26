@@ -7,6 +7,8 @@ package ora
 import (
 	"fmt"
 	"testing"
+
+	"github.com/ranaian/ora/tstlg"
 )
 
 func Test_numberP38S0Identity_db(t *testing.T) {
@@ -180,6 +182,7 @@ func Test_longNull_string_db(t *testing.T) {
 }
 
 func Test_clob_string_db(t *testing.T) {
+	Log = tstlg.New(t)
 	testBindDefineDB(gen_string(), t, clob)
 }
 

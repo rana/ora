@@ -73,40 +73,36 @@ func (def *defLob) Bytes() (value []byte, err error) {
 		// buffer is size of ora.LobBufferSize
 		var buffer [lobChunkSize]byte
 		var writeIndex int
-		var byte_amtp C.oraub8 = lobLength
-		var piece C.ub1 = C.OCI_FIRST_PIECE
-		var loading bool = true
-		for loading {
+		for byte_amtp := lobLength; byte_amtp > 0; byte_amtp = lobLength - C.oraub8(writeIndex) {
+			Log.Infof("LobRead amt=%d", byte_amtp)
 			r = C.OCILobRead2(
 				def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 				def.ociLobLocator,                //OCILobLocator      *locp,
 				&byte_amtp,                       //oraub8             *byte_amtp,
 				nil,                              //oraub8             *char_amtp,
-				C.oraub8(1),                      //oraub8             offset, offset is 1-based
-				unsafe.Pointer(&buffer[0]),       //void               *bufp,
-				C.oraub8(len(buffer)),            //oraub8             bufl,
-				piece,           //ub1                piece,
-				nil,             //void               *ctxp,
-				nil,             //OCICallbackLobRead2 (cbfp)
-				C.ub2(0),        //ub2                csid,
-				def.charsetForm) //ub1                csfrm );
+				C.oraub8(writeIndex+1),     //oraub8             offset, offset is 1-based
+				unsafe.Pointer(&buffer[0]), //void               *bufp,
+				C.oraub8(len(buffer)),      //oraub8             bufl,
+				C.OCI_ONE_PIECE,            //ub1                piece,
+				nil,                        //void               *ctxp,
+				nil,                        //OCICallbackLobRead2 (cbfp)
+				C.ub2(0),                   //ub2                csid,
+				def.charsetForm)            //ub1                csfrm );
 
 			if r == C.OCI_ERROR {
+				C.OCILobClose(
+					def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+					def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
+					def.ociLobLocator)                //OCILobLocator      *locp,
+				Log.Errorln(def.rset.stmt.ses.srv.env.ociError())
 				return nil, def.rset.stmt.ses.srv.env.ociError()
-			} else {
-				// Write buffer to return slice
-				// byte_amtp represents the amount copied into buffer by oci
-				copy(value[writeIndex:], buffer[:int(byte_amtp)])
-				writeIndex += int(byte_amtp)
-
-				// Determine action for next cycle
-				if r == C.OCI_NEED_DATA {
-					piece = C.OCI_NEXT_PIECE
-				} else if r == C.OCI_SUCCESS {
-					loading = false
-				}
 			}
+			// Write buffer to return slice
+			// byte_amtp represents the amount copied into buffer by oci
+			Log.Infof("copy writeIndex=%d amt=%d len=%d", writeIndex, byte_amtp, lobLength)
+			copy(value[writeIndex:], buffer[:int(byte_amtp)])
+			writeIndex += int(byte_amtp)
 		}
 	}
 
