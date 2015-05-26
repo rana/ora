@@ -18,6 +18,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ranaian/ora/tstlg"
 )
 
 type oracleColumnType string
@@ -164,6 +166,18 @@ func init() {
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
+}
+
+var enableLoggingMu sync.Mutex
+
+func enableLogging(t *testing.T) {
+	enableLoggingMu.Lock()
+	defer enableLoggingMu.Unlock()
+	if t != nil {
+		Log = tstlg.New(t)
+		return
+	}
+	Log = nil
 }
 
 func testIterations() int {
@@ -1827,7 +1841,7 @@ func compare_bool(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to bool, *bool, ora.Bool. (%v, %v)", reflect.TypeOf(actual), actual)
+				t.Fatalf("Unable to cast actual value to bool, *bool, ora.Bool. (%v, %v): %s", reflect.TypeOf(actual), actual, getStack(2))
 			}
 		}
 	}

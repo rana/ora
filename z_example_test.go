@@ -7,9 +7,19 @@ package ora
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"reflect"
+	"strings"
 	"time"
 )
+
+func dbName() string {
+	db := testConStr[strings.LastIndex(testConStr, "@")+1:]
+	if db != "" {
+		return db
+	}
+	return os.Getenv("GO_ORA_DRV_TEST_DB")
+}
 
 func ExampleDrvStmt_Exec_insert() {
 	db, _ := sql.Open("ora", testConStr)
@@ -31,11 +41,22 @@ func ExampleDrvStmt_Exec_insert_return_identity() {
 	defer db.Close()
 
 	tableName := tableName()
-	db.Exec(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
+	qry := "create table " + tableName + " (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))"
+	if _, err := db.Exec(qry); err != nil {
+		qry = strings.Replace(qry, "generated always as identity (start with 1 increment by 1)", "DEFAULT 1", 1)
+		if _, err = db.Exec(qry); err != nil {
+			fmt.Fprintf(os.Stderr, "error creating table with %q: %v", qry, err)
+			return
+		}
+	}
 
 	// use a 'returning into' SQL clause and specify a nil parameter to Exec
 	// placeholder ':c1' is bound by position; ':c1' may be any name
-	result, _ := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName), nil)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName), nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error inserting 'go' with returning: %v", err)
+		return
+	}
 	id, _ := result.LastInsertId()
 	fmt.Println(id)
 	// Output: 1
@@ -167,7 +188,14 @@ func ExampleStmt_Exe_insert_return_identity() {
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(19,0) generated always as identity (start with 1 increment by 1), c2 varchar2(48 char))", tableName))
+	qry := "create table " + tableName + " (c1 number(19,0)"
+	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
+		qry += " generated always as identity (start with 1 increment by 1)"
+	} else {
+		qry += " default 1"
+	}
+	qry += ", c2 varchar2(48 char))"
+	stmt, _ := ses.Prep(qry)
 	defer stmt.Close()
 	stmt.Exe()
 
@@ -1561,26 +1589,35 @@ func Example() {
 	// connect to a server and open a session
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, err := env.OpenSrv("orcl")
+	srv, err := env.OpenSrv(os.Getenv("GO_ORA_DRV_TEST_DB"))
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
 	ses, err := srv.OpenSes("test", "test")
-	defer ses.Close()
 	if err != nil {
 		panic(err)
 	}
+	defer ses.Close()
 
 	// create table
 	tableName := "t1"
-	stmtTbl, err := ses.Prep(fmt.Sprintf("CREATE TABLE %v "+
-		"(C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY "+
-		"(START WITH 1 INCREMENT BY 1), C2 VARCHAR2(48 CHAR))", tableName))
-	defer stmtTbl.Close()
+	ses.PrepAndExe("DROP TABLE " + tableName)
+	qry := "CREATE TABLE " + tableName + "(C1 NUMBER(19,0)"
+	ver, _ := srv.Version()
+	fmt.Fprintf(os.Stderr, "server version: %q", ver)
+	var autoC1 int
+	if strings.Contains(ver, " 12.") {
+		qry += " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
+	} else {
+		autoC1 = 1
+	}
+	qry += ", C2 VARCHAR2(48 CHAR))"
+	stmtTbl, err := ses.Prep(qry)
 	if err != nil {
 		panic(err)
 	}
+	defer stmtTbl.Close()
 	rowsAffected, err := stmtTbl.Exe()
 	if err != nil {
 		panic(err)
@@ -1596,8 +1633,13 @@ func Example() {
 	// insert record
 	var id uint64
 	str := "Go is expressive, concise, clean, and efficient."
+	qry = "(C2) VALUES (:C2)"
+	if autoC1 > 0 {
+		qry = fmt.Sprintf("(C1,C2) VALUES (%d,:C2)", autoC1)
+		autoC1++
+	}
 	stmtIns, err := ses.Prep(fmt.Sprintf(
-		"INSERT INTO %v (C2) VALUES (:C2) RETURNING C1 INTO :C1", tableName))
+		"INSERT INTO %v "+qry+" RETURNING C1 INTO :C1", tableName))
 	defer stmtIns.Close()
 	rowsAffected, err = stmtIns.Exe(str, &id)
 	if err != nil {
@@ -1611,13 +1653,25 @@ func Example() {
 	a[1] = String{IsNull: true}
 	a[2] = String{Value: "It's a fast, statically typed, compiled"}
 	a[3] = String{Value: "One of Go's key design goals is code"}
+	if autoC1 > 0 {
+		qry = "(C1,C2) VALUES (:C1,:C2)"
+	}
 	stmtSliceIns, err := ses.Prep(fmt.Sprintf(
-		"INSERT INTO %v (C2) VALUES (:C2)", tableName))
+		"INSERT INTO %v "+qry, tableName))
 	defer stmtSliceIns.Close()
 	if err != nil {
 		panic(err)
 	}
-	rowsAffected, err = stmtSliceIns.Exe(a)
+	if autoC1 == 0 {
+		rowsAffected, err = stmtSliceIns.Exe(a)
+	} else {
+		b := make([]Int32, len(a))
+		for i := range b {
+			b[i] = Int32{Value: int32(autoC1)}
+			autoC1++
+		}
+		rowsAffected, err = stmtSliceIns.Exe(b, a)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -1656,10 +1710,10 @@ func Example() {
 	nullableStr := String{IsNull: true}
 	stmtTrans, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v (C2) VALUES (:C2)", tableName))
-	defer stmtTrans.Close()
 	if err != nil {
 		panic(err)
 	}
+	defer stmtTrans.Close()
 	rowsAffected, err = stmtTrans.Exe(nullableStr)
 	if err != nil {
 		panic(err)
@@ -1744,7 +1798,11 @@ func Example() {
 func ExampleSes_PrepAndExe() {
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenSrv("orcl")
+	srv, err := env.OpenSrv(dbName())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
+		return
+	}
 	defer srv.Close()
 	ses, _ := srv.OpenSes("test", "test")
 	defer ses.Close()
@@ -1759,7 +1817,7 @@ func ExampleSes_PrepAndExe() {
 func ExampleSes_PrepAndQry() {
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenSrv("orcl")
+	srv, _ := env.OpenSrv(dbName())
 	defer srv.Close()
 	ses, _ := srv.OpenSes("test", "test")
 	defer ses.Close()
@@ -1776,13 +1834,17 @@ func ExampleSes_PrepAndQry() {
 func ExampleSes_Ins() {
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenSrv("orcl")
+	srv, _ := env.OpenSrv(dbName())
 	defer srv.Close()
 	ses, _ := srv.OpenSes("test", "test")
 	defer ses.Close()
 	tableName := tableName()
+	ident := "DEFAULT 1"
+	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
+		ident = "GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
+	}
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v "+
-		"(C1 NUMBER(20,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 NUMBER(20,10), C3 NUMBER(20,10), "+
+		"(C1 NUMBER(20,0) "+ident+", C2 NUMBER(20,10), C3 NUMBER(20,10), "+
 		"C4 NUMBER(20,10), C5 NUMBER(20,10), C6 NUMBER(20,10), "+
 		"C7 NUMBER(20,10), C8 NUMBER(20,10), C9 NUMBER(20,10), "+
 		"C10 NUMBER(20,10), C11 NUMBER(20,10), C12 NUMBER(20,10), "+
@@ -1840,13 +1902,17 @@ func ExampleSes_Ins() {
 func ExampleSes_Upd() {
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenSrv("orcl")
+	srv, _ := env.OpenSrv(dbName())
 	defer srv.Close()
 	ses, _ := srv.OpenSes("test", "test")
 	defer ses.Close()
 	tableName := tableName()
+	ident := "DEFAULT 1"
+	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
+		ident = "GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
+	}
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v "+
-		"(C1 NUMBER(20,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 NUMBER(20,10), C3 NUMBER(20,10), "+
+		"(C1 NUMBER(20,0) "+ident+", C2 NUMBER(20,10), C3 NUMBER(20,10), "+
 		"C4 NUMBER(20,10), C5 NUMBER(20,10), C6 NUMBER(20,10), "+
 		"C7 NUMBER(20,10), C8 NUMBER(20,10), C9 NUMBER(20,10), "+
 		"C10 NUMBER(20,10), C11 NUMBER(20,10), C12 NUMBER(20,10), "+
@@ -1928,13 +1994,18 @@ func ExampleSes_Upd() {
 func ExampleSes_Sel() {
 	env, _ := GetDrv().OpenEnv()
 	defer env.Close()
-	srv, _ := env.OpenSrv("orcl")
+	srv, _ := env.OpenSrv(dbName())
 	defer srv.Close()
+	ident := "DEFAULT 1"
+	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
+		ident = " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
+	}
 	ses, _ := srv.OpenSes("test", "test")
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v "+
-		"(C1 NUMBER(20,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 NUMBER(20,10), C3 NUMBER(20,10), "+
+		"(C1 NUMBER(20,0) "+ident+","+
+		"C2 NUMBER(20,10), C3 NUMBER(20,10), "+
 		"C4 NUMBER(20,10), C5 NUMBER(20,10), C6 NUMBER(20,10), "+
 		"C7 NUMBER(20,10), C8 NUMBER(20,10), C9 NUMBER(20,10), "+
 		"C10 NUMBER(20,10), C11 NUMBER(20,10), C12 NUMBER(20,10), "+
