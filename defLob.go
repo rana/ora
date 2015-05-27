@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -29,13 +30,13 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
-	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,                        //OCIStmt     *stmtp,
-		&def.ocidef,                             //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
-		C.ub4(position),                         //ub4         position,
-		unsafe.Pointer(&def.ociLobLocator),      //void        *valuep,
-		C.sb8(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
+	r := C.OCIDEFINEBYPOS(
+		def.rset.ocistmt,                                //OCIStmt     *stmtp,
+		&def.ocidef,                                     //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,                //OCIError    *errhp,
+		C.ub4(position),                                 //ub4         position,
+		unsafe.Pointer(&def.ociLobLocator),              //void        *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
 		sqlt, //ub2         dty,
 		unsafe.Pointer(&def.null), //void        *indp,
 		nil,           //ub2         *rlenp,

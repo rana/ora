@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -23,15 +24,15 @@ type bndUint16Ptr struct {
 func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	r := C.OCIBindByPos2(
-		bnd.stmt.ocistmt,               //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),     //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,    //OCIError     *errhp,
-		C.ub4(position),                //ub4          position,
-		unsafe.Pointer(&bnd.ociNumber), //void         *valuep,
-		C.sb8(C.sizeof_OCINumber),      //sb8          value_sz,
-		C.SQLT_VNU,                     //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),    //void         *indp,
+	r := C.OCIBINDBYPOS(
+		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,       //OCIError     *errhp,
+		C.ub4(position),                   //ub4          position,
+		unsafe.Pointer(&bnd.ociNumber),    //void         *valuep,
+		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
+		C.SQLT_VNU,                        //ub2          dty,
+		unsafe.Pointer(&bnd.isNull),       //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,

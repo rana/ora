@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -22,7 +23,7 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 	bnd.stmt = stmt
 	bnd.ociIntervals = make([]*C.OCIInterval, len(values))
 	nullInds := make([]C.sb2, len(values))
-	alenp := make([]C.ub4, len(values))
+	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
 	for n, value := range values {
 		r := C.OCIDescriptorAlloc(
@@ -50,22 +51,22 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 		} else {
 			nullInds[n] = C.sb2(0)
 		}
-		alenp[n] = C.ub4(unsafe.Sizeof(bnd.ociIntervals[n]))
+		alenp[n] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[n]))
 	}
-	r := C.OCIBindByPos2(
-		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
-		C.ub4(position),                           //ub4          position,
-		unsafe.Pointer(&bnd.ociIntervals[0]),      //void         *valuep,
-		C.sb8(unsafe.Sizeof(bnd.ociIntervals[0])), //sb8          value_sz,
-		C.SQLT_INTERVAL_YM,                        //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),              //void         *indp,
-		&alenp[0],                                 //ub2          *alenp,
-		&rcodep[0],                                //ub2          *rcodep,
-		0,                                         //ub4          maxarr_len,
-		nil,                                       //ub4          *curelep,
-		C.OCI_DEFAULT)                             //ub4          mode );
+	r := C.OCIBINDBYPOS(
+		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),                        //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
+		C.ub4(position),                                   //ub4          position,
+		unsafe.Pointer(&bnd.ociIntervals[0]),              //void         *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[0])), //sb8          value_sz,
+		C.SQLT_INTERVAL_YM,                                //ub2          dty,
+		unsafe.Pointer(&nullInds[0]),                      //void         *indp,
+		&alenp[0],                                         //ub2          *alenp,
+		&rcodep[0],                                        //ub2          *rcodep,
+		0,                                                 //ub4          maxarr_len,
+		nil,                                               //ub4          *curelep,
+		C.OCI_DEFAULT)                                     //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

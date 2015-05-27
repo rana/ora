@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -25,13 +26,13 @@ func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *R
 	def.rset = rset
 	def.isNullable = isNullable
 	def.buf = make([]byte, columnSize)
-	r := C.OCIDefineByPos2(
+	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&def.ocidef,                      //OCIDefine   **defnpp,
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
 		C.ub4(position),                  //ub4         position,
 		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.sb8(columnSize),                //sb8         value_sz,
+		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
 		C.SQLT_BIN,                       //ub2         dty,
 		unsafe.Pointer(&def.null),        //void        *indp,
 		nil,           //ub2         *rlenp,

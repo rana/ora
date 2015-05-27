@@ -7,6 +7,7 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -37,15 +38,15 @@ func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 	} else if r == C.OCI_INVALID_HANDLE {
 		return errNew("unable to allocate oci timestamp handle during bind")
 	}
-	r = C.OCIBindByPos2(
-		bnd.stmt.ocistmt,                      //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),            //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,           //OCIError     *errhp,
-		C.ub4(position),                       //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTime),      //void         *valuep,
-		C.sb8(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                   //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),           //void         *indp,
+	r = C.OCIBINDBYPOS(
+		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),                    //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,                   //OCIError     *errhp,
+		C.ub4(position),                               //ub4          position,
+		unsafe.Pointer(&bnd.ociDateTime),              //void         *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                           //ub2          dty,
+		unsafe.Pointer(&bnd.isNull),                   //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,

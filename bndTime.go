@@ -7,6 +7,7 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -55,20 +56,20 @@ func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
-	r = C.OCIBindByPos2(
-		bnd.stmt.ocistmt,                      //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),            //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,           //OCIError     *errhp,
-		C.ub4(position),                       //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTime),      //void         *valuep,
-		C.sb8(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                   //ub2          dty,
-		nil,                                   //void         *indp,
-		nil,                                   //ub2          *alenp,
-		nil,                                   //ub2          *rcodep,
-		0,                                     //ub4          maxarr_len,
-		nil,                                   //ub4          *curelep,
-		C.OCI_DEFAULT)                         //ub4          mode );
+	r = C.OCIBINDBYPOS(
+		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),                    //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,                   //OCIError     *errhp,
+		C.ub4(position),                               //ub4          position,
+		unsafe.Pointer(&bnd.ociDateTime),              //void         *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                           //ub2          dty,
+		nil,                                           //void         *indp,
+		nil,                                           //ub2          *alenp,
+		nil,                                           //ub2          *rcodep,
+		0,                                             //ub4          maxarr_len,
+		nil,                                           //ub4          *curelep,
+		C.OCI_DEFAULT)                                 //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

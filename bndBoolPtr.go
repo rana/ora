@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -29,13 +30,13 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 	if cap(bnd.buf) < 2 {
 		bnd.buf = make([]byte, 2)
 	}
-	r := C.OCIBindByPos2(
+	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(&bnd.buf[0]), //void         *valuep,
-		C.sb8(len(bnd.buf)),         //sb8          value_sz,
+		C.LENGTH_TYPE(len(bnd.buf)), //sb8          value_sz,
 		C.SQLT_CHR,                  //ub2          dty,
 		unsafe.Pointer(&bnd.isNull), //void         *indp,
 		nil,           //ub2          *alenp,
