@@ -172,13 +172,17 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	var username string
 	var password string
 	var dbname string
-	str = strings.Trim(str, " ")
-	str = strings.Replace(str, "/", " / ", 1)
-	str = strings.Replace(str, "@", " @ ", 1)
-	_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
-	Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
-	if err != nil {
-		return nil, err
+	str = strings.TrimSpace(str)
+	if strings.HasPrefix(str, "/@") {
+		dbname = str[2:]
+	} else {
+		str = strings.Replace(str, "/", " / ", 1)
+		str = strings.Replace(str, "@", " @ ", 1)
+		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
+		Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
+		if err != nil {
+			return nil, fmt.Errorf("parse %q: %v", err)
+		}
 	}
 	// connect to server
 	srv, err := env.OpenSrv(dbname)
