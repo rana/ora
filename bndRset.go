@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -29,15 +30,15 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 	if err != nil {
 		return err
 	}
-	r := C.OCIBindByPos2(
+	r := C.OCIBINDBYPOS(
 		stmt.ocistmt,                 //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),   //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,  //OCIError     *errhp,
 		C.ub4(position),              //ub4          position,
 		unsafe.Pointer(&bnd.ocistmt), //void         *valuep,
-		C.sb8(0),                     //sb8          value_sz,
-		C.SQLT_RSET,                  //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),  //void         *indp,
+		0,                           //sb8          value_sz,
+		C.SQLT_RSET,                 //ub2          dty,
+		unsafe.Pointer(&bnd.isNull), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,

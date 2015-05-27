@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -23,15 +24,15 @@ type defBfile struct {
 
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
-	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,                        //OCIStmt     *stmtp,
-		&def.ocidef,                             //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
-		C.ub4(position),                         //ub4         position,
-		unsafe.Pointer(&def.ociLobLocator),      //void        *valuep,
-		C.sb8(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
-		C.SQLT_FILE,                             //ub2         dty,
-		unsafe.Pointer(&def.null),               //void        *indp,
+	r := C.OCIDEFINEBYPOS(
+		def.rset.ocistmt,                                //OCIStmt     *stmtp,
+		&def.ocidef,                                     //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,                //OCIError    *errhp,
+		C.ub4(position),                                 //ub4         position,
+		unsafe.Pointer(&def.ociLobLocator),              //void        *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
+		C.SQLT_FILE,               //ub2         dty,
+		unsafe.Pointer(&def.null), //void        *indp,
 		nil,           //ub4         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );

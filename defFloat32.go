@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -23,15 +24,15 @@ type defFloat32 struct {
 func (def *defFloat32) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.ociNumber),   //void        *valuep,
-		C.sb8(C.sizeof_OCINumber),        //sb8         value_sz,
-		C.SQLT_VNU,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
+	r := C.OCIDEFINEBYPOS(
+		def.rset.ocistmt,                  //OCIStmt     *stmtp,
+		&def.ocidef,                       //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,  //OCIError    *errhp,
+		C.ub4(position),                   //ub4         position,
+		unsafe.Pointer(&def.ociNumber),    //void        *valuep,
+		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8         value_sz,
+		C.SQLT_VNU,                        //ub2         dty,
+		unsafe.Pointer(&def.null),         //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );

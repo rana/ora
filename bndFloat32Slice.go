@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -36,11 +37,11 @@ func (bnd *bndFloat32Slice) bind(values []float32, nullInds []C.sb2, position in
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
 	}
-	alenp := make([]C.ub4, len(values))
+	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
 	bnd.ociNumbers = make([]C.OCINumber, len(values))
 	for n := range values {
-		alenp[n] = C.ub4(C.sizeof_OCINumber)
+		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 		r := C.OCINumberFromReal(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 			unsafe.Pointer(&values[n]),  //const void          *rnum,
@@ -50,13 +51,13 @@ func (bnd *bndFloat32Slice) bind(values []float32, nullInds []C.sb2, position in
 			return bnd.stmt.ses.srv.env.ociError()
 		}
 	}
-	r := C.OCIBindByPos2(
+	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
 		C.ub4(position),                    //ub4          position,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
-		C.sb8(C.sizeof_OCINumber),          //sb8          value_sz,
+		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,
 		unsafe.Pointer(&nullInds[0]),       //void         *indp,
 		&alenp[0],                          //ub4          *alenp,

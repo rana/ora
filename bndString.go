@@ -7,6 +7,7 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -22,13 +23,13 @@ type bndString struct {
 func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.cString = C.CString(value)
-	r := C.OCIBindByPos2(
+	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(bnd.cString), //void         *valuep,
-		C.sb8(len(value)),           //sb8          value_sz,
+		C.LENGTH_TYPE(len(value)),   //sb8          value_sz,
 		C.SQLT_CHR,                  //ub2          dty,
 		nil,                         //void         *indp,
 		nil,                         //ub2          *alenp,

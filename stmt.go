@@ -7,6 +7,7 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+#include "version.h"
 */
 import "C"
 import (

@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -21,15 +22,15 @@ type defIntervalYM struct {
 
 func (def *defIntervalYM) define(position int, rset *Rset) error {
 	def.rset = rset
-	r := C.OCIDefineByPos2(
-		def.rset.ocistmt,                      //OCIStmt     *stmtp,
-		&def.ocidef,                           //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,      //OCIError    *errhp,
-		C.ub4(position),                       //ub4         position,
-		unsafe.Pointer(&def.ociInterval),      //void        *valuep,
-		C.sb8(unsafe.Sizeof(def.ociInterval)), //sb8         value_sz,
-		C.SQLT_INTERVAL_YM,                    //ub2         dty,
-		unsafe.Pointer(&def.null),             //void        *indp,
+	r := C.OCIDEFINEBYPOS(
+		def.rset.ocistmt,                              //OCIStmt     *stmtp,
+		&def.ocidef,                                   //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,              //OCIError    *errhp,
+		C.ub4(position),                               //ub4         position,
+		unsafe.Pointer(&def.ociInterval),              //void        *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(def.ociInterval)), //sb8         value_sz,
+		C.SQLT_INTERVAL_YM,                            //ub2         dty,
+		unsafe.Pointer(&def.null),                     //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );

@@ -6,6 +6,7 @@ package ora
 
 /*
 #include <oci.h>
+#include "version.h"
 */
 import "C"
 import (
@@ -38,7 +39,7 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
 	}
-	alenp := make([]C.ub4, len(values))
+	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
 	var maxLen int = 1
 	for n, bValue := range values {
@@ -53,17 +54,17 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 				return err
 			}
 		}
-		alenp[n] = C.ub4(1)
+		alenp[n] = 1
 	}
 	bnd.bytes = bnd.buf.Bytes()
 
-	r := C.OCIBindByPos2(
+	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,              //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),    //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,   //OCIError     *errhp,
 		C.ub4(position),               //ub4          position,
 		unsafe.Pointer(&bnd.bytes[0]), //void         *valuep,
-		C.sb8(maxLen),                 //sb8          value_sz,
+		C.LENGTH_TYPE(maxLen),         //sb8          value_sz,
 		C.SQLT_CHR,                    //ub2          dty,
 		unsafe.Pointer(&nullInds[0]),  //void         *indp,
 		&alenp[0],                     //ub4          *alenp,
