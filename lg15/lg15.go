@@ -17,8 +17,8 @@ type lgr struct {
 	log15.Logger
 }
 
-func (s lgr) Infof(format string, args ...interface{})  { s.Info(fmt.Sprintf(format, args...)) }
-func (s lgr) Infoln(args ...interface{})                { s.Info(strings.Join(asStrings(args), " ")) }
+func (s lgr) Infof(format string, args ...interface{})  { s.Debug(fmt.Sprintf(format, args...)) }
+func (s lgr) Infoln(args ...interface{})                { s.Debug(strings.Join(asStrings(args), " ")) }
 func (s lgr) Errorf(format string, args ...interface{}) { s.Error(fmt.Sprintf(format, args...)) }
 func (s lgr) Errorln(args ...interface{})               { s.Error(strings.Join(asStrings(args), " ")) }
 
