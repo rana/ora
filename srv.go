@@ -116,19 +116,23 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	if err != nil {
 		return nil, err
 	}
-	// set username on session handle
-	cUsername := C.CString(username)
-	defer C.free(unsafe.Pointer(cUsername))
-	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cUsername), C.ub4(len(username)), C.OCI_ATTR_USERNAME)
-	if err != nil {
-		return nil, err
-	}
-	// set password on session handle
-	cPassword := C.CString(password)
-	defer C.free(unsafe.Pointer(cPassword))
-	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cPassword), C.ub4(len(password)), C.OCI_ATTR_PASSWORD)
-	if err != nil {
-		return nil, err
+	credentialType := C.ub4(C.OCI_CRED_EXT)
+	if username != "" || password != "" {
+		credentialType = C.OCI_CRED_RDBMS
+		// set username on session handle
+		cUsername := C.CString(username)
+		defer C.free(unsafe.Pointer(cUsername))
+		err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cUsername), C.ub4(len(username)), C.OCI_ATTR_USERNAME)
+		if err != nil {
+			return nil, err
+		}
+		// set password on session handle
+		cPassword := C.CString(password)
+		defer C.free(unsafe.Pointer(cPassword))
+		err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cPassword), C.ub4(len(password)), C.OCI_ATTR_PASSWORD)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// set driver name on the session handle
 	// driver name is specified to aid diagnostics; max 9 single-byte characters
@@ -140,12 +144,13 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	if err != nil {
 		return nil, err
 	}
+	Log.Infof("CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
 	// begin session
 	r := C.OCISessionBegin(
 		srv.ocisvcctx,           //OCISvcCtx     *svchp,
 		srv.env.ocierr,          //OCIError      *errhp,
 		(*C.OCISession)(ocises), //OCISession    *usrhp,
-		C.OCI_CRED_RDBMS,        //ub4           credt,
+		credentialType,          //ub4           credt,
 		C.OCI_DEFAULT)           //ub4           mode );
 	if r == C.OCI_ERROR {
 		return nil, srv.env.ociError()
