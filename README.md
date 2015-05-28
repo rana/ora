@@ -13,8 +13,10 @@ The ora package is written with the Oracle Call Interface (OCI) C-language
 libraries provided by Oracle. The OCI libraries are a standard for client
 application communication and driver communication with Oracle databases.
 
-The ora package has been verified to work with Oracle Enterprise 12c (12.1.0.1.0),
-Windows 8.1 and AMD64.
+The ora package has been verified to work with
+
+   * Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+   * Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
 
 ---
 * [Installation](https://github.com/ranaian/ora#installation)
@@ -176,7 +178,7 @@ may be changed. The Go-to-Oracle type mapping for the ora package is:
 	*bool
 	[]bool
 	[]Bool
-	
+
 	[]byte							BLOB, LONG RAW, RAW
 	[][]byte
 	Binary
@@ -909,7 +911,7 @@ rset, err := ses.Sel("T1",
   "C20", ora.U64,
   "C21", ora.F32)
 ```
-    
+
 The `Srv.Ping` method checks whether the client's connection to an
 Oracle server is valid. A call to `Ping` requires an open Ses. `Ping`
 will return a nil error when the connection is fine:
