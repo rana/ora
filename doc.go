@@ -12,15 +12,17 @@ The ora package is written with the Oracle Call Interface (OCI) C-language
 libraries provided by Oracle. The OCI libraries are a standard for client
 application communication and driver communication with Oracle databases.
 
-The ora package has been verified to work with Oracle Enterprise 12c (12.1.0.1.0),
-Windows 8.1 and AMD64.
+The ora package has been verified to work with:
+
+	* Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+	* Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
 
 Installation
 
 Minimum requirements are Go 1.3 with CGO enabled, a GCC C compiler, and
-Oracle 12c (12.1.0.1.0) or Oracle Instant Client (12.1.0.1.0).
+Oracle 11g (11.2.0.4.0) or Oracle Instant Client (11.2.0.4.0).
 
-Install Oracle 12c or Oracle Instant Client.
+Install Oracle or Oracle Instant Client.
 
 Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
 and library. For example:
