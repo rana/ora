@@ -14,8 +14,8 @@ application communication and driver communication with Oracle databases.
 
 The ora package has been verified to work with:
 
-	* Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
-	* Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
+	Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+	Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
 
 Installation
 
