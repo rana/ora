@@ -263,6 +263,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		}
 		rset.ColumnNames[n] = C.GoString(columnName)
 		//fmt.Printf("Rset.open: ociTypeCode (%v)\n", ociTypeCode)
+		//Log.Infof("Rset.open: ociTypeCode=%d name=%s size=%d", ociTypeCode, rset.ColumnNames[n], columnSize)
 		switch ociTypeCode {
 		case C.SQLT_NUM:
 			// NUMBER
@@ -389,8 +390,10 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				return err
 			}
 		case C.SQLT_AFC:
+			Log.Infof("rset AFC size=%d gct=%v", columnSize, gct)
 			// CHAR, NCHAR
-			if columnSize == 1 {
+			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
+			if columnSize == 1 || columnSize == 4 {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 					gct = rset.stmt.Cfg.Rset.char1
 				} else {
@@ -567,6 +570,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			return errNewF("unsupported select-list column type (ociTypeCode: %v)", ociTypeCode)
 		}
 	}
+	Log.Infof("defs: %#v", rset.defs)
 
 	return nil
 }

@@ -10,7 +10,7 @@ package ora
 */
 import "C"
 import (
-	"bytes"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -24,6 +24,7 @@ type bndBoolPtr struct {
 }
 
 func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt) error {
+	Log.Infof("%v.bind(%t, %d)", bnd, value, position)
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.trueRune = trueRune
@@ -51,8 +52,12 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 }
 
 func (bnd *bndBoolPtr) setPtr() error {
+	Log.Infof("%s.setPtr()", bnd)
 	if bnd.isNull > -1 {
-		*bnd.value = bytes.Runes(bnd.buf)[0] == bnd.trueRune
+		r, _ := utf8.DecodeRune(bnd.buf)
+		*bnd.value = r == bnd.trueRune
+	} else {
+		bnd.value = nil
 	}
 	return nil
 }
