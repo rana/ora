@@ -10,7 +10,7 @@ package ora
 */
 import "C"
 import (
-	"bytes"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -28,6 +28,7 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 	if cap(def.buf) < columnSize {
 		def.buf = make([]byte, columnSize)
 	}
+	Log.Infof("defBool.define(position=%d, columnSize=%d)", position, columnSize)
 	// Create oci define handle
 	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                 //OCIStmt     *stmtp,
@@ -36,7 +37,7 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 		C.ub4(position),                  //ub4         position,
 		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
 		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
-		C.SQLT_CHR,                       //ub2         dty,
+		C.SQLT_AFC,                       //ub2         dty,
 		unsafe.Pointer(&def.null),        //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
@@ -48,19 +49,21 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 }
 
 func (def *defBool) value() (value interface{}, err error) {
+	Log.Infof("%v.value", def)
 	if def.isNullable {
 		oraBoolValue := Bool{IsNull: def.null < 0}
 		if !oraBoolValue.IsNull {
-			oraBoolValue.Value = bytes.Runes(def.buf)[0] == def.rset.stmt.Cfg.Rset.TrueRune
+			r, _ := utf8.DecodeRune(def.buf)
+			oraBoolValue.Value = r == def.rset.stmt.Cfg.Rset.TrueRune
 		}
-		value = oraBoolValue
-	} else {
-		if def.null > -1 {
-			value = bytes.Runes(def.buf)[0] == def.rset.stmt.Cfg.Rset.TrueRune
-		}
+		return oraBoolValue, nil
 	}
-
-	return value, err
+	if def.null > -1 {
+		r, _ := utf8.DecodeRune(def.buf)
+		return r == def.rset.stmt.Cfg.Rset.TrueRune, nil
+	}
+	// NULL is false, too
+	return false, nil
 }
 
 func (def *defBool) alloc() error {
