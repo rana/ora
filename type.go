@@ -220,22 +220,9 @@ type Binary struct {
 // Equals returns true when the receiver and specified Binary are both null,
 // or when the receiver and specified Binary are both not null and Values are equal.
 func (this Binary) Equals(other Binary) bool {
-	if this.IsNull && other.IsNull {
-		return true
-	}
-	if this.IsNull == other.IsNull {
-		if len(this.Value) != len(other.Value) {
-			return false
-		} else {
-			for n := 0; n < len(this.Value); n++ {
-				if this.Value[n] != other.Value[n] {
-					return false
-				}
-			}
-			return true
-		}
-	}
-	return false
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull &&
+			bytes.Equal(this.Value, other.Value))
 }
 
 // Bfile represents a nullable BFILE Oracle value.
