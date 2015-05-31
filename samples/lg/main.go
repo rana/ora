@@ -5,8 +5,8 @@
 package main
 
 import (
-	"github.com/ranaian/ora"
-	"github.com/ranaian/ora/lg"
+	"github.com/rana/ora"
+	"github.com/rana/ora/lg"
 )
 
 // Sample logging produced using the standard Go log package

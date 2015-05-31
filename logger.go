@@ -8,10 +8,10 @@ package ora
 //
 // The default implementation uses the standard lib's log package.
 //
-// For a glog-based implementation, see github.com/ranaian/ora/glg.
+// For a glog-based implementation, see github.com/rana/ora/glg.
 // ora.Log = glg.Log
 //
-// For an gopkg.in/inconshreveable/log15.v2-based, see github.com/ranaian/ora/lg15.
+// For an gopkg.in/inconshreveable/log15.v2-based, see github.com/rana/ora/lg15.
 // ora.Log = lg15.Log
 var Log Logger = empLgr{}
 

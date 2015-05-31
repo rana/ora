@@ -5,8 +5,8 @@
 package main
 
 import (
-	"github.com/ranaian/ora"
-	"github.com/ranaian/ora/lg15"
+	"github.com/rana/ora"
+	"github.com/rana/ora/lg15"
 )
 
 // Sample logging produced by log15

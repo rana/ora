@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ranaian/ora/tstlg"
+	"github.com/rana/ora/tstlg"
 )
 
 type oracleColumnType string

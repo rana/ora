@@ -19,16 +19,16 @@ The ora package has been verified to work with
    * Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
 
 ---
-* [Installation](https://github.com/ranaian/ora#installation)
-* [Data Types](https://github.com/ranaian/ora#data-types)
-* [SQL Placeholder Syntax](https://github.com/ranaian/ora#sql-placeholder-syntax)
-* [Working With The Sql Package](https://github.com/ranaian/ora#working-with-the-sql-package)
-* [Working With The Oracle Package Directly](https://github.com/ranaian/ora#working-with-the-oracle-package-directly)
-* [Logging](https://github.com/ranaian/ora#logging)
-* [Test Database Setup](https://github.com/ranaian/ora#test-database-setup)
-* [Limitations](https://github.com/ranaian/ora#limitations)
-* [License](https://github.com/ranaian/ora#license)
-* [API Reference](http://godoc.org/github.com/ranaian/ora#pkg-index)
+* [Installation](https://github.com/rana/ora#installation)
+* [Data Types](https://github.com/rana/ora#data-types)
+* [SQL Placeholder Syntax](https://github.com/rana/ora#sql-placeholder-syntax)
+* [Working With The Sql Package](https://github.com/rana/ora#working-with-the-sql-package)
+* [Working With The Oracle Package Directly](https://github.com/rana/ora#working-with-the-oracle-package-directly)
+* [Logging](https://github.com/rana/ora#logging)
+* [Test Database Setup](https://github.com/rana/ora#test-database-setup)
+* [Limitations](https://github.com/rana/ora#limitations)
+* [License](https://github.com/rana/ora#license)
+* [API Reference](http://godoc.org/github.com/rana/ora#pkg-index)
 
 ---
 
@@ -53,7 +53,7 @@ locally installed.
 
 The ora package has no external Go dependencies and is available on GitHub:
 
-	go get github.com/ranaian/ora
+	go get github.com/rana/ora
 
 ##### Data Types #####
 
@@ -216,7 +216,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ranaian/ora"
+	"github.com/rana/ora"
 )
 
 func main() {
@@ -809,13 +809,13 @@ for rst.Next() {
 `Ses.PrepAndExe`, `Ses.PrepAndQry`, `Ses.Ins`, `Ses.Upd`, and `Ses.Sel` are convenient
 one-line methods.
 
-`Ses.PrepAndExe` offers a convenient one-line call to `Ses.Prep` and `Stmt.Exe`. `Ses.PrepAndExe` [sample code](https://github.com/ranaian/ora/blob/master/samples/prepAndExe/main.go) is available.
+`Ses.PrepAndExe` offers a convenient one-line call to `Ses.Prep` and `Stmt.Exe`. `Ses.PrepAndExe` [sample code](https://github.com/rana/ora/blob/master/samples/prepAndExe/main.go) is available.
 
 ```go
 rowsAffected, err := ses.PrepAndExe("CREATE TABLE T1 (C1 NUMBER)")
 ```
 
-`Ses.PrepAndQry` offers a convenient one-line call to `Ses.Prep` and `Stmt.Qry`. `Ses.PrepAndQry` [sample code](https://github.com/ranaian/ora/blob/master/samples/prepAndQry/main.go) is available.
+`Ses.PrepAndQry` offers a convenient one-line call to `Ses.Prep` and `Stmt.Qry`. `Ses.PrepAndQry` [sample code](https://github.com/rana/ora/blob/master/samples/prepAndQry/main.go) is available.
 
 ```go
 rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
@@ -824,7 +824,7 @@ rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
 `Ses.Ins` composes, prepares and executes a sql INSERT statement. `Ses.Ins` is useful
 when you have to create and maintain a simple INSERT statement with a long
 list of columns. As table columns are added and dropped over the lifetime of
-a table `Ses.Ins` is easy to read and revise. `Ses.Ins` [sample code](https://github.com/ranaian/ora/blob/master/samples/ins/main.go) is available.
+a table `Ses.Ins` is easy to read and revise. `Ses.Ins` [sample code](https://github.com/rana/ora/blob/master/samples/ins/main.go) is available.
 
 ```go
 err = ses.Ins("T1",
@@ -854,7 +854,7 @@ err = ses.Ins("T1",
 `Ses.Upd` composes, prepares and executes a sql UPDATE statement. `Ses.Upd` is useful
 when you have to create and maintain a simple UPDATE statement with a long list
 of columns. As table columns are added and dropped over the lifetime of
-a table `Ses.Upd` is easy to read and revise. `Ses.Upd` [sample code](https://github.com/ranaian/ora/blob/master/samples/upd/main.go) is available.
+a table `Ses.Upd` is easy to read and revise. `Ses.Upd` [sample code](https://github.com/rana/ora/blob/master/samples/upd/main.go) is available.
 
 ```go
 err = ses.Upd("T1",
@@ -885,7 +885,7 @@ err = ses.Upd("T1",
 when you have to create and maintain a simple SELECT statement with a long
 list of columns that have non-default GoColumnTypes. As table columns are added
 and dropped over the lifetime of a table `Ses.Sel` is easy to read and revise.
-`Ses.Sel` [sample code](https://github.com/ranaian/ora/blob/master/samples/sel/main.go) is available.
+`Ses.Sel` [sample code](https://github.com/rana/ora/blob/master/samples/sel/main.go) is available.
 
 ```go
 rset, err := ses.Sel("T1",
@@ -937,7 +937,7 @@ if version != "" && err == nil {
 }
 ```
 
-Further code examples are available in the [example file](https://github.com/ranaian/ora/blob/master/z_example_test.go), test files and [samples folder](https://github.com/ranaian/ora/tree/master/samples).
+Further code examples are available in the [example file](https://github.com/rana/ora/blob/master/z_example_test.go), test files and [samples folder](https://github.com/rana/ora/tree/master/samples).
 
 ##### Logging #####
 
@@ -949,8 +949,8 @@ To use the standard Go log package:
 
 ```go
 import (
-  "github.com/ranaian/ora"
-  "github.com/ranaian/ora/lg"
+  "github.com/rana/ora"
+  "github.com/rana/ora/lg"
 )
 
 func main() {
@@ -976,15 +976,15 @@ which produces a sample log of:
 
 Messages are prefixed with 'ORA I' for information or 'ORA E'
 for an error. The log package is configured to write to os.Stderr by default.
-Use the ora/lg.Std type to configure an alternative io.Writer. [Sample code](https://github.com/ranaian/ora/tree/master/samples/lg/main.go) using the log package is available.
+Use the ora/lg.Std type to configure an alternative io.Writer. [Sample code](https://github.com/rana/ora/tree/master/samples/lg/main.go) using the log package is available.
 
 To use the [glog](https://github.com/golang/glog) package:
 
 ```go
 import (
 	"flag"
-	"github.com/ranaian/ora"
-	"github.com/ranaian/ora/glg"
+	"github.com/rana/ora"
+	"github.com/rana/ora/glg"
 )
 
 func main() {
@@ -1013,14 +1013,14 @@ which produces a sample log of:
 	I0523 17:31:41.763365   97708 srv.go:63] E2S1] Close
 	I0523 17:31:41.763365   97708 env.go:68] E2] Close
 
-[Sample code](https://github.com/ranaian/ora/blob/master/samples/glg/main.go) using the [glog](https://github.com/golang/glog) package is available.
+[Sample code](https://github.com/rana/ora/blob/master/samples/glg/main.go) using the [glog](https://github.com/golang/glog) package is available.
 
 To use the [log15](http://gopkg.in/inconshreveable/log15.v2) package:
 
 ```go
 import (
-	"github.com/ranaian/ora"
-	"github.com/ranaian/ora/lg15"
+	"github.com/rana/ora"
+	"github.com/rana/ora/lg15"
 )
 func main() {
 	// use the optional log15 package for ora logging
@@ -1043,7 +1043,7 @@ which produces a sample log of:
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1] Close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2] Close" lib=ora
 
-[Sample code](https://github.com/ranaian/ora/blob/master/samples/lg15/main.go) using the [log15](http://gopkg.in/inconshreveable/log15.v2) package is available.
+[Sample code](https://github.com/rana/ora/blob/master/samples/lg15/main.go) using the [log15](http://gopkg.in/inconshreveable/log15.v2) package is available.
 
 ##### Test Database Setup #####
 

@@ -6,8 +6,8 @@ package main
 
 import (
 	"flag"
-	"github.com/ranaian/ora"
-	"github.com/ranaian/ora/glg"
+	"github.com/rana/ora"
+	"github.com/rana/ora/glg"
 )
 
 // Sample logging produced by glog

@@ -38,7 +38,7 @@ locally installed.
 
 The ora package has no external Go dependencies and is available on GitHub:
 
-	go get github.com/ranaian/ora
+	go get github.com/rana/ora
 
 Data Types
 
@@ -201,7 +201,7 @@ An example of using the ora package directly:
 
 	import (
 		"fmt"
-		"github.com/ranaian/ora"
+		"github.com/rana/ora"
 	)
 
 	func main() {
@@ -770,13 +770,13 @@ one-line methods.
 
 Ses.PrepAndExe offers a convenient one-line call to Ses.Prep and Stmt.Exe.
 Ses.PrepAndExe sample code is available at
-https://github.com/ranaian/ora/blob/master/samples/prepAndExe/main.go.
+https://github.com/rana/ora/blob/master/samples/prepAndExe/main.go.
 
 	rowsAffected, err := ses.PrepAndExe("CREATE TABLE T1 (C1 NUMBER)")
 
 Ses.PrepAndQry offers a convenient one-line call to Ses.Prep and Stmt.Qry.
 Ses.PrepAndQry sample code is available at
-https://github.com/ranaian/ora/blob/master/samples/prepAndQry/main.go.
+https://github.com/rana/ora/blob/master/samples/prepAndQry/main.go.
 
 	rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
 
@@ -784,7 +784,7 @@ Ses.Ins composes, prepares and executes a sql INSERT statement. Ses.Ins is usefu
 when you have to create and maintain a simple INSERT statement with a long
 list of columns. As table columns are added and dropped over the lifetime of
 a table Ses.Ins is easy to read and revise. Ses.Ins sample code is available at
-https://github.com/ranaian/ora/blob/master/samples/ins/main.go.
+https://github.com/rana/ora/blob/master/samples/ins/main.go.
 
 	err = ses.Ins("T1",
 		"C2", e.C2,
@@ -813,7 +813,7 @@ Ses.Upd composes, prepares and executes a sql UPDATE statement. Ses.Upd is usefu
 when you have to create and maintain a simple UPDATE statement with a long list
 of columns. As table columns are added and dropped over the lifetime of
 a table Ses.Upd is easy to read and revise. Ses.Upd sample code is available at
-https://github.com/ranaian/ora/blob/master/samples/upd/main.go.
+https://github.com/rana/ora/blob/master/samples/upd/main.go.
 
 	err = ses.Upd("T1",
 		"C2", e.C2*2,
@@ -843,7 +843,7 @@ when you have to create and maintain a simple SELECT statement with a long
 list of columns that have non-default GoColumnTypes. As table columns are added
 and dropped over the lifetime of a table Ses.Sel is easy to read and revise.
 Ses.Sel sample code is available at
-https://github.com/ranaian/ora/blob/master/samples/sel/main.go.
+https://github.com/rana/ora/blob/master/samples/sel/main.go.
 
 	rset, err := ses.Sel("T1",
 		"C1", ora.U64,
@@ -901,8 +901,8 @@ enable logging; or, use your own logging package.
 To use the standard Go log package:
 
 	import (
-		"github.com/ranaian/ora"
-		"github.com/ranaian/ora/lg"
+		"github.com/rana/ora"
+		"github.com/rana/ora/lg"
 	)
 
 	func main() {
@@ -928,15 +928,15 @@ which produces a sample log of:
 Messages are prefixed with 'ORA I' for information or 'ORA E'
 for an error. The log package is configured to write to os.Stderr by default.
 Use the ora/lg.Std type to configure an alternative io.Writer. See
-https://github.com/ranaian/ora/tree/master/samples/lg/main.go
+https://github.com/rana/ora/tree/master/samples/lg/main.go
 for sample code which uses the log package.
 
 To use the glog package:
 
 	import (
 		"flag"
-		"github.com/ranaian/ora"
-		"github.com/ranaian/ora/glg"
+		"github.com/rana/ora"
+		"github.com/rana/ora/glg"
 	)
 
 	func main() {
@@ -964,14 +964,14 @@ which produces a sample log of:
 	I0523 17:31:41.763365   97708 srv.go:63] E2S1] Close
 	I0523 17:31:41.763365   97708 env.go:68] E2] Close
 
-See https://github.com/ranaian/ora/tree/master/samples/glg/main.go for sample code which
+See https://github.com/rana/ora/tree/master/samples/glg/main.go for sample code which
 uses the glog package.
 
 To use the log15 package:
 
 	import (
-		"github.com/ranaian/ora"
-		"github.com/ranaian/ora/lg15"
+		"github.com/rana/ora"
+		"github.com/rana/ora/lg15"
 	)
 	func main() {
 		// use the optional log15 package for ora logging
@@ -993,7 +993,7 @@ which produces a sample log of:
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1] Close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2] Close" lib=ora
 
-See https://github.com/ranaian/ora/tree/master/samples/lg15/main.go for sample
+See https://github.com/rana/ora/tree/master/samples/lg15/main.go for sample
 code which uses the log15 package.
 
 Test Database Setup

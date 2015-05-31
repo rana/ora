@@ -5,7 +5,7 @@
 package main
 
 import (
-	"github.com/ranaian/ora"
+	"github.com/rana/ora"
 )
 
 // Ses.Upd offers a convenient one-line call to Ses.Prep and Stmt.Exe.

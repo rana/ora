@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ranaian/ora"
+	"github.com/rana/ora"
 )
 
 func main() {

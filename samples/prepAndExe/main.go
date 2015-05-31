@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ranaian/ora"
+	"github.com/rana/ora"
 )
 
 // Ses.PrepAndExe offers a convenient one-line call to Ses.Prep and Stmt.Exe.
