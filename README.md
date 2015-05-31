@@ -809,13 +809,13 @@ for rst.Next() {
 `Ses.PrepAndExe`, `Ses.PrepAndQry`, `Ses.Ins`, `Ses.Upd`, and `Ses.Sel` are convenient
 one-line methods.
 
-`Ses.PrepAndExe` offers a convenient one-line call to `Ses.Prep` and `Stmt.Exe`. `Ses.PrepAndExe` [sample code](https://github.com/rana/ora/blob/master/samples/prepAndExe/main.go) is available.
+`Ses.PrepAndExe` offers a convenient one-line call to `Ses.Prep` and `Stmt.Exe`.
 
 ```go
 rowsAffected, err := ses.PrepAndExe("CREATE TABLE T1 (C1 NUMBER)")
 ```
 
-`Ses.PrepAndQry` offers a convenient one-line call to `Ses.Prep` and `Stmt.Qry`. `Ses.PrepAndQry` [sample code](https://github.com/rana/ora/blob/master/samples/prepAndQry/main.go) is available.
+`Ses.PrepAndQry` offers a convenient one-line call to `Ses.Prep` and `Stmt.Qry`.
 
 ```go
 rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
@@ -824,7 +824,7 @@ rset, err := ses.PrepAndQry("SELECT CURRENT_TIMESTAMP FROM DUAL")
 `Ses.Ins` composes, prepares and executes a sql INSERT statement. `Ses.Ins` is useful
 when you have to create and maintain a simple INSERT statement with a long
 list of columns. As table columns are added and dropped over the lifetime of
-a table `Ses.Ins` is easy to read and revise. `Ses.Ins` [sample code](https://github.com/rana/ora/blob/master/samples/ins/main.go) is available.
+a table `Ses.Ins` is easy to read and revise.
 
 ```go
 err = ses.Ins("T1",
@@ -854,7 +854,7 @@ err = ses.Ins("T1",
 `Ses.Upd` composes, prepares and executes a sql UPDATE statement. `Ses.Upd` is useful
 when you have to create and maintain a simple UPDATE statement with a long list
 of columns. As table columns are added and dropped over the lifetime of
-a table `Ses.Upd` is easy to read and revise. `Ses.Upd` [sample code](https://github.com/rana/ora/blob/master/samples/upd/main.go) is available.
+a table `Ses.Upd` is easy to read and revise.
 
 ```go
 err = ses.Upd("T1",
@@ -885,7 +885,6 @@ err = ses.Upd("T1",
 when you have to create and maintain a simple SELECT statement with a long
 list of columns that have non-default GoColumnTypes. As table columns are added
 and dropped over the lifetime of a table `Ses.Sel` is easy to read and revise.
-`Ses.Sel` [sample code](https://github.com/rana/ora/blob/master/samples/sel/main.go) is available.
 
 ```go
 rset, err := ses.Sel("T1",
@@ -976,7 +975,7 @@ which produces a sample log of:
 
 Messages are prefixed with 'ORA I' for information or 'ORA E'
 for an error. The log package is configured to write to os.Stderr by default.
-Use the ora/lg.Std type to configure an alternative io.Writer. [Sample code](https://github.com/rana/ora/tree/master/samples/lg/main.go) using the log package is available.
+Use the ora/lg.Std type to configure an alternative io.Writer.
 
 To use the [glog](https://github.com/golang/glog) package:
 
@@ -1013,8 +1012,6 @@ which produces a sample log of:
 	I0523 17:31:41.763365   97708 srv.go:63] E2S1] Close
 	I0523 17:31:41.763365   97708 env.go:68] E2] Close
 
-[Sample code](https://github.com/rana/ora/blob/master/samples/glg/main.go) using the [glog](https://github.com/golang/glog) package is available.
-
 To use the [log15](http://gopkg.in/inconshreveable/log15.v2) package:
 
 ```go
@@ -1042,8 +1039,6 @@ which produces a sample log of:
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1S1S1R0] close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2S1] Close" lib=ora
 	t=2015-05-23T17:08:32-0700 lvl=info msg="E2] Close" lib=ora
-
-[Sample code](https://github.com/rana/ora/blob/master/samples/lg15/main.go) using the [log15](http://gopkg.in/inconshreveable/log15.v2) package is available.
 
 ##### Test Database Setup #####
 
