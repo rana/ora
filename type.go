@@ -13,6 +13,7 @@ import "C"
 import (
 	"bytes"
 	"container/list"
+	"io"
 	"time"
 )
 
@@ -212,9 +213,13 @@ func (this Bool) Equals(other Bool) bool {
 }
 
 // Binary represents a nullable byte slice for BLOB, RAW or LONG RAW Oracle values.
+// If Value is not nil, it will be used for IN and OUT.
+// If Reader is not nil
 type Binary struct {
 	IsNull bool
 	Value  []byte
+	Reader io.Reader
+	Writer io.Writer
 }
 
 // Equals returns true when the receiver and specified Binary are both null,

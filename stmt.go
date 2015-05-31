@@ -637,7 +637,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				} else {
 					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt.Cfg.lobBufferSize, stmt)
+					err = bnd.bind(value, n+1, stmt)
 					if err != nil {
 						return iterations, err
 					}
@@ -871,7 +871,11 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				} else {
 					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt.Cfg.lobBufferSize, stmt)
+					if value.Value != nil || value.Reader == nil {
+						err = bnd.bind(value.Value, n+1, stmt)
+					} else {
+						err = bnd.bindReader(value.Reader, n+1, stmt.Cfg.lobBufferSize, stmt)
+					}
 					if err != nil {
 						return iterations, err
 					}

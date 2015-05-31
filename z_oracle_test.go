@@ -2514,6 +2514,10 @@ func gen_OraBytes(length int, isNull bool) Binary {
 	return Binary{Value: gen_bytes(length), IsNull: isNull}
 }
 
+func gen_OraBytesReader(length int, isNull bool) Binary {
+	return Binary{Reader: bytes.NewReader(gen_bytes(length)), IsNull: isNull}
+}
+
 func gen_bytesSlice(length int) [][]byte {
 	values := make([][]byte, 5)
 	values[0] = gen_bytes(length)

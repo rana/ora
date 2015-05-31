@@ -147,6 +147,11 @@ func TestBindDefine_OraBytes_blob_session(t *testing.T) {
 	testBindDefine(gen_OraBytes(9, false), blob, t, nil, OraBin)
 }
 
+func TestBindDefine_Reader_blob_session(t *testing.T) {
+	enableLogging(t)
+	testBindDefine(gen_OraBytesReader(9, false), blob, t, nil, OraBin)
+}
+
 func TestBindSlice_bytes_blob_session(t *testing.T) {
 	testBindDefine(gen_bytesSlice(9), blob, t, nil)
 }
@@ -193,6 +198,42 @@ func TestBindDefine_bytes_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
 	testBindDefine(gen_bytes((sc.lobBufferSize*3)+1), blob, t, nil, Bin)
 }
 
+func TestBindDefine_OraBytesReader_blob_bufferSize_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader(sc.lobBufferSize, false), blob, t, nil, Bin)
+}
+
+func TestBindDefine_OraBytesReader_blob_bufferSizeMinusOne_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader(sc.lobBufferSize-1, false), blob, t, nil, Bin)
+}
+
+func TestBindDefine_OraBytesReader_blob_bufferSizePlusOne_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader(sc.lobBufferSize+1, false), blob, t, nil, Bin)
+}
+
+func TestBindDefine_OraBytesReader_blob_bufferSizeMultiple_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader(sc.lobBufferSize*3, false), blob, t, nil, Bin)
+}
+
+func TestBindDefine_OraBytesReader_blob_bufferSizeMultipleMinusOne_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader((sc.lobBufferSize*3)-1, false), blob, t, nil, Bin)
+}
+
+func TestBindDefine_OraBytesReader_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
+	enableLogging(t)
+	sc := NewStmtCfg()
+	testBindDefine(gen_OraBytesReader((sc.lobBufferSize*3)+1, false), blob, t, nil, Bin)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // blobNull
 ////////////////////////////////////////////////////////////////////////////////
@@ -202,6 +243,11 @@ func TestBindDefine_bytes_blobNull_session(t *testing.T) {
 
 func TestBindDefine_OraBytes_blobNull_session(t *testing.T) {
 	testBindDefine(gen_OraBytes(9, true), blobNull, t, nil, OraBin)
+}
+
+func TestBindDefine_OraBytesReader_blobNull_session(t *testing.T) {
+	enableLogging(t)
+	testBindDefine(gen_OraBytesReader(9, true), blobNull, t, nil, OraBin)
 }
 
 func TestBindSlice_bytes_blobNull_session(t *testing.T) {
