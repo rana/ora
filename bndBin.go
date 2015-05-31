@@ -105,8 +105,12 @@ func (bnd *bndBin) bindReader(rdr io.Reader, position int, lobBufferSize int, st
 	if err != nil {
 		return err
 	}
+	var done bool
 	defer func() {
 		if err != nil {
+			if !done {
+				bnd.stmt.ses.srv.Break()
+			}
 			finish()
 		}
 	}()
@@ -184,6 +188,7 @@ func (bnd *bndBin) bindReader(rdr io.Reader, position int, lobBufferSize int, st
 		actPiece, actBuf = nextPiece, nextBuf
 
 	}
+	done = true
 
 	return bnd.bindByPos(position)
 }

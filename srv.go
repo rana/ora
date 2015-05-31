@@ -227,3 +227,9 @@ func (srv *Srv) SetStmtCfg(c StmtCfg) {
 func (srv *Srv) StmtCfg() *StmtCfg {
 	return &srv.stmtCfg
 }
+
+// Break the currently running OCI function.
+func (srv *Srv) Break() {
+	Log.Infof("E%vS%v] Break", srv.env.id, srv.id)
+	C.OCIBreak(unsafe.Pointer(srv.ocisvcctx), srv.env.ocierr)
+}
