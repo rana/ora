@@ -9,6 +9,52 @@ import (
 	"testing"
 )
 
+func Test_open_cursors_db(t *testing.T) {
+	enableLogging(t)
+	// This needs "GRANT SELECT ANY DICTIONARY TO test"
+	// or at least "GRANT SELECT ON v_$mystat TO test".
+	stmt, err := testDb.Prepare("select value from v$mystat where statistic#=4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var before, after int
+	if err = stmt.QueryRow().Scan(&before); err != nil {
+		t.Skip(err)
+	}
+	rounds := 100
+	for i := 0; i < rounds; i++ {
+		func() {
+			Log.Infoln("Prepare")
+			stmt, err := testDb.Prepare("SELECT 1 FROM user_objects WHERE ROWNUM < 100")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stmt.Close()
+			Log.Infoln("Query")
+			rows, err := stmt.Query()
+			if err != nil {
+				t.Errorf("SELECT: %v", err)
+				return
+			}
+			defer rows.Close()
+			Log.Infoln("loop")
+			j := 0
+			for rows.Next() {
+				j++
+			}
+			t.Logf("%d objects, error=%v", j, rows.Err())
+			Log.Infof("%d objects, error=%v", j, rows.Err())
+		}()
+		if err = stmt.QueryRow().Scan(&after); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%d. before=%d after=%d", i, before, after)
+	}
+	if after-before >= rounds {
+		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
+	}
+}
+
 func Test_numberP38S0Identity_db(t *testing.T) {
 	tableName := tableName()
 	stmt, err := testDb.Prepare(createTableSql(tableName, 1, numberP38S0Identity, varchar2C48))
