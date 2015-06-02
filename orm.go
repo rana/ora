@@ -29,60 +29,61 @@ const (
 
 	// MapOfPtrPk indicates a map of struct pointers will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",pk"`.
+	// The map key is determined by a struct field tagged with `db:"pk"`.
 	MapOfPtrPk
 
 	// MapOfPtrFk1 indicates a map of struct pointers will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk1"`.
+	// The map key is determined by a struct field tagged with `db:"fk1"`.
 	MapOfPtrFk1
 
 	// MapOfPtrFk2 indicates a map of struct pointers will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk2"`.
+	// The map key is determined by a struct field tagged with `db:"fk2"`.
 	MapOfPtrFk2
 
 	// MapOfPtrFk3 indicates a map of struct pointers will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk3"`.
+	// The map key is determined by a struct field tagged with `db:"fk3"`.
 	MapOfPtrFk3
 
 	// MapOfPtrFk4 indicates a map of struct pointers will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk4"`.
+	// The map key is determined by a struct field tagged with `db:"fk4"`.
 	MapOfPtrFk4
 
 	// MapOfValPk indicates a map of structs will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",pk"`.
+	// The map key is determined by a struct field tagged with `db:"pk"`.
 	MapOfValPk
 
 	// MapOfValFk1 indicates a map of structs will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk1"`.
+	// The map key is determined by a struct field tagged with `db:"fk1"`.
 	MapOfValFk1
 
 	// MapOfValFk2 indicates a map of structs will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk2"`.
+	// The map key is determined by a struct field tagged with `db:"fk2"`.
 	MapOfValFk2
 
 	// MapOfValFk3 indicates a map of structs will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk3"`.
+	// The map key is determined by a struct field tagged with `db:"fk3"`.
 	MapOfValFk3
 
 	// MapOfValFk4 indicates a map of structs will be returned by the ora.Sel method.
 	// The struct type is specified to ora.Sel by the user.
-	// The map key is determined by a struct field tagged with `db:",fk4"`.
+	// The map key is determined by a struct field tagged with `db:"fk4"`.
 	MapOfValFk4
 )
 
 // Represents attributes marked on a struct field `db` tag.
-// Available tags are `db:"column_name,pk,fk1,fk2,fk3,fk4,omit"`
+// Available tags are `db:"column_name,id,pk,fk1,fk2,fk3,fk4,-"`
 type tag int
 
 const (
+	id  tag = 1 << iota
 	pk  tag = 1 << iota
 	fk1 tag = 1 << iota
 	fk2 tag = 1 << iota
@@ -108,7 +109,7 @@ type col struct {
 // Specify a struct, or struct pointer to parameter 'v' and an open Ses to
 // parameter 'ses'.
 //
-// Optional struct field tags `db:"column_name,pk,omit"` may be specified to
+// Optional struct field tags `db:"column_name,id,-"` may be specified to
 // control how the sql INSERT statement is generated.
 //
 // By default, Ins generates and executes a sql INSERT statement based on the
@@ -116,14 +117,14 @@ type col struct {
 // name and a field name is used for a column name. Prior to calling Ins, you
 // may specify an alternative table name to ora.AddTbl. An alternative column
 // name may be specified to the field tag `db:"column_name"`. Specifying the
-// `db:",omit"` tag will remove a field from the INSERT statement.
+// `db:"-"` tag will remove a field from the INSERT statement.
 //
-// The optional `db:",pk"` field tag indicates that a field represents a primary
-// key backed by an Oracle identity sequence. `db:",pk"` may be specified on one
-// field per struct. When `db:",pk"` is tagged on a field, Ins generates a
-// RETURNING clause to recevie an identity value. The `db:",pk"` tag is not
-// required and Ins will insert a struct to a table without a primary key
-// identity sequence.
+// The optional `db:"id"` field tag may combined with the `db:"pk"` tag. A field
+// tagged with `db:"pk,id"` indicates a field is a primary key backed by an
+// Oracle identity sequence. `db:"pk,id"` may be tagged to one field per struct.
+// When `db:"pk,id"` is tagged to a field Ins generates a RETURNING clause to
+// recevie a db generated identity value. The `db:"id"` tag is not required and
+// Ins will insert a struct to a table without returning an identity value.
 //
 // Set ora.Schema to specify an optional table name prefix.
 func Ins(v interface{}, ses *Ses) (err error) {
@@ -136,10 +137,10 @@ func Ins(v interface{}, ses *Ses) (err error) {
 	if err != nil {
 		return err
 	}
-	// enable inserting to tables with pk and without pk
-	// case 1: insert all columns/fields when no pk
-	// case 2: insert non-pk columns when pk; capture pk in returning clause.
-	// 		   expect pk at last index
+	// enable inserting to tables with `db:"id"` and without `db:"id"`
+	// case 1: insert all columns/fields when no `db:"id"`
+	// case 2: insert non-id columns when `db:"id"` present; capture id in
+	//		   returning clause expect id field at last index.
 	rv, err := finalValue(v)
 	if err != nil {
 		return err
@@ -154,7 +155,7 @@ func Ins(v interface{}, ses *Ses) (err error) {
 	buf.WriteString(tbl.name)
 	buf.WriteString(" (")
 	colLen := len(tbl.cols)
-	if tbl.attr&pk != 0 {
+	if tbl.attr&id != 0 {
 		colLen--
 	}
 	for n := 0; n < colLen; n++ {
@@ -175,14 +176,14 @@ func Ins(v interface{}, ses *Ses) (err error) {
 			buf.WriteString(")")
 		}
 	}
-	if tbl.attr&pk != 0 { // add RETURNING clause for pk
+	if tbl.attr&id != 0 { // add RETURNING clause for id
 		last := len(tbl.cols) - 1
-		lastCol := tbl.cols[last] // expect pk positioned at last index
+		lastCol := tbl.cols[last] // expect id positioned at last index
 		buf.WriteString(" RETURNING ")
 		buf.WriteString(lastCol.name)
 		buf.WriteString(" INTO :RET_VAL")
 		fv := rv.Field(lastCol.fieldIdx)
-		if fv.Kind() == reflect.Ptr { // ensure last field is ptr to capture pk from db
+		if fv.Kind() == reflect.Ptr { // ensure last field is ptr to capture id from db
 			params[last] = fv.Interface()
 		} else {
 			params[last] = fv.Addr().Interface()
@@ -197,16 +198,16 @@ func Ins(v interface{}, ses *Ses) (err error) {
 // Specify a struct, or struct pointer to parameter 'v' and an open Ses to
 // parameter 'ses'.
 //
-// Upd requires one struct field tagged with `db:",pk"`. The field tagged with
-// `db:",pk"` is used in a sql WHERE clause. Optional struct field tags
-// `db:"column_name,omit"` may be specified to control how the sql UPDATE
-// statement is generated.
+// Upd requires one struct field tagged with `db:"pk"`. The field tagged with
+// `db:"pk"` is used in a sql WHERE clause. Optional struct field tags
+// `db:"column_name,-"` may be specified to control how the sql UPDATE statement
+// is generated.
 //
 // By default, Upd generates and executes a sql UPDATE statement based on the
 // struct name and all exported field names. A struct name is used for the table
 // name and a field name is used for a column name. Prior to calling Upd, you may
 // specify an alternative table name to ora.AddTbl. An alternative column name may
-// be specified to the field tag `db:"column_name"`. Specifying the `db:",omit"`
+// be specified to the field tag `db:"column_name"`. Specifying the `db:"-"`
 // tag will remove a field from the UPDATE statement.
 //
 // Set ora.Schema to specify an optional table name prefix.
@@ -245,11 +246,11 @@ func Upd(v interface{}, ses *Ses) (err error) {
 // Specify a struct, or struct pointer to parameter 'v' and an open Ses to
 // parameter 'ses'.
 //
-// Del requires one struct field tagged with `db:",pk"`. The field tagged with
-// `db:",pk"` is used in a sql WHERE clause.
+// Del requires one struct field tagged with `db:"pk"`. The field tagged with
+// `db:"pk"` is used in a sql WHERE clause.
 //
 // By default, Del generates and executes a sql DELETE statement based on the
-// struct name and one exported field name tagged with `db:",pk"`. A struct name
+// struct name and one exported field name tagged with `db:"pk"`. A struct name
 // is used for the table name and a field name is used for a column name. Prior
 // to calling Del, you may specify an alternative table name to ora.AddTbl. An
 // alternative column name may be specified to the field tag `db:"column_name"`.
@@ -280,7 +281,7 @@ func Del(v interface{}, ses *Ses) (err error) {
 	buf.WriteString(tbl.name)
 	buf.WriteString(" WHERE ")
 	buf.WriteString(lastCol.name)
-	buf.WriteString(" = :VAL")
+	buf.WriteString(" = :WHERE_VAL")
 	_, err = ses.PrepAndExe(buf.String(), rv.Field(lastCol.fieldIdx).Interface())
 	return err
 }
@@ -297,7 +298,7 @@ func Del(v interface{}, ses *Ses) (err error) {
 //
 // Optional struct field tags `db:"column_name,omit"` may be specified to
 // control how the sql SELECT statement is generated. Optional struct field tags
-// `db:",pk,fk1,fk2,fk3,fk4"` control how a map return type is generated.
+// `db:"pk,fk1,fk2,fk3,fk4"` control how a map return type is generated.
 //
 // A slice may be returned by specifying one of the 'SliceOf' ResTypes to
 // parameter 'rt'. Specify a SliceOfPtr to return a slice of struct pointers.
@@ -305,11 +306,11 @@ func Del(v interface{}, ses *Ses) (err error) {
 //
 // A map may be returned by specifying one of the 'MapOf' ResTypes to parameter
 // 'rt'. The map key type is based on a struct field type tagged with one of
-// `db:",pk"`, `db:",fk1"`, `db:",fk2"`, `db:",fk3"`, or `db:",fk4"` matching
+// `db:"pk"`, `db:"fk1"`, `db:"fk2"`, `db:"fk3"`, or `db:"fk4"` matching
 // the specified ResType suffix Pk, Fk1, Fk2, Fk3, or Fk4. The map value type is
 // a struct pointer when a 'MapOfPtr' ResType is specified. The map value type
 // is a struct when a 'MapOfVal' ResType is specified. For example, tagging a
-// uint64 struct field with `db:",pk"` and specifying a MapOfPtrPk generates a
+// uint64 struct field with `db:"pk"` and specifying a MapOfPtrPk generates a
 // map with a key type of uint64 and a value type of struct pointer.
 //
 // ResTypes available to specify to parameter 'rt' are MapOfPtrPk, MapOfPtrFk1,
@@ -402,7 +403,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfPtrFk1:
 			for _, col := range tbl.cols {
@@ -412,7 +413,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfPtrFk2:
 			for _, col := range tbl.cols {
@@ -422,7 +423,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfPtrFk3:
 			for _, col := range tbl.cols {
@@ -432,7 +433,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfPtrFk4:
 			for _, col := range tbl.cols {
@@ -442,7 +443,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		}
 		mapT := reflect.MapOf(keyRT, reflect.New(tbl.typ).Type())
@@ -493,7 +494,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfValFk1:
 			for _, col := range tbl.cols {
@@ -503,7 +504,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfValFk2:
 			for _, col := range tbl.cols {
@@ -513,7 +514,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfValFk3:
 			for _, col := range tbl.cols {
@@ -523,7 +524,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		case MapOfValFk4:
 			for _, col := range tbl.cols {
@@ -533,7 +534,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\",fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
 			}
 		}
 		mapT := reflect.MapOf(keyRT, tbl.typ)
@@ -654,28 +655,33 @@ Outer:
 			for n := range tagValues {
 				tagValues[n] = strings.ToLower(strings.Trim(tagValues[n], " "))
 			}
-			// check for `omit` field
+			// check for ignore tag `-`
 			for _, tagValue := range tagValues {
-				if tagValue == "omit" {
+				if tagValue == "-" {
 					continue Outer
 				}
 			}
 			if len(tagValues) == 0 {
 				return nil, errors.New(fmt.Sprintf("Struct '%v' field '%v' has `db` tag but no value.", typ.Name(), f.Name))
 			} else {
-				if tagValues[0] == "" { // may be empty string in case of `db:",pk"`
+				if tagValues[0] == "" { // may be empty string in case of `db:"id"`
 					col.name = f.Name
 				} else {
 					col.name = tagValues[0]
 				}
-				// check for single `pk`,`fk1`,`fk2`,`fk3`,`fk4` field
+				// check for single `id`,`pk`,`fk1`,`fk2`,`fk3`,`fk4` field
+				idCount := 0
 				pkCount := 0
 				fk1Count := 0
 				fk2Count := 0
 				fk3Count := 0
 				fk4Count := 0
 				for _, tagValue := range tagValues {
-					if tagValue == "pk" {
+					if tagValue == "id" {
+						col.attr |= id
+						t.attr |= id
+						idCount++
+					} else if tagValue == "pk" {
 						col.attr |= pk
 						t.attr |= pk
 						pkCount++
@@ -697,16 +703,18 @@ Outer:
 						fk4Count++
 					}
 				}
-				if pkCount > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\",pk\"` tag.", typ.Name()))
+				if idCount > 1 {
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"id\"` tag.", typ.Name()))
+				} else if pkCount > 1 {
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"pk\"` tag.", typ.Name()))
 				} else if fk1Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\",fk1\"` tag.", typ.Name()))
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk1\"` tag.", typ.Name()))
 				} else if fk2Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\",fk2\"` tag.", typ.Name()))
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk2\"` tag.", typ.Name()))
 				} else if fk3Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\",fk3\"` tag.", typ.Name()))
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk3\"` tag.", typ.Name()))
 				} else if fk4Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\",fk4\"` tag.", typ.Name()))
+					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk4\"` tag.", typ.Name()))
 				}
 			}
 		}
@@ -714,11 +722,14 @@ Outer:
 		col.gct = gct(f.Type)
 		t.cols = append(t.cols, col)
 	}
-	if t.attr&pk != 0 { // place pk at last index for Ins, Upd
+	// place pk field at last index for Ins, Upd
+	// Ins optionally uses pk,id for RETURNING clause
+	// Upd requires pk at end to specify WHERE clause
+	if t.attr&pk != 0 {
 		for n, col := range t.cols {
 			if col.attr&pk != 0 && n != len(t.cols)-1 {
-				t.cols = append(t.cols[:n], t.cols[n+1:]...) // remove pk col
-				t.cols = append(t.cols, col)                 // append pk col
+				t.cols = append(t.cols[:n], t.cols[n+1:]...) // remove id col
+				t.cols = append(t.cols, col)                 // append id col
 				break
 			}
 		}
