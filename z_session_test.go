@@ -63,15 +63,16 @@ func Test_open_cursors(t *testing.T) {
 			t.Logf("%d objects, error=%v", j, rset.Err)
 			Log.Infof("%d objects, error=%v", j, rset.Err)
 		}()
-		if rset, err = stmt.Qry(); err != nil || !rset.Next() {
-			t.Fatal(err)
-		}
-		after = rset.Row[0].(int64)
-		t.Logf("%d. before=%d after=%d", i, before, after)
 	}
+	if rset, err = stmt.Qry(); err != nil || !rset.Next() {
+		t.Fatal(err)
+	}
+	after = rset.Row[0].(int64)
 	if after-before >= int64(rounds) {
 		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
+		return
 	}
+	t.Logf("before=%d after=%d", before, after)
 }
 
 func TestSession_PrepCloseStmt(t *testing.T) {

@@ -45,14 +45,15 @@ func Test_open_cursors_db(t *testing.T) {
 			t.Logf("%d objects, error=%v", j, rows.Err())
 			Log.Infof("%d objects, error=%v", j, rows.Err())
 		}()
-		if err = stmt.QueryRow().Scan(&after); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("%d. before=%d after=%d", i, before, after)
+	}
+	if err = stmt.QueryRow().Scan(&after); err != nil {
+		t.Fatal(err)
 	}
 	if after-before >= rounds {
 		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
+		return
 	}
+	t.Logf("before=%d after=%d", before, after)
 }
 
 func Test_numberP38S0Identity_db(t *testing.T) {
