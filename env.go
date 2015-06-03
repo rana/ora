@@ -229,8 +229,8 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error {
 	// OCIHandleFree returns: OCI_SUCCESS, OCI_INVALID_HANDLE, or OCI_ERROR
 	r := C.OCIHandleFree(
-		unsafe.Pointer(env.ocienv), //void      *hndlp,
-		handleType)                 //ub4       type );
+		ociHandle,  //void      *hndlp,
+		handleType) //ub4       type );
 	if r == C.OCI_INVALID_HANDLE {
 		return errNew("Unable to free handle")
 	} else if r == C.OCI_ERROR {
