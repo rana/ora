@@ -31,6 +31,7 @@ type Stmt struct {
 	bnds       []bnd
 	gcts       []GoColumnType
 	sql        string
+	tag        []byte
 	stmtType   C.ub4
 	hasPtrBind bool
 }
@@ -85,6 +86,19 @@ func (stmt *Stmt) Close() (err error) {
 		}
 
 		// free ocistmt to release cursor on server
+		if stmt.tag != nil {
+			if C.OCIStmtRelease(
+				stmt.ocistmt,               // OCIStmt        *stmthp
+				stmt.ses.srv.env.ocierr,    // OCIError            *errhp,
+				(*C.OraText)(&stmt.tag[0]), // const OraText  *key
+				C.ub4(len(stmt.tag)),       // ub4 keylen
+				C.OCI_DEFAULT,              // ub4 mode
+			) == C.OCI_ERROR {
+				err := stmt.ses.srv.env.ociError()
+				errs.PushBack(err)
+				Log.Errorln(err)
+			}
+		}
 		stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(stmt.ocistmt), C.OCI_HTYPE_STMT)
 
 		ses := stmt.ses
