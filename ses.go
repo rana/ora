@@ -13,6 +13,8 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"strings"
 	"unsafe"
 )
@@ -162,18 +164,26 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	}
 	Log.Infof("E%vS%vS%v] Prep: %v", ses.srv.env.id, ses.srv.id, ses.id, sql)
 	// allocate statement handle
-	ocistmt, err := ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
+	os, err := ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
 	if err != nil {
 		return nil, err
 	}
+	ocistmt := (*C.OCIStmt)(os)
 	// prepare sql text with statement handle
 	cSql := C.CString(sql)
 	defer C.free(unsafe.Pointer(cSql))
-	r := C.OCIStmtPrepare(
-		(*C.OCIStmt)(ocistmt),              // OCIStmt       *stmtp,
+
+	hsh := fnv.New64a()
+	io.WriteString(hsh, sql)
+	tag := hsh.Sum(make([]byte, 8))
+	r := C.OCIStmtPrepare2(
+		ses.srv.ocisvcctx,                  // OCISvcCtx     *svchp,
+		&ocistmt,                           // OCIStmt       *stmtp,
 		ses.srv.env.ocierr,                 // OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(cSql)), // const OraText *stmt,
 		C.ub4(len(sql)),                    // ub4           stmt_len,
+		(*C.OraText)(&tag[0]),              // const OraText *key,
+		C.ub4(len(tag)),                    // ub4           keylen,
 		C.OCI_NTV_SYNTAX,                   // ub4           language,
 		C.OCI_DEFAULT)                      // ub4           mode );
 	if r == C.OCI_ERROR {
@@ -200,6 +210,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	}
 	stmt.gcts = gcts
 	stmt.sql = sql
+	stmt.tag = tag
 	stmt.stmtType = stmtType
 	stmt.Cfg = ses.stmtCfg
 	stmt.elem = ses.stmts.PushBack(stmt)
