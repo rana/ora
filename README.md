@@ -1073,7 +1073,7 @@ SELECT ANY DICTIONARY TO test;
 
 ```sql
 -- 5. increase the number allowable open cursors
-ALTER SYSTEM SET OPEN_CURSORS = 4000 SCOPE=BOTH;
+ALTER SYSTEM SET OPEN_CURSORS = 400 SCOPE=BOTH;
 ```
 
 ```sql
