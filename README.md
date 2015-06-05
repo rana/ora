@@ -98,6 +98,16 @@ The ora package implements interfaces in the [database/sql/driver](http://golang
 [database/sql](http://golang.org/pkg/database/sql/) to communicate with an Oracle database. Using [database/sql](http://golang.org/pkg/database/sql/)
 ensures you never have to call the ora package directly.
 
+To register the "ora" driver for use with `sql.Open`, you have to call `ora.GetDrv`,
+at least once in your app, before `sql.Open`:
+
+```go
+    func init() {
+		_ = ora.GetDrv()
+	}
+```
+
+
 When using [database/sql](http://golang.org/pkg/database/sql/), the mapping between Go types and Oracle types may not
 be changed. The Go-to-Oracle type mapping for [database/sql](http://golang.org/pkg/database/sql/) is:
 

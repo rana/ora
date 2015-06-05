@@ -124,6 +124,13 @@ numerics of various sizes, Oracle-specific types, Go return type configuration, 
 Oracle abstractions such as environment, server and session. When working with the
 ora package directly, the API is slightly different than database/sql.
 
+To register the "ora" driver for use with sql.Open, you have to call ora.GetDrv,
+at least once in your app, before sql.Open:
+
+    func init() {
+		_ = ora.GetDrv()
+	}
+
 When using the ora package directly, the mapping between Go types and Oracle types
 may be changed. The Go-to-Oracle type mapping for the ora package is:
 
@@ -1006,7 +1013,7 @@ Non-container test database setup steps:
 	CREATE PROCEDURE, UNLIMITED TABLESPACE TO test;
 
 	// 5. increase the number allowable open cursors
-	ALTER SYSTEM SET OPEN_CURSORS = 4000 SCOPE=BOTH;
+	ALTER SYSTEM SET OPEN_CURSORS = 400 SCOPE=BOTH;
 
 	// 6. create OS environment variables
 	// specify your_database_name; varies based on installation; may be 'orcl'
