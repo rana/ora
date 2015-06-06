@@ -212,22 +212,28 @@ func (this Bool) Equals(other Bool) bool {
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 
-// Binary represents a nullable byte slice for BLOB, RAW or LONG RAW Oracle values.
-// If Value is not nil, it will be used for IN and OUT.
-// If Reader is not nil
-type Binary struct {
+// Raw represents a nullable byte slice for RAW or LONG RAW Oracle values.
+type Raw struct {
 	IsNull bool
 	Value  []byte
+}
+
+// Equals returns true when the receiver and specified Raw are both null,
+// or when the receiver and specified Raw are both not null and Values are equal.
+func (this Raw) Equals(other Raw) bool {
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull &&
+			bytes.Equal(this.Value, other.Value))
+}
+
+type Lob struct {
+	IsNull bool
 	Reader io.Reader
 	Writer io.Writer
 }
 
-// Equals returns true when the receiver and specified Binary are both null,
-// or when the receiver and specified Binary are both not null and Values are equal.
-func (this Binary) Equals(other Binary) bool {
-	return (this.IsNull && other.IsNull) ||
-		(this.IsNull == other.IsNull &&
-			bytes.Equal(this.Value, other.Value))
+func (this Lob) Equals(other Lob) bool {
+	return this.IsNull && other.IsNull
 }
 
 // Bfile represents a nullable BFILE Oracle value.

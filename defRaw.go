@@ -46,7 +46,7 @@ func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *R
 
 func (def *defRaw) value() (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Binary{IsNull: def.null < 0}
+		bytesValue := Raw{IsNull: def.null < 0}
 		if !bytesValue.IsNull {
 			bytesValue.Value = def.buf
 		}

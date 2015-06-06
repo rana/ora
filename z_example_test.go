@@ -1466,28 +1466,28 @@ func ExampleBytes() {
 	stmt.Exe()
 
 	// insert Binary slice
-	a := make([]Binary, 5)
+	a := make([]Raw, 5)
 	b := make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n)
 	}
-	a[0] = Binary{Value: b}
+	a[0] = Raw{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 2)
 	}
-	a[1] = Binary{Value: b}
-	a[2] = Binary{IsNull: true}
+	a[1] = Raw{Value: b}
+	a[2] = Raw{IsNull: true}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 3)
 	}
-	a[3] = Binary{Value: b}
+	a[3] = Raw{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 4)
 	}
-	a[4] = Binary{Value: b}
+	a[4] = Raw{Value: b}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)

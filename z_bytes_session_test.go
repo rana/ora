@@ -36,6 +36,7 @@ func TestBindSlice_OraBytes_longRaw_session(t *testing.T) {
 }
 
 func TestMultiDefine_longRaw_session(t *testing.T) {
+	enableLogging(t)
 	testMultiDefine(gen_bytes(9), longRaw, t)
 }
 

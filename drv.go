@@ -52,342 +52,274 @@ type Drv struct {
 
 // GetDrv returns a the default driver.
 func GetDrv() *Drv {
-	// place init code in GetDrv to support testing; call order requires it
-	if _drv == nil {
-		_locations = make(map[string]*time.Location)
-		_drv = &Drv{envs: list.New()}
-		_drv.listPool.New = func() interface{} {
-			return list.New()
-		}
-		_drv.envPool.New = func() interface{} {
-			return &Env{srvs: list.New(), cons: list.New(), stmtCfg: NewStmtCfg()}
-		}
-		_drv.conPool.New = func() interface{} {
-			return &Con{}
-		}
-		_drv.srvPool.New = func() interface{} {
-			return &Srv{sess: list.New()}
-		}
-		_drv.sesPool.New = func() interface{} {
-			return &Ses{stmts: list.New(), txs: list.New()}
-		}
-		_drv.stmtPool.New = func() interface{} {
-			return &Stmt{rsets: list.New()}
-		}
-		_drv.txPool.New = func() interface{} {
-			return &Tx{}
-		}
-		_drv.rsetPool.New = func() interface{} {
-			return &Rset{}
-		}
-
-		// init bind pools
-		_drv.bndPools = make([]sync.Pool, bndIdxNil+1)
-		for n := range _drv.bndPools {
-			switch n {
-			case bndIdxInt64:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt64{}
-				}
-			case bndIdxInt32:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt32{}
-				}
-			case bndIdxInt16:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt16{}
-				}
-			case bndIdxInt8:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt8{}
-				}
-			case bndIdxUint64:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint64{}
-				}
-			case bndIdxUint32:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint32{}
-				}
-			case bndIdxUint16:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint16{}
-				}
-			case bndIdxUint8:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint8{}
-				}
-			case bndIdxFloat64:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat64{}
-				}
-			case bndIdxFloat32:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat32{}
-				}
-
-			case bndIdxInt64Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt64Ptr{}
-				}
-			case bndIdxInt32Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt32Ptr{}
-				}
-			case bndIdxInt16Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt16Ptr{}
-				}
-			case bndIdxInt8Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt8Ptr{}
-				}
-			case bndIdxUint64Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint64Ptr{}
-				}
-			case bndIdxUint32Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint32Ptr{}
-				}
-			case bndIdxUint16Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint16Ptr{}
-				}
-			case bndIdxUint8Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint8Ptr{}
-				}
-			case bndIdxFloat64Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat64Ptr{}
-				}
-			case bndIdxFloat32Ptr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat32Ptr{}
-				}
-
-			case bndIdxInt64Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt64Slice{}
-				}
-			case bndIdxInt32Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt32Slice{}
-				}
-			case bndIdxInt16Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt16Slice{}
-				}
-			case bndIdxInt8Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndInt8Slice{}
-				}
-			case bndIdxUint64Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint64Slice{}
-				}
-			case bndIdxUint32Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint32Slice{}
-				}
-			case bndIdxUint16Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint16Slice{}
-				}
-			case bndIdxUint8Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndUint8Slice{}
-				}
-			case bndIdxFloat64Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat64Slice{}
-				}
-			case bndIdxFloat32Slice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndFloat32Slice{}
-				}
-
-			case bndIdxTime:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndTime{}
-				}
-			case bndIdxTimePtr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndTimePtr{}
-				}
-			case bndIdxTimeSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndTimeSlice{}
-				}
-
-			case bndIdxString:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndString{}
-				}
-			case bndIdxStringPtr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndStringPtr{}
-				}
-			case bndIdxStringSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndStringSlice{}
-				}
-
-			case bndIdxBool:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBool{}
-				}
-			case bndIdxBoolPtr:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBoolPtr{}
-				}
-			case bndIdxBoolSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBoolSlice{}
-				}
-
-			case bndIdxBin:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBin{}
-				}
-			case bndIdxBinSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBinSlice{}
-				}
-
-			case bndIdxIntervalYM:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndIntervalYM{}
-				}
-			case bndIdxIntervalYMSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndIntervalYMSlice{}
-				}
-			case bndIdxIntervalDS:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndIntervalDS{}
-				}
-			case bndIdxIntervalDSSlice:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndIntervalDSSlice{}
-				}
-
-			case bndIdxRset:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndRset{}
-				}
-			case bndIdxBfile:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndBfile{}
-				}
-			case bndIdxNil:
-				_drv.bndPools[n].New = func() interface{} {
-					return &bndNil{}
-				}
-			}
-		}
-
-		// init def pools
-		_drv.defPools = make([]sync.Pool, defIdxRowid+1)
-		for n := range _drv.defPools {
-			switch n {
-			case defIdxInt64:
-				_drv.defPools[n].New = func() interface{} {
-					return &defInt64{}
-				}
-			case defIdxInt32:
-				_drv.defPools[n].New = func() interface{} {
-					return &defInt32{}
-				}
-			case defIdxInt16:
-				_drv.defPools[n].New = func() interface{} {
-					return &defInt16{}
-				}
-			case defIdxInt8:
-				_drv.defPools[n].New = func() interface{} {
-					return &defInt8{}
-				}
-			case defIdxUint64:
-				_drv.defPools[n].New = func() interface{} {
-					return &defUint64{}
-				}
-			case defIdxUint32:
-				_drv.defPools[n].New = func() interface{} {
-					return &defUint32{}
-				}
-			case defIdxUint16:
-				_drv.defPools[n].New = func() interface{} {
-					return &defUint16{}
-				}
-			case defIdxUint8:
-				_drv.defPools[n].New = func() interface{} {
-					return &defUint8{}
-				}
-			case defIdxFloat64:
-				_drv.defPools[n].New = func() interface{} {
-					return &defFloat64{}
-				}
-			case defIdxFloat32:
-				_drv.defPools[n].New = func() interface{} {
-					return &defFloat32{}
-				}
-
-			case defIdxTime:
-				_drv.defPools[n].New = func() interface{} {
-					return &defTime{}
-				}
-			case defIdxString:
-				_drv.defPools[n].New = func() interface{} {
-					return &defString{}
-				}
-			case defIdxBool:
-				_drv.defPools[n].New = func() interface{} {
-					return &defBool{}
-				}
-
-			case defIdxLob:
-				_drv.defPools[n].New = func() interface{} {
-					return &defLob{}
-				}
-			case defIdxRaw:
-				_drv.defPools[n].New = func() interface{} {
-					return &defRaw{}
-				}
-			case defIdxLongRaw:
-				_drv.defPools[n].New = func() interface{} {
-					return &defLongRaw{}
-				}
-
-			case defIdxBfile:
-				_drv.defPools[n].New = func() interface{} {
-					return &defBfile{}
-				}
-			case defIdxIntervalYM:
-				_drv.defPools[n].New = func() interface{} {
-					return &defIntervalYM{}
-				}
-			case defIdxIntervalDS:
-				_drv.defPools[n].New = func() interface{} {
-					return &defIntervalDS{}
-				}
-			case defIdxRowid:
-				_drv.defPools[n].New = func() interface{} {
-					return &defRowid{}
-				}
-			}
-		}
-
-		// database/sql/driver expects binaryFloat to return float64
-		var err error
-		_drv.sqlEnv, err = _drv.OpenEnv()
-		if err != nil {
-			Log.Errorln("GetDrv: ", err)
-		}
-		_drv.sqlEnv.isSqlPkg = true
-		_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64
-		sql.Register(Name, _drv)
+	if _drv != nil {
+		return _drv
 	}
+	// place init code in GetDrv to support testing; call order requires it
+	_locations = make(map[string]*time.Location)
+	_drv = &Drv{envs: list.New()}
+	_drv.listPool.New = func() interface{} {
+		return list.New()
+	}
+	_drv.envPool.New = func() interface{} {
+		return &Env{srvs: list.New(), cons: list.New(), stmtCfg: NewStmtCfg()}
+	}
+	_drv.conPool.New = func() interface{} {
+		return &Con{}
+	}
+	_drv.srvPool.New = func() interface{} {
+		return &Srv{sess: list.New()}
+	}
+	_drv.sesPool.New = func() interface{} {
+		return &Ses{stmts: list.New(), txs: list.New()}
+	}
+	_drv.stmtPool.New = func() interface{} {
+		return &Stmt{rsets: list.New()}
+	}
+	_drv.txPool.New = func() interface{} {
+		return &Tx{}
+	}
+	_drv.rsetPool.New = func() interface{} {
+		return &Rset{}
+	}
+
+	// init bind pools
+	_drv.bndPools = make([]sync.Pool, bndIdxNil+1)
+	_drv.bndPools[bndIdxInt64].New = func() interface{} {
+		return &bndInt64{}
+	}
+	_drv.bndPools[bndIdxInt32].New = func() interface{} {
+		return &bndInt32{}
+	}
+	_drv.bndPools[bndIdxInt16].New = func() interface{} {
+		return &bndInt16{}
+	}
+	_drv.bndPools[bndIdxInt8].New = func() interface{} {
+		return &bndInt8{}
+	}
+	_drv.bndPools[bndIdxUint64].New = func() interface{} {
+		return &bndUint64{}
+	}
+	_drv.bndPools[bndIdxUint32].New = func() interface{} {
+		return &bndUint32{}
+	}
+	_drv.bndPools[bndIdxUint16].New = func() interface{} {
+		return &bndUint16{}
+	}
+	_drv.bndPools[bndIdxUint8].New = func() interface{} {
+		return &bndUint8{}
+	}
+	_drv.bndPools[bndIdxFloat64].New = func() interface{} {
+		return &bndFloat64{}
+	}
+	_drv.bndPools[bndIdxFloat32].New = func() interface{} {
+		return &bndFloat32{}
+	}
+
+	_drv.bndPools[bndIdxInt64Ptr].New = func() interface{} {
+		return &bndInt64Ptr{}
+	}
+	_drv.bndPools[bndIdxInt32Ptr].New = func() interface{} {
+		return &bndInt32Ptr{}
+	}
+	_drv.bndPools[bndIdxInt16Ptr].New = func() interface{} {
+		return &bndInt16Ptr{}
+	}
+	_drv.bndPools[bndIdxInt8Ptr].New = func() interface{} {
+		return &bndInt8Ptr{}
+	}
+	_drv.bndPools[bndIdxUint64Ptr].New = func() interface{} {
+		return &bndUint64Ptr{}
+	}
+	_drv.bndPools[bndIdxUint32Ptr].New = func() interface{} {
+		return &bndUint32Ptr{}
+	}
+	_drv.bndPools[bndIdxUint16Ptr].New = func() interface{} {
+		return &bndUint16Ptr{}
+	}
+	_drv.bndPools[bndIdxUint8Ptr].New = func() interface{} {
+		return &bndUint8Ptr{}
+	}
+	_drv.bndPools[bndIdxFloat64Ptr].New = func() interface{} {
+		return &bndFloat64Ptr{}
+	}
+	_drv.bndPools[bndIdxFloat32Ptr].New = func() interface{} {
+		return &bndFloat32Ptr{}
+	}
+
+	_drv.bndPools[bndIdxInt64Slice].New = func() interface{} {
+		return &bndInt64Slice{}
+	}
+	_drv.bndPools[bndIdxInt32Slice].New = func() interface{} {
+		return &bndInt32Slice{}
+	}
+	_drv.bndPools[bndIdxInt16Slice].New = func() interface{} {
+		return &bndInt16Slice{}
+	}
+	_drv.bndPools[bndIdxInt8Slice].New = func() interface{} {
+		return &bndInt8Slice{}
+	}
+	_drv.bndPools[bndIdxUint64Slice].New = func() interface{} {
+		return &bndUint64Slice{}
+	}
+	_drv.bndPools[bndIdxUint32Slice].New = func() interface{} {
+		return &bndUint32Slice{}
+	}
+	_drv.bndPools[bndIdxUint16Slice].New = func() interface{} {
+		return &bndUint16Slice{}
+	}
+	_drv.bndPools[bndIdxUint8Slice].New = func() interface{} {
+		return &bndUint8Slice{}
+	}
+	_drv.bndPools[bndIdxFloat64Slice].New = func() interface{} {
+		return &bndFloat64Slice{}
+	}
+	_drv.bndPools[bndIdxFloat32Slice].New = func() interface{} {
+		return &bndFloat32Slice{}
+	}
+
+	_drv.bndPools[bndIdxTime].New = func() interface{} {
+		return &bndTime{}
+	}
+	_drv.bndPools[bndIdxTimePtr].New = func() interface{} {
+		return &bndTimePtr{}
+	}
+	_drv.bndPools[bndIdxTimeSlice].New = func() interface{} {
+		return &bndTimeSlice{}
+	}
+
+	_drv.bndPools[bndIdxString].New = func() interface{} {
+		return &bndString{}
+	}
+	_drv.bndPools[bndIdxStringPtr].New = func() interface{} {
+		return &bndStringPtr{}
+	}
+	_drv.bndPools[bndIdxStringSlice].New = func() interface{} {
+		return &bndStringSlice{}
+	}
+
+	_drv.bndPools[bndIdxBool].New = func() interface{} {
+		return &bndBool{}
+	}
+	_drv.bndPools[bndIdxBoolPtr].New = func() interface{} {
+		return &bndBoolPtr{}
+	}
+	_drv.bndPools[bndIdxBoolSlice].New = func() interface{} {
+		return &bndBoolSlice{}
+	}
+
+	_drv.bndPools[bndIdxBin].New = func() interface{} {
+		return &bndBin{}
+	}
+	_drv.bndPools[bndIdxBinSlice].New = func() interface{} {
+		return &bndBinSlice{}
+	}
+	_drv.bndPools[bndIdxLob].New = func() interface{} {
+		return &bndLob{}
+	}
+	_drv.bndPools[bndIdxLobSlice].New = func() interface{} {
+		return &bndLobSlice{}
+	}
+
+	_drv.bndPools[bndIdxIntervalYM].New = func() interface{} {
+		return &bndIntervalYM{}
+	}
+	_drv.bndPools[bndIdxIntervalYMSlice].New = func() interface{} {
+		return &bndIntervalYMSlice{}
+	}
+	_drv.bndPools[bndIdxIntervalDS].New = func() interface{} {
+		return &bndIntervalDS{}
+	}
+	_drv.bndPools[bndIdxIntervalDSSlice].New = func() interface{} {
+		return &bndIntervalDSSlice{}
+	}
+
+	_drv.bndPools[bndIdxRset].New = func() interface{} {
+		return &bndRset{}
+	}
+	_drv.bndPools[bndIdxBfile].New = func() interface{} {
+		return &bndBfile{}
+	}
+	_drv.bndPools[bndIdxNil].New = func() interface{} {
+		return &bndNil{}
+	}
+
+	// init def pools
+	_drv.defPools = make([]sync.Pool, defIdxRowid+1)
+	_drv.defPools[defIdxInt64].New = func() interface{} {
+		return &defInt64{}
+	}
+	_drv.defPools[defIdxInt32].New = func() interface{} {
+		return &defInt32{}
+	}
+	_drv.defPools[defIdxInt16].New = func() interface{} {
+		return &defInt16{}
+	}
+	_drv.defPools[defIdxInt8].New = func() interface{} {
+		return &defInt8{}
+	}
+	_drv.defPools[defIdxUint64].New = func() interface{} {
+		return &defUint64{}
+	}
+	_drv.defPools[defIdxUint32].New = func() interface{} {
+		return &defUint32{}
+	}
+	_drv.defPools[defIdxUint16].New = func() interface{} {
+		return &defUint16{}
+	}
+	_drv.defPools[defIdxUint8].New = func() interface{} {
+		return &defUint8{}
+	}
+	_drv.defPools[defIdxFloat64].New = func() interface{} {
+		return &defFloat64{}
+	}
+	_drv.defPools[defIdxFloat32].New = func() interface{} {
+		return &defFloat32{}
+	}
+
+	_drv.defPools[defIdxTime].New = func() interface{} {
+		return &defTime{}
+	}
+	_drv.defPools[defIdxString].New = func() interface{} {
+		return &defString{}
+	}
+	_drv.defPools[defIdxBool].New = func() interface{} {
+		return &defBool{}
+	}
+
+	_drv.defPools[defIdxLob].New = func() interface{} {
+		return &defLob{}
+	}
+	_drv.defPools[defIdxRaw].New = func() interface{} {
+		return &defRaw{}
+	}
+	_drv.defPools[defIdxLongRaw].New = func() interface{} {
+		return &defLongRaw{}
+	}
+
+	_drv.defPools[defIdxBfile].New = func() interface{} {
+		return &defBfile{}
+	}
+	_drv.defPools[defIdxIntervalYM].New = func() interface{} {
+		return &defIntervalYM{}
+	}
+	_drv.defPools[defIdxIntervalDS].New = func() interface{} {
+		return &defIntervalDS{}
+	}
+	_drv.defPools[defIdxRowid].New = func() interface{} {
+		return &defRowid{}
+	}
+
+	// database/sql/driver expects binaryFloat to return float64
+	var err error
+	_drv.sqlEnv, err = _drv.OpenEnv()
+	if err != nil {
+		Log.Errorln("GetDrv: ", err)
+	}
+	_drv.sqlEnv.isSqlPkg = true
+	_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64
+	sql.Register(Name, _drv)
+
 	return _drv
 }
 

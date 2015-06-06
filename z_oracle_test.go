@@ -863,7 +863,7 @@ func goColumnTypeFromValue(value interface{}) GoColumnType {
 		return B
 	case Bool, []Bool:
 		return OraB
-	case Binary:
+	case Raw:
 		return OraBin
 	}
 
@@ -968,7 +968,7 @@ func isBytes(value interface{}) bool {
 	if _, ok := value.([]byte); ok {
 		return true
 	}
-	if _, ok := value.(Binary); ok {
+	if _, ok := value.(Raw); ok {
 		return true
 	}
 	return false
@@ -1878,14 +1878,14 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 	e, eOk := expected.([]byte)
 	a, aOk := actual.([]byte)
 	if !eOk {
-		eOra, eOraOk := expected.(Binary)
+		eOra, eOraOk := expected.(Raw)
 		if eOraOk {
 			e = eOra.Value
 		} else {
 			t.Fatalf("Unable to cast expected value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	} else if !aOk {
-		aOra, aOraOk := actual.(Binary)
+		aOra, aOraOk := actual.(Raw)
 		if aOraOk {
 			a = aOra.Value
 		} else {
@@ -1897,8 +1897,8 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 }
 
 func compare_Bytes(expected interface{}, actual interface{}, t *testing.T) {
-	e, eOk := expected.(Binary)
-	a, aOk := actual.(Binary)
+	e, eOk := expected.(Raw)
+	a, aOk := actual.(Raw)
 	if !eOk {
 		t.Fatalf("Unable to cast expected value to ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 	} else if !aOk {
@@ -2510,12 +2510,12 @@ func gen_bytes(length int) []byte {
 	return _gen_bytes[:length:length]
 }
 
-func gen_OraBytes(length int, isNull bool) Binary {
-	return Binary{Value: gen_bytes(length), IsNull: isNull}
+func gen_OraBytes(length int, isNull bool) Raw {
+	return Raw{Value: gen_bytes(length), IsNull: isNull}
 }
 
-func gen_OraBytesReader(length int, isNull bool) Binary {
-	return Binary{Reader: bytes.NewReader(gen_bytes(length)), IsNull: isNull}
+func gen_OraBytesReader(length int, isNull bool) Lob {
+	return Lob{Reader: bytes.NewReader(gen_bytes(length)), IsNull: isNull}
 }
 
 func gen_bytesSlice(length int) [][]byte {
@@ -2529,13 +2529,13 @@ func gen_bytesSlice(length int) [][]byte {
 	return values
 }
 
-func gen_OraBytesSlice(length int, isNull bool) []Binary {
-	values := make([]Binary, 5)
-	values[0] = Binary{Value: gen_bytes(2000)}
-	values[1] = Binary{Value: gen_bytes(2000)}
-	values[2] = Binary{Value: gen_bytes(2000), IsNull: isNull}
-	values[3] = Binary{Value: gen_bytes(2000)}
-	values[4] = Binary{Value: gen_bytes(2000)}
+func gen_OraBytesSlice(length int, isNull bool) []Raw {
+	values := make([]Raw, 5)
+	values[0] = Raw{Value: gen_bytes(2000)}
+	values[1] = Raw{Value: gen_bytes(2000)}
+	values[2] = Raw{Value: gen_bytes(2000), IsNull: isNull}
+	values[3] = Raw{Value: gen_bytes(2000)}
+	values[4] = Raw{Value: gen_bytes(2000)}
 
 	return values
 }

@@ -127,6 +127,8 @@ const (
 
 	bndIdxBin
 	bndIdxBinSlice
+	bndIdxLob
+	bndIdxLobSlice
 
 	bndIdxIntervalYM
 	bndIdxIntervalYMSlice
@@ -135,6 +137,8 @@ const (
 
 	bndIdxBfile
 	bndIdxRset
+
+	// must be the last (or fix it in drv.go)!
 	bndIdxNil
 )
 
@@ -162,5 +166,7 @@ const (
 	defIdxIntervalYM
 	defIdxIntervalDS
 	defIdxBfile
+
+	// must be the last (or fix it in drv.go)!
 	defIdxRowid
 )

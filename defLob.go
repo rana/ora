@@ -155,7 +155,7 @@ func (def *defLob) value() (value interface{}, err error) {
 				value, err = def.Bytes()
 			}
 		} else {
-			binValue := Binary{IsNull: def.null < 0}
+			binValue := Raw{IsNull: def.null < 0}
 			if !binValue.IsNull {
 				binValue.Value, err = def.Bytes()
 			}

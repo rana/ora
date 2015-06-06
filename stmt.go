@@ -11,7 +11,9 @@ package ora
 */
 import "C"
 import (
+	"bytes"
 	"container/list"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -625,7 +627,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					return iterations, err
 				}
 				iterations = uint32(len(value))
-			case []uint8:
+			case []uint8: // the same as []byte !
 				if stmt.Cfg.byteSlice == U8 {
 					bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
 					stmt.bnds[n] = bnd
@@ -635,11 +637,25 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					}
 					iterations = uint32(len(value))
 				} else {
-					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt)
-					if err != nil {
-						return iterations, err
+					switch bnd := stmt.getBnd(bndIdxBin).(type) {
+					case *bndBin:
+						stmt.bnds[n] = bnd
+						err = bnd.bind(value, n+1, stmt)
+						if err != nil {
+							return iterations, err
+						}
+					case *bndLob:
+						if value == nil {
+							stmt.setNilBind(n, C.SQLT_BLOB)
+						} else {
+							stmt.bnds[n] = bnd
+							err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.Cfg.lobBufferSize, stmt)
+							if err != nil {
+								return iterations, err
+							}
+						}
+					default:
+						panic(fmt.Errorf("awaited *ora.bndBin, got %T", bnd))
 					}
 				}
 			case []float64:
@@ -865,17 +881,24 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					return iterations, err
 				}
 				iterations = uint32(len(value))
-			case Binary:
+			case Raw:
 				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_BLOB)
+					stmt.setNilBind(n, C.SQLT_BIN)
 				} else {
 					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 					stmt.bnds[n] = bnd
-					if value.Value != nil || value.Reader == nil {
-						err = bnd.bind(value.Value, n+1, stmt)
-					} else {
-						err = bnd.bindReader(value.Reader, n+1, stmt.Cfg.lobBufferSize, stmt)
+					err = bnd.bind(value.Value, n+1, stmt)
+					if err != nil {
+						return iterations, err
 					}
+				}
+			case Lob:
+				if value.IsNull {
+					stmt.setNilBind(n, C.SQLT_BLOB)
+				} else {
+					bnd := stmt.getBnd(bndIdxLob).(*bndLob)
+					stmt.bnds[n] = bnd
+					err = bnd.bindReader(value.Reader, n+1, stmt.Cfg.lobBufferSize, stmt)
 					if err != nil {
 						return iterations, err
 					}
@@ -888,8 +911,16 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					return iterations, err
 				}
 				iterations = uint32(len(value))
-			case []Binary:
+			case []Raw:
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
+				stmt.bnds[n] = bnd
+				err = bnd.bindOra(value, n+1, stmt.Cfg.lobBufferSize, stmt)
+				if err != nil {
+					return iterations, err
+				}
+				iterations = uint32(len(value))
+			case []Lob:
+				bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
 				stmt.bnds[n] = bnd
 				err = bnd.bindOra(value, n+1, stmt.Cfg.lobBufferSize, stmt)
 				if err != nil {
