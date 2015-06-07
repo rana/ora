@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -370,7 +369,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isString(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), S, S)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), S)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBool(expected) {
@@ -378,7 +377,12 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBytes(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), Bin, OraBin)
+			// one LOB cannot be opened twice in the same transaction (c1, c1 not works here)
+			col := Bin
+			if n%2 == 1 {
+				col = OraBin
+			}
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), col)
 			defer selectStmt.Close()
 			testErr(err, t)
 		}
@@ -764,32 +768,6 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 func tableName() string {
 	testTableId++
 	return "t" + strconv.Itoa(testTableId)
-}
-
-func getStack(stripHeadCalls int) string {
-	buf := make([]byte, 4096)
-	n := runtime.Stack(buf, false)
-	buf = buf[:n]
-	i := bytes.IndexByte(buf, '\n')
-	if i < 0 {
-		return string(buf)
-	}
-	var prefix string
-	if bytes.Contains(buf[:i], []byte("goroutine")) {
-		prefix, buf = string(buf[:i+1]), buf[i+1:]
-	}
-Loop:
-	for stripHeadCalls > 0 {
-		stripHeadCalls--
-		for i := 0; i < 2; i++ {
-			if j := bytes.IndexByte(buf, '\n'); j < 0 {
-				break Loop
-			} else {
-				buf = buf[j+1:]
-			}
-		}
-	}
-	return prefix + string(buf)
 }
 
 func testErr(err error, t *testing.T, expectedErrs ...error) {
@@ -1762,7 +1740,6 @@ func compare_OraTime(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(string)
-	a, aOk := actual.(string)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*string)
 		if ePtrOk {
@@ -1776,18 +1753,22 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			}
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*string)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			aOra, aOraOk := actual.(String)
-			if aOraOk {
-				a = aOra.Value
-			} else {
-				t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
-			}
+	var a string
+	switch x := actual.(type) {
+	case string:
+		a = x
+	case *string:
+		a = *x
+	case String:
+		a = x.Value
+	case Lob:
+		b, err := ioutil.ReadAll(x)
+		if err != nil {
+			t.Errorf("read %v: %v", x, err)
 		}
+		a = string(b)
+	default:
+		t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%T, %v)", actual, actual)
 	}
 	if e != a {
 		t.Fatalf("expected(%v), actual(%v)\n%s", e, a, getStack(2))
@@ -1893,7 +1874,17 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 	case Raw:
 		a = x.Value
 
+	case Lob:
+		Log.Infof("Lob=%v", x)
+		if x.Reader != nil {
+			var err error
+			a, err = ioutil.ReadAll(x.Reader)
+			if err != nil {
+				t.Errorf("error reading %v (%T): %v", x, x, err)
+			}
+		}
 	case io.ReadCloser:
+		Log.Infof("ReadCloser=%v", x)
 		var err error
 		a, err = ioutil.ReadAll(x)
 		x.Close()
@@ -1901,6 +1892,7 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 			t.Errorf("error reading %v (%T): %v", x, x, err)
 		}
 	case io.WriterTo:
+		Log.Infof("WriterTo=%v", x)
 		var buf bytes.Buffer
 		_, err := x.WriteTo(&buf)
 		if c, ok := x.(io.Closer); ok {
@@ -2528,7 +2520,10 @@ func gen_OraBytes(length int, isNull bool) Raw {
 }
 
 func gen_OraBytesReader(length int, isNull bool) Lob {
-	return Lob{Reader: bytes.NewReader(gen_bytes(length)), IsNull: isNull}
+	if isNull {
+		return Lob{}
+	}
+	return Lob{Reader: bytes.NewReader(gen_bytes(length))}
 }
 
 func gen_bytesSlice(length int) [][]byte {

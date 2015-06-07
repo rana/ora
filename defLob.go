@@ -63,13 +63,10 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 func (def *defLob) Bytes() (value []byte, err error) {
 	// Open the lob to obtain length; round-trip to database
 	Log.Infof("Bytes OCILobOpen %p", def.ociLobLocator)
-	r := C.OCILobOpen(
-		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		def.ociLobLocator,                //OCILobLocator      *locp,
-		C.OCI_LOB_READONLY)               //ub1              mode );
-	if r == C.OCI_ERROR {
-		return nil, def.rset.stmt.ses.srv.env.ociError()
+	lobLength, err := lobOpen(def.rset.stmt.ses.srv, def.ociLobLocator, C.OCI_LOB_READONLY)
+	if err != nil {
+		def.ociLobLocator = nil
+		return nil, err
 	}
 	defer func() {
 		Log.Infof("Bytes OCILobClose %p", def.ociLobLocator)
@@ -77,17 +74,6 @@ func (def *defLob) Bytes() (value []byte, err error) {
 			err = closeErr
 		}
 	}()
-
-	var lobLength C.oraub8
-	// get the length of the lob
-	r = C.OCILobGetLength2(
-		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		def.ociLobLocator,                //OCILobLocator      *locp,
-		&lobLength)                       //oraub8 *lenp)
-	if r == C.OCI_ERROR {
-		return nil, def.rset.stmt.ses.srv.env.ociError()
-	}
 
 	if lobLength == 0 {
 		return nil, nil
@@ -97,7 +83,7 @@ func (def *defLob) Bytes() (value []byte, err error) {
 	value = make([]byte, int(lobLength))
 	for off, byte_amtp := 0, lobLength; byte_amtp > 0; byte_amtp = lobLength - C.oraub8(off) {
 		Log.Infof("LobRead2 off=%d amt=%d", off, byte_amtp)
-		r = C.OCILobRead2(
+		r := C.OCILobRead2(
 			def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
 			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 			def.ociLobLocator,                //OCILobLocator      *locp,
@@ -133,23 +119,10 @@ func (def *defLob) String() (value string, err error) {
 func (def *defLob) Reader() (io.Reader, error) {
 	// Open the lob to obtain length; round-trip to database
 	Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
-	r := C.OCILobOpen(
-		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		def.ociLobLocator,                //OCILobLocator      *locp,
-		C.OCI_LOB_READONLY)               //ub1              mode );
-	if r != C.OCI_SUCCESS {
-		return nil, def.rset.stmt.ses.srv.env.ociError()
-	}
-	var lobLength C.oraub8
-	// get the length of the lob
-	r = C.OCILobGetLength2(
-		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		def.ociLobLocator,                //OCILobLocator      *locp,
-		&lobLength)                       //oraub8 *lenp)
-	if r == C.OCI_ERROR {
-		return nil, def.rset.stmt.ses.srv.env.ociError()
+	lobLength, err := lobOpen(def.rset.stmt.ses.srv, def.ociLobLocator, C.OCI_LOB_READONLY)
+	if err != nil {
+		def.ociLobLocator = nil
+		return nil, err
 	}
 
 	lr := &lobReader{
@@ -164,16 +137,21 @@ func (def *defLob) Reader() (io.Reader, error) {
 }
 
 func (def *defLob) value() (value interface{}, err error) {
+	lob := def.ociLobLocator
+	Log.Infof("value %p null=%d", lob, def.null)
 	if def.gct == Bin {
 		if def.null > -1 {
 			return def.Reader()
 		}
 		return value, err
 	}
-	binValue := Lob{IsNull: def.null < 0}
-	if !binValue.IsNull {
-		binValue.Reader, err = def.Reader()
+	if def.null < 0 {
+		return Lob{}, nil
 	}
+	var r io.Reader
+	r, err = def.Reader()
+	binValue := Lob{Reader: r}
+	Log.Infof("value %p returns %#v (%v)", lob, binValue, err)
 	return binValue, err
 }
 func (def *defLob) alloc() error {
@@ -218,6 +196,9 @@ func (def *defLob) close() (err error) {
 	return lobClose(rset.stmt.ses.srv, lob)
 }
 
+var _ = io.Reader((*lobReader)(nil))
+var _ = io.WriterTo((*lobReader)(nil))
+
 type lobReader struct {
 	srv           *Srv
 	ociLobLocator *C.OCILobLocator
@@ -228,10 +209,36 @@ type lobReader struct {
 	Length        C.oraub8
 }
 
+func lobOpen(srv *Srv, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
+	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
+	r := C.OCILobOpen(
+		srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		srv.env.ocierr, //OCIError           *errhp,
+		lob,            //OCILobLocator      *locp,
+		mode)           //ub1              mode );
+	Log.Infof("OCILobOpen %p returned %d", lob, r)
+	if r != C.OCI_SUCCESS {
+		lobClose(srv, lob)
+		return 0, srv.env.ociError()
+	}
+	// get the length of the lob
+	r = C.OCILobGetLength2(
+		srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		srv.env.ocierr, //OCIError           *errhp,
+		lob,            //OCILobLocator      *locp,
+		&length)        //oraub8 *lenp)
+	if r == C.OCI_ERROR {
+		lobClose(srv, lob)
+		return length, srv.env.ociError()
+	}
+	return length, nil
+}
+
 func lobClose(srv *Srv, lob *C.OCILobLocator) error {
 	if lob == nil {
 		return nil
 	}
+	//Log.Infof("OCILobClose %p\n%s", lob, getStack(1))
 	r := C.OCILobClose(
 		srv.ocisvcctx,  //OCISvcCtx          *svchp,
 		srv.env.ocierr, //OCIError           *errhp,

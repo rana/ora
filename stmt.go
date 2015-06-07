@@ -893,7 +893,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					}
 				}
 			case Lob:
-				if value.IsNull {
+				if value.Reader == nil {
 					stmt.setNilBind(n, C.SQLT_BLOB)
 				} else {
 					bnd := stmt.getBnd(bndIdxLob).(*bndLob)
