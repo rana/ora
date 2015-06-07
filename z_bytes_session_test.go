@@ -160,6 +160,7 @@ func TestBindSlice_OraBytes_blob_session(t *testing.T) {
 }
 
 func TestMultiDefine_blob_session(t *testing.T) {
+	enableLogging(t)
 	testMultiDefine(gen_bytes(9), blob, t)
 }
 

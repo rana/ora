@@ -40,6 +40,7 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
+	def.ociLobLocator = nil
 	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                                //OCIStmt     *stmtp,
 		&def.ocidef,                                     //OCIDefine   **defnpp,
@@ -61,6 +62,7 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 
 func (def *defLob) Bytes() (value []byte, err error) {
 	// Open the lob to obtain length; round-trip to database
+	Log.Infof("Bytes OCILobOpen %p", def.ociLobLocator)
 	r := C.OCILobOpen(
 		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
@@ -70,15 +72,9 @@ func (def *defLob) Bytes() (value []byte, err error) {
 		return nil, def.rset.stmt.ses.srv.env.ociError()
 	}
 	defer func() {
-		if r := C.OCILobClose(
-			def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
-			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-			def.ociLobLocator,                //OCILobLocator      *locp,
-		); r == C.OCI_ERROR {
-			closeErr := def.rset.stmt.ses.srv.env.ociError()
-			if err == nil {
-				err = closeErr
-			}
+		Log.Infof("Bytes OCILobClose %p", def.ociLobLocator)
+		if closeErr := lobClose(def.rset.stmt.ses.srv, def.ociLobLocator); closeErr != nil && err == nil {
+			err = closeErr
 		}
 	}()
 
@@ -136,6 +132,7 @@ func (def *defLob) String() (value string, err error) {
 // Also dissociates this def from the LOB!
 func (def *defLob) Reader() (io.Reader, error) {
 	// Open the lob to obtain length; round-trip to database
+	Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
 	r := C.OCILobOpen(
 		def.rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
@@ -208,12 +205,17 @@ func (def *defLob) free() {
 
 func (def *defLob) close() (err error) {
 	Log.Infof("defLob close %p", def.ociLobLocator)
-	def.free()
+	lob := def.ociLobLocator
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	def.ociLobLocator = nil
 	rset.putDef(defIdxLob, def)
-	return nil
+
+	if lob == nil {
+		return nil
+	}
+	return lobClose(rset.stmt.ses.srv, lob)
 }
 
 type lobReader struct {
@@ -222,18 +224,13 @@ type lobReader struct {
 	charsetForm   C.ub1
 	piece         C.ub1
 	off           C.oraub8
-	done          bool
+	interrupted   bool
 	Length        C.oraub8
 }
 
-func (lr *lobReader) Close() error {
-	if lr.ociLobLocator == nil {
+func lobClose(srv *Srv, lob *C.OCILobLocator) error {
+	if lob == nil {
 		return nil
-	}
-	lob, srv := lr.ociLobLocator, lr.srv
-	lr.ociLobLocator, lr.srv = nil, nil
-	if !lr.done {
-		srv.Break()
 	}
 	r := C.OCILobClose(
 		srv.ocisvcctx,  //OCISvcCtx          *svchp,
@@ -246,6 +243,19 @@ func (lr *lobReader) Close() error {
 		return srv.env.ociError()
 	}
 	return nil
+}
+
+func (lr *lobReader) Close() error {
+	if lr.ociLobLocator == nil {
+		return nil
+	}
+	lob, srv := lr.ociLobLocator, lr.srv
+	lr.ociLobLocator, lr.srv = nil, nil
+	if lr.interrupted {
+		srv.Break()
+	}
+	Log.Infof("lobReader OCILobClose %p", lr.ociLobLocator)
+	return lobClose(srv, lob)
 }
 
 func (lr *lobReader) Read(p []byte) (n int, err error) {
@@ -278,20 +288,17 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	Log.Infof("LobRead2 returned %d amt=%d", r, byte_amtp)
 	switch r {
 	case C.OCI_ERROR:
-		lr.done = true
+		lr.interrupted = true
 		return 0, lr.srv.env.ociError()
 	case C.OCI_NO_DATA:
-		lr.done = true
 		return int(byte_amtp), io.EOF
 	case C.OCI_INVALID_HANDLE:
-		lr.done = true
 		return 0, fmt.Errorf("Invalid handle %v", lr.ociLobLocator)
 	}
 	// byte_amtp represents the amount copied into buffer by oci
 	if byte_amtp != 0 {
 		lr.off += byte_amtp
 		if lr.off == lr.Length {
-			lr.done = true
 			return int(byte_amtp), io.EOF
 		}
 		if lr.piece == C.OCI_FIRST_PIECE {
@@ -355,6 +362,5 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 			lr.piece = C.OCI_NEXT_PIECE
 		}
 	}
-	lr.done = true
 	return n, nil
 }
