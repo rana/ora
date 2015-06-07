@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -141,13 +143,12 @@ func init() {
 
 	// drop all tables from previous test run
 	fmt.Println("Dropping previous tables...")
-	var buf bytes.Buffer
-	buf.WriteString("BEGIN ")
-	buf.WriteString("FOR c IN (SELECT table_name FROM user_tables) LOOP ")
-	buf.WriteString("EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS'); ")
-	buf.WriteString("END LOOP; ")
-	buf.WriteString("END;")
-	stmt, err := testSes.Prep(buf.String())
+	stmt, err := testSes.Prep(`
+BEGIN
+	FOR c IN (SELECT table_name FROM user_tables) LOOP
+		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
+	END LOOP;
+END;`)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -156,6 +157,7 @@ func init() {
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
+	fmt.Println("Tables dropped.")
 
 	// setup test db
 	testDb, err = sql.Open(Name, testConStr)
@@ -1876,7 +1878,6 @@ func compare_OraBool(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 	e, eOk := expected.([]byte)
-	a, aOk := actual.([]byte)
 	if !eOk {
 		eOra, eOraOk := expected.(Raw)
 		if eOraOk {
@@ -1884,14 +1885,35 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 		} else {
 			t.Fatalf("Unable to cast expected value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
-	} else if !aOk {
-		aOra, aOraOk := actual.(Raw)
-		if aOraOk {
-			a = aOra.Value
-		} else {
-			t.Fatalf("Unable to cast actual value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	}
+	var a []byte
+	switch x := actual.(type) {
+	case []byte:
+		a = x
+	case Raw:
+		a = x.Value
+
+	case io.ReadCloser:
+		var err error
+		a, err = ioutil.ReadAll(x)
+		x.Close()
+		if err != nil {
+			t.Errorf("error reading %v (%T): %v", x, x, err)
 		}
-	} else if !areBytesEqual(e, a) {
+	case io.WriterTo:
+		var buf bytes.Buffer
+		_, err := x.WriteTo(&buf)
+		if c, ok := x.(io.Closer); ok {
+			c.Close()
+		}
+		if err != nil {
+			t.Errorf("error writing from %v (%T): %v", x, x, err)
+		}
+		a = buf.Bytes()
+	default:
+		t.Fatalf("Unable to cast actual value to []byte or ora.Binary. (%T, %v)\n%s", actual, actual, getStack(2))
+	}
+	if !areBytesEqual(e, a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
 }
@@ -2025,16 +2047,7 @@ func isTimeEqual(x time.Time, y time.Time) bool {
 }
 
 func areBytesEqual(x []byte, y []byte) bool {
-	if len(x) != len(y) {
-		return false
-	} else {
-		for n := 0; n < len(x); n++ {
-			if x[n] != y[n] {
-				return false
-			}
-		}
-	}
-	return true
+	return bytes.Equal(x, y)
 }
 
 func gen_int64() int64 {

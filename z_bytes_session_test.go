@@ -4,9 +4,7 @@
 
 package ora
 
-import (
-	"testing"
-)
+import "testing"
 
 //// bytes
 //longRaw     oracleColumnType = "long raw not null"

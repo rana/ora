@@ -229,11 +229,14 @@ func (this Raw) Equals(other Raw) bool {
 type Lob struct {
 	IsNull bool
 	Reader io.Reader
-	Writer io.Writer
 }
 
+// Equals returns true when the receiver and specified Lob are both null,
+// or when they both not null and share the same Reader.
 func (this Lob) Equals(other Lob) bool {
-	return this.IsNull && other.IsNull
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull &&
+			this.Reader == other.Reader) // this is a quite strict equality...
 }
 
 // Bfile represents a nullable BFILE Oracle value.
