@@ -7,6 +7,9 @@ package ora
 import (
 	"database/sql"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -457,7 +460,12 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
-	fmt.Println(row[0])
+	b, err := ioutil.ReadAll(row[0].(io.Reader))
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+	} else {
+		fmt.Println(b)
+	}
 
 	// Output:
 	// 1
@@ -1497,14 +1505,19 @@ func ExampleBytes() {
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraBin)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
-		fmt.Println(rset.Row[0])
+		b, err := rset.Row[0].(Lob).Bytes()
+		if err != nil && err != io.EOF {
+			log.Printf("ERROR: %v")
+		} else {
+			fmt.Println(b)
+		}
 	}
 	// Output:
-	// {false [0 1 2 3 4 5 6 7 8 9]}
-	// {false [0 2 4 6 8 10 12 14 16 18]}
-	// {true []}
-	// {false [0 3 6 9 12 15 18 21 24 27]}
-	// {false [0 4 8 12 16 20 24 28 32 36]}
+	// [0 1 2 3 4 5 6 7 8 9]
+	// [0 2 4 6 8 10 12 14 16 18]
+	// []
+	// [0 3 6 9 12 15 18 21 24 27]
+	// [0 4 8 12 16 20 24 28 32 36]
 }
 
 func ExampleBfile() {

@@ -145,6 +145,14 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 		return nil, err
 	}
 	Log.Infof("CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
+	// http://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
+	// Set LOB prefetch size to chunk size
+	lobPrefetchSize := C.ub4(lobChunkSize)
+	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(&lobPrefetchSize), 0, C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE)
+	if err != nil {
+		return nil, err
+	}
+
 	// begin session
 	r := C.OCISessionBegin(
 		srv.ocisvcctx,           //OCISvcCtx     *svchp,

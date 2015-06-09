@@ -10,9 +10,10 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -141,13 +142,12 @@ func init() {
 
 	// drop all tables from previous test run
 	fmt.Println("Dropping previous tables...")
-	var buf bytes.Buffer
-	buf.WriteString("BEGIN ")
-	buf.WriteString("FOR c IN (SELECT table_name FROM user_tables) LOOP ")
-	buf.WriteString("EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS'); ")
-	buf.WriteString("END LOOP; ")
-	buf.WriteString("END;")
-	stmt, err := testSes.Prep(buf.String())
+	stmt, err := testSes.Prep(`
+BEGIN
+	FOR c IN (SELECT table_name FROM user_tables) LOOP
+		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
+	END LOOP;
+END;`)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -156,6 +156,7 @@ func init() {
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
+	fmt.Println("Tables dropped.")
 
 	// setup test db
 	testDb, err = sql.Open(Name, testConStr)
@@ -368,7 +369,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isString(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), S, S)
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), S)
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBool(expected) {
@@ -376,7 +377,12 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 			defer selectStmt.Close()
 			testErr(err, t)
 		} else if isBytes(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), Bin, OraBin)
+			// one LOB cannot be opened twice in the same transaction (c1, c1 not works here)
+			col := Bin
+			if n%2 == 1 {
+				col = OraBin
+			}
+			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), col)
 			defer selectStmt.Close()
 			testErr(err, t)
 		}
@@ -762,32 +768,6 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 func tableName() string {
 	testTableId++
 	return "t" + strconv.Itoa(testTableId)
-}
-
-func getStack(stripHeadCalls int) string {
-	buf := make([]byte, 4096)
-	n := runtime.Stack(buf, false)
-	buf = buf[:n]
-	i := bytes.IndexByte(buf, '\n')
-	if i < 0 {
-		return string(buf)
-	}
-	var prefix string
-	if bytes.Contains(buf[:i], []byte("goroutine")) {
-		prefix, buf = string(buf[:i+1]), buf[i+1:]
-	}
-Loop:
-	for stripHeadCalls > 0 {
-		stripHeadCalls--
-		for i := 0; i < 2; i++ {
-			if j := bytes.IndexByte(buf, '\n'); j < 0 {
-				break Loop
-			} else {
-				buf = buf[j+1:]
-			}
-		}
-	}
-	return prefix + string(buf)
 }
 
 func testErr(err error, t *testing.T, expectedErrs ...error) {
@@ -1760,7 +1740,6 @@ func compare_OraTime(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(string)
-	a, aOk := actual.(string)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*string)
 		if ePtrOk {
@@ -1774,18 +1753,29 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			}
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*string)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			aOra, aOraOk := actual.(String)
-			if aOraOk {
-				a = aOra.Value
-			} else {
-				t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
-			}
+	var a string
+	switch x := actual.(type) {
+	case string:
+		a = x
+	case *string:
+		a = *x
+	case String:
+		a = x.Value
+	case Lob:
+		b, err := ioutil.ReadAll(x)
+		if err != nil {
+			t.Errorf("read %v: %v", x, err)
 		}
+		a = string(b)
+	case *Lob:
+		b, err := ioutil.ReadAll(x)
+		if err != nil {
+			t.Errorf("read %v: %v", x, err)
+		}
+		x.Close()
+		a = string(b)
+	default:
+		t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%T, %v)", actual, actual)
 	}
 	if e != a {
 		t.Fatalf("expected(%v), actual(%v)\n%s", e, a, getStack(2))
@@ -1876,7 +1866,6 @@ func compare_OraBool(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 	e, eOk := expected.([]byte)
-	a, aOk := actual.([]byte)
 	if !eOk {
 		eOra, eOraOk := expected.(Raw)
 		if eOraOk {
@@ -1884,14 +1873,47 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 		} else {
 			t.Fatalf("Unable to cast expected value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
-	} else if !aOk {
-		aOra, aOraOk := actual.(Raw)
-		if aOraOk {
-			a = aOra.Value
-		} else {
-			t.Fatalf("Unable to cast actual value to []byte or ora.Binary. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	}
+	var a []byte
+	switch x := actual.(type) {
+	case []byte:
+		a = x
+	case Raw:
+		a = x.Value
+
+	case Lob:
+		Log.Infof("Lob=%v", x)
+		if x.Reader != nil {
+			var err error
+			a, err = ioutil.ReadAll(x.Reader)
+			if err != nil {
+				t.Errorf("error reading %v (%T): %v", x, x, err)
+			}
 		}
-	} else if !areBytesEqual(e, a) {
+		x.Close()
+	case io.ReadCloser:
+		Log.Infof("ReadCloser=%v", x)
+		var err error
+		a, err = ioutil.ReadAll(x)
+		x.Close()
+		if err != nil {
+			t.Errorf("error reading %v (%T): %v", x, x, err)
+		}
+	case io.WriterTo:
+		Log.Infof("WriterTo=%v", x)
+		var buf bytes.Buffer
+		_, err := x.WriteTo(&buf)
+		if c, ok := x.(io.Closer); ok {
+			c.Close()
+		}
+		if err != nil {
+			t.Errorf("error writing from %v (%T): %v", x, x, err)
+		}
+		a = buf.Bytes()
+	default:
+		t.Fatalf("Unable to cast actual value to []byte or ora.Binary. (%T, %v)\n%s", actual, actual, getStack(2))
+	}
+	if !areBytesEqual(e, a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
 }
@@ -2025,16 +2047,7 @@ func isTimeEqual(x time.Time, y time.Time) bool {
 }
 
 func areBytesEqual(x []byte, y []byte) bool {
-	if len(x) != len(y) {
-		return false
-	} else {
-		for n := 0; n < len(x); n++ {
-			if x[n] != y[n] {
-				return false
-			}
-		}
-	}
-	return true
+	return bytes.Equal(x, y)
 }
 
 func gen_int64() int64 {
@@ -2514,8 +2527,11 @@ func gen_OraBytes(length int, isNull bool) Raw {
 	return Raw{Value: gen_bytes(length), IsNull: isNull}
 }
 
-func gen_OraBytesReader(length int, isNull bool) Lob {
-	return Lob{Reader: bytes.NewReader(gen_bytes(length)), IsNull: isNull}
+func gen_OraBytesLob(length int, isNull bool) Lob {
+	if isNull {
+		return Lob{}
+	}
+	return Lob{Reader: bytes.NewReader(gen_bytes(length))}
 }
 
 func gen_bytesSlice(length int) [][]byte {

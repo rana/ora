@@ -25,7 +25,7 @@ func (bnd *bndLobSlice) bindOra(values []Lob, position int, lobBufferSize int, s
 	binValues := make([]io.Reader, len(values))
 	nullInds := make([]C.sb2, len(values))
 	for n, _ := range values {
-		if values[n].IsNull {
+		if values[n].Reader == nil {
 			nullInds[n] = C.sb2(-1)
 		} else {
 			binValues[n] = values[n].Reader

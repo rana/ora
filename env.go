@@ -10,8 +10,10 @@ package ora
 */
 import "C"
 import (
+	"bytes"
 	"container/list"
 	"fmt"
+	"runtime"
 	"strings"
 	"unsafe"
 )
@@ -285,4 +287,30 @@ func (env *Env) SetStmtCfg(c StmtCfg) {
 // StmtCfg returns a *StmtCfg.
 func (env *Env) StmtCfg() *StmtCfg {
 	return &env.stmtCfg
+}
+
+func getStack(stripHeadCalls int) string {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	buf = buf[:n]
+	i := bytes.IndexByte(buf, '\n')
+	if i < 0 {
+		return string(buf)
+	}
+	var prefix string
+	if bytes.Contains(buf[:i], []byte("goroutine")) {
+		prefix, buf = string(buf[:i+1]), buf[i+1:]
+	}
+Loop:
+	for stripHeadCalls > 0 {
+		stripHeadCalls--
+		for i := 0; i < 2; i++ {
+			if j := bytes.IndexByte(buf, '\n'); j < 0 {
+				break Loop
+			} else {
+				buf = buf[j+1:]
+			}
+		}
+	}
+	return prefix + string(buf)
 }

@@ -217,6 +217,9 @@ func GetDrv() *Drv {
 	_drv.bndPools[bndIdxLob].New = func() interface{} {
 		return &bndLob{}
 	}
+	_drv.bndPools[bndIdxLobPtr].New = func() interface{} {
+		return &bndLobPtr{}
+	}
 	_drv.bndPools[bndIdxLobSlice].New = func() interface{} {
 		return &bndLobSlice{}
 	}

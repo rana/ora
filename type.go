@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"container/list"
 	"io"
+	"io/ioutil"
 	"time"
 )
 
@@ -226,14 +227,31 @@ func (this Raw) Equals(other Raw) bool {
 			bytes.Equal(this.Value, other.Value))
 }
 
+// Lob's Reader is sent to the DB on bind, if not nil.
+// The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
 type Lob struct {
-	IsNull bool
-	Reader io.Reader
-	Writer io.Writer
+	io.Reader
+	io.Closer
 }
 
+func (this Lob) Close() error {
+	if this.Closer != nil {
+		return this.Closer.Close()
+	}
+	return nil
+}
+
+// Equals returns true when the receiver and specified Lob are both null,
+// or when they both not null and share the same Reader.
 func (this Lob) Equals(other Lob) bool {
-	return this.IsNull && other.IsNull
+	return this.Reader == other.Reader // this is a quite strict equality...
+}
+
+func (this Lob) Bytes() ([]byte, error) {
+	if this.Reader == nil {
+		return nil, io.EOF
+	}
+	return ioutil.ReadAll(this.Reader)
 }
 
 // Bfile represents a nullable BFILE Oracle value.
