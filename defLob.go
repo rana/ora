@@ -196,19 +196,6 @@ func (def *defLob) close() (err error) {
 	return lobClose(rset.stmt.ses.srv, lob)
 }
 
-var _ = io.Reader((*lobReader)(nil))
-var _ = io.WriterTo((*lobReader)(nil))
-
-type lobReader struct {
-	srv           *Srv
-	ociLobLocator *C.OCILobLocator
-	charsetForm   C.ub1
-	piece         C.ub1
-	off           C.oraub8
-	interrupted   bool
-	Length        C.oraub8
-}
-
 func lobOpen(srv *Srv, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
 	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
 	r := C.OCILobOpen(
@@ -252,6 +239,20 @@ func lobClose(srv *Srv, lob *C.OCILobLocator) error {
 	return nil
 }
 
+var _ = io.Reader((*lobReader)(nil))
+var _ = io.WriterTo((*lobReader)(nil))
+
+type lobReader struct {
+	srv           *Srv
+	ociLobLocator *C.OCILobLocator
+	charsetForm   C.ub1
+	piece         C.ub1
+	off           C.oraub8
+	interrupted   bool
+	Length        C.oraub8
+}
+
+// Close the LOB reader.
 func (lr *lobReader) Close() error {
 	if lr.ociLobLocator == nil {
 		return nil
@@ -265,6 +266,7 @@ func (lr *lobReader) Close() error {
 	return lobClose(srv, lob)
 }
 
+// Read into p, the next chunk.
 func (lr *lobReader) Read(p []byte) (n int, err error) {
 	if lr.ociLobLocator == nil {
 		return 0, io.EOF
@@ -315,6 +317,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	return int(byte_amtp), nil
 }
 
+// WriteTo writes all data from the LOB into the given Writer.
 func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 	defer func() {
 		if closeErr := lr.Close(); closeErr != nil && err == nil {
@@ -370,4 +373,105 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 		}
 	}
 	return n, nil
+}
+
+// TODO(tgulacsi): find how to return lobReadWriter.
+
+var _ = io.ReaderAt((*lobReadWriter)(nil))
+var _ = io.WriterAt((*lobReadWriter)(nil))
+
+type lobReadWriter struct {
+	srv           *Srv
+	ociLobLocator *C.OCILobLocator
+	charsetForm   C.ub1
+	size          C.oraub8
+}
+
+// Size returns the actual size of the LOB.
+func (lrw lobReadWriter) Size() uint64 {
+	return uint64(lrw.size)
+}
+
+// Close the LOB.
+func (lrw *lobReadWriter) Close() error {
+	lob := lrw.ociLobLocator
+	if lob == nil {
+		return nil
+	}
+	lrw.ociLobLocator = nil
+	return lobClose(lrw.srv, lob)
+}
+
+// Truncate the lob to the given length.
+func (lrw *lobReadWriter) Truncate(length int64) error {
+	if C.OCILobTrim2(
+		lrw.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		lrw.srv.env.ocierr, //OCIError           *errhp,
+		lrw.ociLobLocator,  //OCILobLocator      *locp,
+		C.oraub8(length),   //oraub8             *newlen)
+	) == C.OCI_ERROR {
+		return lrw.srv.env.ociError()
+	}
+	return nil
+}
+
+// ReadAt reads into p, starting from off.
+func (lrw *lobReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
+	byte_amtp := C.oraub8(len(p))
+	Log.Infof("LobRead2 off=%d amt=%d", off, len(p))
+	r := C.OCILobRead2(
+		lrw.srv.ocisvcctx,     //OCISvcCtx          *svchp,
+		lrw.srv.env.ocierr,    //OCIError           *errhp,
+		lrw.ociLobLocator,     //OCILobLocator      *locp,
+		&byte_amtp,            //oraub8             *byte_amtp,
+		nil,                   //oraub8             *char_amtp,
+		C.oraub8(off)+1,       //oraub8             offset, offset is 1-based
+		unsafe.Pointer(&p[0]), //void               *bufp,
+		C.oraub8(len(p)),      //oraub8             bufl,
+		C.OCI_ONE_PIECE,       //ub1                piece,
+		nil,                   //void               *ctxp,
+		nil,                   //OCICallbackLobRead2 (cbfp)
+		C.ub2(0),              //ub2                csid,
+		lrw.charsetForm,       //ub1                csfrm );
+	)
+	Log.Infof("LobRead2 returned %d amt=%d", r, byte_amtp)
+	switch r {
+	case C.OCI_ERROR:
+		return 0, lrw.srv.env.ociError()
+	case C.OCI_NO_DATA:
+		return int(byte_amtp), io.EOF
+	case C.OCI_INVALID_HANDLE:
+		return 0, fmt.Errorf("Invalid handle %v", lrw.ociLobLocator)
+	}
+	return int(byte_amtp), nil
+}
+
+// WriteAt writes data in p into the LOB, starting at off.
+func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	Log.Infof("LobWrite2 off=%d len=%d", off, n)
+	byte_amtp := C.oraub8(len(p))
+	// Write to Oracle
+	if C.OCILobWrite2(
+		lrw.srv.ocisvcctx,     //OCISvcCtx          *svchp,
+		lrw.srv.env.ocierr,    //OCIError           *errhp,
+		lrw.ociLobLocator,     //OCILobLocator      *locp,
+		&byte_amtp,            //oraub8          *byte_amtp,
+		nil,                   //oraub8          *char_amtp,
+		C.oraub8(off)+1,       //oraub8          offset, starting position is 1
+		unsafe.Pointer(&p[0]), //void            *bufp,
+		C.oraub8(len(p)),
+		C.OCI_ONE_PIECE,  //ub1             piece,
+		nil,              //void            *ctxp,
+		nil,              //OCICallbackLobWrite2 (cbfp)
+		C.ub2(0),         //ub2             csid,
+		C.SQLCS_IMPLICIT, //ub1             csfrm );
+	//fmt.Printf("r %v, current %v, buffer %v\n", r, current, buffer)
+	//fmt.Printf("C.OCI_NEED_DATA %v, C.OCI_SUCCESS %v\n", C.OCI_NEED_DATA, C.OCI_SUCCESS)
+	) == C.OCI_ERROR {
+		return 0, lrw.srv.env.ociError()
+	}
+	if C.oraub8(off)+byte_amtp > lrw.size {
+		lrw.size = C.oraub8(off) + byte_amtp
+	}
+	return int(byte_amtp), nil
 }

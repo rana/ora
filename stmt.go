@@ -903,6 +903,9 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 						return iterations, err
 					}
 				}
+
+				// FIXME(tgulacsi): *Lob ?
+
 			case [][]byte:
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 				stmt.bnds[n] = bnd
@@ -927,6 +930,9 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					return iterations, err
 				}
 				iterations = uint32(len(value))
+
+				// FIXME(tgulacsi): []*Lob ?
+
 			case IntervalYM:
 				if value.IsNull {
 					stmt.setNilBind(n, C.SQLT_INTERVAL_YM)
