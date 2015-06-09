@@ -227,9 +227,18 @@ func (this Raw) Equals(other Raw) bool {
 			bytes.Equal(this.Value, other.Value))
 }
 
+// Lob's Reader is sent to the DB on bind, if not nil.
+// The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
 type Lob struct {
 	io.Reader
 	io.Closer
+}
+
+func (this Lob) Close() error {
+	if this.Closer != nil {
+		return this.Closer.Close()
+	}
+	return nil
 }
 
 // Equals returns true when the receiver and specified Lob are both null,

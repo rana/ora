@@ -1767,6 +1767,13 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			t.Errorf("read %v: %v", x, err)
 		}
 		a = string(b)
+	case *Lob:
+		b, err := ioutil.ReadAll(x)
+		if err != nil {
+			t.Errorf("read %v: %v", x, err)
+		}
+		x.Close()
+		a = string(b)
 	default:
 		t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%T, %v)", actual, actual)
 	}
@@ -1883,6 +1890,7 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 				t.Errorf("error reading %v (%T): %v", x, x, err)
 			}
 		}
+		x.Close()
 	case io.ReadCloser:
 		Log.Infof("ReadCloser=%v", x)
 		var err error
@@ -2519,7 +2527,7 @@ func gen_OraBytes(length int, isNull bool) Raw {
 	return Raw{Value: gen_bytes(length), IsNull: isNull}
 }
 
-func gen_OraBytesReader(length int, isNull bool) Lob {
+func gen_OraBytesLob(length int, isNull bool) Lob {
 	if isNull {
 		return Lob{}
 	}

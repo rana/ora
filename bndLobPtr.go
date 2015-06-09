@@ -91,7 +91,7 @@ func (bnd *bndLobPtr) close() (err error) {
 	bnd.value = nil
 	bnd.ocibnd = nil
 	bnd.ociLobLocator = nil
-	stmt.putBnd(bndIdxLob, bnd)
+	stmt.putBnd(bndIdxLobPtr, bnd)
 	return nil
 }
 
