@@ -892,6 +892,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 						return iterations, err
 					}
 				}
+
 			case Lob:
 				if value.Reader == nil {
 					stmt.setNilBind(n, C.SQLT_BLOB)
@@ -903,8 +904,18 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 						return iterations, err
 					}
 				}
-
-				// FIXME(tgulacsi): *Lob ?
+			case *Lob:
+				if value == nil {
+					stmt.setNilBind(n, C.SQLT_BLOB)
+				} else {
+					bnd := stmt.getBnd(bndIdxLobPtr).(*bndLobPtr)
+					stmt.bnds[n] = bnd
+					err = bnd.bindLob(value, n+1, stmt.Cfg.lobBufferSize, stmt)
+					if err != nil {
+						return iterations, err
+					}
+					stmt.hasPtrBind = true
+				}
 
 			case [][]byte:
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)

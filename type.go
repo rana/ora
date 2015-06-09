@@ -229,6 +229,7 @@ func (this Raw) Equals(other Raw) bool {
 
 type Lob struct {
 	io.Reader
+	io.Closer
 }
 
 // Equals returns true when the receiver and specified Lob are both null,

@@ -128,6 +128,7 @@ const (
 	bndIdxBin
 	bndIdxBinSlice
 	bndIdxLob
+	bndIdxLobPtr
 	bndIdxLobSlice
 
 	bndIdxIntervalYM
