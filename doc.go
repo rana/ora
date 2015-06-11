@@ -124,11 +124,11 @@ numerics of various sizes, Oracle-specific types, Go return type configuration, 
 Oracle abstractions such as environment, server and session. When working with the
 ora package directly, the API is slightly different than database/sql.
 
-To register the "ora" driver for use with sql.Open, you have to call ora.GetDrv,
-at least once in your app, before sql.Open:
+To register the "ora" driver for use with sql.Open, you have to call ora.Register,
+once before sql.Open in your app:
 
     func init() {
-		_ = ora.GetDrv()
+		ora.Register()
 	}
 
 When using the ora package directly, the mapping between Go types and Oracle types
@@ -214,7 +214,7 @@ An example of using the ora package directly:
 	func main() {
 		// example usage of the ora package driver
 		// connect to a server and open a session
-		env, err := ora.GetDrv().OpenEnv()
+		env, err := ora.OpenEnv()
 		defer env.Close()
 		if err != nil {
 			panic(err)

@@ -98,12 +98,12 @@ The ora package implements interfaces in the [database/sql/driver](http://golang
 [database/sql](http://golang.org/pkg/database/sql/) to communicate with an Oracle database. Using [database/sql](http://golang.org/pkg/database/sql/)
 ensures you never have to call the ora package directly.
 
-To register the "ora" driver for use with `sql.Open`, you have to call `ora.GetDrv`,
-at least once in your app, before `sql.Open`:
+To register the "ora" driver for use with `sql.Open`, you have to call `ora.Register`,
+once before `sql.Open` in your app:
 
 ```go
     func init() {
-		_ = ora.GetDrv()
+		ora.Register()
 	}
 ```
 
@@ -232,7 +232,7 @@ import (
 func main() {
 	// example usage of the ora package driver
 	// connect to a server and open a session
-	env, err := ora.GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	defer env.Close()
 	if err != nil {
 		panic(err)
