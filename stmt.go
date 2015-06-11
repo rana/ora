@@ -88,20 +88,19 @@ func (stmt *Stmt) Close() (err error) {
 		}
 
 		// free ocistmt to release cursor on server
-		if stmt.tag != nil {
-			if C.OCIStmtRelease(
-				stmt.ocistmt,               // OCIStmt        *stmthp
-				stmt.ses.srv.env.ocierr,    // OCIError            *errhp,
-				(*C.OraText)(&stmt.tag[0]), // const OraText  *key
-				C.ub4(len(stmt.tag)),       // ub4 keylen
-				C.OCI_DEFAULT,              // ub4 mode
-			) == C.OCI_ERROR {
-				err := stmt.ses.srv.env.ociError()
-				errs.PushBack(err)
-				Log.Errorln(err)
-			}
+		// OCIStmtRelease must be called with OCIStmtPrepare2
+		// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
+		if C.OCIStmtRelease(
+			stmt.ocistmt,               // OCIStmt        *stmthp
+			stmt.ses.srv.env.ocierr,    // OCIError       *errhp,
+			(*C.OraText)(&stmt.tag[0]), // const OraText  *key
+			C.ub4(len(stmt.tag)),       // ub4 keylen
+			C.OCI_DEFAULT,              // ub4 mode
+		) == C.OCI_ERROR {
+			err := stmt.ses.srv.env.ociError()
+			errs.PushBack(err)
+			Log.Errorln(err)
 		}
-		stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(stmt.ocistmt), C.OCI_HTYPE_STMT)
 
 		ses := stmt.ses
 		ses.stmts.Remove(stmt.elem)
@@ -175,7 +174,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 		return 0, 0, err
 	}
 	// determine auto-commit state
-	// don't auto comit if there is a transaction occuring
+	// don't auto comit if there's an explicit user transaction occuring
 	var mode C.ub4
 	if stmt.Cfg.IsAutoCommitting && stmt.ses.txs.Front() == nil {
 		mode = C.OCI_COMMIT_ON_SUCCESS
