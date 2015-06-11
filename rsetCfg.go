@@ -7,23 +7,23 @@ package ora
 // RsetCfg affects the association of Oracle select-list columns to
 // Go types.
 type RsetCfg struct {
-	numberInt    GoColumnType
-	numberFloat  GoColumnType
-	binaryDouble GoColumnType
-	binaryFloat  GoColumnType
-	float        GoColumnType
-	date         GoColumnType
-	timestamp    GoColumnType
-	timestampTz  GoColumnType
-	timestampLtz GoColumnType
-	char1        GoColumnType
-	char         GoColumnType
-	varchar      GoColumnType
-	long         GoColumnType
-	clob         GoColumnType
-	blob         GoColumnType
-	raw          GoColumnType
-	longRaw      GoColumnType
+	numberScaless GoColumnType
+	numberScaled  GoColumnType
+	binaryDouble  GoColumnType
+	binaryFloat   GoColumnType
+	float         GoColumnType
+	date          GoColumnType
+	timestamp     GoColumnType
+	timestampTz   GoColumnType
+	timestampLtz  GoColumnType
+	char1         GoColumnType
+	char          GoColumnType
+	varchar       GoColumnType
+	long          GoColumnType
+	clob          GoColumnType
+	blob          GoColumnType
+	raw           GoColumnType
+	longRaw       GoColumnType
 
 	// TrueRune is rune a Go bool true value from SQL select-list character column.
 	//
@@ -42,8 +42,8 @@ func NewRsetCfg() RsetCfg {
 func (c *RsetCfg) Reset() {
 	c.TrueRune = '1'
 
-	c.numberInt = I64
-	c.numberFloat = F64
+	c.numberScaless = I64
+	c.numberScaled = F64
 	c.binaryDouble = F64
 	c.binaryFloat = F32
 	c.float = F64
@@ -61,62 +61,62 @@ func (c *RsetCfg) Reset() {
 	c.longRaw = Bin
 }
 
-// SetNumberInt sets a GoColumnType associated to an Oracle select-list
+// SetNumberScaless sets a GoColumnType associated to an Oracle select-list
 // NUMBER column defined with scale zero.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberInt(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetNumberScaless(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct, "")
 	if err == nil {
-		c.numberInt = gct
+		c.numberScaless = gct
 	}
 	return err
 }
 
-// NumberInt returns a GoColumnType associated to an Oracle select-list
+// NumberScaless returns a GoColumnType associated to an Oracle select-list
 // NUMBER column defined with scale zero.
 //
 // The default is I64.
 //
-// The database/sql package uses NumberInt.
+// The database/sql package uses NumberScaless.
 //
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
-// is specified, NumberInt is used.
-func (c *RsetCfg) NumberInt() GoColumnType {
-	return c.numberInt
+// is specified, NumberScaless is used.
+func (c *RsetCfg) NumberScaless() GoColumnType {
+	return c.numberScaless
 }
 
-// SetNumberFloat sets a GoColumnType associated to an Oracle select-list
+// SetNumberScaled sets a GoColumnType associated to an Oracle select-list
 // NUMBER column defined with a scale greater than zero.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberFloat(gct GoColumnType) (err error) {
+func (c *RsetCfg) SetNumberScaled(gct GoColumnType) (err error) {
 	err = checkNumericColumn(gct, "")
 	if err == nil {
-		c.numberFloat = gct
+		c.numberScaled = gct
 	}
 	return err
 }
 
-// NumberFloat returns a GoColumnType associated to an Oracle select-list
+// NumberScaled returns a GoColumnType associated to an Oracle select-list
 // NUMBER column defined with a scale greater than zero.
 //
 // The default is F64.
 //
-// NumberFloat is used by the database/sql package.
+// NumberScaled is used by the database/sql package.
 //
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
-// is specified, NumberFloat is used.
-func (c *RsetCfg) NumberFloat() GoColumnType {
-	return c.numberFloat
+// is specified, NumberScaled is used.
+func (c *RsetCfg) NumberScaled() GoColumnType {
+	return c.numberScaled
 }
 
 // SetBinaryDouble sets a GoColumnType associated to an Oracle select-list
