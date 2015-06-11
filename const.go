@@ -4,15 +4,6 @@
 
 package ora
 
-const (
-	// The driver name registered with the database/sql package.
-	Name string = "ora"
-
-	// The driver version sent to an Oracle server and visible in
-	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
-	Version string = "v1.02"
-)
-
 // ColumnGoType defines the Go type returned from a sql select column.
 type GoColumnType uint
 
