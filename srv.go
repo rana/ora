@@ -148,7 +148,7 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	// http://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
 	// Set LOB prefetch size to chunk size
 	lobPrefetchSize := C.ub4(lobChunkSize)
-	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(&lobPrefetchSize), 0, C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE)
+	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(&lobPrefetchSize), C.ub4(0), C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +165,13 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	}
 	// set session handle on service context handle
 	err = srv.env.setAttr(unsafe.Pointer(srv.ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
+	if err != nil {
+		return nil, err
+	}
+	// set stmt cache size to zero
+	// https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
+	stmtCacheSize := C.ub4(0)
+	err = srv.env.setAttr(unsafe.Pointer(srv.ocisvcctx), C.OCI_HTYPE_SVCCTX, unsafe.Pointer(&stmtCacheSize), C.ub4(0), C.OCI_ATTR_STMTCACHESIZE)
 	if err != nil {
 		return nil, err
 	}
