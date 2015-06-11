@@ -26,7 +26,6 @@ type Stmt struct {
 	ses     *Ses
 	ocistmt *C.OCIStmt
 
-	rsetId     uint64
 	rsets      *list.List
 	elem       *list.Element
 	Cfg        StmtCfg
@@ -50,6 +49,21 @@ func (stmt *Stmt) NumInput() int {
 		return 0
 	}
 	return int(bindCount)
+}
+
+// Gcts returns a slice of GoColumnType specified by Ses.Prep or Stmt.SetGcts.
+//
+// Gcts is used by a Stmt.Qry *ora.Rset to determine which Go types are mapped
+// to a sql select-list.
+func (stmt *Stmt) Gcts() []GoColumnType {
+	return stmt.gcts
+}
+
+// SetGcts sets a slice of GoColumnType used in a Stmt.Qry *ora.Rset.
+//
+// SetGcts is optional.
+func (stmt *Stmt) SetGcts(gcts []GoColumnType) []GoColumnType {
+	return stmt.gcts
 }
 
 // checkIsOpen validates that the statement is open.
@@ -80,7 +94,7 @@ func (stmt *Stmt) Close() (err error) {
 		return err
 	}
 	Log.Infof("E%vS%vS%vS%v] Close", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
-	errs := stmt.ses.srv.env.drv.listPool.Get().(*list.List)
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			Log.Errorln(recoverMsg(value))
@@ -113,14 +127,14 @@ func (stmt *Stmt) Close() (err error) {
 		stmt.sql = ""
 		stmt.stmtType = C.ub4(0)
 		stmt.hasPtrBind = false
-		ses.srv.env.drv.stmtPool.Put(stmt)
+		_drv.stmtPool.Put(stmt)
 
 		m := newMultiErrL(errs)
 		if m != nil {
 			err = *m
 		}
 		errs.Init()
-		ses.srv.env.drv.listPool.Put(errs)
+		_drv.listPool.Put(errs)
 	}()
 
 	// close binds
@@ -259,7 +273,10 @@ func (stmt *Stmt) qry(params []interface{}) (*Rset, error) {
 		}
 	}
 	// create result set and open
-	rset := &Rset{}
+	rset := _drv.rsetPool.Get().(*Rset)
+	if rset.id == 0 {
+		rset.id = _drv.rsetId.nextId()
+	}
 	err = rset.open(stmt, stmt.ocistmt)
 	if err != nil {
 		rset.close()
