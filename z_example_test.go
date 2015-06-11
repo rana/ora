@@ -1618,7 +1618,7 @@ func Example() {
 	ses.PrepAndExe("DROP TABLE " + tableName)
 	qry := "CREATE TABLE " + tableName + "(C1 NUMBER(19,0)"
 	ver, _ := srv.Version()
-	fmt.Fprintf(os.Stderr, "server version: %q", ver)
+	//fmt.Fprintf(os.Stderr, "server version: %q\n", ver)
 	var autoC1 int
 	if strings.Contains(ver, " 12.") {
 		qry += " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
