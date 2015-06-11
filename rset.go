@@ -286,7 +286,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 					if numericScale == -127 {
 						gct = rset.stmt.Cfg.Rset.float
 					} else {
-						gct = rset.stmt.Cfg.Rset.numberScaled
+						gct = rset.stmt.Cfg.Rset.numberFloat
 					}
 				} else {
 					err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
@@ -301,7 +301,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				}
 			} else {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.Cfg.Rset.numberScaless
+					gct = rset.stmt.Cfg.Rset.numberInt
 				} else {
 					err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
 					if err != nil {

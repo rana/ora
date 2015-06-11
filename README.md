@@ -608,8 +608,8 @@ default:
 
 ```go
 sc := NewStmtCfg()
-sc.Rset.SetNumberScaless(ora.OraI64)
-sc.Rset.SetNumberScaled(ora.OraF64)
+sc.Rset.SetNumberInt(ora.OraI64)
+sc.Rset.SetNumberFloat(ora.OraF64)
 sc.Rset.SetBinaryDouble(ora.OraF64)
 sc.Rset.SetBinaryFloat(ora.OraF64)
 sc.Rset.SetFloat(ora.OraF64)
