@@ -10,10 +10,13 @@ import (
 )
 
 func Test_open_cursors(t *testing.T) {
-	enableLogging(t)
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
 	// or at least "GRANT SELECT ON v_$mystat TO test".
-	// setup
+	// use 'opened cursors current' STATISTIC#=5 to determine open cursors
+	// SELECT A.STATISTIC#, A.NAME, B.VALUE
+	// FROM V$STATNAME A, V$MYSTAT B
+	// WHERE A.STATISTIC# = B.STATISTIC#
+	//enableLogging(t)
 	env, err := GetDrv().OpenEnv()
 	if err != nil {
 		t.Fatal(err)
@@ -30,49 +33,41 @@ func Test_open_cursors(t *testing.T) {
 	}
 	defer ses.Close()
 
-	stmt, err := ses.Prep("select value from v$mystat where statistic#=4")
+	rset, err := ses.PrepAndQry("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var before, after int64
-	rset, err := stmt.Qry()
-	if err != nil || !rset.Next() {
-		t.Skip(err)
-	}
-	before = rset.Row[0].(int64)
+	before := rset.NextRow()[0].(int64)
 	rounds := 100
 	for i := 0; i < rounds; i++ {
 		func() {
-			Log.Infoln("Prepare")
 			stmt, err := ses.Prep("SELECT 1 FROM user_objects WHERE ROWNUM < 100")
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer stmt.Close()
-			Log.Infoln("Query")
 			rset, err := stmt.Qry()
 			if err != nil {
 				t.Errorf("SELECT: %v", err)
 				return
 			}
-			Log.Infoln("loop")
 			j := 0
 			for rset.Next() {
 				j++
 			}
-			t.Logf("%d objects, error=%v", j, rset.Err)
-			Log.Infof("%d objects, error=%v", j, rset.Err)
+			//t.Logf("%d objects, error=%v", j, rset.Err)
 		}()
 	}
-	if rset, err = stmt.Qry(); err != nil || !rset.Next() {
+	rset, err = ses.PrepAndQry("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
+	if err != nil {
 		t.Fatal(err)
 	}
-	after = rset.Row[0].(int64)
+	after := rset.NextRow()[0].(int64)
 	if after-before >= int64(rounds) {
 		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
 		return
 	}
-	t.Logf("before=%d after=%d", before, after)
+	//t.Logf("before=%d after=%d", before, after)
 }
 
 func TestSession_PrepCloseStmt(t *testing.T) {
