@@ -35,6 +35,7 @@ func (tx *Tx) close() {
 		tx.ses.txs.Remove(tx.elem)
 		tx.ses = nil
 		tx.elem = nil
+		_drv.txPool.Put(tx)
 	}
 }
 
