@@ -73,7 +73,7 @@ func (bnd *bndLobSlice) bindReaders(
 		}
 
 		alenp[i] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocators[i]))
-		if nullInds[i] <= -1 {
+		if nullInds[i] <= C.sb2(-1) {
 			continue
 		}
 		if err = writeLob(bnd.ociLobLocators[i], bnd.stmt, r, lobBufferSize); err != nil {

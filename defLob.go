@@ -140,12 +140,12 @@ func (def *defLob) value() (value interface{}, err error) {
 	lob := def.ociLobLocator
 	Log.Infof("value %p null=%d", lob, def.null)
 	if def.gct == Bin {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			return def.Reader()
 		}
 		return value, err
 	}
-	if def.null < 0 {
+	if def.null < C.sb2(0) {
 		return Lob{}, nil
 	}
 	var r io.Reader

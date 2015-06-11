@@ -46,7 +46,7 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 
 func (def *defLongRaw) value() (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Raw{IsNull: def.null < 0}
+		bytesValue := Raw{IsNull: def.null < C.sb2(0)}
 		if !bytesValue.IsNull {
 			// Make a slice of length equal to the return length
 			bytesValue.Value = make([]byte, def.returnLength)

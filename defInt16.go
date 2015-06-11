@@ -52,7 +52,7 @@ func (def *defInt16) free() {
 
 func (def *defInt16) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraInt16Value := Int16{IsNull: def.null < 0}
+		oraInt16Value := Int16{IsNull: def.null < C.sb2(0)}
 		if !oraInt16Value.IsNull {
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr,     //OCIError              *err,
@@ -66,7 +66,7 @@ func (def *defInt16) value() (value interface{}, err error) {
 		}
 		value = oraInt16Value
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			var int16Value int16
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,

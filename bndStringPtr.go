@@ -48,7 +48,7 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 }
 
 func (bnd *bndStringPtr) setPtr() error {
-	if bnd.isNull > -1 {
+	if bnd.isNull > C.sb2(-1) {
 		// Buffer is padded with Space char (32)
 		*bnd.value = stringTrimmed(bnd.buf, 32)
 	}

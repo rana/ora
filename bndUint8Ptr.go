@@ -45,7 +45,7 @@ func (bnd *bndUint8Ptr) bind(value *uint8, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndUint8Ptr) setPtr() error {
-	if bnd.isNull > -1 {
+	if bnd.isNull > C.sb2(-1) {
 		r := C.OCINumberToInt(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 			&bnd.ociNumber,              //const OCINumber       *number,

@@ -46,13 +46,13 @@ func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *R
 
 func (def *defRaw) value() (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Raw{IsNull: def.null < 0}
+		bytesValue := Raw{IsNull: def.null < C.sb2(0)}
 		if !bytesValue.IsNull {
 			bytesValue.Value = def.buf
 		}
 		value = bytesValue
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			value = def.buf
 		}
 	}

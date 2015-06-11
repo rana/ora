@@ -43,7 +43,7 @@ func (def *defFloat32) define(position int, isNullable bool, rset *Rset) error {
 }
 func (def *defFloat32) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraFloat32Value := Float32{IsNull: def.null < 0}
+		oraFloat32Value := Float32{IsNull: def.null < C.sb2(0)}
 		if !oraFloat32Value.IsNull {
 			var float32Value float32
 			r := C.OCINumberToReal(
@@ -58,7 +58,7 @@ func (def *defFloat32) value() (value interface{}, err error) {
 		}
 		value = oraFloat32Value
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			var float32Value float32
 			r := C.OCINumberToReal(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,

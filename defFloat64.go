@@ -43,7 +43,7 @@ func (def *defFloat64) define(position int, isNullable bool, rset *Rset) error {
 }
 func (def *defFloat64) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraFloat64Value := Float64{IsNull: def.null < 0}
+		oraFloat64Value := Float64{IsNull: def.null < C.sb2(0)}
 		if !oraFloat64Value.IsNull {
 			var float64Value float64
 			r := C.OCINumberToReal(
@@ -58,7 +58,7 @@ func (def *defFloat64) value() (value interface{}, err error) {
 		}
 		value = oraFloat64Value
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			var float64Value float64
 			r := C.OCINumberToReal(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,

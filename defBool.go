@@ -51,14 +51,14 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 func (def *defBool) value() (value interface{}, err error) {
 	Log.Infof("%v.value", def)
 	if def.isNullable {
-		oraBoolValue := Bool{IsNull: def.null < 0}
+		oraBoolValue := Bool{IsNull: def.null < C.sb2(0)}
 		if !oraBoolValue.IsNull {
 			r, _ := utf8.DecodeRune(def.buf)
 			oraBoolValue.Value = r == def.rset.stmt.Cfg.Rset.TrueRune
 		}
 		return oraBoolValue, nil
 	}
-	if def.null > -1 {
+	if def.null > C.sb2(-1) {
 		r, _ := utf8.DecodeRune(def.buf)
 		return r == def.rset.stmt.Cfg.Rset.TrueRune, nil
 	}

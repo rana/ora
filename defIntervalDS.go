@@ -43,7 +43,7 @@ func (def *defIntervalDS) define(position int, rset *Rset) error {
 }
 
 func (def *defIntervalDS) value() (value interface{}, err error) {
-	intervalDS := IntervalDS{IsNull: def.null < 0}
+	intervalDS := IntervalDS{IsNull: def.null < C.sb2(0)}
 	if !intervalDS.IsNull {
 		var day C.sb4
 		var hour C.sb4

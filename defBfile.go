@@ -43,7 +43,7 @@ func (def *defBfile) define(position int, rset *Rset) error {
 }
 func (def *defBfile) value() (value interface{}, err error) {
 	var bfileValue Bfile
-	bfileValue.IsNull = def.null < 0
+	bfileValue.IsNull = def.null < C.sb2(0)
 	if !bfileValue.IsNull {
 		// Get directory alias and filename
 		dLength := C.ub2(len(def.directoryAlias))

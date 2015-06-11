@@ -45,7 +45,7 @@ func (bnd *bndFloat32Ptr) bind(value *float32, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndFloat32Ptr) setPtr() error {
-	if bnd.isNull > -1 {
+	if bnd.isNull > C.sb2(-1) {
 		r := C.OCINumberToReal(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 			&bnd.ociNumber,              //const OCINumber     *number,

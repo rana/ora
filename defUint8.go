@@ -44,7 +44,7 @@ func (def *defUint8) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defUint8) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraUint8Value := Uint8{IsNull: def.null < 0}
+		oraUint8Value := Uint8{IsNull: def.null < C.sb2(0)}
 		if !oraUint8Value.IsNull {
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr,     //OCIError              *err,
@@ -58,7 +58,7 @@ func (def *defUint8) value() (value interface{}, err error) {
 		}
 		value = oraUint8Value
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			var uint8Value uint8
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,

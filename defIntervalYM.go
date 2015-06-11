@@ -41,7 +41,7 @@ func (def *defIntervalYM) define(position int, rset *Rset) error {
 }
 
 func (def *defIntervalYM) value() (value interface{}, err error) {
-	intervalYM := IntervalYM{IsNull: def.null < 0}
+	intervalYM := IntervalYM{IsNull: def.null < C.sb2(0)}
 	if !intervalYM.IsNull {
 		var year C.sb4
 		var month C.sb4

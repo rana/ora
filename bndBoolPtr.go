@@ -53,7 +53,7 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 
 func (bnd *bndBoolPtr) setPtr() error {
 	Log.Infof("%s.setPtr()", bnd)
-	if bnd.isNull > -1 {
+	if bnd.isNull > C.sb2(-1) {
 		r, _ := utf8.DecodeRune(bnd.buf)
 		*bnd.value = r == bnd.trueRune
 	} else {

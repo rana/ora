@@ -48,20 +48,20 @@ func (bnd *bndStringSlice) bind(values []string, nullInds []C.sb2, position int,
 			maxLen = strLen
 		}
 	}
-	for n, str := range values {
-		_, err = bnd.buf.WriteString(str)
+	for m := 0; m < len(values); m++ {
+		_, err = bnd.buf.WriteString(values[m])
 		if err != nil {
 			return err
 		}
 		// pad to make equal to max len if necessary
-		padLen := maxLen - len(str)
+		padLen := maxLen - len(values[m])
 		for n := 0; n < padLen; n++ {
 			_, err = bnd.buf.WriteRune('0')
 			if err != nil {
 				return err
 			}
 		}
-		alenp[n] = C.ACTUAL_LENGTH_TYPE(len(str))
+		alenp[m] = C.ACTUAL_LENGTH_TYPE(len(values[m]))
 	}
 	bnd.bytes = bnd.buf.Bytes()
 	r := C.OCIBINDBYPOS(

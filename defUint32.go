@@ -44,7 +44,7 @@ func (def *defUint32) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defUint32) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraUint32Value := Uint32{IsNull: def.null < 0}
+		oraUint32Value := Uint32{IsNull: def.null < C.sb2(0)}
 		if !oraUint32Value.IsNull {
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr,      //OCIError              *err,
@@ -58,7 +58,7 @@ func (def *defUint32) value() (value interface{}, err error) {
 		}
 		value = oraUint32Value
 	} else {
-		if def.null > -1 {
+		if def.null > C.sb2(-1) {
 			var uint32Value uint32
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
