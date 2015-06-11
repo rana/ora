@@ -2,7 +2,7 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 )
 
 func Test_open_cursors_db(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
 	// or at least "GRANT SELECT ON v_$mystat TO test".
 	// use 'opened cursors current' statistic#=5 to determine opend cursors on oracle server
@@ -28,26 +28,22 @@ func Test_open_cursors_db(t *testing.T) {
 	rounds := 100
 	for i := 0; i < rounds; i++ {
 		func() {
-			Log.Infoln("Prepare")
 			stmt, err := testDb.Prepare("SELECT 1 FROM user_objects WHERE ROWNUM < 100")
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer stmt.Close()
-			Log.Infoln("Query")
 			rows, err := stmt.Query()
 			if err != nil {
 				t.Errorf("SELECT: %v", err)
 				return
 			}
 			defer rows.Close()
-			Log.Infoln("loop")
 			j := 0
 			for rows.Next() {
 				j++
 			}
-			t.Logf("%d objects, error=%v", j, rows.Err())
-			Log.Infof("%d objects, error=%v", j, rows.Err())
+			//t.Logf("%d objects, error=%v", j, rows.Err())
 		}()
 	}
 	if err = stmt.QueryRow().Scan(&after); err != nil {
@@ -231,7 +227,7 @@ func Test_longNull_string_db(t *testing.T) {
 }
 
 func Test_clob_string_db(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	testBindDefineDB(gen_string(), t, clob)
 }
 
@@ -256,7 +252,7 @@ func Test_charB1Null_bool_true_db(t *testing.T) {
 }
 
 func Test_charC1_bool_true_db(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	testBindDefineDB(gen_boolTrue(), t, charC1)
 }
 

@@ -2,21 +2,22 @@
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
+	"ora"
 	"testing"
 )
 
 func TestEnv_OpenClose(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
 }
 
 func TestEnv_IsOpen_opened(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -29,7 +30,7 @@ func TestEnv_IsOpen_opened(t *testing.T) {
 }
 
 func TestEnv_IsOpen_opened_closed(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	testErr(err, t)
 	err = env.Close()
@@ -43,7 +44,7 @@ func TestEnv_IsOpen_opened_closed(t *testing.T) {
 }
 
 func TestEnv_OpenCloseServer(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -56,7 +57,7 @@ func TestEnv_OpenCloseServer(t *testing.T) {
 }
 
 func TestEnv_OpenCloseCon(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)

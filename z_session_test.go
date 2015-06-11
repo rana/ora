@@ -2,10 +2,11 @@
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"fmt"
+	"ora"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ func Test_open_cursors(t *testing.T) {
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
 	//enableLogging(t)
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func Test_open_cursors(t *testing.T) {
 func TestSession_PrepCloseStmt(t *testing.T) {
 
 	// setup
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testServerName)

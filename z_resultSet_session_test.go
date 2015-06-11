@@ -2,10 +2,11 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"fmt"
+	"ora"
 	"testing"
 )
 
@@ -48,7 +49,7 @@ func Test_cursor1_session(t *testing.T) {
 	callProcStmt, err := testSes.Prep("call proc1(:1)")
 	defer callProcStmt.Close()
 	testErr(err, t)
-	rset := &Rset{}
+	rset := &ora.Rset{}
 	_, err = callProcStmt.Exe(rset)
 	testErr(err, t)
 	if rset.IsOpen() {
@@ -57,8 +58,8 @@ func Test_cursor1_session(t *testing.T) {
 				t.Fatalf("select column count: expected(%v), actual(%v)", 2, len(rset.Row))
 			} else {
 				//fmt.Println("rset.Row ", rset.Row)
-				compare(expectedStrs[rset.Index], rset.Row[0], S, t)
-				compare(expectedInt64s[rset.Index], rset.Row[1], I64, t)
+				compare(expectedStrs[rset.Index], rset.Row[0], ora.S, t)
+				compare(expectedInt64s[rset.Index], rset.Row[1], ora.I64, t)
 			}
 		}
 		testErr(rset.Err, t)

@@ -2,14 +2,15 @@
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
+	"ora"
 	"testing"
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testServerName)
@@ -29,7 +30,7 @@ func TestServer_OpenCloseSession(t *testing.T) {
 }
 
 func TestServer_Ping(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testServerName)
@@ -44,7 +45,7 @@ func TestServer_Ping(t *testing.T) {
 }
 
 func TestServer_Version(t *testing.T) {
-	env, err := GetDrv().OpenEnv()
+	env, err := ora.OpenEnv()
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testServerName)

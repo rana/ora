@@ -2,9 +2,10 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
+	"ora"
 	"testing"
 )
 
@@ -180,8 +181,8 @@ func TestBindSlice_uint16_numberP38S0_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP38S0_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), numberP38S0, t, &sc)
 }
 
@@ -428,8 +429,8 @@ func TestBindSlice_uint16_numberP38S0Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP38S0Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), numberP38S0Null, t, &sc)
 }
 
@@ -664,8 +665,8 @@ func TestBindSlice_uint16_numberP16S15_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP16S15_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), numberP16S15, t, &sc)
 }
 
@@ -912,8 +913,8 @@ func TestBindSlice_uint16_numberP16S15Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP16S15Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), numberP16S15Null, t, &sc)
 }
 
@@ -1148,8 +1149,8 @@ func TestBindSlice_uint16_binaryDouble_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryDouble_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), binaryDouble, t, &sc)
 }
 
@@ -1396,8 +1397,8 @@ func TestBindSlice_uint16_binaryDoubleNull_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryDoubleNull_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), binaryDoubleNull, t, &sc)
 }
 
@@ -1632,8 +1633,8 @@ func TestBindSlice_uint16_binaryFloat_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryFloat_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), binaryFloat, t, &sc)
 }
 
@@ -1880,8 +1881,8 @@ func TestBindSlice_uint16_binaryFloatNull_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryFloatNull_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), binaryFloatNull, t, &sc)
 }
 
@@ -2116,8 +2117,8 @@ func TestBindSlice_uint16_floatP126_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_floatP126_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), floatP126, t, &sc)
 }
 
@@ -2364,8 +2365,8 @@ func TestBindSlice_uint16_floatP126Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_floatP126Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
 	testBindDefine(gen_uint8Slice(), floatP126Null, t, &sc)
 }
 
