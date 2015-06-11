@@ -15,6 +15,7 @@ import (
 	"container/list"
 	"io"
 	"io/ioutil"
+	"sync"
 	"time"
 )
 
@@ -368,4 +369,36 @@ func newMultiErrL(errs *list.List) *MultiErr {
 	} else {
 		return nil
 	}
+}
+
+// prefer simple pool instead of sync.Pool to control lifetime of instances
+// sync.Pool eliminates instances at its own discretion
+// would prefer to maintain instances indefinitely; or, eventually clean on a long timer
+type pool struct {
+	l       *list.List
+	mu      sync.Mutex
+	genItem func() interface{}
+}
+
+func newPool(genItem func() interface{}) *pool {
+	p := &pool{}
+	p.l = list.New()
+	p.genItem = genItem
+	return p
+}
+
+func (p *pool) Get() interface{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.l.Len() > 0 {
+		return p.l.Remove(p.l.Front())
+	} else {
+		return p.genItem()
+	}
+}
+
+func (p *pool) Put(v interface{}) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.l.PushFront(v)
 }
