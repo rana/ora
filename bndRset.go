@@ -68,12 +68,6 @@ func (bnd *bndRset) close() (err error) {
 			err = errRecover(value)
 		}
 	}()
-
-	// release ocistmt handle for failed Rset binding
-	// Rset will release handle for successful bind
-	if bnd.ocistmt != nil {
-		bnd.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(bnd.ocistmt), C.OCI_HTYPE_STMT)
-	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
