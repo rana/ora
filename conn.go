@@ -59,7 +59,7 @@ func (con *Con) Close() (err error) {
 		con.srv = nil
 		con.ses = nil
 		con.elem = nil
-		env.drv.conPool.Put(con)
+		_drv.conPool.Put(con)
 	}()
 
 	err1 := con.ses.Close()
