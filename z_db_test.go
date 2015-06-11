@@ -13,7 +13,11 @@ func Test_open_cursors_db(t *testing.T) {
 	enableLogging(t)
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
 	// or at least "GRANT SELECT ON v_$mystat TO test".
-	stmt, err := testDb.Prepare("select value from v$mystat where statistic#=4")
+	// use 'opened cursors current' statistic#=5 to determine opend cursors on oracle server
+	// SELECT A.STATISTIC#, A.NAME, B.VALUE
+	// FROM V$STATNAME A, V$MYSTAT B
+	// WHERE A.STATISTIC# = B.STATISTIC#
+	stmt, err := testDb.Prepare("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
 	if err != nil {
 		t.Fatal(err)
 	}
