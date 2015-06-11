@@ -22,7 +22,6 @@ type Srv struct {
 	ocisvcctx *C.OCISvcCtx
 	ocisrv    *C.OCIServer
 
-	sesId   uint64
 	sess    *list.List
 	elem    *list.Element
 	stmtCfg StmtCfg
@@ -61,7 +60,7 @@ func (srv *Srv) Close() (err error) {
 		return err
 	}
 	Log.Infof("E%vS%v] Close", srv.env.id, srv.id)
-	errs := srv.env.drv.listPool.Get().(*list.List)
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			Log.Errorln(recoverMsg(value))
@@ -76,14 +75,14 @@ func (srv *Srv) Close() (err error) {
 		srv.ocisvcctx = nil
 		srv.elem = nil
 		srv.dbname = ""
-		env.drv.srvPool.Put(srv)
+		_drv.srvPool.Put(srv)
 
 		m := newMultiErrL(errs)
 		if m != nil {
 			err = *m
 		}
 		errs.Init()
-		env.drv.listPool.Put(errs)
+		_drv.listPool.Put(errs)
 	}()
 
 	// close sessions
@@ -179,8 +178,7 @@ func (srv *Srv) OpenSes(username string, password string) (*Ses, error) {
 	// set ses struct
 	ses := srv.env.drv.sesPool.Get().(*Ses)
 	if ses.id == 0 {
-		srv.sesId++
-		ses.id = srv.sesId
+		ses.id = _drv.sesId.nextId()
 	}
 	ses.srv = srv
 	ses.ocises = (*C.OCISession)(ocises)
