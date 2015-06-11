@@ -25,8 +25,6 @@ type Ses struct {
 	srv    *Srv
 	ocises *C.OCISession
 
-	txId     uint64
-	stmtId   uint64
 	txs      *list.List
 	stmts    *list.List
 	elem     *list.Element
@@ -74,7 +72,7 @@ func (ses *Ses) Close() (err error) {
 		return err
 	}
 	Log.Infof("E%vS%vS%v] Close", ses.srv.env.id, ses.srv.id, ses.id)
-	errs := ses.srv.env.drv.listPool.Get().(*list.List)
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			Log.Errorln(recoverMsg(value))
@@ -89,19 +87,21 @@ func (ses *Ses) Close() (err error) {
 		ses.ocises = nil
 		ses.elem = nil
 		ses.username = ""
-		srv.env.drv.sesPool.Put(ses)
+		_drv.sesPool.Put(ses)
 
 		m := newMultiErrL(errs)
 		if m != nil {
 			err = *m
 		}
 		errs.Init()
-		srv.env.drv.listPool.Put(errs)
+		_drv.listPool.Put(errs)
 	}()
 
 	// close transactions
-	// this does not rollback or commit any transactions
-	// any open transactions will be timedout by the server
+	// close does not rollback or commit any transactions
+	// Expect user to make explicit Commit or Rollback.
+	// Any open transactions will be timedout by the server
+	// if not explicitly committed or rolledback.
 	for e := ses.txs.Front(); e != nil; e = e.Next() {
 		e.Value.(*Tx).close()
 	}
@@ -193,8 +193,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	// set stmt struct
 	stmt := ses.srv.env.drv.stmtPool.Get().(*Stmt)
 	if stmt.id == 0 {
-		ses.stmtId++
-		stmt.id = ses.stmtId
+		stmt.id = _drv.stmtId.nextId()
 	}
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
@@ -416,8 +415,7 @@ func (ses *Ses) StartTx() (*Tx, error) {
 	// set tx struct
 	tx := ses.srv.env.drv.txPool.Get().(*Tx)
 	if tx.id == 0 {
-		ses.txId++
-		tx.id = ses.txId
+		tx.id = _drv.txId.nextId()
 	}
 	tx.ses = ses
 	tx.elem = ses.txs.PushFront(tx)
