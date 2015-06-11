@@ -15,6 +15,7 @@ import (
 	"container/list"
 	"io"
 	"io/ioutil"
+	"math"
 	"sync"
 	"time"
 )
@@ -401,4 +402,20 @@ func (p *pool) Put(v interface{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.l.PushFront(v)
+}
+
+type Id struct {
+	val uint64
+	mu  sync.Mutex
+}
+
+func (id *Id) nextId() (result uint64) {
+	id.mu.Lock()
+	defer id.mu.Unlock()
+	if id.val == math.MaxUint64 {
+		id.val = 1
+	} else {
+		id.val++
+	}
+	return id.val
 }
