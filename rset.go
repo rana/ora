@@ -24,6 +24,7 @@ type Rset struct {
 	ocistmt   *C.OCIStmt
 	defs      []def
 	autoClose bool
+	genByPool bool
 
 	Row         []interface{}
 	ColumnNames []string
@@ -55,10 +56,13 @@ func (rset *Rset) close() (err error) {
 		return err
 	}
 	Log.Infof("E%vS%vS%vS%vR%v] close", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
-	errs := rset.stmt.ses.srv.env.drv.listPool.Get().(*list.List)
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			err = errRecover(value)
+		}
+		if rset.genByPool { // recycle pool-generated Rset; don't recycle user-specfied Rset
+			_drv.rsetPool.Put(rset)
 		}
 	}()
 	// close defines
