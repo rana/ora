@@ -11,6 +11,7 @@ package ora
 import "C"
 import (
 	"container/list"
+	"fmt"
 )
 
 // Tx represents an Oracle transaction associated with a session.
@@ -60,6 +61,11 @@ func (tx *Tx) Commit() (err error) {
 //
 // Rollback is a member of the driver.Tx interface.
 func (tx *Tx) Rollback() (err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 	if tx.checkIsOpen(); err != nil {
 		return err
 	}
