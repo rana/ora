@@ -25,11 +25,10 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 	def.rset = rset
 	def.isNullable = isNullable
 	n := columnSize
-	// def.buf must have at least 1 element
-	if n < 2 {
+	if n == 0 {
 		n = 2
 	}
-	if cap(def.buf) < n {
+	if def.buf == nil || cap(def.buf) < n {
 		def.buf = make([]byte, n)
 	}
 	// Create oci define handle

@@ -60,6 +60,26 @@ func Test_open_cursors_db(t *testing.T) {
 	t.Logf("before=%d after=%d", before, after)
 }
 
+func TestSelectNullString_db(t *testing.T) {
+	enableLogging(t)
+	var s string
+	rows, err := testDb.Query("SELECT '' x FROM DUAL")
+	if err != nil {
+		t.Errorf("SELECT '' FROM DUAL: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err = rows.Scan(&s); err != nil {
+			t.Errorf("Scan: %v", err)
+			break
+		}
+	}
+	if rows.Err() != nil {
+		t.Errorf("rows: %v", rows.Err())
+	}
+}
+
 func Test_numberP38S0Identity_db(t *testing.T) {
 	tableName := tableName()
 	stmt, err := testDb.Prepare(createTableSql(tableName, 1, numberP38S0Identity, varchar2C48))
