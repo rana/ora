@@ -22,11 +22,12 @@ type Srv struct {
 	ocisvcctx *C.OCISvcCtx
 	ocisrv    *C.OCIServer
 
-	sesId   uint64
-	sess    *list.List
-	elem    *list.Element
-	stmtCfg StmtCfg
-	dbname  string
+	sesId    uint64
+	sess     *list.List
+	elem     *list.Element
+	stmtCfg  StmtCfg
+	dbname   string
+	dbIsUTF8 bool
 }
 
 // NumSes returns the number of open Oracle sessions.

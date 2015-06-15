@@ -9,9 +9,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type defString struct {
 	rset       *Rset
@@ -24,9 +22,22 @@ type defString struct {
 func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
+	//Log.Infof("defString position=%d columnSize=%d", position, columnSize)
 	n := columnSize
+	// AL32UTF8: one db "char" can be 4 bytes on wire, esp. if the database's
+	// character set is not AL32UTF8 (e.g. some 8bit fixed width charset), and
+	// the column is VARCHAR2 with byte semantics.
+	//
+	// For example when the db's charset is EE8ISO8859P2, then a VARCHAR2(1) can
+	// contain an "ű", which is 2 bytes AL32UTF8.
+	if !rset.stmt.ses.srv.dbIsUTF8 {
+		n *= 2
+	}
 	if n == 0 {
 		n = 2
+	}
+	if n%2 != 0 {
+		n++
 	}
 	if def.buf == nil || cap(def.buf) < n {
 		def.buf = make([]byte, n)
@@ -38,7 +49,7 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
 		C.ub4(position),                  //ub4         position,
 		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
+		C.LENGTH_TYPE(n),                 //sb8         value_sz,
 		C.SQLT_CHR,                       //ub2         dty,
 		unsafe.Pointer(&def.null),        //void        *indp,
 		nil,           //ub2         *rlenp,

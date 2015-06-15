@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -159,6 +160,11 @@ func (env *Env) OpenSrv(dbname string) (*Srv, error) {
 	return srv, nil
 }
 
+var (
+	conCharset   = make(map[string]string, 2)
+	conCharsetMu sync.Mutex
+)
+
 // OpenCon starts an Oracle session on a server returning a *Con and possible error.
 //
 // The connection string has the form username/password@dbname e.g., scott/tiger@orcl
@@ -207,6 +213,27 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	con.srv = srv
 	con.ses = ses
 	con.elem = env.cons.PushBack(con)
+
+	conCharsetMu.Lock()
+	defer conCharsetMu.Unlock()
+	if cs, ok := conCharset[dbname]; ok {
+		srv.dbIsUTF8 = cs == "AL32UTF8"
+		return con, nil
+	}
+	if rset, err := ses.PrepAndQry(`SELECT property_value
+		FROM database_properties
+		WHERE property_name = 'NLS_CHARACTERSET'`,
+	); err != nil {
+		Log.Errorf("E%vS%vS%v] Determine database characterset: %v",
+			env.id, con.id, ses.id, err)
+	} else if rset != nil && rset.Next() && len(rset.Row) == 1 {
+		Log.Infof("E%vS%vS%v] Database characterset=%q",
+			env.id, con.id, ses.id, rset.Row[0])
+		if cs, ok := rset.Row[0].(string); ok {
+			conCharset[dbname] = cs
+			con.srv.dbIsUTF8 = cs == "AL32UTF8"
+		}
+	}
 
 	return con, nil
 }
