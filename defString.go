@@ -24,8 +24,13 @@ type defString struct {
 func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	if cap(def.buf) < columnSize {
-		def.buf = make([]byte, columnSize)
+	n := columnSize
+	// def.buf must have at least 1 element
+	if n < 2 {
+		n = 2
+	}
+	if cap(def.buf) < n {
+		def.buf = make([]byte, n)
 	}
 	// Create oci define handle
 	r := C.OCIDEFINEBYPOS(
