@@ -64,7 +64,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 		} else {
 			rowid, ok := rset.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string rowid. (%v, %v)", reflect.TypeOf(rset.Row[0]).Name(), rset.Row[0])
+				t.Fatalf("Expected string rowid. (%v, %v)", reflect.TypeOf(rset.Row[0]).Name(), rset.Row[0])
 			}
 			if rowid == "" {
 				t.Fatalf("Expected non-empty rowid string. (%v)", rowid)
@@ -89,7 +89,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 			testErr(rset2.Err, t)
 			c1, ok := rset2.Row[0].(string)
 			if !ok {
-				t.Fatal("Expected string for c1 column. (%v, %v)", reflect.TypeOf(rset2.Row[0]).Name(), rset2.Row[0])
+				t.Fatalf("Expected string for c1 column. (%s, %v)", reflect.TypeOf(rset2.Row[0]).Name(), rset2.Row[0])
 			}
 			//fmt.Printf("c1 (%v)\n", c1)
 			if c1 != "go go go" {

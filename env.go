@@ -189,7 +189,7 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
 		Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
 		if err != nil {
-			return nil, fmt.Errorf("parse %q: %v", err)
+			return nil, fmt.Errorf("parse %q: %v", str, err)
 		}
 	}
 	// connect to server
