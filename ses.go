@@ -16,6 +16,7 @@ import (
 	"hash/fnv"
 	"io"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -29,6 +30,7 @@ type Ses struct {
 	stmtId   uint64
 	txs      *list.List
 	stmts    *list.List
+	stmtsMu  sync.Mutex
 	elem     *list.Element
 	stmtCfg  StmtCfg
 	username string
@@ -36,7 +38,10 @@ type Ses struct {
 
 // NumStmt returns the number of open Oracle statements.
 func (ses *Ses) NumStmt() int {
-	return ses.stmts.Len()
+	ses.stmtsMu.Lock()
+	n := ses.stmts.Len()
+	ses.stmtsMu.Unlock()
+	return n
 }
 
 // NumTx returns the number of open Oracle transactions.
@@ -84,7 +89,9 @@ func (ses *Ses) Close() (err error) {
 		srv := ses.srv
 		srv.sess.Remove(ses.elem)
 		ses.txs.Init()
+		ses.stmtsMu.Lock()
 		ses.stmts.Init()
+		ses.stmtsMu.Unlock()
 		ses.srv = nil
 		ses.ocises = nil
 		ses.elem = nil
@@ -106,9 +113,16 @@ func (ses *Ses) Close() (err error) {
 		e.Value.(*Tx).close()
 	}
 	// close statements
+	var closers []io.Closer
+	ses.stmtsMu.Lock()
 	for e := ses.stmts.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Stmt).Close()
-		errs.PushBack(err0)
+		closers = append(closers, e.Value.(*Stmt))
+	}
+	ses.stmtsMu.Unlock()
+	for _, c := range closers {
+		if err0 := c.Close(); err0 != nil {
+			errs.PushBack(err0)
+		}
 	}
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
@@ -213,7 +227,9 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
 	stmt.tag = tag
 	stmt.stmtType = stmtType
 	stmt.Cfg = ses.stmtCfg
+	ses.stmtsMu.Lock()
 	stmt.elem = ses.stmts.PushBack(stmt)
+	ses.stmtsMu.Unlock()
 
 	return stmt, nil
 }
@@ -428,9 +444,11 @@ func (ses *Ses) StartTx() (*Tx, error) {
 // Sets the StmtCfg on the Session and all open Session Statements.
 func (ses *Ses) SetStmtCfg(c StmtCfg) {
 	ses.stmtCfg = c
+	ses.stmtsMu.Lock()
 	for e := ses.stmts.Front(); e != nil; e = e.Next() {
 		e.Value.(*Stmt).Cfg = c
 	}
+	ses.stmtsMu.Unlock()
 }
 
 // StmtCfg returns a *StmtCfg.

@@ -103,7 +103,9 @@ func (stmt *Stmt) Close() (err error) {
 		}
 
 		ses := stmt.ses
+		ses.stmtsMu.Lock()
 		ses.stmts.Remove(stmt.elem)
+		ses.stmtsMu.Unlock()
 		stmt.rsets.Init()
 		stmt.ses = nil
 		stmt.ocistmt = nil

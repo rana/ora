@@ -70,7 +70,9 @@ func (srv *Srv) Close() (err error) {
 		}
 
 		env := srv.env
+		env.srvsMu.Lock()
 		env.srvs.Remove(srv.elem)
+		env.srvsMu.Unlock()
 		srv.sess.Init()
 		srv.env = nil
 		srv.ocisrv = nil

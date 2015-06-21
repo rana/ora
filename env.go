@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"io"
 	"runtime"
 	"strings"
 	"sync"
@@ -29,7 +30,9 @@ type Env struct {
 	srvId    uint64
 	conId    uint64
 	srvs     *list.List
+	srvsMu   sync.Mutex
 	cons     *list.List
+	consMu   sync.Mutex
 	elem     *list.Element
 	stmtCfg  StmtCfg
 	errBuf   [512]C.char
@@ -38,12 +41,18 @@ type Env struct {
 
 // NumSrv returns the number of open Oracle servers.
 func (env *Env) NumSrv() int {
-	return env.srvs.Len()
+	env.srvsMu.Lock()
+	n := env.srvs.Len()
+	env.srvsMu.Unlock()
+	return n
 }
 
 // NumCon returns the number of open Oracle connections.
 func (env *Env) NumCon() int {
-	return env.cons.Len()
+	env.consMu.Lock()
+	n := env.cons.Len()
+	env.consMu.Unlock()
+	return n
 }
 
 // checkIsOpen validates that the environment is open.
@@ -78,7 +87,9 @@ func (env *Env) Close() (err error) {
 
 		drv := env.drv
 		drv.envs.Remove(env.elem)
+		env.srvsMu.Lock()
 		env.srvs.Init()
+		env.srvsMu.Unlock()
 		env.drv = nil
 		env.ocienv = nil
 		env.ocierr = nil
@@ -94,14 +105,24 @@ func (env *Env) Close() (err error) {
 	}()
 
 	// close connections
+	var closers []io.Closer
+	env.consMu.Lock()
 	for e := env.cons.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Con).Close()
-		errs.PushBack(err0)
+		closers = append(closers, e.Value.(*Con))
 	}
+	env.consMu.Unlock()
 	// close servers
+	env.srvsMu.Lock()
 	for e := env.srvs.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Srv).Close()
-		errs.PushBack(err0)
+		closers = append(closers, e.Value.(*Srv))
+	}
+	env.srvsMu.Unlock()
+
+	// close connections, then the servers
+	for _, c := range closers {
+		if err0 := c.Close(); err0 != nil {
+			errs.PushBack(err0)
+		}
 	}
 
 	// Free oci environment handle and all oci child handles
@@ -212,7 +233,9 @@ func (env *Env) OpenCon(str string) (*Con, error) {
 	con.env = env
 	con.srv = srv
 	con.ses = ses
+	env.consMu.Lock()
 	con.elem = env.cons.PushBack(con)
+	env.consMu.Unlock()
 
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
@@ -306,9 +329,11 @@ func (env *Env) ociError() error {
 // Sets the StmtCfg on the Environment and all open Environment Servers.
 func (env *Env) SetStmtCfg(c StmtCfg) {
 	env.stmtCfg = c
+	env.srvsMu.Lock()
 	for e := env.srvs.Front(); e != nil; e = e.Next() {
 		e.Value.(*Srv).SetStmtCfg(c)
 	}
+	env.srvsMu.Unlock()
 }
 
 // StmtCfg returns a *StmtCfg.
