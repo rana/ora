@@ -18,17 +18,17 @@ func Test_open_cursors(t *testing.T) {
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
 	//enableLogging(t)
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srv.Close()
-	ses, err := srv.OpenSes(testUsername, testPassword)
+	ses, err := srv.OpenSes(testSesCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,13 +74,13 @@ func Test_open_cursors(t *testing.T) {
 func TestSession_PrepCloseStmt(t *testing.T) {
 
 	// setup
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	testErr(err, t)
-	ses, err := srv.OpenSes(testUsername, testPassword)
+	ses, err := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	testErr(err, t)
 
