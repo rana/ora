@@ -62,7 +62,7 @@ func (bnd *bndInt32Ptr) setPtr() error {
 func (bnd *bndInt32Ptr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
