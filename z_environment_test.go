@@ -10,14 +10,14 @@ import (
 )
 
 func TestEnv_OpenClose(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
 }
 
 func TestEnv_IsOpen_opened(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -30,7 +30,7 @@ func TestEnv_IsOpen_opened(t *testing.T) {
 }
 
 func TestEnv_IsOpen_opened_closed(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	testErr(err, t)
 	err = env.Close()
@@ -44,12 +44,12 @@ func TestEnv_IsOpen_opened_closed(t *testing.T) {
 }
 
 func TestEnv_OpenCloseServer(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
 
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	testErr(err, t)
 
 	err = srv.Close()
@@ -57,7 +57,7 @@ func TestEnv_OpenCloseServer(t *testing.T) {
 }
 
 func TestEnv_OpenCloseCon(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
