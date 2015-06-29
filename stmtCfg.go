@@ -37,19 +37,13 @@ type StmtCfg struct {
 	// The is default is '1'.
 	TrueRune rune
 
-	// Rset represents configuration options for a Rset struct.
+	// Rset represents configuration options for an Rset struct.
 	Rset RsetCfg
 }
 
 // NewStmtCfg returns a StmtCfg with default values.
-func NewStmtCfg() StmtCfg {
-	var c StmtCfg
-	c.Reset()
-	return c
-}
-
-// Reset sets driver-defined values to all fields.
-func (c *StmtCfg) Reset() {
+func NewStmtCfg() *StmtCfg {
+	c := &StmtCfg{}
 	c.prefetchRowCount = 0
 	c.prefetchMemorySize = 1 << 27 // 134,217,728
 	c.longBufferSize = 1 << 24     // 16,777,216
@@ -60,7 +54,8 @@ func (c *StmtCfg) Reset() {
 	c.IsAutoCommitting = true
 	c.FalseRune = '0'
 	c.TrueRune = '1'
-	c.Rset.Reset()
+	c.Rset = NewRsetCfg()
+	return c
 }
 
 // SetPrefetchRowCount sets the number of rows to prefetch during a select query.
@@ -209,7 +204,7 @@ func (c *StmtCfg) StringPtrBufferSize() int {
 //
 // Returns an error if U8 or Bits is not specified.
 func (c *StmtCfg) SetByteSlice(gct GoColumnType) (err error) {
-	err = checkBitsOrU8Column(gct)
+	err = checkBinOrU8Column(gct)
 	if err == nil {
 		c.byteSlice = gct
 	}
