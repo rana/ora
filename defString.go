@@ -30,7 +30,7 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 	//
 	// For example when the db's charset is EE8ISO8859P2, then a VARCHAR2(1) can
 	// contain an "ű", which is 2 bytes AL32UTF8.
-	if !rset.stmt.ses.srv.dbIsUTF8 {
+	if !rset.stmt.ses.srv.env.dbIsUTF8 { // TODO: ASSIGN TO dbIsUTF8; rana broke it with a faulty merge.
 		n *= 2
 	}
 	if n == 0 {

@@ -59,12 +59,13 @@ func NewLogEnvCfg() LogEnvCfg {
 
 // Env represents an Oracle environment.
 type Env struct {
-	id     uint64
-	cfg    EnvCfg
-	mu     sync.Mutex
-	ocienv *C.OCIEnv
-	ocierr *C.OCIError
-	errBuf [512]C.char
+	id       uint64
+	cfg      EnvCfg
+	mu       sync.Mutex
+	ocienv   *C.OCIEnv
+	ocierr   *C.OCIError
+	errBuf   [512]C.char
+	dbIsUTF8 bool
 
 	openSrvs *list.List
 	openCons *list.List
