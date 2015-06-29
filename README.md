@@ -597,7 +597,7 @@ GoColumnTypes defined by the ora package are:
 	default¹	D
 
 	° Lob will return binary data if the Oracle column is a BLOB; otherwise, Lob
-	  will return astring if the Oracle column is a CLOB.
+	  will return a string if the Oracle column is a CLOB.
 
 	¹ D represents a default mapping between a select-list column and a Go type.
 	The default mapping is defined in RsetCfg.
