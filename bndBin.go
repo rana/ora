@@ -46,10 +46,9 @@ func (bnd *bndBin) setPtr() error {
 func (bnd *bndBin) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
-
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	stmt.putBnd(bndIdxBin, bnd)
