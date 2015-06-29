@@ -14,9 +14,9 @@ func checkNumericColumn(gct GoColumnType, columnName string) error {
 		return nil
 	}
 	if columnName == "" {
-		return errNewF("invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", gctName(gct))
+		return errF("Invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", GctName(gct))
 	} else {
-		return errNewF("invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", gctName(gct), columnName)
+		return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", GctName(gct), columnName)
 	}
 }
 
@@ -26,7 +26,7 @@ func checkTimeColumn(gct GoColumnType) error {
 	case T, OraT:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified for time-based sql column. Expected go column type T or OraT.", gctName(gct))
+	return errF("Invalid go column type (%v) specified for time-based sql column. Expected go column type T or OraT.", GctName(gct))
 }
 
 // checkStringColumn returns nil when the column type is string; otherwise, an error.
@@ -35,7 +35,7 @@ func checkStringColumn(gct GoColumnType) error {
 	case S, OraS:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified for string-based sql column. Expected go column type S or OraS.", gctName(gct))
+	return errF("Invalid go column type (%v) specified for string-based sql column. Expected go column type S or OraS.", GctName(gct))
 }
 
 // checkBoolOrStringColumn returns nil when the column type is bool; otherwise, an error.
@@ -44,28 +44,28 @@ func checkBoolOrStringColumn(gct GoColumnType) error {
 	case B, OraB, S, OraS:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected go column type B, OraB, S, or OraS.", gctName(gct))
+	return errF("Invalid go column type (%v) specified. Expected go column type B, OraB, S, or OraS.", GctName(gct))
 }
 
-// checkBitsOrU8Column returns nil when the column type is Bits or U8; otherwise, an error.
-func checkBitsOrU8Column(gct GoColumnType) error {
+// checkBinOrU8Column returns nil when the column type is Bin or U8; otherwise, an error.
+func checkBinOrU8Column(gct GoColumnType) error {
 	switch gct {
 	case Bin, U8:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected go column type Bits or U8.", gctName(gct))
+	return errF("Invalid go column type (%v) specified. Expected go column type Bin or U8.", GctName(gct))
 }
 
-// checkBitsColumn returns nil when the column type is Bits or OraBits; otherwise, an error.
-func checkBitsColumn(gct GoColumnType) error {
+// checkBitsColumn returns nil when the column type is Bin or OraBits; otherwise, an error.
+func checkBinColumn(gct GoColumnType) error {
 	switch gct {
 	case Bin, OraBin:
 		return nil
 	}
-	return errNewF("invalid go column type (%v) specified. Expected go column type Bits or OraBits.", gctName(gct))
+	return errF("Invalid go column type (%v) specified. Expected go column type Bits or OraBits.", GctName(gct))
 }
 
-func gctName(gct GoColumnType) string {
+func GctName(gct GoColumnType) string {
 	switch gct {
 	case D:
 		return "D"
@@ -122,9 +122,9 @@ func gctName(gct GoColumnType) string {
 	case OraB:
 		return "OraB"
 	case Bin:
-		return "Bits"
+		return "Bin"
 	case OraBin:
-		return "OraBits"
+		return "OraBin"
 	}
 	return ""
 }
@@ -154,18 +154,6 @@ func clear(buffer []byte, fill byte) {
 
 func errNew(str string) error {
 	return errors.New("ora: " + str)
-}
-
-func errNewF(format string, a ...interface{}) error {
-	return errNew(fmt.Sprintf(format, a...))
-}
-
-func errRecover(value interface{}) error {
-	return errors.New(fmt.Sprintf("ora recovered: %v", value))
-}
-
-func recoverMsg(value interface{}) string {
-	return fmt.Sprintf("recovered: %v", value)
 }
 
 func callInfo(depth int) string {
@@ -199,4 +187,54 @@ func errInfo(depth int) string {
 		return fmt.Sprintf("%v.%v", method[m+1:n], method[n+2:])
 	}
 	return fmt.Sprintf("%v:%v:%v", file, line, method)
+}
+
+// log writes a message with caller info.
+func log(enabled bool, v ...interface{}) {
+	if enabled {
+		if len(v) == 0 {
+			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
+		} else {
+			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprint(v...))
+		}
+	}
+}
+
+// log writes a formatted message with caller info.
+func logF(enabled bool, format string, v ...interface{}) {
+	if enabled {
+		if len(v) == 0 {
+			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
+		} else {
+			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprintf(format, v...))
+		}
+	}
+}
+
+// err creates an error with caller info.
+func er(v ...interface{}) (err error) {
+	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))
+	_drv.cfg.Log.Logger.Errorln(err)
+	return err
+}
+
+// errF creates a formatted error with caller info.
+func errF(format string, v ...interface{}) (err error) {
+	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
+	_drv.cfg.Log.Logger.Errorln(err)
+	return err
+}
+
+// errR creates a recovered error with caller info.
+func errR(v ...interface{}) (err error) {
+	err = errors.New(fmt.Sprintf("%v recovered: %v", errInfo(1), fmt.Sprint(v...)))
+	_drv.cfg.Log.Logger.Errorln(err)
+	return err
+}
+
+// errE wraps an error with caller info.
+func errE(e error) (err error) {
+	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
+	_drv.cfg.Log.Logger.Errorln(err)
+	return err
 }
