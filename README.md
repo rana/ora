@@ -199,10 +199,11 @@ When using the ora package directly, the mapping between Go types and Oracle typ
 	[]bool
 	[]Bool
 
-	[]byte							BLOB, LONG RAW, RAW
-	[][]byte
-	Binary
-	[]Binary
+	[]byte, [][]byte				BLOB
+
+	Lob, []Lob, *Lob				BLOB, CLOB
+
+	Raw, []Raw						RAW, LONG RAW
 
 	IntervalYM						INTERVAL MONTH TO YEAR
 	[]IntervalYM

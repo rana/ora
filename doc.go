@@ -194,10 +194,11 @@ may be changed. The Go-to-Oracle type mapping for the ora package is:
 	[]bool
 	[]Bool
 
-	[]byte				BLOB, LONG RAW, RAW
-	[][]byte
-	Binary
-	[]Binary
+	[]byte, [][]byte	BLOB
+
+	Lob, []Lob, *Lob	BLOB, CLOB
+
+	Raw, []Raw			RAW, LONG RAW
 
 	IntervalYM			INTERVAL MONTH TO YEAR
 	[]IntervalYM
