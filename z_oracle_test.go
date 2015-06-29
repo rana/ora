@@ -95,7 +95,8 @@ const (
 	bfileNull oracleColumnType = "bfile null"
 )
 
-var testServerName string
+var testSrvCfg *ora.SrvCfg
+var testSesCfg *ora.SesCfg
 var testUsername string
 var testPassword string
 var testConStr string
@@ -108,28 +109,29 @@ var testSes *ora.Ses
 var testDb *sql.DB
 
 func init() {
-	ora.Register()
-	testServerName = os.Getenv("GO_ORA_DRV_TEST_DB")
-	testUsername = os.Getenv("GO_ORA_DRV_TEST_USERNAME")
-	testPassword = os.Getenv("GO_ORA_DRV_TEST_PASSWORD")
-	testConStr = fmt.Sprintf("%v/%v@%v", testUsername, testPassword, testServerName)
-	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_DB = '%v'\n", testServerName)
-	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_USERNAME = '%v'\n", testUsername)
-	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_PASSWORD = '%v'\n", testPassword)
+	testSrvCfg = ora.NewSrvCfg()
+	testSrvCfg.Dblink = os.Getenv("GO_ORA_DRV_TEST_DB")
+	testSesCfg = ora.NewSesCfg()
+	testSesCfg.Username = os.Getenv("GO_ORA_DRV_TEST_USERNAME")
+	testSesCfg.Password = os.Getenv("GO_ORA_DRV_TEST_PASSWORD")
+	testConStr = fmt.Sprintf("%v/%v@%v", testSesCfg.Username, testSesCfg.Password, testSrvCfg.Dblink)
+	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_DB = '%v'\n", testSrvCfg.Dblink)
+	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_USERNAME = '%v'\n", testSesCfg.Username)
+	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_PASSWORD = '%v'\n", testSesCfg.Password)
 
 	testWorkloadColumnCount = 20
 	var err error
 
 	// setup test environment, server and session
-	testEnv, err := ora.OpenEnv()
+	testEnv, err := ora.OpenEnv(nil)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
-	testSrv, err = testEnv.OpenSrv(testServerName)
+	testSrv, err = testEnv.OpenSrv(testSrvCfg)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
-	testSes, err = testSrv.OpenSes(testUsername, testPassword)
+	testSes, err = testSrv.OpenSes(testSesCfg)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
@@ -161,6 +163,7 @@ END;`)
 	fmt.Println("Tables dropped.")
 
 	// setup test db
+	ora.Register(nil)
 	testDb, err = sql.Open(ora.Name, testConStr)
 	if err != nil {
 		fmt.Println("initError: ", err)
@@ -173,10 +176,9 @@ func enableLogging(t *testing.T) {
 	enableLoggingMu.Lock()
 	defer enableLoggingMu.Unlock()
 	if t != nil {
-		ora.Log = tstlg.New(t)
+		ora.Cfg().Log.Logger = tstlg.New(t)
 		return
 	}
-	ora.Log = nil
 }
 
 func testIterations() int {
@@ -194,40 +196,37 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	} else {
 		gct = goColumnTypeFromValue(expected)
 	}
-	//fmt.Printf("testBindDefine (%v)\n", gctName(gct))
+	//t.Logf("testBindDefine gct (%v, %v)", gct, ora.GctName(gct))
 
-	for n := 0; n < testIterations(); n++ {
-		tableName, err := createTable(1, oct, testSes)
-		testErr(err, t)
-		defer dropTable(tableName, testSes, t)
+	tableName, err := createTable(1, oct, testSes)
+	testErr(err, t)
+	//defer dropTable(tableName, testSes, t)
 
-		// insert
-		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
-		if c != nil {
-			insertStmt.Cfg = *c
-		}
-		defer insertStmt.Close()
-		testErr(err, t)
-		rowsAffected, err := insertStmt.Exe(expected)
-		testErr(err, t)
-		expLen := length(expected)
-		if gct == ora.Bin || gct == ora.OraBin {
-			expLen = 1
-		}
-		if expLen != int(rowsAffected) {
-			t.Fatalf("insert rows affected: expected(%v), actual(%v)", expLen, rowsAffected)
-		}
-
-		// select
-		selectStmt, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), gct)
-		defer selectStmt.Close()
-		testErr(err, t)
-		rset, err := selectStmt.Qry()
-		testErr(err, t)
-
-		// validate
-		validate(expected, rset, t)
+	// insert
+	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if c != nil {
+		insertStmt.SetCfg(c)
 	}
+	defer insertStmt.Close()
+	testErr(err, t)
+	rowsAffected, err := insertStmt.Exe(expected)
+	testErr(err, t)
+	expLen := length(expected)
+	if gct == ora.Bin || gct == ora.OraBin {
+		expLen = 1
+	}
+	if expLen != int(rowsAffected) {
+		t.Fatalf("insert rows affected: expected(%v), actual(%v)", expLen, rowsAffected)
+	}
+
+	// select
+	selectStmt, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), gct)
+	defer selectStmt.Close()
+	testErr(err, t)
+	rset, err := selectStmt.Qry()
+	testErr(err, t)
+	// validate
+	validate(expected, rset, t)
 }
 
 func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) {
@@ -580,6 +579,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 	if 1 != len(rset.Row) {
 		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rset.Row))
 	}
+
 	switch expected.(type) {
 	case int64:
 		row := rset.NextRow()
@@ -648,6 +648,10 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 	case ora.IntervalDS:
 		row := rset.NextRow()
 		compare_OraIntervalDS(expected, row[0], t)
+
+	case ora.Bfile:
+		row := rset.NextRow()
+		compare_OraBfile(expected, row[0], t)
 
 	case []int64:
 		for rset.Next() {
