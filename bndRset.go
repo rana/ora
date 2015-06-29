@@ -53,7 +53,7 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 
 func (bnd *bndRset) setPtr() error {
 	err := bnd.value.open(bnd.stmt, bnd.ocistmt)
-	bnd.stmt.rsets.PushBack(bnd.value)
+	bnd.stmt.openRsets.PushBack(bnd.value)
 	if err == nil {
 		// open result set is successful; will be freed by Rset
 		bnd.ocistmt = nil
@@ -65,7 +65,7 @@ func (bnd *bndRset) setPtr() error {
 func (bnd *bndRset) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 	stmt := bnd.stmt
