@@ -13,7 +13,7 @@ func Test_open_cursors_db(t *testing.T) {
 	//enableLogging(t)
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
 	// or at least "GRANT SELECT ON v_$mystat TO test".
-	// use 'opened cursors current' statistic#=5 to determine opend cursors on oracle server
+	// use 'opened cursors current' statistic#=5 to determine opened cursors on oracle server
 	// SELECT A.STATISTIC#, A.NAME, B.VALUE
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
