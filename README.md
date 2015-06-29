@@ -985,6 +985,14 @@ The ora package provides a simple ora.Logger interface for logging. Logging is
 disabled by default. Specify one of three optional built-in logging packages to
 enable logging; or, use your own logging package.
 
+ora.Cfg().Log offers various options to enable or disable logging of specific
+ora driver methods. For example:
+
+```go
+// enable logging of the Rset.Next method
+ora.Cfg().Log.Rset.Next = true
+```
+	
 To use the standard Go log package:
 
 ```go
