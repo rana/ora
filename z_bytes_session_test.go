@@ -21,6 +21,7 @@ import (
 //// longRaw
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_longRaw_session(t *testing.T) {
+	//enableLogging(t)
 	testBindDefine(gen_bytes(9), longRaw, t, nil, ora.Bin)
 }
 
@@ -178,7 +179,6 @@ func TestBindDefine_bytes_blob_bufferSize_session(t *testing.T) {
 
 func TestBindDefine_bytes_blob_bufferSizeMinusOne_session(t *testing.T) {
 	sc := ora.NewStmtCfg()
-
 	testBindDefine(gen_bytes(sc.LobBufferSize()-1), blob, t, nil, ora.Bin)
 }
 
