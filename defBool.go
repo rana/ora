@@ -28,7 +28,7 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 	if cap(def.buf) < columnSize {
 		def.buf = make([]byte, columnSize)
 	}
-	Log.Infof("defBool.define(position=%d, columnSize=%d)", position, columnSize)
+	//Log.Infof("defBool.define(position=%d, columnSize=%d)", position, columnSize)
 	// Create oci define handle
 	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                 //OCIStmt     *stmtp,
@@ -49,18 +49,18 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 }
 
 func (def *defBool) value() (value interface{}, err error) {
-	Log.Infof("%v.value", def)
+	//Log.Infof("%v.value", def)
 	if def.isNullable {
 		oraBoolValue := Bool{IsNull: def.null < C.sb2(0)}
 		if !oraBoolValue.IsNull {
 			r, _ := utf8.DecodeRune(def.buf)
-			oraBoolValue.Value = r == def.rset.stmt.Cfg.Rset.TrueRune
+			oraBoolValue.Value = r == def.rset.stmt.cfg.Rset.TrueRune
 		}
 		return oraBoolValue, nil
 	}
 	if def.null > C.sb2(-1) {
 		r, _ := utf8.DecodeRune(def.buf)
-		return r == def.rset.stmt.Cfg.Rset.TrueRune, nil
+		return r == def.rset.stmt.cfg.Rset.TrueRune, nil
 	}
 	// NULL is false, too
 	return false, nil
@@ -77,7 +77,7 @@ func (def *defBool) free() {
 func (def *defBool) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
