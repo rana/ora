@@ -89,7 +89,7 @@ func (bnd *bndInt16Slice) setPtr() error {
 func (bnd *bndInt16Slice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
