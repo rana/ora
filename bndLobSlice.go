@@ -121,7 +121,7 @@ func (bnd *bndLobSlice) setPtr() error {
 func (bnd *bndLobSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

@@ -99,7 +99,7 @@ func (bnd *bndIntervalYMSlice) free(n int) {
 func (bnd *bndIntervalYMSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

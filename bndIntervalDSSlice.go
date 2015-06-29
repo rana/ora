@@ -93,7 +93,7 @@ func (bnd *bndIntervalDSSlice) setPtr() error {
 func (bnd *bndIntervalDSSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

@@ -46,11 +46,11 @@ func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, stmt *S
 }
 
 func (bnd *bndLobPtr) setPtr() error {
-	Log.Infof("%s.setPtr()", bnd)
+	//Log.Infof("%s.setPtr()", bnd)
 	if bnd.value == nil {
 		return nil
 	}
-	Log.Infof("setPtr OCILobOpen %p", bnd.ociLobLocator)
+	//Log.Infof("setPtr OCILobOpen %p", bnd.ociLobLocator)
 	lobLength, err := lobOpen(bnd.stmt.ses.srv, bnd.ociLobLocator, C.OCI_LOB_READONLY)
 	if err != nil {
 		lobClose(bnd.stmt.ses.srv, bnd.ociLobLocator)
@@ -72,7 +72,7 @@ func (bnd *bndLobPtr) setPtr() error {
 func (bnd *bndLobPtr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

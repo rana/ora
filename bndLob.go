@@ -65,13 +65,12 @@ func (bnd *bndLob) freeLob() {
 	defer func() {
 		recover()
 	}()
-
 }
 
 func (bnd *bndLob) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
@@ -175,7 +174,7 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 			}
 		}
 
-		Log.Infof("LobWrite2 off=%d len=%d piece=%d", off, n, actPiece)
+		//Log.Infof("LobWrite2 off=%d len=%d piece=%d", off, n, actPiece)
 		byte_amtp = 0
 		if actPiece == C.OCI_ONE_PIECE {
 			byte_amtp = C.oraub8(n)
