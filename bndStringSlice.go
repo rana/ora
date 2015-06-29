@@ -101,7 +101,7 @@ func (bnd *bndStringSlice) setPtr() error {
 func (bnd *bndStringSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

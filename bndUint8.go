@@ -57,7 +57,7 @@ func (bnd *bndUint8) setPtr() error {
 func (bnd *bndUint8) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

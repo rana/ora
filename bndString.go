@@ -50,7 +50,7 @@ func (bnd *bndString) setPtr() error {
 func (bnd *bndString) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 	C.free(unsafe.Pointer(bnd.cString))

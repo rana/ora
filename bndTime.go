@@ -101,7 +101,7 @@ func zoneOffset(value time.Time, buf *bytes.Buffer) string {
 func (bnd *bndTime) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

@@ -126,7 +126,7 @@ func (bnd *bndTimeSlice) free(n int) {
 func (bnd *bndTimeSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

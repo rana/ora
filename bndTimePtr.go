@@ -68,7 +68,7 @@ func (bnd *bndTimePtr) setPtr() (err error) {
 func (bnd *bndTimePtr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
