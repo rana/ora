@@ -86,7 +86,7 @@ func (def *defInt16) value() (value interface{}, err error) {
 func (def *defInt16) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

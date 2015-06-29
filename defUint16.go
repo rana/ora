@@ -86,7 +86,7 @@ func (def *defUint16) free() {
 func (def *defUint16) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

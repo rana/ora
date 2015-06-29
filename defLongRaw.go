@@ -26,6 +26,7 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 	def.rset = rset
 	def.isNullable = isNullable
 	def.buf = make([]byte, int(bufSize))
+	//logF(true, "position %v, def.buf %v", position, len(def.buf))
 	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&def.ocidef,                      //OCIDefine   **defnpp,
@@ -81,7 +82,7 @@ func (def *defLongRaw) free() {
 func (def *defLongRaw) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

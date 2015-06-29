@@ -86,7 +86,7 @@ func (def *defUint8) free() {
 func (def *defUint8) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

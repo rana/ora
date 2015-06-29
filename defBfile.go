@@ -94,10 +94,9 @@ func (def *defBfile) free() {
 func (def *defBfile) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
-
 	def.free()
 	for n := range def.directoryAlias {
 		def.directoryAlias[n] = 0

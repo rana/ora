@@ -65,7 +65,7 @@ func (def *defRowid) free() {
 func (def *defRowid) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

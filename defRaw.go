@@ -70,7 +70,7 @@ func (def *defRaw) free() {
 func (def *defRaw) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

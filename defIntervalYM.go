@@ -87,7 +87,7 @@ func (def *defIntervalYM) free() {
 func (def *defIntervalYM) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

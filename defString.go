@@ -75,7 +75,7 @@ func (def *defString) free() {
 func (def *defString) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

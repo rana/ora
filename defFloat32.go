@@ -85,7 +85,7 @@ func (def *defFloat32) free() {
 func (def *defFloat32) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

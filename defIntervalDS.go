@@ -98,7 +98,7 @@ func (def *defIntervalDS) free() {
 func (def *defIntervalDS) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
