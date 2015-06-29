@@ -12,7 +12,6 @@ import "C"
 import (
 	"container/list"
 	"database/sql"
-	"sync"
 	"time"
 	"unsafe"
 )
@@ -27,22 +26,21 @@ const (
 )
 
 var _drv *Drv
-var _locations map[string]*time.Location
 
 // init initializes the driver.
 func init() {
-	_drv = &Drv{envs: list.New()}
-	_locations = make(map[string]*time.Location)
-	_drv.LogOpenEnv = true
-	_drv.LogOpen = true
+	_drv = &Drv{}
+	_drv.locations = make(map[string]*time.Location)
+	_drv.openEnvs = list.New()
+	_drv.cfg = *NewDrvCfg()
 
 	// init general pools
 	_drv.listPool = newPool(func() interface{} { return list.New() })
-	_drv.envPool = newPool(func() interface{} { return &Env{srvs: list.New(), cons: list.New(), stmtCfg: NewStmtCfg()} })
+	_drv.envPool = newPool(func() interface{} { return &Env{openSrvs: list.New(), openCons: list.New()} })
 	_drv.conPool = newPool(func() interface{} { return &Con{} })
-	_drv.srvPool = newPool(func() interface{} { return &Srv{sess: list.New()} })
-	_drv.sesPool = newPool(func() interface{} { return &Ses{stmts: list.New(), txs: list.New()} })
-	_drv.stmtPool = newPool(func() interface{} { return &Stmt{rsets: list.New()} })
+	_drv.srvPool = newPool(func() interface{} { return &Srv{openSess: list.New()} })
+	_drv.sesPool = newPool(func() interface{} { return &Ses{openStmts: list.New(), openTxs: list.New()} })
+	_drv.stmtPool = newPool(func() interface{} { return &Stmt{openRsets: list.New()} })
 	_drv.txPool = newPool(func() interface{} { return &Tx{} })
 	_drv.rsetPool = newPool(func() interface{} { return &Rset{genByPool: true} })
 
@@ -129,53 +127,53 @@ func init() {
 // Call Register once before sql.Open when working with database/sql:
 //
 //	func init() {
-//		ora.Register()
+//		ora.Register(nil)
 //	}
 //
-// Register is unnecessary if you work with the ora package directly.
-func Register() {
-	if _drv.sqlEnv == nil {
-		var err error
-		_drv.sqlEnv, err = OpenEnv()
-		if err != nil {
-			_drv.errE(err)
+// Register is unnecessary if you're working directly with the ora package.
+func Register(cfg *DrvCfg) {
+	if _drv.sqlPkgEnv == nil {
+		if cfg != nil {
+			_drv.cfg = *cfg
 		}
-		_drv.sqlEnv.isSqlPkg = true
-		_drv.sqlEnv.stmtCfg.Rset.binaryFloat = F64 // database/sql/driver expects binaryFloat to return float64 (not float32)
+		env, err := OpenEnv(nil)
+		if err != nil {
+			errE(err)
+		}
+		// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
+		env.cfg.StmtCfg.Rset.binaryFloat = F64
+		_drv.sqlPkgEnv = env
 		sql.Register(Name, _drv)
 	}
 }
 
 // OpenEnv opens an Oracle environment.
-func OpenEnv() (env *Env, err error) {
-	_drv.log(_drv.LogOpenEnv)
-	env = _drv.envPool.Get().(*Env)
-	if env.id == 0 {
-		env.id = _drv.envId.nextId()
+//
+// Optionally specify a cfg parameter. If cfg is nil, default cfg values are
+// applied.
+func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
+	_drv.mu.Lock()
+	defer _drv.mu.Unlock()
+	log(_drv.cfg.Log.OpenEnv)
+	if cfg == nil { // ensure cfg
+		tmp := *_drv.cfg.Env // copy by value to ensure independent cfgs
+		cfg = &tmp
 	}
 	var csIDAl32UTF8 C.ub2
-	var csMu sync.Mutex
-	csMu.Lock()
-	if csIDAl32UTF8 == 0 {
-		// Get the code for AL32UTF8
+	if csIDAl32UTF8 == 0 { // Get the code for AL32UTF8
 		var ocienv *C.OCIEnv
-		r := C.OCIEnvCreate(&ocienv, C.OCI_DEFAULT|C.OCI_THREADED,
-			nil, nil, nil, nil, 0, nil)
+		r := C.OCIEnvCreate(&ocienv, C.OCI_DEFAULT|C.OCI_THREADED, nil, nil, nil, nil, 0, nil)
 		if r == C.OCI_ERROR {
-			csMu.Unlock()
-			return nil, _drv.errF("Unable to create environment handle (Return code = %d).", r)
+			return nil, errF("Unable to create environment handle (Return code = %d).", r)
 		}
-		// http://docs.oracle.com/cd/B10501_01/server.920/a96529/ch8.htm#14284
-		csName := []byte("AL32UTF8\x00")
-		csIDAl32UTF8 = C.OCINlsCharSetNameToId(unsafe.Pointer(ocienv),
-			(*C.oratext)(&csName[0]))
+		csName := []byte("AL32UTF8\x00") // http://docs.oracle.com/cd/B10501_01/server.920/a96529/ch8.htm#14284
+		csIDAl32UTF8 = C.OCINlsCharSetNameToId(unsafe.Pointer(ocienv), (*C.oratext)(&csName[0]))
 		C.OCIHandleFree(unsafe.Pointer(ocienv), C.OCI_HTYPE_ENV)
 	}
-	csMu.Unlock()
-
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
 	// OCI_OBJECT   - Uses object features such as OCINumber, OCINumberToInt, OCINumberFromInt. These are used in oracle-go type conversions.
+	env = _drv.envPool.Get().(*Env) // set *Env
 	r := C.OCIEnvNlsCreate(
 		&env.ocienv, //OCIEnv        **envhpp,
 		C.OCI_DEFAULT|C.OCI_OBJECT|C.OCI_THREADED, //ub4           mode,
@@ -188,21 +186,42 @@ func OpenEnv() (env *Env, err error) {
 		csIDAl32UTF8, //ub2           charset,
 		csIDAl32UTF8) //ub2           ncharset );
 	if r == C.OCI_ERROR {
-		return nil, _drv.errF("Unable to create environment handle (Return code = %d).", r)
+		return nil, errF("Unable to create environment handle (Return code = %d).", r)
 	}
 	ocierr, err := env.allocOciHandle(C.OCI_HTYPE_ERROR) // alloc oci error handle
 	if err != nil {
-		return nil, _drv.errE(err)
+		return nil, errE(err)
 	}
-	env.drv = _drv // set env struct
+
 	env.ocierr = (*C.OCIError)(ocierr)
-	env.elem = _drv.envs.PushBack(env)
-	env.LogClose = true
-	env.LogOpenSrv = true
+	env.elem = _drv.openEnvs.PushBack(env)
+	if env.id == 0 {
+		env.id = _drv.envId.nextId()
+	}
+	env.cfg = *cfg
 	return env, nil
 }
 
 // NumEnv returns the number of open Oracle environments.
 func NumEnv() int {
-	return _drv.envs.Len()
+	_drv.mu.Lock()
+	defer _drv.mu.Unlock()
+	return _drv.openEnvs.Len()
+}
+
+// SetCfg applies the specified cfg to the ora database driver and any open Envs.
+func SetCfg(cfg DrvCfg) {
+	_drv.mu.Lock()
+	defer _drv.mu.Unlock()
+	_drv.cfg = cfg
+	for e := _drv.openEnvs.Front(); e != nil; e = e.Next() {
+		e.Value.(*Env).SetCfg(cfg.Env) // apply EnvCfg to open Envs
+	}
+}
+
+// Cfg returns the ora database driver's cfg.
+func Cfg() *DrvCfg {
+	_drv.mu.Lock()
+	defer _drv.mu.Unlock()
+	return &_drv.cfg
 }
