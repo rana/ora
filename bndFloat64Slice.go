@@ -88,7 +88,7 @@ func (bnd *bndFloat64Slice) setPtr() error {
 func (bnd *bndFloat64Slice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
