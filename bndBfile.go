@@ -91,10 +91,9 @@ func (bnd *bndBfile) setPtr() error {
 func (bnd *bndBfile) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
-
 	if bnd.cDirectoryAlias != nil {
 		C.free(unsafe.Pointer(bnd.cDirectoryAlias))
 	}
