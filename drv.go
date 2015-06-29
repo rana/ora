@@ -12,31 +12,105 @@ import "C"
 import (
 	"container/list"
 	"database/sql/driver"
-	"errors"
-	"fmt"
+	"sync"
+	"time"
 )
 
-// Drv is an Oracle database driver.
+// DrvCfg represents configuration values for the ora package.
+type DrvCfg struct {
+	Env *EnvCfg
+	Log LogDrvCfg
+}
+
+// NewDrvCfg creates a DrvCfg with default values.
+func NewDrvCfg() *DrvCfg {
+	c := &DrvCfg{}
+	c.Env = NewEnvCfg()
+	c.Log = NewLogDrvCfg()
+	return c
+}
+
+// LogDrvCfg represents package-level logging configuration values.
+type LogDrvCfg struct {
+	// Logger writes log messages.
+	// Logger can be replaced with any type implementing the Logger interface.
+	//
+	// The default implementation uses the standard lib's log package.
+	//
+	// For a glog-based implementation, see github.com/rana/ora/glg.
+	// LogDrvCfg.Logger = glg.Log
+	//
+	// For an gopkg.in/inconshreveable/log15.v2-based, see github.com/rana/ora/lg15.
+	// LogDrvCfg.Logger = lg15.Log
+	Logger Logger
+
+	// OpenEnv determines whether the ora.OpenEnv method is logged.
+	//
+	// The default is true.
+	OpenEnv bool
+
+	// Ins determines whether the ora.Ins method is logged.
+	//
+	// The default is true.
+	Ins bool
+
+	// Upd determines whether the ora.Upd method is logged.
+	//
+	// The default is true.
+	Upd bool
+
+	// Del determines whether the ora.Del method is logged.
+	//
+	// The default is true.
+	Del bool
+
+	// Sel determines whether the ora.Sel method is logged.
+	//
+	// The default is true.
+	Sel bool
+
+	// AddTbl determines whether the ora.AddTbl method is logged.
+	//
+	// The default is true.
+	AddTbl bool
+
+	Env  LogEnvCfg
+	Srv  LogSrvCfg
+	Ses  LogSesCfg
+	Stmt LogStmtCfg
+	Tx   LogTxCfg
+	Con  LogConCfg
+	Rset LogRsetCfg
+}
+
+// NewLogDrvCfg creates a LogDrvCfg with default values.
+func NewLogDrvCfg() LogDrvCfg {
+	c := LogDrvCfg{}
+	c.Logger = EmpLgr{}
+	c.OpenEnv = true
+	c.Ins = true
+	c.Upd = true
+	c.Del = true
+	c.Sel = true
+	c.AddTbl = true
+	c.Env = NewLogEnvCfg()
+	c.Srv = NewLogSrvCfg()
+	c.Ses = NewLogSesCfg()
+	c.Stmt = NewLogStmtCfg()
+	c.Tx = NewLogTxCfg()
+	c.Con = NewLogConCfg()
+	c.Rset = NewLogRsetCfg()
+	return c
+}
+
+// Drv represents an Oracle database driver.
 //
 // Drv is not meant to be called by user-code.
 //
 // Drv implements the driver.Driver interface.
 type Drv struct {
-	listPool *pool
-	envPool  *pool
-	conPool  *pool
-	srvPool  *pool
-	sesPool  *pool
-	stmtPool *pool
-	txPool   *pool
-	rsetPool *pool
-
-	bndPools []*pool
-	defPools []*pool
-
-	// TODO: make setter,/getter and cascade to env when set
-	// TODO: decide where to load the config file? From env may be best
-	stmtCfg StmtCfg
+	cfg DrvCfg
+	mu  sync.Mutex
 
 	envId  Id
 	srvId  Id
@@ -45,77 +119,35 @@ type Drv struct {
 	txId   Id
 	stmtId Id
 	rsetId Id
-	envs   *list.List
 
-	// An environment for use by the database/sql package.
-	sqlEnv *Env
+	listPool *pool
+	envPool  *pool
+	conPool  *pool
+	srvPool  *pool
+	sesPool  *pool
+	stmtPool *pool
+	txPool   *pool
+	rsetPool *pool
+	bndPools []*pool
+	defPools []*pool
 
-	// LogOpenEnv determines whether the Drv.OpenEnv method is logged.
-	//
-	// The default is true.
-	LogOpenEnv bool
-
-	// LogOpen determines whether the Drv.Open method is logged.
-	//
-	// The default is true.
-	LogOpen bool
-}
-
-// log writes a message with caller info.
-func (drv *Drv) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			Log.Infof("%v", callInfo(1))
-		} else {
-			Log.Infof("%v %v", callInfo(1), fmt.Sprint(v...))
-		}
-	}
-}
-
-// log writes a formatted message with caller info.
-func (drv *Drv) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			Log.Infof("%v", callInfo(1))
-		} else {
-			Log.Infof("%v %v", callInfo(1), fmt.Sprintf(format, v...))
-		}
-	}
-}
-
-// err creates an error with caller info.
-func (drv *Drv) err(v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))
-	Log.Errorln(err)
-	return err
-}
-
-// errF creates a formatted error with caller info.
-func (drv *Drv) errF(format string, v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
-	Log.Errorln(err)
-	return err
-}
-
-// errE wraps an error with caller info.
-func (drv *Drv) errE(e error) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
-	Log.Errorln(err)
-	return err
+	locations map[string]*time.Location
+	sqlPkgEnv *Env // An environment for use by the database/sql package.
+	openEnvs  *list.List
 }
 
 // Open opens a connection to an Oracle server with the database/sql environment.
 //
-// This is meant to be called by the database/sql package only.
+// This is intended to be called by the database/sql package only.
 //
-// As an alternative, create your own Env and call Env.OpenCon.
+// Alternatively, you may call Env.OpenCon to create an *ora.Con.
 //
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
-	drv.log(drv.LogOpen)
-	con, err := drv.sqlEnv.OpenCon(conStr)
+	log(true)
+	con, err := _drv.sqlPkgEnv.OpenCon(conStr)
 	if err != nil {
-		return nil, drv.errE(err)
+		return nil, errE(err)
 	}
 	return con, nil
 }
