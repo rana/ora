@@ -23,6 +23,7 @@ type DrvExecResult struct {
 // And, two, specify a nil parameter to DB.Exec or DrvStmt.Exec.
 //
 // For example:
+//
 //	db, err := sql.Open("ora", "scott/tiger@orcl")
 //
 //	db.Exec("CREATE TABLE T1 (C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 VARCHAR2(48 CHAR))")
