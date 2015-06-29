@@ -61,7 +61,7 @@ func (bnd *bndFloat32Ptr) setPtr() error {
 func (bnd *bndFloat32Ptr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
