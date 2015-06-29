@@ -10,14 +10,14 @@ import (
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	testErr(err, t)
 
-	ses, err := srv.OpenSes(testUsername, testPassword)
+	ses, err := srv.OpenSes(testSesCfg)
 	testErr(err, t)
 	if ses == nil {
 		t.Fatal("session is nil")
@@ -30,13 +30,13 @@ func TestServer_OpenCloseSession(t *testing.T) {
 }
 
 func TestServer_Ping(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	testErr(err, t)
-	ses, err := srv.OpenSes(testUsername, testPassword)
+	ses, err := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	testErr(err, t)
 
@@ -45,13 +45,13 @@ func TestServer_Ping(t *testing.T) {
 }
 
 func TestServer_Version(t *testing.T) {
-	env, err := ora.OpenEnv()
+	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
-	srv, err := env.OpenSrv(testServerName)
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	testErr(err, t)
-	ses, err := srv.OpenSes(testUsername, testPassword)
+	ses, err := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	testErr(err, t)
 
