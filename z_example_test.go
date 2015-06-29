@@ -34,7 +34,10 @@ func ExampleDrvStmt_Exec_insert() {
 
 	// placeholder ':c1' is bound by position; ':c1' may be any name
 	var value int64 = 9
-	result, _ := db.Exec(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName), value)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName), value)
+	if err != nil {
+		panic(err)
+	}
 	rowsAffected, _ := result.RowsAffected()
 	fmt.Println(rowsAffected)
 	// Output: 1
@@ -159,11 +162,11 @@ func ExampleDrvStmt_Exec_Query() {
 
 func ExampleStmt_Exe_insert() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -183,11 +186,11 @@ func ExampleStmt_Exe_insert() {
 
 func ExampleStmt_Exe_insert_return_identity() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -215,11 +218,11 @@ func ExampleStmt_Exe_insert_return_identity() {
 
 func ExampleStmt_Exe_insert_return_rowid() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -242,11 +245,11 @@ func ExampleStmt_Exe_insert_return_rowid() {
 
 func ExampleStmt_Exe_insert_fetch_bool() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -278,11 +281,11 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 
 func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -296,13 +299,14 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	var falseValue bool = false
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Cfg.FalseRune = 'N'
+	stmtCfg := stmt.Cfg()
+	stmtCfg.FalseRune = 'N'
 	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Cfg.TrueRune = 'Y'
+	stmtCfg.TrueRune = 'Y'
 	stmt.Exe(trueValue)
 
 	// Update RsetCfg to change the TrueRune
@@ -310,7 +314,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// fetch inserted records
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	defer stmt.Close()
-	stmt.Cfg.Rset.TrueRune = 'Y'
+	stmtCfg.Rset.TrueRune = 'Y'
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
@@ -320,11 +324,11 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 
 func ExampleStmt_Exe_update() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -349,11 +353,11 @@ func ExampleStmt_Exe_update() {
 
 func ExampleStmt_Exe_delete() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -377,11 +381,11 @@ func ExampleStmt_Exe_delete() {
 
 func ExampleStmt_Exe_insert_slice() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -404,11 +408,11 @@ func ExampleStmt_Exe_insert_slice() {
 
 func ExampleStmt_Exe_insert_nullable() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -431,11 +435,11 @@ func ExampleStmt_Exe_insert_nullable() {
 
 func ExampleStmt_Exe_insert_fetch_blob() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -475,11 +479,11 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 
 func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// note the NUMBER column
@@ -498,7 +502,8 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Cfg.SetByteSlice(ora.U8)
+	stmtCfg := stmt.Cfg()
+	stmtCfg.SetByteSlice(ora.U8)
 	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
@@ -517,11 +522,11 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 
 func ExampleStmt_Qry() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -554,11 +559,11 @@ func ExampleStmt_Qry() {
 
 func ExampleStmt_Qry_nullable() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -592,11 +597,11 @@ func ExampleStmt_Qry_nullable() {
 
 func ExampleStmt_Qry_numerics() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -631,11 +636,11 @@ func ExampleStmt_Qry_numerics() {
 
 func ExampleRset_Next() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -667,11 +672,11 @@ func ExampleRset_Next() {
 
 func ExampleRset_NextRow() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -695,11 +700,11 @@ func ExampleRset_NextRow() {
 
 func ExampleRset_cursor_single() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -744,11 +749,11 @@ func ExampleRset_cursor_single() {
 
 func ExampleRset_cursor_multiple() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -806,13 +811,13 @@ func ExampleRset_cursor_multiple() {
 
 func ExampleSrv_Ping() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 
 	// open a session before calling Ping
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	err := srv.Ping()
@@ -824,13 +829,13 @@ func ExampleSrv_Ping() {
 
 func ExampleSrv_Version() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 
 	// open a session before calling Version
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	version, err := srv.Version()
@@ -842,11 +847,11 @@ func ExampleSrv_Version() {
 
 func ExampleInt64() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -883,11 +888,11 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -924,11 +929,11 @@ func ExampleInt32() {
 
 func ExampleInt16() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -965,11 +970,11 @@ func ExampleInt16() {
 
 func ExampleInt8() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1006,11 +1011,11 @@ func ExampleInt8() {
 
 func ExampleUint64() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1047,11 +1052,11 @@ func ExampleUint64() {
 
 func ExampleUint32() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1088,11 +1093,11 @@ func ExampleUint32() {
 
 func ExampleUint16() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1129,11 +1134,11 @@ func ExampleUint16() {
 
 func ExampleUint8() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1170,11 +1175,11 @@ func ExampleUint8() {
 
 func ExampleFloat64() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1211,11 +1216,11 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1252,11 +1257,11 @@ func ExampleFloat32() {
 
 func ExampleString() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1293,11 +1298,11 @@ func ExampleString() {
 
 func ExampleBool() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1334,11 +1339,11 @@ func ExampleBool() {
 
 func ExampleTime() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1376,11 +1381,11 @@ func ExampleTime() {
 
 func ExampleIntervalYM() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1419,11 +1424,11 @@ func ExampleIntervalYM_ShiftTime() {
 
 func ExampleIntervalDS() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1461,11 +1466,11 @@ func ExampleIntervalDS_ShiftTime() {
 
 func ExampleBytes() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1523,11 +1528,11 @@ func ExampleBytes() {
 
 func ExampleBfile() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1553,11 +1558,11 @@ func ExampleBfile() {
 
 func ExampleTx() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1601,14 +1606,14 @@ func ExampleTx() {
 func Example() {
 	// example usage of the ora package driver
 	// connect to a server and open a session
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, err := env.OpenSrv(os.Getenv("GO_ORA_DRV_TEST_DB"))
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
-	ses, err := srv.OpenSes("test", "test")
+	ses, err := srv.OpenSes(testSesCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -1809,15 +1814,15 @@ func Example() {
 }
 
 func ExampleSes_PrepAndExe() {
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, err := env.OpenSrv(dbName())
+	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
 		return
 	}
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
@@ -1828,11 +1833,11 @@ func ExampleSes_PrepAndExe() {
 }
 
 func ExampleSes_PrepAndQry() {
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
@@ -1845,11 +1850,11 @@ func ExampleSes_PrepAndQry() {
 }
 
 func ExampleSes_Ins() {
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ident := "DEFAULT 1"
@@ -1913,11 +1918,11 @@ func ExampleSes_Ins() {
 }
 
 func ExampleSes_Upd() {
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ident := "DEFAULT 1"
@@ -2005,15 +2010,15 @@ func ExampleSes_Upd() {
 }
 
 func ExampleSes_Sel() {
-	env, _ := ora.OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	ident := "DEFAULT 1"
 	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
 		ident = " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
 	}
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v "+
