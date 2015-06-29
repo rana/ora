@@ -5,9 +5,10 @@
 package ora_test
 
 import (
-	"ora"
 	"testing"
 	"time"
+
+	"gopkg.in/rana/ora.v2"
 )
 
 //// interval

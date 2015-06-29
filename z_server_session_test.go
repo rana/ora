@@ -5,8 +5,9 @@
 package ora_test
 
 import (
-	"ora"
 	"testing"
+
+	"gopkg.in/rana/ora.v2"
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {

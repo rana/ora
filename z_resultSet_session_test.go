@@ -6,8 +6,9 @@ package ora_test
 
 import (
 	"fmt"
-	"ora"
 	"testing"
+
+	"gopkg.in/rana/ora.v2"
 )
 
 func Test_cursor1_session(t *testing.T) {

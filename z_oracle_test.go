@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"ora"
 	"os"
 	"reflect"
 	"runtime"
@@ -23,7 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rana/ora/tstlg"
+	"gopkg.in/rana/ora.v2"
+	"gopkg.in/rana/ora.v2/tstlg"
 )
 
 type oracleColumnType string

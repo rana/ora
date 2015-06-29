@@ -10,11 +10,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"ora"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"gopkg.in/rana/ora.v2"
 )
 
 func dbName() string {
