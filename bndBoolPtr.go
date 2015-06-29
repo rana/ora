@@ -24,7 +24,7 @@ type bndBoolPtr struct {
 }
 
 func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt) error {
-	Log.Infof("%v.bind(%t, %d)", bnd, value, position)
+	//Log.Infof("%v.bind(%t, %d)", bnd, value, position)
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.trueRune = trueRune
@@ -52,7 +52,7 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 }
 
 func (bnd *bndBoolPtr) setPtr() error {
-	Log.Infof("%s.setPtr()", bnd)
+	//Log.Infof("%s.setPtr()", bnd)
 	if bnd.isNull > C.sb2(-1) {
 		r, _ := utf8.DecodeRune(bnd.buf)
 		*bnd.value = r == bnd.trueRune
@@ -65,7 +65,7 @@ func (bnd *bndBoolPtr) setPtr() error {
 func (bnd *bndBoolPtr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
