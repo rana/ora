@@ -80,6 +80,7 @@ type Srv struct {
 	env       *Env
 	ocisvcctx *C.OCISvcCtx
 	ocisrv    *C.OCIServer
+	dbIsUTF8  bool
 
 	openSess *list.List
 	elem     *list.Element

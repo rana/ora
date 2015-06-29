@@ -59,13 +59,12 @@ func NewLogEnvCfg() LogEnvCfg {
 
 // Env represents an Oracle environment.
 type Env struct {
-	id       uint64
-	cfg      EnvCfg
-	mu       sync.Mutex
-	ocienv   *C.OCIEnv
-	ocierr   *C.OCIError
-	errBuf   [512]C.char
-	dbIsUTF8 bool
+	id     uint64
+	cfg    EnvCfg
+	mu     sync.Mutex
+	ocienv *C.OCIEnv
+	ocierr *C.OCIError
+	errBuf [512]C.char
 
 	openSrvs *list.List
 	openCons *list.List
@@ -177,6 +176,11 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	return srv, nil
 }
 
+var (
+	conCharset   = make(map[string]string, 2)
+	conCharsetMu sync.Mutex
+)
+
 // OpenCon starts an Oracle session on a server returning a *Con and possible error.
 //
 // The connection string has the form username/password@dblink e.g., scott/tiger@orcl
@@ -219,7 +223,6 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
 	con.srv = srv
@@ -227,6 +230,25 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 	con.elem = env.openCons.PushBack(con)
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
+	}
+	conCharsetMu.Lock()
+	defer conCharsetMu.Unlock()
+	if cs, ok := conCharset[dblink]; ok {
+		srv.dbIsUTF8 = cs == "AL32UTF8"
+		return con, nil
+	}
+	if rset, err := ses.PrepAndQry(
+		`SELECT property_value FROM database_properties WHERE property_name = 'NLS_CHARACTERSET'`,
+	); err != nil {
+		//Log.Errorf("E%vS%vS%v] Determine database characterset: %v",
+		//	env.id, con.id, ses.id, err)
+	} else if rset != nil && rset.Next() && len(rset.Row) == 1 {
+		//Log.Infof("E%vS%vS%v] Database characterset=%q",
+		//	env.id, con.id, ses.id, rset.Row[0])
+		if cs, ok := rset.Row[0].(string); ok {
+			conCharset[dblink] = cs
+			con.srv.dbIsUTF8 = cs == "AL32UTF8"
+		}
 	}
 	return con, nil
 }
