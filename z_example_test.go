@@ -1513,7 +1513,7 @@ func ExampleBytes() {
 	for rset.Next() {
 		b, err := rset.Row[0].(ora.Lob).Bytes()
 		if err != nil && err != io.EOF {
-			log.Printf("ERROR: %v")
+			log.Printf("ERROR: %v", err)
 		} else {
 			fmt.Println(b)
 		}

@@ -18,11 +18,15 @@ func (t Tst) Infof(format string, v ...interface{}) {
 	t.Logf("ORA I "+format, v...)
 }
 func (t Tst) Infoln(v ...interface{}) {
-	t.Logf("ORA I ", v...)
+	v = append(make([]interface{}, 1, len(v)+1), v)
+	v[0] = "ORA I"
+	t.Log(v...)
 }
 func (t Tst) Errorf(format string, v ...interface{}) {
 	t.Logf("ORA E "+format, v...)
 }
 func (t Tst) Errorln(v ...interface{}) {
-	t.Logf("ORA E ", v...)
+	v = append(make([]interface{}, 1, len(v)+1), v)
+	v[0] = "ORA E"
+	t.Log(v...)
 }
