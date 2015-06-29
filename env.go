@@ -11,254 +11,301 @@ package ora
 import "C"
 import (
 	"container/list"
-	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
-// Env is an Oracle environment.
+// EnvCfg configures a new Env.
+type EnvCfg struct {
+	// StmtCfg configures new Stmts.
+	StmtCfg *StmtCfg
+}
+
+// NewEnvCfg creates a EnvCfg with default values.
+func NewEnvCfg() *EnvCfg {
+	c := &EnvCfg{}
+	c.StmtCfg = NewStmtCfg()
+	return c
+}
+
+// LogEnvCfg represents Env logging configuration values.
+type LogEnvCfg struct {
+	// Close determines whether the Env.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// OpenSrv determines whether the Env.OpenSrv method is logged.
+	//
+	// The default is true.
+	OpenSrv bool
+
+	// OpenCon determines whether the Env.OpenCon method is logged.
+	//
+	// The default is true.
+	OpenCon bool
+}
+
+// NewLogEnvCfg creates a LogEnvCfg with default values.
+func NewLogEnvCfg() LogEnvCfg {
+	c := LogEnvCfg{}
+	c.Close = true
+	c.OpenSrv = true
+	c.OpenCon = true
+	return c
+}
+
+// Env represents an Oracle environment.
 type Env struct {
 	id     uint64
-	drv    *Drv
+	cfg    EnvCfg
+	mu     sync.Mutex
 	ocienv *C.OCIEnv
 	ocierr *C.OCIError
+	errBuf [512]C.char
 
-	srvs     *list.List
-	cons     *list.List
+	openSrvs *list.List
+	openCons *list.List
 	elem     *list.Element
-	stmtCfg  StmtCfg
-	errBuf   [512]C.char
-	isSqlPkg bool
-
-	// LogClose determines whether the Env.Close method is logged.
-	//
-	// The default is true.
-	LogClose bool
-
-	// LogOpenSrv determines whether the Env.OpenSrv method is logged.
-	//
-	// The default is true.
-	LogOpenSrv bool
-}
-
-// sysName returns a name which represents the current environment.
-func (env *Env) sysName() string {
-	return fmt.Sprintf("E%v", env.id)
-}
-
-// log writes a message with caller info.
-func (env *Env) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			Log.Infof("%v %v", env.sysName(), callInfo(1))
-		} else {
-			Log.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
-		}
-	}
-}
-
-// log writes a formatted message with caller info.
-func (env *Env) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			Log.Infof("%v %v", env.sysName(), callInfo(1))
-		} else {
-			Log.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
-	}
-}
-
-// err creates an error with caller info.
-func (env *Env) err(v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))
-	Log.Errorln(err)
-	return err
-}
-
-// errF creates a formatted error with caller info.
-func (env *Env) errF(format string, v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
-	Log.Errorln(err)
-	return err
-}
-
-// errE wraps an error with caller info.
-func (env *Env) errE(e error) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
-	Log.Errorln(err)
-	return err
-}
-
-// NumSrv returns the number of open Oracle servers.
-func (env *Env) NumSrv() int {
-	return env.srvs.Len()
-}
-
-// NumCon returns the number of open Oracle connections.
-func (env *Env) NumCon() int {
-	return env.cons.Len()
-}
-
-// checkIsOpen validates that the environment is open.
-func (env *Env) checkIsOpen() error {
-	if !env.IsOpen() {
-		return env.err("Env is closed.")
-	}
-	return nil
-}
-
-// IsOpen returns true when the environment is open; otherwise, false.
-//
-// Calling Close will cause IsOpen to return false.
-// Once closed, the environment may be re-opened by
-// calling Open.
-func (env *Env) IsOpen() bool {
-	return env.drv != nil
 }
 
 // Close disconnects from servers and resets optional fields.
 func (env *Env) Close() (err error) {
-	env.log(env.LogClose)
-	if env.IsOpen() {
-		errs := env.drv.listPool.Get().(*list.List)
-		defer func() {
-			if value := recover(); value != nil {
-				Log.Errorln(recoverMsg(value))
-				errs.PushBack(errRecover(value))
-			}
-			drv := env.drv
-			drv.envs.Remove(env.elem)
-			env.srvs.Init()
-			env.drv = nil
-			env.ocienv = nil
-			env.ocierr = nil
-			env.elem = nil
-			drv.envPool.Put(env)
-			multiErr := newMultiErrL(errs)
-			if multiErr != nil {
-				err = env.errE(*multiErr)
-			}
-			errs.Init()
-			drv.listPool.Put(errs)
-		}()
-		for e := env.cons.Front(); e != nil; e = e.Next() { // close connections
-			err0 := e.Value.(*Con).Close()
-			errs.PushBack(err0)
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.log(_drv.cfg.Log.Env.Close)
+	err = env.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	errs := _drv.listPool.Get().(*list.List)
+	defer func() {
+		if value := recover(); value != nil {
+			errs.PushBack(errR(value))
 		}
-		for e := env.srvs.Front(); e != nil; e = e.Next() { // close servers
-			err0 := e.Value.(*Srv).Close()
-			errs.PushBack(err0)
+		_drv.openEnvs.Remove(env.elem)
+		env.ocienv = nil
+		env.ocierr = nil
+		env.elem = nil
+		env.openSrvs.Init()
+		env.openCons.Init()
+		_drv.envPool.Put(env)
+
+		multiErr := newMultiErrL(errs)
+		if multiErr != nil {
+			err = errE(*multiErr)
 		}
-		// Free oci environment handle and all oci child handles
-		// The oci error handle is released as a child of the environment handle
-		err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+		errs.Init()
+		_drv.listPool.Put(errs)
+	}()
+	for e := env.openCons.Front(); e != nil; e = e.Next() { // close connections
+		err = e.Value.(*Con).Close()
 		if err != nil {
-			return env.errE(err)
+			errs.PushBack(errE(err))
 		}
+	}
+	for e := env.openSrvs.Front(); e != nil; e = e.Next() { // close servers
+		err = e.Value.(*Srv).Close()
+		if err != nil {
+			errs.PushBack(errE(err))
+		}
+	}
+	// Free oci environment handle and all oci child handles
+	// The oci error handle is released as a child of the environment handle
+	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+	if err != nil {
+		return errE(err)
 	}
 	return nil
 }
 
 // OpenSrv connects to an Oracle server returning a *Srv and possible error.
-func (env *Env) OpenSrv(dbname string) (*Srv, error) {
-	env.logF(env.LogOpenSrv, "(dbname %v)", dbname)
-	if err := env.checkIsOpen(); err != nil {
-		return nil, env.errE(err)
+func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.log(_drv.cfg.Log.Env.OpenSrv)
+	err = env.checkClosed()
+	if err != nil {
+		return nil, errE(err)
+	}
+	if cfg == nil {
+		return nil, er("Parameter 'cfg' may not be nil.")
 	}
 	// allocate server handle
 	ocisrv, err := env.allocOciHandle(C.OCI_HTYPE_SERVER)
 	if err != nil {
-		return nil, env.errE(err)
+		return nil, errE(err)
 	}
 	// attach to server
-	cDbname := C.CString(dbname)
-	defer C.free(unsafe.Pointer(cDbname))
+	cDblink := C.CString(cfg.Dblink)
+	defer C.free(unsafe.Pointer(cDblink))
 	r := C.OCIServerAttach(
 		(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
 		env.ocierr,                            //OCIError      *errhp,
-		(*C.OraText)(unsafe.Pointer(cDbname)), //const OraText *dbname,
-		C.sb4(len(dbname)),                    //sb4           dbname_len,
+		(*C.OraText)(unsafe.Pointer(cDblink)), //const OraText *dblink,
+		C.sb4(len(cfg.Dblink)),                //sb4           dblink_len,
 		C.OCI_DEFAULT)                         //ub4           mode);
 	if r == C.OCI_ERROR {
-		return nil, env.ociError()
+		return nil, errE(env.ociError())
 	}
 	// allocate service context handle
 	ocisvcctx, err := env.allocOciHandle(C.OCI_HTYPE_SVCCTX)
 	if err != nil {
-		return nil, env.errE(err)
+		return nil, errE(err)
 	}
 	// set server handle onto service context handle
 	err = env.setAttr(ocisvcctx, C.OCI_HTYPE_SVCCTX, ocisrv, C.ub4(0), C.OCI_ATTR_SERVER)
 	if err != nil {
-		return nil, env.errE(err)
+		return nil, errE(err)
 	}
 
-	// set srv struct
-	srv := env.drv.srvPool.Get().(*Srv)
-	if srv.id == 0 {
-		srv.id = _drv.srvId.nextId()
-	}
+	srv = _drv.srvPool.Get().(*Srv) // set *Srv
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
-	srv.stmtCfg = env.stmtCfg
-	srv.dbname = dbname
-	srv.elem = env.srvs.PushBack(srv)
+	srv.elem = env.openSrvs.PushBack(srv)
+	if srv.id == 0 {
+		srv.id = _drv.srvId.nextId()
+	}
+	srv.cfg = *cfg
+	if srv.cfg.StmtCfg == nil && srv.env.cfg.StmtCfg != nil {
+		srv.cfg.StmtCfg = &(*srv.env.cfg.StmtCfg) // copy by value so that user may change independently
+	}
 	return srv, nil
 }
 
 // OpenCon starts an Oracle session on a server returning a *Con and possible error.
 //
-// The connection string has the form username/password@dbname e.g., scott/tiger@orcl
-// dbname is a connection identifier such as a net service name,
+// The connection string has the form username/password@dblink e.g., scott/tiger@orcl
+// dblink is a connection identifier such as a net service name,
 // full connection identifier, or a simple connection identifier.
-// The dbname may be defined in the client machine's tnsnames.ora file.
-func (env *Env) OpenCon(str string) (*Con, error) {
-	if err := env.checkIsOpen(); err != nil {
-		return nil, env.errE(err)
+// The dblink may be defined in the client machine's tnsnames.ora file.
+func (env *Env) OpenCon(str string) (con *Con, err error) {
+	// do not lock; calls to env.OpenSrv will lock
+	env.log(_drv.cfg.Log.Env.OpenCon)
+	err = env.checkClosed()
+	if err != nil {
+		return nil, errE(err)
 	}
-	Log.Infof("E%v] OpenCon", env.id)
 	// parse connection string
 	var username string
 	var password string
-	var dbname string
+	var dblink string
 	str = strings.TrimSpace(str)
 	if strings.HasPrefix(str, "/@") {
-		dbname = str[2:]
+		dblink = str[2:]
 	} else {
 		str = strings.Replace(str, "/", " / ", 1)
 		str = strings.Replace(str, "@", " @ ", 1)
-		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
-		Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
+		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dblink)
 		if err != nil {
-			return nil, env.errE(err)
+			return nil, errE(err)
 		}
 	}
-	// connect to server
-	srv, err := env.OpenSrv(dbname)
+	srvCfg := NewSrvCfg()
+	srvCfg.Dblink = dblink
+	srv, err := env.OpenSrv(srvCfg) // open Srv
 	if err != nil {
-		return nil, env.errE(err)
+		return nil, errE(err)
 	}
-	// open a session on the server
-	ses, err := srv.OpenSes(username, password)
+	sesCfg := NewSesCfg()
+	sesCfg.Username = username
+	sesCfg.Password = password
+	sesCfg.StmtCfg = srv.env.cfg.StmtCfg // sqlPkg StmtCfg has been configured for database/sql package
+	ses, err := srv.OpenSes(sesCfg)      // open Ses
 	if err != nil {
-		return nil, env.errE(err)
+		return nil, errE(err)
 	}
-	// set con struct
-	con := env.drv.conPool.Get().(*Con)
-	if con.id == 0 {
-		con.id = _drv.conId.nextId()
-	}
+
+	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
 	con.srv = srv
 	con.ses = ses
-	con.elem = env.cons.PushBack(con)
-
+	con.elem = env.openCons.PushBack(con)
+	if con.id == 0 {
+		con.id = _drv.conId.nextId()
+	}
 	return con, nil
 }
 
-// allocateOciHandle allocates an oci handle.
+// NumSrv returns the number of open Oracle servers.
+func (env *Env) NumSrv() int {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.openSrvs.Len()
+}
+
+// NumCon returns the number of open Oracle connections.
+func (env *Env) NumCon() int {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.openCons.Len()
+}
+
+// SetCfg applies the specified cfg to the Env.
+//
+// Open Srvs do not observe the specified cfg.
+func (env *Env) SetCfg(cfg *EnvCfg) {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.cfg = *cfg
+}
+
+// Cfg returns the Env's cfg.
+func (env *Env) Cfg() *EnvCfg {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return &env.cfg
+}
+
+// IsOpen returns true when the environment is open; otherwise, false.
+//
+// Calling Close will cause IsOpen to return false. Once closed, the environment
+// may be re-opened by calling Open.
+func (env *Env) IsOpen() bool {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.ocienv != nil
+}
+
+// checkClosed returns an error if Env is closed. No locking occurs.
+func (env *Env) checkClosed() error {
+	if env.ocienv == nil {
+		return er("Env is closed.")
+	}
+	return nil
+}
+
+// sysName returns a string representing the Env.
+func (env *Env) sysName() string {
+	return fmt.Sprintf("E%v", env.id)
+}
+
+// log writes a message with an Env system name and caller info.
+func (env *Env) log(enabled bool, v ...interface{}) {
+	if enabled {
+		if len(v) == 0 {
+			_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		} else {
+			_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
+		}
+	}
+}
+
+// log writes a formatted message with an Env system name and caller info.
+func (env *Env) logF(enabled bool, format string, v ...interface{}) {
+	if enabled {
+		if len(v) == 0 {
+			_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		} else {
+			_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		}
+	}
+}
+
+// allocateOciHandle allocates an oci handle. No locking occurs.
 func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 	// OCIHandleAlloc returns: OCI_SUCCESS, OCI_INVALID_HANDLE
 	var handle unsafe.Pointer
@@ -269,27 +316,26 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 		C.size_t(0),                //size_t        xtramem_sz,
 		nil)                        //void          **usrmempp
 	if r == C.OCI_INVALID_HANDLE {
-		return nil, errNew("Unable to allocate handle")
+		return nil, er("Unable to allocate handle")
 	}
 	return handle, nil
 }
 
-// freeOciHandle deallocates an oci handle.
+// freeOciHandle deallocates an oci handle. No locking occurs.
 func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error {
 	// OCIHandleFree returns: OCI_SUCCESS, OCI_INVALID_HANDLE, or OCI_ERROR
 	r := C.OCIHandleFree(
 		ociHandle,  //void      *hndlp,
 		handleType) //ub4       type );
 	if r == C.OCI_INVALID_HANDLE {
-		return errNew("Unable to free handle")
+		return er("Unable to free handle")
 	} else if r == C.OCI_ERROR {
-		return env.ociError()
+		return errE(env.ociError())
 	}
-
 	return nil
 }
 
-// setOciAttribute sets an attribute value on a handle or descriptor.
+// setOciAttribute sets an attribute value on a handle or descriptor. No locking occurs.
 func (env *Env) setAttr(
 	target unsafe.Pointer,
 	targetType C.ub4,
@@ -305,12 +351,12 @@ func (env *Env) setAttr(
 		attributeType, //ub4         attrtype,
 		env.ocierr)    //OCIError    *errhp );
 	if r == C.OCI_ERROR {
-		return env.ociError()
+		return errE(env.ociError())
 	}
 	return nil
 }
 
-// getOciError gets an error returned by an Oracle server.
+// getOciError gets an error returned by an Oracle server. No locking occurs.
 func (env *Env) ociError() error {
 	var errcode C.sb4
 	C.OCIErrorGet(
@@ -318,20 +364,7 @@ func (env *Env) ociError() error {
 		1, nil,
 		&errcode,
 		(*C.OraText)(unsafe.Pointer(&env.errBuf[0])),
-		512,
+		C.ub4(len(env.errBuf)),
 		C.OCI_HTYPE_ERROR)
-	return errNew(C.GoString(&env.errBuf[0]))
-}
-
-// Sets the StmtCfg on the Environment and all open Environment Servers.
-func (env *Env) SetStmtCfg(c StmtCfg) {
-	env.stmtCfg = c
-	for e := env.srvs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Srv).SetStmtCfg(c)
-	}
-}
-
-// StmtCfg returns a *StmtCfg.
-func (env *Env) StmtCfg() *StmtCfg {
-	return &env.stmtCfg
+	return er(C.GoString(&env.errBuf[0]))
 }
