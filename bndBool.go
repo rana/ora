@@ -22,7 +22,7 @@ type bndBool struct {
 }
 
 func (bnd *bndBool) bind(value bool, position int, c StmtCfg, stmt *Stmt) (err error) {
-	Log.Infof("%s.bind(%t, %d)", bnd, value, position)
+	//Log.Infof("%s.bind(%t, %d)", bnd, value, position)
 	bnd.stmt = stmt
 	var str string
 	if value {
@@ -61,7 +61,7 @@ func (bnd *bndBool) setPtr() error {
 func (bnd *bndBool) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
