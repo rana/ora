@@ -130,12 +130,13 @@ type col struct {
 func Ins(v interface{}, ses *Ses) (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errors.New(fmt.Sprint(value))
+			err = errR(value)
 		}
 	}()
+	log(_drv.cfg.Log.Ins)
 	tbl, err := tblGet(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	// enable inserting to tables with `db:"id"` and without `db:"id"`
 	// case 1: insert all columns/fields when no `db:"id"`
@@ -143,7 +144,7 @@ func Ins(v interface{}, ses *Ses) (err error) {
 	//		   returning clause expect id field at last index.
 	rv, err := finalValue(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	params := make([]interface{}, len(tbl.cols))
 	buf := new(bytes.Buffer)
@@ -190,7 +191,10 @@ func Ins(v interface{}, ses *Ses) (err error) {
 		}
 	}
 	_, err = ses.PrepAndExe(buf.String(), params...) // insert to db
-	return err
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // Upd updates a struct to an Oracle table returning a possible error.
@@ -214,16 +218,17 @@ func Ins(v interface{}, ses *Ses) (err error) {
 func Upd(v interface{}, ses *Ses) (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errors.New(fmt.Sprint(value))
+			err = errR(value)
 		}
 	}()
+	log(_drv.cfg.Log.Upd)
 	tbl, err := tblGet(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	rv, err := finalValue(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	// enable updating to tables with pk only
 	pairs := make([]interface{}, len(tbl.cols)*2)
@@ -238,7 +243,11 @@ func Upd(v interface{}, ses *Ses) (err error) {
 	} else {
 		tblName = tbl.name
 	}
-	return ses.Upd(tblName, pairs...) // expects last pair is pk
+	err = ses.Upd(tblName, pairs...) // expects last pair is pk
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // Del deletes a struct from an Oracle table returning a possible error.
@@ -259,16 +268,17 @@ func Upd(v interface{}, ses *Ses) (err error) {
 func Del(v interface{}, ses *Ses) (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errors.New(fmt.Sprint(value))
+			err = errR(value)
 		}
 	}()
+	log(_drv.cfg.Log.Del)
 	tbl, err := tblGet(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	rv, err := finalValue(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
 	// enable deleting from tables with pk only
 	lastCol := tbl.cols[len(tbl.cols)-1] // expect pk positioned at last index
@@ -283,7 +293,10 @@ func Del(v interface{}, ses *Ses) (err error) {
 	buf.WriteString(lastCol.name)
 	buf.WriteString(" = :WHERE_VAL")
 	_, err = ses.PrepAndExe(buf.String(), rv.Field(lastCol.fieldIdx).Interface())
-	return err
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // Sel selects structs from an Oracle table returning a specified container of
@@ -321,12 +334,13 @@ func Del(v interface{}, ses *Ses) (err error) {
 func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...interface{}) (result interface{}, err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errors.New(fmt.Sprint(value))
+			err = errR(value)
 		}
 	}()
+	log(_drv.cfg.Log.Sel)
 	tbl, err := tblGet(v)
 	if err != nil {
-		return nil, err
+		return nil, errE(err)
 	}
 	// build SELECT statement, GoColumnTypes
 	gcts := make([]GoColumnType, len(tbl.cols))
@@ -355,15 +369,19 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 	}
 	// prep
 	stmt, err := ses.Prep(buf.String(), gcts...)
+	defer func() {
+		err = stmt.Close()
+		if err != nil {
+			err = errE(err)
+		}
+	}()
 	if err != nil {
-		defer stmt.Close()
-		return nil, err
+		return nil, errE(err)
 	}
 	// qry
 	rset, err := stmt.Qry(whereParams...)
 	if err != nil {
-		defer stmt.Close()
-		return nil, err
+		return nil, errE(err)
 	}
 	switch rt {
 	case SliceOfPtr:
@@ -494,7 +512,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errF("Unable to make a map of pk to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfValFk1:
 			for _, col := range tbl.cols {
@@ -504,7 +522,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errF("Unable to make a map of fk1 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfValFk2:
 			for _, col := range tbl.cols {
@@ -514,7 +532,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errF("Unable to make a map of fk2 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfValFk3:
 			for _, col := range tbl.cols {
@@ -524,7 +542,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errF("Unable to make a map of fk3 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfValFk4:
 			for _, col := range tbl.cols {
@@ -534,7 +552,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, errF("Unable to make a map of fk4 to values for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		}
 		mapT := reflect.MapOf(keyRT, tbl.typ)
@@ -573,7 +591,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 		}
 		result = mapOfValRV.Interface()
 	}
-	return result, err
+	return result, nil
 }
 
 // AddTbl maps a table name to a struct type when a struct type name is not
@@ -586,10 +604,14 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 func AddTbl(v interface{}, tblName string) (err error) {
 	typ, err := finalType(v)
 	if err != nil {
-		return err
+		return errE(err)
 	}
+	logF(_drv.cfg.Log.AddTbl, "%v to %v", typ.Name(), tblName)
 	_, err = tblCreate(typ, strings.ToUpper(tblName))
-	return err
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 func tblGet(v interface{}) (tbl *tbl, err error) {
