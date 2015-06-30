@@ -84,9 +84,15 @@ func (tx *Tx) Commit() (err error) {
 //
 // Rollback is a member of the driver.Tx interface.
 func (tx *Tx) Rollback() (err error) {
+	if tx == nil {
+		return nil
+	}
 	tx.log(_drv.cfg.Log.Tx.Rollback)
 	if tx.checkIsOpen(); err != nil {
 		return err
+	}
+	if tx.ses == nil || tx.ses.srv == nil {
+		return nil
 	}
 	defer tx.close()
 	r := C.OCITransRollback(
@@ -101,7 +107,10 @@ func (tx *Tx) Rollback() (err error) {
 
 // sysName returns a string representing the Tx.
 func (tx *Tx) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vT%v", tx.ses.srv.env.id, tx.ses.srv.id, tx.ses.id, tx.id)
+	if tx == nil {
+		return "E_S_S_T_"
+	}
+	return tx.ses.sysName() + fmt.Sprintf("T%v", tx.id)
 }
 
 // log writes a message with an Tx system name and caller info.

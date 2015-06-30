@@ -337,7 +337,10 @@ func (srv *Srv) checkClosed() error {
 
 // sysName returns a string representing the Ses.
 func (srv *Srv) sysName() string {
-	return fmt.Sprintf("E%vS%v", srv.env.id, srv.id)
+	if srv == nil {
+		return "E_S_"
+	}
+	return srv.env.sysName() + fmt.Sprintf("S%v", srv.id)
 }
 
 // log writes a message with an Srv system name and caller info.
