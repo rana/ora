@@ -324,15 +324,15 @@ func (srv *Srv) Cfg() *SrvCfg {
 func (srv *Srv) IsOpen() bool {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	return srv.ocisrv != nil
+	return srv.checkClosed() == nil
 }
 
 // checkClosed returns an error if Srv is closed. No locking occurs.
 func (srv *Srv) checkClosed() error {
-	if srv.ocisrv == nil {
+	if srv == nil || srv.ocisrv == nil || srv.ocisvcctx == nil {
 		return er("Srv is closed.")
 	}
-	return nil
+	return srv.env.checkClosed()
 }
 
 // sysName returns a string representing the Ses.

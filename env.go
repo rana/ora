@@ -295,7 +295,7 @@ func (env *Env) IsOpen() bool {
 
 // checkClosed returns an error if Env is closed. No locking occurs.
 func (env *Env) checkClosed() error {
-	if env.ocienv == nil {
+	if env == nil || env.ocienv == nil {
 		return er("Env is closed.")
 	}
 	return nil

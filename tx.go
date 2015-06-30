@@ -46,10 +46,10 @@ type Tx struct {
 
 // checkIsOpen validates that the session is open.
 func (tx *Tx) checkIsOpen() error {
-	if tx.ses != nil {
+	if tx == nil || tx.ses == nil {
 		return er("Tx is closed.")
 	}
-	return nil
+	return tx.ses.checkClosed()
 }
 
 func (tx *Tx) close() {
@@ -65,8 +65,11 @@ func (tx *Tx) close() {
 //
 // Commit is a member of the driver.Tx interface.
 func (tx *Tx) Commit() (err error) {
+	if tx == nil {
+		return nil
+	}
 	tx.log(_drv.cfg.Log.Tx.Commit)
-	if tx.checkIsOpen(); err != nil {
+	if err = tx.checkIsOpen(); err != nil {
 		return err
 	}
 	defer tx.close()
@@ -88,7 +91,7 @@ func (tx *Tx) Rollback() (err error) {
 		return nil
 	}
 	tx.log(_drv.cfg.Log.Tx.Rollback)
-	if tx.checkIsOpen(); err != nil {
+	if err = tx.checkIsOpen(); err != nil {
 		return err
 	}
 	if tx.ses == nil || tx.ses.srv == nil {

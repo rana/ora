@@ -530,15 +530,15 @@ func (ses *Ses) Cfg() *SesCfg {
 func (ses *Ses) IsOpen() bool {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	return ses.ocises != nil
+	return ses.checkClosed() == nil
 }
 
 // checkClosed returns an error if Ses is closed. No locking occurs.
 func (ses *Ses) checkClosed() error {
-	if ses.ocises == nil {
+	if ses == nil || ses.ocises == nil {
 		return er("Ses is closed.")
 	}
-	return nil
+	return ses.srv.checkClosed()
 }
 
 // sysName returns a string representing the Ses.
