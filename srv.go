@@ -82,8 +82,7 @@ type Srv struct {
 	ocisrv    *C.OCIServer
 	dbIsUTF8  bool
 
-	openSess *list.List
-	elem     *list.Element
+	openSess *sesList
 }
 
 // Close disconnects from an Oracle server.
@@ -93,6 +92,13 @@ type Srv struct {
 // Calling Close will cause Srv.IsOpen to return false. Once closed, a server cannot
 // be re-opened. Call Env.OpenSrv to open a new server.
 func (srv *Srv) Close() (err error) {
+	srv.env.openSrvs.remove(srv)
+	return srv.close()
+}
+
+// close disconnects from an Oracle server.
+// does not remove Srv from Ses.openSrvs
+func (srv *Srv) close() (err error) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	srv.log(_drv.cfg.Log.Srv.Close)
@@ -105,13 +111,10 @@ func (srv *Srv) Close() (err error) {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
-		env := srv.env
-		env.openSrvs.Remove(srv.elem)
-		srv.openSess.Init()
+		srv.openSess.clear()
 		srv.env = nil
 		srv.ocisrv = nil
 		srv.ocisvcctx = nil
-		srv.elem = nil
 		_drv.srvPool.Put(srv)
 
 		multiErr := newMultiErrL(errs)
@@ -122,13 +125,8 @@ func (srv *Srv) Close() (err error) {
 		_drv.listPool.Put(errs)
 	}()
 
-	// close sessions
-	for e := srv.openSess.Front(); e != nil; e = e.Next() {
-		err = e.Value.(*Ses).Close()
-		if err != nil {
-			errs.PushBack(errE(err))
-		}
-	}
+	srv.openSess.closeAll(errs) // close sessions
+
 	// detach server
 	// OCIServerDetach invalidates oci server handle; no need to free server.ocisvr
 	// OCIServerDetach invalidates oci service context handle; no need to free server.ocisvcctx
@@ -221,7 +219,6 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
 	ses.srv = srv
 	ses.ocises = (*C.OCISession)(ocises)
-	ses.elem = srv.openSess.PushBack(ses)
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
 	}
@@ -229,6 +226,7 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	if ses.cfg.StmtCfg == nil && ses.srv.cfg.StmtCfg != nil {
 		ses.cfg.StmtCfg = &(*ses.srv.cfg.StmtCfg) // copy by value so that user may change independently
 	}
+	srv.openSess.add(ses)
 
 	return ses, nil
 }
@@ -298,7 +296,7 @@ func (srv *Srv) Break() (err error) {
 func (srv *Srv) NumSes() int {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	return srv.openSess.Len()
+	return srv.openSess.len()
 }
 
 // SetCfg applies the specified cfg to the Srv.
