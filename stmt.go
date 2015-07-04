@@ -67,8 +67,7 @@ type Stmt struct {
 	bnds       []bnd
 	hasPtrBind bool
 
-	openRsets *list.List
-	elem      *list.Element
+	openRsets *rsetList
 }
 
 // Close closes the SQL statement.
@@ -76,6 +75,13 @@ type Stmt struct {
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
 // cannot be re-opened. Call Stmt.Prep to create a new statement.
 func (stmt *Stmt) Close() (err error) {
+	stmt.ses.openStmts.remove(stmt)
+	return stmt.close()
+}
+
+// close closes the SQL statement.
+// does not remove Stmt from Ses.openStmts
+func (stmt *Stmt) close() (err error) {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
 	stmt.log(_drv.cfg.Log.Stmt.Close)
@@ -101,8 +107,7 @@ func (stmt *Stmt) Close() (err error) {
 		if r == C.OCI_ERROR {
 			errs.PushBack(errE(stmt.ses.srv.env.ociError()))
 		}
-		ses := stmt.ses
-		ses.openStmts.Remove(stmt.elem)
+
 		stmt.ses = nil
 		stmt.ocistmt = nil
 		stmt.stmtType = C.ub4(0)
@@ -110,8 +115,7 @@ func (stmt *Stmt) Close() (err error) {
 		stmt.gcts = nil
 		stmt.bnds = nil
 		stmt.hasPtrBind = false
-		stmt.elem = nil
-		stmt.openRsets.Init()
+		stmt.openRsets.clear()
 		_drv.stmtPool.Put(stmt)
 
 		multiErr := newMultiErrL(errs)
@@ -131,12 +135,8 @@ func (stmt *Stmt) Close() (err error) {
 			}
 		}
 	}
-	for e := stmt.openRsets.Front(); e != nil; e = e.Next() { // close result sets
-		err = e.Value.(*Rset).close()
-		if err != nil {
-			errs.PushBack(errE(err))
-		}
-	}
+	stmt.openRsets.closeAll(errs)
+
 	return nil
 }
 
@@ -151,6 +151,11 @@ func (stmt *Stmt) Exe(params ...interface{}) (rowsAffected uint64, err error) {
 func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	stmt.log(_drv.cfg.Log.Stmt.Exe)
 	err = stmt.checkClosed()
 	if err != nil {
@@ -175,7 +180,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 		return 0, 0, errE(err)
 	}
 	var mode C.ub4 // determine auto-commit state; don't auto-comit if there's an explicit user transaction occuring
-	if stmt.cfg.IsAutoCommitting && stmt.ses.openTxs.Front() == nil {
+	if stmt.cfg.IsAutoCommitting && stmt.ses.openTxs.len() == 0 {
 		mode = C.OCI_COMMIT_ON_SUCCESS
 	} else {
 		mode = C.OCI_DEFAULT
@@ -221,6 +226,11 @@ func (stmt *Stmt) Qry(params ...interface{}) (*Rset, error) {
 func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	stmt.log(_drv.cfg.Log.Stmt.Qry)
 	err = stmt.checkClosed()
 	if err != nil {
@@ -263,8 +273,8 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 		rset.close()
 		return nil, errE(err)
 	}
-	// store result set for later close call
-	stmt.openRsets.PushBack(rset)
+	stmt.openRsets.add(rset)
+
 	return rset, nil
 }
 
@@ -1021,7 +1031,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 func (stmt *Stmt) NumRset() int {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
-	return stmt.openRsets.Len()
+	return stmt.openRsets.len()
 }
 
 // NumInput returns the number of placeholders in a sql statement.
