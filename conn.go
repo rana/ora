@@ -5,7 +5,6 @@
 package ora
 
 import (
-	"container/list"
 	"database/sql/driver"
 	"fmt"
 )
@@ -49,10 +48,9 @@ func NewLogConCfg() LogConCfg {
 type Con struct {
 	id uint64
 
-	env  *Env
-	srv  *Srv
-	ses  *Ses
-	elem *list.Element
+	env *Env
+	srv *Srv
+	ses *Ses
 }
 
 // checkIsOpen validates that the connection is open.
@@ -77,6 +75,13 @@ func (con *Con) IsOpen() bool {
 //
 // Close is a member of the driver.Conn interface.
 func (con *Con) Close() (err error) {
+	con.env.openCons.remove(con)
+	return con.close()
+}
+
+// close ends a session and disconnects from an Oracle server.
+// does not remove Con from Ses.openCons
+func (con *Con) close() (err error) {
 	con.log(_drv.cfg.Log.Con.Close)
 	if err := con.checkIsOpen(); err != nil {
 		return err
@@ -85,15 +90,13 @@ func (con *Con) Close() (err error) {
 		if value := recover(); value != nil {
 			err = errR(value)
 		}
-		env := con.env
-		env.openCons.Remove(con.elem)
 		con.env = nil
 		con.srv = nil
 		con.ses = nil
-		con.elem = nil
 		_drv.conPool.Put(con)
 	}()
 
+	// TODO(rana): RECONSIDER HOW SRV.CLOSE IS CALLED
 	err1 := con.ses.Close()
 	err2 := con.srv.Close()
 	m := newMultiErr(err1, err2)
