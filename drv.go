@@ -10,7 +10,6 @@ package ora
 */
 import "C"
 import (
-	"container/list"
 	"database/sql/driver"
 	"sync"
 	"time"
@@ -109,8 +108,13 @@ func NewLogDrvCfg() LogDrvCfg {
 //
 // Drv implements the driver.Driver interface.
 type Drv struct {
-	cfg DrvCfg
-	mu  sync.Mutex
+	cfg      DrvCfg
+	mu       sync.Mutex
+	insMu    sync.Mutex
+	updMu    sync.Mutex
+	delMu    sync.Mutex
+	selMu    sync.Mutex
+	addTblMu sync.Mutex
 
 	envId  Id
 	srvId  Id
@@ -133,7 +137,7 @@ type Drv struct {
 
 	locations map[string]*time.Location
 	sqlPkgEnv *Env // An environment for use by the database/sql package.
-	openEnvs  *list.List
+	openEnvs  *envList
 }
 
 // Open opens a connection to an Oracle server with the database/sql environment.
