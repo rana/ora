@@ -97,9 +97,8 @@ type Ses struct {
 	ocises   *C.OCISession
 	isLocked bool
 
-	openStmts *list.List
-	openTxs   *list.List
-	elem      *list.Element
+	openStmts *stmtList
+	openTxs   *txList
 }
 
 // Close ends a session on an Oracle server.
@@ -109,6 +108,13 @@ type Ses struct {
 // Calling Close will cause Ses.IsOpen to return false. Once closed, a session
 // cannot be re-opened. Call Srv.OpenSes to open a new session.
 func (ses *Ses) Close() (err error) {
+	ses.srv.openSess.remove(ses)
+	return ses.close()
+}
+
+// close ends a session on an Oracle server.
+// does not remove Ses from Srv.openSess
+func (ses *Ses) close() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	ses.log(_drv.cfg.Log.Ses.Close)
@@ -121,13 +127,11 @@ func (ses *Ses) Close() (err error) {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
-		srv := ses.srv
-		srv.openSess.Remove(ses.elem)
+
 		ses.srv = nil
 		ses.ocises = nil
-		ses.elem = nil
-		ses.openStmts.Init()
-		ses.openTxs.Init()
+		ses.openStmts.clear()
+		ses.openTxs.clear()
 		_drv.sesPool.Put(ses)
 
 		multiErr := newMultiErrL(errs)
@@ -143,16 +147,9 @@ func (ses *Ses) Close() (err error) {
 	// Expect user to make explicit Commit or Rollback.
 	// Any open transactions will be timedout by the server
 	// if not explicitly committed or rolledback.
-	for e := ses.openTxs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Tx).close()
-	}
-	// close statements
-	for e := ses.openStmts.Front(); e != nil; e = e.Next() {
-		err = e.Value.(*Stmt).Close()
-		if err != nil {
-			errs.PushBack(errE(err))
-		}
-	}
+	ses.openTxs.closeAll(errs)
+	ses.openStmts.closeAll(errs) // close statements
+
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	r := C.OCISessionEnd(
@@ -169,13 +166,25 @@ func (ses *Ses) Close() (err error) {
 // PrepAndExe prepares and executes a SQL statement returning the number of rows
 // affected and a possible error.
 func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	ses.log(_drv.cfg.Log.Ses.PrepAndExe)
 	err = ses.checkClosed()
 	if err != nil {
 		return 0, errE(err)
 	}
 	stmt, err := ses.Prep(sql)
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			err0 := stmt.Close()
+			if err == nil { // don't overwrite original err
+				err = err0
+			}
+		}
+	}()
 	if err != nil {
 		return 0, errE(err)
 	}
@@ -217,6 +226,11 @@ func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (rset *Rset, err e
 func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	ses.log(_drv.cfg.Log.Ses.Prep, sql)
 	err = ses.checkClosed()
 	if err != nil {
@@ -254,7 +268,6 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.cfg = *stmtCfg
 	stmt.sql = sql
 	stmt.gcts = gcts
-	stmt.elem = ses.openStmts.PushBack(stmt)
 	if stmt.id == 0 {
 		stmt.id = _drv.stmtId.nextId()
 	}
@@ -262,6 +275,8 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
+	ses.openStmts.add(stmt)
+
 	return stmt, nil
 }
 
@@ -486,10 +501,11 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 	}
 	tx = _drv.txPool.Get().(*Tx) // set *Tx
 	tx.ses = ses
-	tx.elem = ses.openTxs.PushFront(tx)
 	if tx.id == 0 {
 		tx.id = _drv.txId.nextId()
 	}
+	ses.openTxs.add(tx)
+
 	return tx, nil
 }
 
@@ -497,14 +513,14 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 func (ses *Ses) NumStmt() int {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	return ses.openStmts.Len()
+	return ses.openStmts.len()
 }
 
 // NumTx returns the number of open Oracle transactions.
 func (ses *Ses) NumTx() int {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	return ses.openTxs.Len()
+	return ses.openTxs.len()
 }
 
 // SetCfg applies the specified cfg to the Ses.
