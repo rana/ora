@@ -59,16 +59,16 @@ func NewLogEnvCfg() LogEnvCfg {
 
 // Env represents an Oracle environment.
 type Env struct {
-	id     uint64
-	cfg    EnvCfg
-	mu     sync.Mutex
-	ocienv *C.OCIEnv
-	ocierr *C.OCIError
-	errBuf [512]C.char
+	id       uint64
+	cfg      EnvCfg
+	mu       sync.Mutex
+	ocienv   *C.OCIEnv
+	ocierr   *C.OCIError
+	errBuf   [512]C.char
+	ociHndMu sync.Mutex
 
-	openSrvs *list.List
-	openCons *list.List
-	elem     *list.Element
+	openSrvs *srvList
+	openCons *conList
 }
 
 // Close disconnects from servers and resets optional fields.
@@ -85,12 +85,11 @@ func (env *Env) Close() (err error) {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
-		_drv.openEnvs.Remove(env.elem)
+		_drv.openEnvs.remove(env)
 		env.ocienv = nil
 		env.ocierr = nil
-		env.elem = nil
-		env.openSrvs.Init()
-		env.openCons.Init()
+		env.openSrvs.clear()
+		env.openCons.clear()
 		_drv.envPool.Put(env)
 
 		multiErr := newMultiErrL(errs)
@@ -100,18 +99,9 @@ func (env *Env) Close() (err error) {
 		errs.Init()
 		_drv.listPool.Put(errs)
 	}()
-	for e := env.openCons.Front(); e != nil; e = e.Next() { // close connections
-		err = e.Value.(*Con).Close()
-		if err != nil {
-			errs.PushBack(errE(err))
-		}
-	}
-	for e := env.openSrvs.Front(); e != nil; e = e.Next() { // close servers
-		err = e.Value.(*Srv).Close()
-		if err != nil {
-			errs.PushBack(errE(err))
-		}
-	}
+	env.openCons.closeAll(errs)
+	env.openSrvs.closeAll(errs)
+
 	// Free oci environment handle and all oci child handles
 	// The oci error handle is released as a child of the environment handle
 	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
@@ -165,7 +155,6 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
-	srv.elem = env.openSrvs.PushBack(srv)
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
@@ -173,6 +162,8 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	if srv.cfg.StmtCfg == nil && srv.env.cfg.StmtCfg != nil {
 		srv.cfg.StmtCfg = &(*srv.env.cfg.StmtCfg) // copy by value so that user may change independently
 	}
+	env.openSrvs.add(srv)
+
 	return srv, nil
 }
 
@@ -227,7 +218,6 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 	con.env = env
 	con.srv = srv
 	con.ses = ses
-	con.elem = env.openCons.PushBack(con)
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
 	}
@@ -250,6 +240,8 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 			con.srv.dbIsUTF8 = cs == "AL32UTF8"
 		}
 	}
+	env.openCons.add(con)
+
 	return con, nil
 }
 
@@ -257,14 +249,14 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 func (env *Env) NumSrv() int {
 	env.mu.Lock()
 	defer env.mu.Unlock()
-	return env.openSrvs.Len()
+	return env.openSrvs.len()
 }
 
 // NumCon returns the number of open Oracle connections.
 func (env *Env) NumCon() int {
 	env.mu.Lock()
 	defer env.mu.Unlock()
-	return env.openCons.Len()
+	return env.openCons.len()
 }
 
 // SetCfg applies the specified cfg to the Env.
@@ -330,6 +322,8 @@ func (env *Env) logF(enabled bool, format string, v ...interface{}) {
 
 // allocateOciHandle allocates an oci handle. No locking occurs.
 func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
+	env.ociHndMu.Lock()
+	defer env.ociHndMu.Unlock()
 	// OCIHandleAlloc returns: OCI_SUCCESS, OCI_INVALID_HANDLE
 	var handle unsafe.Pointer
 	r := C.OCIHandleAlloc(
@@ -346,6 +340,8 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 
 // freeOciHandle deallocates an oci handle. No locking occurs.
 func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error {
+	env.ociHndMu.Lock()
+	defer env.ociHndMu.Unlock()
 	// OCIHandleFree returns: OCI_SUCCESS, OCI_INVALID_HANDLE, or OCI_ERROR
 	r := C.OCIHandleFree(
 		ociHandle,  //void      *hndlp,
