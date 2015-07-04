@@ -96,6 +96,13 @@ func (rset *Rset) IsOpen() bool {
 	return rset.stmt != nil
 }
 
+// closeWithRemove releases allocated resources and removes the Rset from the
+// Stmt.openRsets list.
+func (rset *Rset) closeWithRemove() (err error) {
+	rset.stmt.openRsets.remove(rset)
+	return rset.close()
+}
+
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
 	rset.log(_drv.cfg.Log.Rset.Close)
