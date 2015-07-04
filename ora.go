@@ -31,16 +31,16 @@ var _drv *Drv
 func init() {
 	_drv = &Drv{}
 	_drv.locations = make(map[string]*time.Location)
-	_drv.openEnvs = list.New()
+	_drv.openEnvs = newEnvList()
 	_drv.cfg = *NewDrvCfg()
 
 	// init general pools
 	_drv.listPool = newPool(func() interface{} { return list.New() })
-	_drv.envPool = newPool(func() interface{} { return &Env{openSrvs: list.New(), openCons: list.New()} })
+	_drv.envPool = newPool(func() interface{} { return &Env{openSrvs: newSrvList(), openCons: newConList()} })
 	_drv.conPool = newPool(func() interface{} { return &Con{} })
-	_drv.srvPool = newPool(func() interface{} { return &Srv{openSess: list.New()} })
-	_drv.sesPool = newPool(func() interface{} { return &Ses{openStmts: list.New(), openTxs: list.New()} })
-	_drv.stmtPool = newPool(func() interface{} { return &Stmt{openRsets: list.New()} })
+	_drv.srvPool = newPool(func() interface{} { return &Srv{openSess: newSesList()} })
+	_drv.sesPool = newPool(func() interface{} { return &Ses{openStmts: newStmtList(), openTxs: newTxList()} })
+	_drv.stmtPool = newPool(func() interface{} { return &Stmt{openRsets: newRsetList()} })
 	_drv.txPool = newPool(func() interface{} { return &Tx{} })
 	_drv.rsetPool = newPool(func() interface{} { return &Rset{genByPool: true} })
 
@@ -194,11 +194,12 @@ func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
 	}
 
 	env.ocierr = (*C.OCIError)(ocierr)
-	env.elem = _drv.openEnvs.PushBack(env)
 	if env.id == 0 {
 		env.id = _drv.envId.nextId()
 	}
 	env.cfg = *cfg
+	_drv.openEnvs.add(env)
+
 	return env, nil
 }
 
@@ -206,7 +207,7 @@ func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
 func NumEnv() int {
 	_drv.mu.Lock()
 	defer _drv.mu.Unlock()
-	return _drv.openEnvs.Len()
+	return _drv.openEnvs.len()
 }
 
 // SetCfg applies the specified cfg to the ora database driver and any open Envs.
@@ -214,9 +215,7 @@ func SetCfg(cfg DrvCfg) {
 	_drv.mu.Lock()
 	defer _drv.mu.Unlock()
 	_drv.cfg = cfg
-	for e := _drv.openEnvs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Env).SetCfg(cfg.Env) // apply EnvCfg to open Envs
-	}
+	_drv.openEnvs.setAllCfg(cfg.Env)
 }
 
 // Cfg returns the ora database driver's cfg.
