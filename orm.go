@@ -128,6 +128,8 @@ type col struct {
 //
 // Set ora.Schema to specify an optional table name prefix.
 func Ins(v interface{}, ses *Ses) (err error) {
+	_drv.insMu.Lock()
+	defer _drv.insMu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -190,7 +192,12 @@ func Ins(v interface{}, ses *Ses) (err error) {
 			params[last] = fv.Addr().Interface()
 		}
 	}
-	_, err = ses.PrepAndExe(buf.String(), params...) // insert to db
+	stmt, err := ses.Prep(buf.String())
+	if err != nil {
+		return errE(err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exe(params...)
 	if err != nil {
 		return errE(err)
 	}
@@ -216,6 +223,8 @@ func Ins(v interface{}, ses *Ses) (err error) {
 //
 // Set ora.Schema to specify an optional table name prefix.
 func Upd(v interface{}, ses *Ses) (err error) {
+	_drv.updMu.Lock()
+	defer _drv.updMu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -266,6 +275,8 @@ func Upd(v interface{}, ses *Ses) (err error) {
 //
 // Set ora.Schema to specify an optional table name prefix.
 func Del(v interface{}, ses *Ses) (err error) {
+	_drv.delMu.Lock()
+	defer _drv.delMu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -332,6 +343,8 @@ func Del(v interface{}, ses *Ses) (err error) {
 //
 // Set ora.Schema to specify an optional table name prefix.
 func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...interface{}) (result interface{}, err error) {
+	_drv.selMu.Lock()
+	defer _drv.selMu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -602,6 +615,8 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 //
 // AddTbl may be called once during the lifetime of the driver.
 func AddTbl(v interface{}, tblName string) (err error) {
+	_drv.addTblMu.Lock()
+	defer _drv.addTblMu.Unlock()
 	typ, err := finalType(v)
 	if err != nil {
 		return errE(err)
@@ -615,6 +630,11 @@ func AddTbl(v interface{}, tblName string) (err error) {
 }
 
 func tblGet(v interface{}) (tbl *tbl, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	typ, err := finalType(v)
 	if err != nil {
 		return nil, err
@@ -641,6 +661,11 @@ func finalType(v interface{}) (rt reflect.Type, err error) {
 }
 
 func finalValue(v interface{}) (rv reflect.Value, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	if v == nil {
 		return rv, errors.New("Unable to obtain final value from nil.")
 	}
