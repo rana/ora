@@ -265,6 +265,9 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	if stmtCfg == nil {
 		stmtCfg = NewStmtCfg()
 	}
+	if !ses.srv.dbIsUTF8 && stmtCfg.stringPtrBufferSize > 1000 {
+		stmtCfg.stringPtrBufferSize = 1000
+	}
 	stmt.cfg = *stmtCfg
 	stmt.sql = sql
 	stmt.gcts = gcts
