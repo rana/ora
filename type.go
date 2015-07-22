@@ -13,6 +13,7 @@ import "C"
 import (
 	"bytes"
 	"container/list"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"math"
@@ -59,6 +60,21 @@ func (this Int64) Equals(other Int64) bool {
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 
+func (this Int64) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Int64) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*int64)(&this.Value))
+}
+
 // Int32 is a nullable int32.
 type Int32 struct {
 	IsNull bool
@@ -71,11 +87,40 @@ func (this Int32) Equals(other Int32) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+func (this Int32) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Int32) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*int32)(&this.Value))
+}
 
 // Int16 is a nullable int16.
 type Int16 struct {
 	IsNull bool
 	Value  int16
+}
+
+func (this Int16) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Int16) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*int16)(&this.Value))
 }
 
 // Equals returns true when the receiver and specified Int16 are both null,
@@ -89,6 +134,21 @@ func (this Int16) Equals(other Int16) bool {
 type Int8 struct {
 	IsNull bool
 	Value  int8
+}
+
+func (this Int8) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Int8) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*int8)(&this.Value))
 }
 
 // Equals returns true when the receiver and specified Int8 are both null,
@@ -110,6 +170,20 @@ func (this Uint64) Equals(other Uint64) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+func (this Uint64) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Uint64) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*uint64)(&this.Value))
+}
 
 // Uint32 is a nullable uint32.
 type Uint32 struct {
@@ -122,6 +196,20 @@ type Uint32 struct {
 func (this Uint32) Equals(other Uint32) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
+}
+func (this Uint32) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Uint32) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*uint32)(&this.Value))
 }
 
 // Uint16 is a nullable uint16.
@@ -136,6 +224,20 @@ func (this Uint16) Equals(other Uint16) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+func (this Uint16) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Uint16) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*uint16)(&this.Value))
+}
 
 // Uint8 is a nullable uint8.
 type Uint8 struct {
@@ -149,6 +251,20 @@ func (this Uint8) Equals(other Uint8) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+func (this Uint8) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this Uint8) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*uint8)(&this.Value))
+}
 
 // Float64 is a nullable float64.
 type Float64 struct {
@@ -161,6 +277,20 @@ type Float64 struct {
 func (this Float64) Equals(other Float64) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
+}
+func (this Float64) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *Float64) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*float64)(&this.Value))
 }
 
 // Float32 is a nullable float32.
@@ -188,6 +318,20 @@ func (this Time) Equals(other Time) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value.Equal(other.Value))
 }
+func (this Time) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *Time) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*time.Time)(&this.Value))
+}
 
 // String is a nullable string.
 type String struct {
@@ -201,6 +345,29 @@ func (this String) Equals(other String) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+func (this String) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return this.Value
+}
+func (this String) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	if this.Value == "" {
+		return []byte(`""`), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *String) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*string)(&this.Value))
+}
 
 // Bool is a nullable bool.
 type Bool struct {
@@ -213,6 +380,23 @@ type Bool struct {
 func (this Bool) Equals(other Bool) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
+}
+func (this Bool) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	if this.Value {
+		return []byte("true"), nil
+	}
+	return []byte("false"), nil
+}
+func (this *Bool) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*bool)(&this.Value))
 }
 
 // Raw represents a nullable byte slice for RAW or LONG RAW Oracle values.
