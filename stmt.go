@@ -1021,7 +1021,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 							return iterations, errF("Invalid bind parameter. ([]interface{}) (%v).", params[n])
 						}
 					}
-					return iterations, errF("Invalid bind parameter (%v) (%v).", t.Name(), params[n])
+					return iterations, errF("Invalid bind parameter (%v) (%T:%v).", t.Name(), params[n], params[n])
 				}
 			}
 		}
