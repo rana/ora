@@ -24,7 +24,7 @@ import (
 // When a parent handle is freed, all child handles associated with it are also
 // freed, and can no longer be used. For example, when a statement handle is freed,
 // any bind and define handles associated with it are also freed.
-
+//
 // bnd represents an between a Go parameter and a sql statement placeholder and
 // contains logic to transfer a Go type to an Oracle OCI type.
 type bnd interface {
@@ -60,6 +60,9 @@ func (this Int64) Equals(other Int64) bool {
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 
+var _ = (json.Marshaler)(Int64{})
+var _ = (json.Unmarshaler)((*Int64)(nil))
+
 func (this Int64) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -87,6 +90,10 @@ func (this Int32) Equals(other Int32) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Int32{})
+var _ = (json.Unmarshaler)((*Int32)(nil))
+
 func (this Int32) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -107,6 +114,9 @@ type Int16 struct {
 	IsNull bool
 	Value  int16
 }
+
+var _ = (json.Marshaler)(Int16{})
+var _ = (json.Unmarshaler)((*Int16)(nil))
 
 func (this Int16) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
@@ -135,6 +145,9 @@ type Int8 struct {
 	IsNull bool
 	Value  int8
 }
+
+var _ = (json.Marshaler)(Int8{})
+var _ = (json.Unmarshaler)((*Int8)(nil))
 
 func (this Int8) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
@@ -170,6 +183,10 @@ func (this Uint64) Equals(other Uint64) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Uint64{})
+var _ = (json.Unmarshaler)((*Uint64)(nil))
+
 func (this Uint64) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -197,6 +214,10 @@ func (this Uint32) Equals(other Uint32) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Uint32{})
+var _ = (json.Unmarshaler)((*Uint32)(nil))
+
 func (this Uint32) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -224,6 +245,10 @@ func (this Uint16) Equals(other Uint16) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Uint16{})
+var _ = (json.Unmarshaler)((*Uint16)(nil))
+
 func (this Uint16) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -251,6 +276,10 @@ func (this Uint8) Equals(other Uint8) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Uint8{})
+var _ = (json.Unmarshaler)((*Uint8)(nil))
+
 func (this Uint8) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -278,6 +307,10 @@ func (this Float64) Equals(other Float64) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Float64{})
+var _ = (json.Unmarshaler)((*Float64)(nil))
+
 func (this Float64) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -306,6 +339,24 @@ func (this Float32) Equals(other Float32) bool {
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 
+var _ = (json.Marshaler)(Float32{})
+var _ = (json.Unmarshaler)((*Float32)(nil))
+
+func (this Float32) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *Float32) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*float32)(&this.Value))
+}
+
 // Time is a nullable time.Time.
 type Time struct {
 	IsNull bool
@@ -318,6 +369,10 @@ func (this Time) Equals(other Time) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value.Equal(other.Value))
 }
+
+var _ = (json.Marshaler)(Time{})
+var _ = (json.Unmarshaler)((*Time)(nil))
+
 func (this Time) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -351,6 +406,10 @@ func (this String) String() string {
 	}
 	return this.Value
 }
+
+var _ = (json.Marshaler)(String{})
+var _ = (json.Unmarshaler)((*String)(nil))
+
 func (this String) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -381,6 +440,10 @@ func (this Bool) Equals(other Bool) bool {
 	return (this.IsNull && other.IsNull) ||
 		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
+
+var _ = (json.Marshaler)(Bool{})
+var _ = (json.Unmarshaler)((*Bool)(nil))
+
 func (this Bool) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
@@ -413,6 +476,24 @@ func (this Raw) Equals(other Raw) bool {
 			bytes.Equal(this.Value, other.Value))
 }
 
+var _ = (json.Marshaler)(Raw{})
+var _ = (json.Unmarshaler)((*Raw)(nil))
+
+func (this Raw) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *Raw) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, (*[]byte)(&this.Value))
+}
+
 // Lob's Reader is sent to the DB on bind, if not nil.
 // The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
 type Lob struct {
@@ -433,11 +514,60 @@ func (this Lob) Equals(other Lob) bool {
 	return this.Reader == other.Reader // this is a quite strict equality...
 }
 
-func (this Lob) Bytes() ([]byte, error) {
+// Bytes will read the contents of the Lob.Reader, and will keep that for future.
+func (this *Lob) Bytes() ([]byte, error) {
 	if this.Reader == nil {
 		return nil, io.EOF
 	}
-	return ioutil.ReadAll(this.Reader)
+	if br, ok := this.Reader.(bytesPeeker); ok {
+		return br.PeekBytes(), nil
+	}
+	p, err := ioutil.ReadAll(this.Reader)
+	if err != nil {
+		return p, err
+	}
+	this.Reader = bytesReader{p: p, Reader: bytes.NewReader(p)}
+	return p, nil
+}
+
+var _ = (json.Marshaler)((*Lob)(nil))
+var _ = (json.Unmarshaler)((*Lob)(nil))
+
+func (this *Lob) MarshalJSON() ([]byte, error) {
+	if this.Reader == nil {
+		return []byte("null"), nil
+	}
+	p, err := this.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(p)
+}
+func (this *Lob) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.Reader = nil
+		return nil
+	}
+	var b []byte
+	err := json.Unmarshal(p, &b)
+	this.Reader = bytesReader{p: p, Reader: bytes.NewReader(p)}
+	return err
+}
+
+type bytesReader struct {
+	p []byte
+	io.Reader
+}
+
+var _ = bytesPeeker(bytesReader{})
+var _ = io.Reader(bytesReader{})
+
+func (br bytesReader) PeekBytes() []byte {
+	return br.p
+}
+
+type bytesPeeker interface {
+	PeekBytes() []byte
 }
 
 // Bfile represents a nullable BFILE Oracle value.
