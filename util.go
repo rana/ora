@@ -227,7 +227,10 @@ func errF(format string, v ...interface{}) (err error) {
 
 // errR creates a recovered error with caller info.
 func errR(v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v recovered: %v", errInfo(1), fmt.Sprint(v...)))
+	trace := make([]byte, 4096)
+	n := runtime.Stack(trace, false)
+	err = errors.New(fmt.Sprintf("%v recovered: %v\n%s",
+		errInfo(1), fmt.Sprint(v...), trace[:n]))
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
 }
