@@ -27,6 +27,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 	if value == nil {
 		bnd.isNull = C.sb2(-1)
 	} else {
+		bnd.isNull = 0
 		r := C.OCINumberFromInt(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 			unsafe.Pointer(value),       //const void          *inum,
@@ -37,8 +38,9 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 			return bnd.stmt.ses.srv.env.ociError()
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-			"Int32Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber)
+			"%p pos=%d value(%p)=%d => number=%#v", bnd, position, bnd.value, *value, bnd.ociNumber)
 	}
+	alen := C.ACTUAL_LENGTH_TYPE(4)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
@@ -48,7 +50,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
 		C.SQLT_VNU,                        //ub2          dty,
 		unsafe.Pointer(&bnd.isNull),       //void         *indp,
-		nil,           //ub2          *alenp,
+		&alen,         //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
@@ -60,6 +62,8 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndInt32Ptr) setPtr() error {
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"%p value=%p isNull=%d number=%#v", bnd, bnd.value, bnd.isNull, bnd.ociNumber)
 	if bnd.isNull > C.sb2(-1) {
 		r := C.OCINumberToInt(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
@@ -82,6 +86,7 @@ func (bnd *bndInt32Ptr) close() (err error) {
 			err = errR(value)
 		}
 	}()
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Int32Ptr.close value=%p", bnd.value)
 
 	stmt := bnd.stmt
 	bnd.stmt = nil
