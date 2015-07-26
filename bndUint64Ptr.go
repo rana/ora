@@ -24,6 +24,19 @@ type bndUint64Ptr struct {
 func (bnd *bndUint64Ptr) bind(value *uint64, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
+	if value == nil {
+		bnd.isNull = C.sb2(-1)
+	} else {
+		r := C.OCINumberFromInt(
+			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+			unsafe.Pointer(value),       //const void          *inum,
+			8, //uword               inum_length,
+			C.OCI_NUMBER_UNSIGNED, //uword               inum_s_flag,
+			&bnd.ociNumber)        //OCINumber           *number );
+		if r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
+	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,

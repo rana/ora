@@ -314,7 +314,7 @@ func (stmt *Stmt) putBnd(idx int, bnd bnd) {
 //
 // No locking occurs.
 func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
-	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %v", len(params))
+	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %d", len(params))
 	iterations = 1
 	// Create binds for each parameter; bind position is 1-based
 	if params != nil && len(params) > 0 {

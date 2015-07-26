@@ -11,6 +11,7 @@ package ora
 */
 import "C"
 import (
+	"bytes"
 	"time"
 	"unsafe"
 )
@@ -22,6 +23,7 @@ type bndTimePtr struct {
 	isNull      C.sb2
 	value       *time.Time
 	cZone       *C.char
+	zoneBuf     bytes.Buffer
 }
 
 func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
@@ -37,6 +39,28 @@ func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 		return bnd.stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
 		return errNew("unable to allocate oci timestamp handle during bind")
+	}
+	if value == nil {
+		bnd.isNull = C.sb2(-1)
+	} else {
+		zone := zoneOffset(*value, &bnd.zoneBuf)
+		bnd.cZone = C.CString(zone)
+		r = C.OCIDateTimeConstruct(
+			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //dvoid         *hndl,
+			bnd.stmt.ses.srv.env.ocierr,                 //OCIError      *err,
+			bnd.ociDateTime,                             //OCIDateTime   *datetime,
+			C.sb2(value.Year()),                         //sb2           year,
+			C.ub1(int32(value.Month())),                 //ub1           month,
+			C.ub1(value.Day()),                          //ub1           day,
+			C.ub1(value.Hour()),                         //ub1           hour,
+			C.ub1(value.Minute()),                       //ub1           min,
+			C.ub1(value.Second()),                       //ub1           sec,
+			C.ub4(value.Nanosecond()),                   //ub4           fsec,
+			(*C.OraText)(unsafe.Pointer(bnd.cZone)),     //OraText       *timezone,
+			C.size_t(len(zone)))                         //size_t        timezone_length );
+		if r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
 	}
 	r = C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
@@ -84,6 +108,7 @@ func (bnd *bndTimePtr) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.ociDateTime = nil
 	bnd.value = nil
+	bnd.zoneBuf.Reset()
 	stmt.putBnd(bndIdxTimePtr, bnd)
 	return nil
 }

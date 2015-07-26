@@ -31,6 +31,7 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 	if cap(bnd.buf) < 2 {
 		bnd.buf = make([]byte, 2)
 	}
+	// FIXME(tgulacsi): bnd.buf should be populated with *value!
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,

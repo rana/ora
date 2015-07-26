@@ -24,6 +24,21 @@ type bndInt32Ptr struct {
 func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
+	if value == nil {
+		bnd.isNull = C.sb2(-1)
+	} else {
+		r := C.OCINumberFromInt(
+			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+			unsafe.Pointer(value),       //const void          *inum,
+			4,                   //uword               inum_length,
+			C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
+			&bnd.ociNumber)      //OCINumber           *number
+		if r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"Int32Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber)
+	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
@@ -55,6 +70,8 @@ func (bnd *bndInt32Ptr) setPtr() error {
 		if r == C.OCI_ERROR {
 			return bnd.stmt.ses.srv.env.ociError()
 		}
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"Int32Ptr.setPtr number=%#v => value=%d", bnd.ociNumber, *bnd.value)
 	}
 	return nil
 }

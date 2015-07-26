@@ -24,6 +24,18 @@ type bndFloat32Ptr struct {
 func (bnd *bndFloat32Ptr) bind(value *float32, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
+	if value == nil {
+		bnd.isNull = C.sb2(-1)
+	} else {
+		r := C.OCINumberFromReal(
+			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+			unsafe.Pointer(value),       //const void          *rnum,
+			4,              //uword               rnum_length,
+			&bnd.ociNumber) //OCINumber           *number );
+		if r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
+	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
