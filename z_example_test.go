@@ -1512,7 +1512,8 @@ func ExampleBytes() {
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraBin)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
-		b, err := rset.Row[0].(ora.Lob).Bytes()
+		lob := rset.Row[0].(ora.Lob)
+		b, err := lob.Bytes()
 		if err != nil && err != io.EOF {
 			log.Printf("ERROR: %v", err)
 		} else {
