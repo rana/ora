@@ -22,7 +22,7 @@ type bndFloat32Slice struct {
 	arrHlp
 }
 
-func (bnd *bndFloat32Slice) bindOra(values []Float32, position int, stmt *Stmt) (int, error) {
+func (bnd *bndFloat32Slice) bindOra(values []Float32, position int, stmt *Stmt) (uint32, error) {
 	if cap(bnd.floats) < cap(values) {
 		bnd.floats = make([]float32, len(values), cap(values))
 	} else {
@@ -38,17 +38,18 @@ func (bnd *bndFloat32Slice) bindOra(values []Float32, position int, stmt *Stmt) 
 		if values[n].IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
+			bnd.nullInds[n] = 0
 			bnd.floats[n] = values[n].Value
 		}
 	}
 	return bnd.bind(bnd.floats, position, stmt)
 }
 
-func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (iterations int, err error) {
-	iterations = 1
+func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	if bnd.ensureBindArrLength(&L, &C) {
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	if needAppend {
 		values = append(values, 0)
 	}
 	bnd.floats = values
@@ -68,16 +69,9 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
-	bnd.curlen = C.ACTUAL_LENGTH_TYPE(len(bnd.ociNumbers)) // the real length, not L!
-	var curlenp *C.ub4
-	if stmt.stmtType == C.OCI_STMT_BEGIN || stmt.stmtType == C.OCI_STMT_DECLARE {
-		// for PL/SQL associative arrays
-		curlenp = &bnd.curlen
-	} else {
-		iterations = len(bnd.ociNumbers)
-	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"Float32Slice.bind(%d) cap=%d len=%d curlen=%d curlenp=%p", position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
+		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p iterations=%d",
+		bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp, iterations)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),                //OCIBind      **bindpp,
@@ -98,10 +92,10 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
-		C.ub4(C.sizeof_OCINumber), //ub4         pvskip,
-		C.ub4(C.sizeof_sb2),       //ub4         indskip,
-		C.ub4(C.sizeof_ub4),       //ub4         alskip,
-		C.ub4(C.sizeof_ub2))       //ub4         rcskip
+		C.ub4(C.sizeof_OCINumber),          //ub4         pvskip,
+		C.ub4(C.sizeof_sb2),                //ub4         indskip,
+		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
+		C.ub4(C.sizeof_ub2))                //ub4         rcskip
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
@@ -109,20 +103,26 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 }
 
 func (bnd *bndFloat32Slice) setPtr() error {
+	if !bnd.IsAssocArr() {
+		return nil
+	}
 	n := int(bnd.curlen)
-	bnd.values = bnd.values[:n]
+	bnd.floats = bnd.floats[:n]
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
-			bnd.values[i].IsNull = false
 			r := C.OCINumberToReal(
-				bnd.stmt.ses.srv.env.ocierr,          //OCIError              *err,
-				&number,                              //const OCINumber     *number,
-				C.uword(4),                           //uword               rsl_length,
-				unsafe.Pointer(&bnd.values[i].Value)) //void                *rsl );
+				bnd.stmt.ses.srv.env.ocierr,    //OCIError              *err,
+				&number,                        //const OCINumber     *number,
+				C.uword(4),                     //uword               rsl_length,
+				unsafe.Pointer(&bnd.floats[i])) //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
-		} else {
+			if bnd.values != nil {
+				bnd.values[i].IsNull = false
+				bnd.values[i].Value = bnd.floats[i]
+			}
+		} else if bnd.values != nil {
 			bnd.values[i].IsNull = true
 		}
 	}
@@ -139,9 +139,8 @@ func (bnd *bndFloat32Slice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociNumbers = bnd.ociNumbers[:0]
 	bnd.values = nil
-	bnd.floats = bnd.floats[:0]
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxFloat32Slice, bnd)
 	return nil
 }

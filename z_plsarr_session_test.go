@@ -8,21 +8,22 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/rana/ora.v2"
 )
 
-func Test_plsarr_session(t *testing.T) {
+func Test_plsarr_num_session(t *testing.T) {
 	for _, qry := range []string{
-		`CREATE OR REPLACE PACKAGE TST_ora AS
+		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_num AS
   TYPE pls_tab_typ IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
   PROCEDURE slice(p_nums IN pls_tab_typ);
   FUNCTION count_slice_vc(p_nums IN pls_tab_typ) RETURN VARCHAR2;
   FUNCTION count_slice_int(p_nums IN pls_tab_typ) RETURN PLS_INTEGER;
   FUNCTION sum_slice_vc(p_nums IN pls_tab_typ) RETURN VARCHAR2;
   FUNCTION sum_slice_num(p_nums IN pls_tab_typ) RETURN NUMBER;
-END TST_ora;`,
-		`CREATE OR REPLACE PACKAGE BODY TST_ora AS
+END TST_ora_plsarr_num;`,
+		`CREATE OR REPLACE PACKAGE BODY TST_ora_plsarr_num AS
   PROCEDURE slice(p_nums IN pls_tab_typ) IS
   BEGIN
     NULL;
@@ -53,7 +54,7 @@ END TST_ora;`,
     END LOOP;
     RETURN s;
   END sum_slice_num;
-END TST_ora;`,
+END TST_ora_plsarr_num;`,
 	} {
 		if _, err := testSes.PrepAndExe(qry); err != nil {
 			t.Fatal(err)
@@ -89,11 +90,11 @@ END TST_ora;`,
 			params []interface{}
 			await  interface{}
 		}{
-			{"BEGIN TST_ora.slice(:1); END;", []interface{}{numbers}, nil},
-			{"BEGIN :1 := TST_ora.count_slice_vc(:2); END;", []interface{}{&retStr, numbers}, "COUNT=9"},
-			{"BEGIN :1 := TST_ora.sum_slice_vc(:2); END;", []interface{}{&retStr, numbers}, "SUM=36"},
-			{"BEGIN :1 := TST_ora.count_slice_int(:2); END;", []interface{}{&retInt, numbers}, int32(9)},
-			{"BEGIN :1 := TST_ora.sum_slice_num(:2); END;", []interface{}{&retNum, numbers}, float64(36)},
+			{"BEGIN TST_ora_plsarr_num.slice(:1); END;", []interface{}{numbers}, nil},
+			{"BEGIN :1 := TST_ora_plsarr_num.count_slice_vc(:2); END;", []interface{}{&retStr, numbers}, "COUNT=9"},
+			{"BEGIN :1 := TST_ora_plsarr_num.sum_slice_vc(:2); END;", []interface{}{&retStr, numbers}, "SUM=36"},
+			{"BEGIN :1 := TST_ora_plsarr_num.count_slice_int(:2); END;", []interface{}{&retInt, numbers}, int32(9)},
+			{"BEGIN :1 := TST_ora_plsarr_num.sum_slice_num(:2); END;", []interface{}{&retNum, numbers}, float64(36)},
 		} {
 
 			if _, err := testSes.PrepAndExe(tc.qry, tc.params...); err != nil {
@@ -115,5 +116,79 @@ END TST_ora;`,
 				t.Errorf(prefix+"%d. got %#v, awaited %#v.", i, got, tc.await)
 			}
 		}
+	}
+}
+
+func Test_plsarr_dt_session(t *testing.T) {
+	for _, qry := range []string{
+		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_dt AS
+  TYPE date_tab_typ IS TABLE OF DATE INDEX BY PLS_INTEGER;
+  FUNCTION str_slice_concat(p_strings IN string_tab_typ) RETURN VARCHAR2;
+  FUNCTION date_slice_concat(p_dates IN date_tab_typ) RETURN VARCHAR2;
+END TST_ora_plsarr_dt;`,
+		`CREATE OR REPLACE PACKAGE BODY TST_ora_plsarr_dt AS
+  FUNCTION str_slice_concat(p_strings IN string_tab_typ) RETURN VARCHAR2 IS
+    i PLS_INTEGER;
+    s VARCHAR2(32767);
+  BEGIN
+    i := p_strings.FIRST;
+    WHILE i IS NOT NULL LOOP
+	  s := s||p_strings(i)||CHR(10);
+	  i := p_strings.NEXT(i);
+    END LOOP;
+	RETURN(s);
+  END str_slice_concat;
+  FUNCTION date_slice_concat(p_dates IN date_tab_typ) RETURN VARCHAR2 IS
+    i PLS_INTEGER;
+    s VARCHAR2(32767);
+  BEGIN
+    i := p_dates.FIRST;
+    WHILE i IS NOT NULL LOOP
+	  s := s||TO_CHAR(p_dates(i), 'YYYY-MM-DD HH24:MI:SS')||CHR(10);
+	  i := p_dates.NEXT(i);
+    END LOOP;
+	RETURN(s);
+  END date_slice_concat;
+END TST_ora_plsarr_dt;`,
+	} {
+		if _, err := testSes.PrepAndExe(qry); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	enableLogging(t)
+	var ret string
+	now := time.Now()
+	for i, tc := range []struct {
+		qry    string
+		params []interface{}
+		await  string
+	}{
+		{
+			"BEGIN :1 := TST_ora_plsarr_dt.date_slice_concat(:2); END;",
+			[]interface{}{&ret, []ora.Time{{Value: now}, {Value: now.Add(-24 * time.Hour)}}},
+			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02T15:04:05"),
+		},
+		{
+			"BEGIN :1 := TST_ora_plsarr_dt.str_slice_concat(:2); END;",
+			[]interface{}{&ret, []string{"a", "Bb", "cCc", "dDdD", "árvíztűrő tükörfúrógép"}},
+			"a\nBb\ncCc\ndDdD\nárvíztűrő tükörfúrógép",
+		},
+	} {
+		if _, err := testSes.PrepAndExe(tc.qry, tc.params...); err != nil {
+			t.Fatalf("%d. %q (%#v): %v", i, tc.qry, tc.params, err)
+		}
+		if len(tc.params) == 0 {
+			continue
+		}
+		if tc.params[0] == nil {
+			t.Errorf("%d. got nil", i)
+			continue
+		}
+		t.Logf("%d: got %#v, awaited %#v", i, ret, tc.await)
+		if ret != tc.await {
+			t.Errorf("%d. got %#v, awaited %#v.", i, ret, tc.await)
+		}
+
 	}
 }
