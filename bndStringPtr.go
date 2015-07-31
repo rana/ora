@@ -57,7 +57,7 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 		bnd.alen = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"StringPtr.bind(%d) cap=%d len=%d alen=%d", position, cap(bnd.buf), len(bnd.buf), bnd.alen)
+		"%p pos=%d cap=%d len=%d alen=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,

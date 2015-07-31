@@ -21,30 +21,49 @@ type bndTimeSlice struct {
 	ocibnd       *C.OCIBind
 	ociDateTimes []*C.OCIDateTime
 	zoneBuf      bytes.Buffer
+	values       []Time
+	times        []time.Time
+	arrHlp
 }
 
-func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt) error {
-	timeValues := make([]time.Time, len(values))
-	nullInds := make([]C.sb2, len(values))
+func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt) (uint32, error) {
+	bnd.values = values
+	if cap(bnd.times) < cap(values) {
+		bnd.times = make([]time.Time, len(values), cap(values))
+	} else {
+		bnd.times = bnd.times[:len(values)]
+	}
+	if cap(bnd.nullInds) < cap(values) {
+		bnd.nullInds = make([]C.sb2, len(values), cap(values))
+	} else {
+		bnd.nullInds = bnd.nullInds[:len(values)]
+	}
 	for n, _ := range values {
 		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			timeValues[n] = values[n].Value
+			bnd.nullInds[0] = 0
+			bnd.times[n] = values[n].Value
 		}
 	}
-	return bnd.bind(timeValues, nullInds, position, stmt)
+	return bnd.bind(bnd.times, position, stmt)
 }
 
-func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int, stmt *Stmt) error {
+func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	bnd.ociDateTimes = make([]*C.OCIDateTime, len(values))
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	L, C := len(values), cap(values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	if needAppend {
+		values = append(values, time.Time{})
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
+	bnd.times = values
+	if cap(bnd.ociDateTimes) < C {
+		bnd.ociDateTimes = make([]*C.OCIDateTime, L, C)
+	} else {
+		bnd.ociDateTimes = bnd.ociDateTimes[:L]
+	}
 	for n, timeValue := range values {
+		bnd.zoneBuf.Reset()
 		timezoneStr := zoneOffset(timeValue, &bnd.zoneBuf)
 		cTimezoneStr := C.CString(timezoneStr)
 		defer func() {
@@ -57,9 +76,9 @@ func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int
 			0,   //size_t        xtramem_sz,
 			nil) //dvoid         **usrmempp);
 		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+			return iterations, bnd.stmt.ses.srv.env.ociError()
 		} else if r == C.OCI_INVALID_HANDLE {
-			return errNew("unable to allocate oci timestamp handle during bind")
+			return iterations, errNew("unable to allocate oci timestamp handle during bind")
 		}
 		r = C.OCIDateTimeConstruct(
 			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //dvoid         *hndl,
@@ -75,11 +94,16 @@ func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int
 			(*C.OraText)(unsafe.Pointer(cTimezoneStr)),  //OraText       *timezone,
 			C.size_t(len(timezoneStr)))                  //size_t        timezone_length );
 		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
-		alenp[n] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[n]))
+		bnd.alen[n] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[n]))
 	}
 
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
+		bnd, position, cap(bnd.ociDateTimes), len(bnd.ociDateTimes), bnd.curlen, curlenp,
+		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
+		bnd.alen)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),                        //OCIBind      **bindpp,
@@ -88,29 +112,46 @@ func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int
 		unsafe.Pointer(&bnd.ociDateTimes[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
 		C.SQLT_TIMESTAMP_TZ,                               //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),                      //void         *indp,
-		&alenp[0],                                         //ub2          *alenp,
-		&rcodep[0],                                        //ub2          *rcodep,
-		0,                                                 //ub4          maxarr_len,
-		nil,                                               //ub4          *curelep,
+		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
+		&bnd.alen[0],                                      //ub2          *alenp,
+		&bnd.rcode[0],                                     //ub2          *rcodep,
+		C.ACTUAL_LENGTH_TYPE(C),                           //ub4          maxarr_len,
+		curlenp,                                           //ub4          *curelep,
 		C.OCI_DEFAULT)                                     //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	r = C.OCIBindArrayOfStruct(
-		bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,
-		C.ub4(unsafe.Sizeof(bnd.ociDateTimes[0])), //ub4         pvskip,
-		C.ub4(C.sizeof_sb2),                       //ub4         indskip,
-		C.ub4(C.sizeof_ub4),                       //ub4         alskip,
-		C.ub4(C.sizeof_ub2))                       //ub4         rcskip
-	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	/*
+		r = C.OCIBindArrayOfStruct(
+			bnd.ocibnd,
+			bnd.stmt.ses.srv.env.ocierr,
+			C.ub4(unsafe.Sizeof(bnd.ociDateTimes[0])), //ub4         pvskip,
+			C.ub4(C.sizeof_sb2),                       //ub4         indskip,
+			C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE),        //ub4         alskip,
+			C.ub4(C.sizeof_ub2))                       //ub4         rcskip
+		if r == C.OCI_ERROR {
+			return iterations, bnd.stmt.ses.srv.env.ociError()
+		}*/
+	return iterations, nil
 }
 
 func (bnd *bndTimeSlice) setPtr() error {
+	n := int(bnd.curlen)
+	bnd.times = bnd.times[:n]
+	var err error
+	for i, dt := range bnd.ociDateTimes[:n] {
+		if bnd.nullInds[i] > C.sb2(-1) {
+			if bnd.times[i], err = getTime(bnd.stmt.ses.srv.env, dt); err != nil {
+				return err
+			}
+			if bnd.values != nil {
+				bnd.values[i].IsNull = false
+				bnd.values[i].Value = bnd.times[i]
+			}
+		} else if bnd.values != nil {
+			bnd.values[i].IsNull = true
+		}
+	}
 	return nil
 }
 
@@ -120,7 +161,7 @@ func (bnd *bndTimeSlice) free(n int) {
 	}()
 	C.OCIDescriptorFree(
 		unsafe.Pointer(bnd.ociDateTimes[n]), //void     *descp,
-		C.OCI_DTYPE_TIMESTAMP_TZ)            //ub4      type );
+		C.OCI_DTYPE_DATE)                    //ub4      type );
 }
 
 func (bnd *bndTimeSlice) close() (err error) {
@@ -136,8 +177,9 @@ func (bnd *bndTimeSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociDateTimes = nil
 	bnd.zoneBuf.Reset()
+	bnd.values = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxTimeSlice, bnd)
 	return nil
 }

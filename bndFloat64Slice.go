@@ -24,7 +24,7 @@ type bndFloat64Slice struct {
 	arrHlp
 }
 
-func (bnd *bndFloat64Slice) bindOra(values []Float64, position int, stmt *Stmt) (int, error) {
+func (bnd *bndFloat64Slice) bindOra(values []Float64, position int, stmt *Stmt) (uint32, error) {
 	if cap(bnd.floats) < cap(values) {
 		bnd.floats = make([]float64, len(values), cap(values))
 	} else {
@@ -40,18 +40,19 @@ func (bnd *bndFloat64Slice) bindOra(values []Float64, position int, stmt *Stmt) 
 		if values[n].IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
+			bnd.nullInds[n] = 0
 			bnd.floats[n] = values[n].Value
 		}
 	}
 	return bnd.bind(bnd.floats, position, stmt)
 }
 
-func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (iterations int, err error) {
-	iterations = 1
+func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
 	L, C := len(values), cap(values)
-	if bnd.ensureBindArrLength(&L, &C) {
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	if needAppend {
 		values = append(values, 0)
 	}
 	bnd.floats = values
@@ -72,14 +73,6 @@ func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (it
 			err = bnd.stmt.ses.srv.env.ociError()
 			return
 		}
-	}
-	bnd.curlen = C.ACTUAL_LENGTH_TYPE(len(values)) // the actual length, not L!
-	var curlenp *C.ub4
-	if stmt.stmtType == C.OCI_STMT_BEGIN || stmt.stmtType == C.OCI_STMT_DECLARE {
-		// for PL/SQL associative arrays
-		curlenp = &bnd.curlen
-	} else {
-		iterations = len(values)
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
@@ -103,10 +96,10 @@ func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (it
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
-		C.ub4(C.sizeof_OCINumber), //ub4         pvskip,
-		C.ub4(C.sizeof_sb2),       //ub4         indskip,
-		C.ub4(C.sizeof_ub4),       //ub4         alskip,
-		C.ub4(C.sizeof_ub2))       //ub4         rcskip
+		C.ub4(C.sizeof_OCINumber),          //ub4         pvskip,
+		C.ub4(C.sizeof_sb2),                //ub4         indskip,
+		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
+		C.ub4(C.sizeof_ub2))                //ub4         rcskip
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
@@ -114,6 +107,9 @@ func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (it
 }
 
 func (bnd *bndFloat64Slice) setPtr() error {
+	if !bnd.IsAssocArr() {
+		return nil
+	}
 	n := int(bnd.curlen)
 	bnd.floats = bnd.floats[:n]
 	for i, number := range bnd.ociNumbers[:n] {
@@ -147,13 +143,8 @@ func (bnd *bndFloat64Slice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociNumbers = bnd.ociNumbers[:0]
-	ni := bnd.nullInds[:cap(bnd.nullInds)]
-	for i := range ni {
-		ni[i] = 0
-	}
 	bnd.values = nil
-	bnd.floats = bnd.floats[:0]
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxFloat64Slice, bnd)
 	return nil
 }
