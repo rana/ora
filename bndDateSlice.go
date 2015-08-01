@@ -6,26 +6,35 @@ package ora
 
 /*
 #include <oci.h>
+#include <stdlib.h>
 #include "version.h"
+
+const ACTUAL_LENGTH_TYPE sof_OCIDate = sizeof(OCIDate *);
 */
 import "C"
-import "unsafe"
+import (
+	"bytes"
+	"time"
+	"unsafe"
+)
 
-type bndStringSlice struct {
-	stmt    *Stmt
-	ocibnd  *C.OCIBind
-	bytes   []byte
-	strings []string
-	values  []String
-	maxLen  int
+type bndDateSlice struct {
+	stmt     *Stmt
+	ocibnd   *C.OCIBind
+	ociDates []C.OCIDate
+	zoneBuf  bytes.Buffer
+	values   []Date
+	times    []time.Time
+	dtype    C.ub4
 	arrHlp
 }
 
-func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt) (uint32, error) {
-	if cap(bnd.strings) < cap(values) {
-		bnd.strings = make([]string, len(values), cap(values))
+func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt) (uint32, error) {
+	bnd.values = values
+	if cap(bnd.times) < cap(values) {
+		bnd.times = make([]time.Time, len(values), cap(values))
 	} else {
-		bnd.strings = bnd.strings[:len(values)]
+		bnd.times = bnd.times[:len(values)]
 	}
 	if cap(bnd.nullInds) < cap(values) {
 		bnd.nullInds = make([]C.sb2, len(values), cap(values))
@@ -36,50 +45,46 @@ func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt) (u
 		if values[n].IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			bnd.nullInds[n] = 0
-			bnd.strings[n] = values[n].Value
+			bnd.nullInds[0] = 0
+			bnd.times[n] = values[n].Value
 		}
 	}
-	return bnd.bind(bnd.strings, position, stmt)
+	return bnd.bind(bnd.times, position, stmt)
 }
 
-func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
 	if needAppend {
-		values = append(values, "")
+		values = append(values, time.Time{})
 	}
-	bnd.strings = values
-	bnd.maxLen = stmt.cfg.stringPtrBufferSize
-	for _, str := range values {
-		strLen := len(str)
-		if strLen > bnd.maxLen {
-			bnd.maxLen = strLen
-		}
-	}
-	if cap(bnd.bytes) < bnd.maxLen*C {
-		bnd.bytes = make([]byte, bnd.maxLen*L, bnd.maxLen*C)
+	bnd.times = values
+	if cap(bnd.ociDates) < C {
+		bnd.ociDates = make([]C.OCIDate, L, C)
 	} else {
-		bnd.bytes = bnd.bytes[:bnd.maxLen*L]
+		bnd.ociDates = bnd.ociDates[:L]
 	}
-	for m, str := range values {
-		copy(bnd.bytes[m*bnd.maxLen:], []byte(str))
-		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
+	valueSz := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCIDate)
+	for n, timeValue := range values {
+		ociSetDateTime(&bnd.ociDates[n], timeValue)
+		bnd.alen[n] = valueSz
 	}
+
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
-		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
+		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
+		bnd, position, cap(bnd.ociDates), len(bnd.ociDates), bnd.curlen, curlenp,
+		valueSz, bnd.alen)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),       //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
 		C.ub4(position),                  //ub4          position,
-		unsafe.Pointer(&bnd.bytes[0]),    //void         *valuep,
-		C.LENGTH_TYPE(bnd.maxLen),        //sb8          value_sz,
-		C.SQLT_CHR,                       //ub2          dty,
+		unsafe.Pointer(&bnd.ociDates[0]), //void         *valuep,
+		C.LENGTH_TYPE(valueSz),           //sb8          value_sz,
+		C.SQLT_ODT,                       //ub2          dty,
 		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
-		&bnd.alen[0],                     //ub4          *alenp,
+		&bnd.alen[0],                     //ub2          *alenp,
 		&bnd.rcode[0],                    //ub2          *rcodep,
 		C.ACTUAL_LENGTH_TYPE(C),          //ub4          maxarr_len,
 		curlenp,                          //ub4          *curelep,
@@ -90,7 +95,7 @@ func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt) (iter
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
-		C.ub4(bnd.maxLen),                  //ub4         pvskip,
+		valueSz,                            //ub4         pvskip,
 		C.ub4(C.sizeof_sb2),                //ub4         indskip,
 		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
 		C.ub4(C.sizeof_ub2))                //ub4         rcskip
@@ -100,22 +105,22 @@ func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt) (iter
 	return iterations, nil
 }
 
-func (bnd *bndStringSlice) setPtr() error {
-	if !bnd.IsAssocArr() {
+func (bnd *bndDateSlice) setPtr() error {
+	if !bnd.isAssocArr {
 		return nil
 	}
 	n := int(bnd.curlen)
-	bnd.strings = bnd.strings[:n]
+	bnd.times = bnd.times[:n]
 	bnd.nullInds = bnd.nullInds[:n]
 	if bnd.values != nil {
 		bnd.values = bnd.values[:n]
 	}
-	for i, length := range bnd.alen[:n] {
+	for i, dt := range bnd.ociDates[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
-			bnd.strings[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
+			bnd.times[i] = ociGetDateTime(dt)
 			if bnd.values != nil {
 				bnd.values[i].IsNull = false
-				bnd.values[i].Value = bnd.strings[i]
+				bnd.values[i].Value = bnd.times[i]
 			}
 		} else if bnd.values != nil {
 			bnd.values[i].IsNull = true
@@ -124,7 +129,7 @@ func (bnd *bndStringSlice) setPtr() error {
 	return nil
 }
 
-func (bnd *bndStringSlice) close() (err error) {
+func (bnd *bndDateSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -136,6 +141,6 @@ func (bnd *bndStringSlice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.values = nil
 	bnd.arrHlp.close()
-	stmt.putBnd(bndIdxStringSlice, bnd)
+	stmt.putBnd(bndIdxDateSlice, bnd)
 	return nil
 }

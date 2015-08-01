@@ -255,6 +255,10 @@ func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 	}
 	var errors []CompileError
 	for rset.Next() {
+		warn := rset.Row[7].(string) == "WARNING"
+		if warn && !all {
+			continue
+		}
 		errors = append(errors,
 			CompileError{
 				Owner:    rset.Row[0].(string),
@@ -264,7 +268,8 @@ func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 				Position: rset.Row[4].(int64),
 				Code:     rset.Row[5].(int64),
 				Text:     rset.Row[6].(string),
-				Warning:  rset.Row[7].(string) == "WARNING"})
+				Warning:  warn,
+			})
 	}
 	return errors, nil
 }

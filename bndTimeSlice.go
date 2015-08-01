@@ -8,13 +8,18 @@ package ora
 #include <oci.h>
 #include <stdlib.h>
 #include "version.h"
+
+const ACTUAL_LENGTH_TYPE sof_OCIDateTime = sizeof(OCIDateTime *);
 */
 import "C"
 import (
 	"bytes"
+	"fmt"
 	"time"
 	"unsafe"
 )
+
+var checkDateTime bool = true
 
 type bndTimeSlice struct {
 	stmt         *Stmt
@@ -62,13 +67,24 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 	} else {
 		bnd.ociDateTimes = bnd.ociDateTimes[:L]
 	}
+	valueSz := C.ACTUAL_LENGTH_TYPE(C.sof_OCIDateTime)
+	type tzDual struct {
+		g string
+		c *C.char
+	}
+	timezones := make(map[int]tzDual, 2)
 	for n, timeValue := range values {
-		bnd.zoneBuf.Reset()
-		timezoneStr := zoneOffset(timeValue, &bnd.zoneBuf)
-		cTimezoneStr := C.CString(timezoneStr)
-		defer func() {
-			C.free(unsafe.Pointer(cTimezoneStr))
-		}()
+		_, off := timeValue.Zone()
+		tz, ok := timezones[off]
+		if !ok {
+			bnd.zoneBuf.Reset()
+			timezoneStr := zoneOffset(timeValue, &bnd.zoneBuf)
+			tz = tzDual{g: timezoneStr, c: C.CString(timezoneStr)}
+			timezones[off] = tz
+			defer func() {
+				C.free(unsafe.Pointer(tz.c))
+			}()
+		}
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociDateTimes[n])), //dvoid         **descpp,
@@ -91,51 +107,66 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 			C.ub1(timeValue.Minute()),                   //ub1           min,
 			C.ub1(timeValue.Second()),                   //ub1           sec,
 			C.ub4(timeValue.Nanosecond()),               //ub4           fsec,
-			(*C.OraText)(unsafe.Pointer(cTimezoneStr)),  //OraText       *timezone,
-			C.size_t(len(timezoneStr)))                  //size_t        timezone_length );
+			(*C.OraText)(unsafe.Pointer(tz.c)),          //OraText       *timezone,
+			C.size_t(len(tz.g)))                         //size_t        timezone_length );
 		if r == C.OCI_ERROR {
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
-		bnd.alen[n] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[n]))
+		bnd.alen[n] = valueSz
+
+		if checkDateTime {
+			var valid C.ub4
+			r = C.OCIDateTimeCheck(unsafe.Pointer(bnd.stmt.ses.ocises),
+				bnd.stmt.ses.srv.env.ocierr,
+				bnd.ociDateTimes[n],
+				&valid)
+			if r == C.OCI_ERROR {
+				return iterations, bnd.stmt.ses.srv.env.ociError()
+			}
+			if valid != 0 {
+				return iterations, fmt.Errorf("%s given bad date: %d", timeValue, valid)
+			}
+		}
 	}
 
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
 		bnd, position, cap(bnd.ociDateTimes), len(bnd.ociDateTimes), bnd.curlen, curlenp,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
-		bnd.alen)
+		valueSz, bnd.alen)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                        //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
-		C.ub4(position),                                   //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTimes[0]),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                               //ub2          dty,
-		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
-		&bnd.alen[0],                                      //ub2          *alenp,
-		&bnd.rcode[0],                                     //ub2          *rcodep,
-		C.ACTUAL_LENGTH_TYPE(C),                           //ub4          maxarr_len,
-		curlenp,                                           //ub4          *curelep,
-		C.OCI_DEFAULT)                                     //ub4          mode );
+		bnd.stmt.ocistmt,                     //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),           //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,          //OCIError     *errhp,
+		C.ub4(position),                      //ub4          position,
+		unsafe.Pointer(&bnd.ociDateTimes[0]), //void         *valuep,
+		C.LENGTH_TYPE(valueSz),               //sb8          value_sz,
+		C.ub2(C.SQLT_TIMESTAMP_TZ),           //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]),     //void         *indp,
+		&bnd.alen[0],                         //ub2          *alenp,
+		&bnd.rcode[0],                        //ub2          *rcodep,
+		C.ACTUAL_LENGTH_TYPE(C),              //ub4          maxarr_len,
+		curlenp,                              //ub4          *curelep,
+		C.OCI_DEFAULT)                        //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	/*
-		r = C.OCIBindArrayOfStruct(
-			bnd.ocibnd,
-			bnd.stmt.ses.srv.env.ocierr,
-			C.ub4(unsafe.Sizeof(bnd.ociDateTimes[0])), //ub4         pvskip,
-			C.ub4(C.sizeof_sb2),                       //ub4         indskip,
-			C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE),        //ub4         alskip,
-			C.ub4(C.sizeof_ub2))                       //ub4         rcskip
-		if r == C.OCI_ERROR {
-			return iterations, bnd.stmt.ses.srv.env.ociError()
-		}*/
+	r = C.OCIBindArrayOfStruct(
+		bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,
+		valueSz,                            //ub4         pvskip,
+		C.ub4(C.sizeof_sb2),                //ub4         indskip,
+		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
+		C.ub4(C.sizeof_ub2))                //ub4         rcskip
+	if r == C.OCI_ERROR {
+		return iterations, bnd.stmt.ses.srv.env.ociError()
+	}
 	return iterations, nil
 }
 
 func (bnd *bndTimeSlice) setPtr() error {
+	if bnd.isAssocArr {
+		return nil
+	}
 	n := int(bnd.curlen)
 	bnd.times = bnd.times[:n]
 	var err error
@@ -161,7 +192,7 @@ func (bnd *bndTimeSlice) free(n int) {
 	}()
 	C.OCIDescriptorFree(
 		unsafe.Pointer(bnd.ociDateTimes[n]), //void     *descp,
-		C.OCI_DTYPE_DATE)                    //ub4      type );
+		C.OCI_DTYPE_TIMESTAMP_TZ)            //ub4      type );
 }
 
 func (bnd *bndTimeSlice) close() (err error) {
