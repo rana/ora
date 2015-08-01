@@ -5,6 +5,7 @@
 package ora_test
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -59,6 +60,7 @@ END TST_ora_plsarr_num;`,
 		if _, err := testSes.PrepAndExe(qry); err != nil {
 			t.Fatal(err)
 		}
+		checkCompile(t, testSes)
 	}
 
 	enableLogging(t)
@@ -122,7 +124,8 @@ END TST_ora_plsarr_num;`,
 func Test_plsarr_dt_session(t *testing.T) {
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_dt AS
-  TYPE date_tab_typ IS TABLE OF DATE INDEX BY PLS_INTEGER;
+  TYPE string_tab_typ IS TABLE OF VARCHAR2(1000) INDEX BY PLS_INTEGER;
+  TYPE date_tab_typ IS TABLE OF TIMESTAMP WITH TIME ZONE INDEX BY PLS_INTEGER;
   FUNCTION str_slice_concat(p_strings IN string_tab_typ) RETURN VARCHAR2;
   FUNCTION date_slice_concat(p_dates IN date_tab_typ) RETURN VARCHAR2;
 END TST_ora_plsarr_dt;`,
@@ -154,6 +157,7 @@ END TST_ora_plsarr_dt;`,
 		if _, err := testSes.PrepAndExe(qry); err != nil {
 			t.Fatal(err)
 		}
+		checkCompile(t, testSes)
 	}
 
 	enableLogging(t)
@@ -190,5 +194,19 @@ END TST_ora_plsarr_dt;`,
 			t.Errorf("%d. got %#v, awaited %#v.", i, ret, tc.await)
 		}
 
+	}
+}
+
+func checkCompile(t *testing.T, testSes *ora.Ses) {
+	errs, err := ora.GetCompileErrors(testSes, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(errs) != 0 {
+		errS := make([]string, len(errs))
+		for i, ce := range errs {
+			errS[i] = ce.Error()
+		}
+		t.Fatal(errors.New(strings.Join(errS, "\n")))
 	}
 }

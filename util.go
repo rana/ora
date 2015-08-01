@@ -224,3 +224,47 @@ func errE(e error) (err error) {
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
 }
+
+// CompileError represents a compile-time error as in user_errors view.
+type CompileError struct {
+	Owner, Name, Type    string
+	Line, Position, Code int64
+	Text                 string
+	Warning              bool
+}
+
+func (ce CompileError) Error() string {
+	prefix := "ERROR "
+	if ce.Warning {
+		prefix = "WARN  "
+	}
+	return fmt.Sprintf("%s %s.%s %s %d:%d [%d] %s",
+		prefix, ce.Owner, ce.Name, ce.Type, ce.Line, ce.Position, ce.Code, ce.Text)
+}
+
+// GetCompileErrors returns the slice of the errors in user_errors.
+//
+// If all is false, only errors are returned; otherwise, warnings, too.
+func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
+	rset, err := ses.PrepAndQry(`
+	SELECT USER owner, name, type, line, position, message_number, text, attribute
+		FROM user_errors
+		ORDER BY name, sequence`)
+	if err != nil {
+		return nil, err
+	}
+	var errors []CompileError
+	for rset.Next() {
+		errors = append(errors,
+			CompileError{
+				Owner:    rset.Row[0].(string),
+				Name:     rset.Row[1].(string),
+				Type:     rset.Row[2].(string),
+				Line:     rset.Row[3].(int64),
+				Position: rset.Row[4].(int64),
+				Code:     rset.Row[5].(int64),
+				Text:     rset.Row[6].(string),
+				Warning:  rset.Row[7].(string) == "WARNING"})
+	}
+	return errors, nil
+}
