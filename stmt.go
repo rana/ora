@@ -795,6 +795,31 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+			case Date:
+				if value.IsNull {
+					stmt.setNilBind(n, C.SQLT_DAT)
+				} else {
+					bnd := stmt.getBnd(bndIdxDate).(*bndDate)
+					stmt.bnds[n] = bnd
+					err = bnd.bind(value.Value, n+1, stmt)
+					if err != nil {
+						return iterations, err
+					}
+				}
+			case *Date:
+				bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
+				stmt.bnds[n] = bnd
+				if err = bnd.bind(value, n+1, stmt); err != nil {
+					return iterations, err
+				}
+				stmt.hasPtrBind = true
+			case []Date:
+				bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
+				stmt.bnds[n] = bnd
+				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+					return iterations, err
+				}
+
 			case string:
 				bnd := stmt.getBnd(bndIdxString).(*bndString)
 				stmt.bnds[n] = bnd

@@ -108,6 +108,10 @@ func (bnd *bndFloat32Slice) setPtr() error {
 	}
 	n := int(bnd.curlen)
 	bnd.floats = bnd.floats[:n]
+	bnd.nullInds = bnd.nullInds[:n]
+	if bnd.values != nil {
+		bnd.values = bnd.values[:n]
+	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
 			r := C.OCINumberToReal(

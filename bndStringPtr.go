@@ -83,7 +83,10 @@ func (bnd *bndStringPtr) setPtr() error {
 		"StringPtr.setPtr isNull=%d alen=%d", bnd.isNull, bnd.alen)
 	if bnd.isNull > C.sb2(-1) {
 		*bnd.value = string(bnd.buf[:bnd.alen])
+	} else {
+		*bnd.value = ""
 	}
+
 	return nil
 }
 

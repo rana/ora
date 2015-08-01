@@ -125,7 +125,7 @@ func Test_plsarr_dt_session(t *testing.T) {
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_dt AS
   TYPE string_tab_typ IS TABLE OF VARCHAR2(1000) INDEX BY PLS_INTEGER;
-  TYPE date_tab_typ IS TABLE OF TIMESTAMP WITH TIME ZONE INDEX BY PLS_INTEGER;
+  TYPE date_tab_typ IS TABLE OF DATE INDEX BY PLS_INTEGER;
   FUNCTION str_slice_concat(p_strings IN string_tab_typ) RETURN VARCHAR2;
   FUNCTION date_slice_concat(p_dates IN date_tab_typ) RETURN VARCHAR2;
 END TST_ora_plsarr_dt;`,
@@ -169,14 +169,14 @@ END TST_ora_plsarr_dt;`,
 		await  string
 	}{
 		{
-			"BEGIN :1 := TST_ora_plsarr_dt.date_slice_concat(:2); END;",
-			[]interface{}{&ret, []ora.Time{{Value: now}, {Value: now.Add(-24 * time.Hour)}}},
-			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02T15:04:05"),
-		},
-		{
 			"BEGIN :1 := TST_ora_plsarr_dt.str_slice_concat(:2); END;",
 			[]interface{}{&ret, []string{"a", "Bb", "cCc", "dDdD", "árvíztűrő tükörfúrógép"}},
-			"a\nBb\ncCc\ndDdD\nárvíztűrő tükörfúrógép",
+			"a\nBb\ncCc\ndDdD\nárvíztűrő tükörfúrógép\n",
+		},
+		{
+			"BEGIN :1 := TST_ora_plsarr_dt.date_slice_concat(:2); END;",
+			[]interface{}{&ret, []ora.Date{{Value: now}, {Value: now.Add(-24 * time.Hour)}}},
+			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02 15:04:05") + "\n",
 		},
 	} {
 		if _, err := testSes.PrepAndExe(tc.qry, tc.params...); err != nil {

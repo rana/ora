@@ -83,8 +83,10 @@ func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndTimePtr) setPtr() (err error) {
-	if bnd.value != nil && bnd.isNull > C.sb2(-1) {
-		*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.ociDateTime)
+	if bnd.value != nil {
+		if bnd.isNull > C.sb2(-1) {
+			*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.ociDateTime)
+		}
 	}
 	return err
 }

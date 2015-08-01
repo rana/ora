@@ -111,7 +111,13 @@ func (bnd *bndFloat64Slice) setPtr() error {
 		return nil
 	}
 	n := int(bnd.curlen)
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "%p n=%d cap(numbers)=%d cap(values)=%d",
+		bnd, n, cap(bnd.ociNumbers), cap(bnd.values))
 	bnd.floats = bnd.floats[:n]
+	bnd.nullInds = bnd.nullInds[:n]
+	if bnd.values != nil {
+		bnd.values = bnd.values[:n]
+	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
 			r := C.OCINumberToReal(
