@@ -17,29 +17,30 @@ type bndInt64Slice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
-	values     []Int64
+	values     *[]Int64
 	ints       []int64
 	arrHlp
 }
 
-func (bnd *bndInt64Slice) bindOra(values []Int64, position int, stmt *Stmt) (uint32, error) {
-	if cap(bnd.ints) < cap(values) {
-		bnd.ints = make([]int64, len(values), cap(values))
+func (bnd *bndInt64Slice) bindOra(values *[]Int64, position int, stmt *Stmt) (uint32, error) {
+	L, C := len(*values), cap(*values)
+	if cap(bnd.ints) < C {
+		bnd.ints = make([]int64, L, C)
 	} else {
-		bnd.ints = bnd.ints[:len(values)]
+		bnd.ints = bnd.ints[:L]
 	}
-	if cap(bnd.nullInds) < cap(values) {
-		bnd.nullInds = make([]C.sb2, len(values), cap(values))
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
 	} else {
-		bnd.nullInds = bnd.nullInds[:len(values)]
+		bnd.nullInds = bnd.nullInds[:L]
 	}
 	bnd.values = values
-	for n := range values {
-		if values[n].IsNull {
+	for n, v := range *values {
+		if v.IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.ints[n] = values[n].Value
+			bnd.ints[n] = v.Value
 		}
 	}
 	return bnd.bind(bnd.ints, position, stmt)
@@ -108,7 +109,11 @@ func (bnd *bndInt64Slice) setPtr() error {
 	bnd.ints = bnd.ints[:n]
 	bnd.nullInds = bnd.nullInds[:n]
 	if bnd.values != nil {
-		bnd.values = bnd.values[:n]
+		if cap(*bnd.values) < n {
+			*bnd.values = make([]Int64, n)
+		} else {
+			*bnd.values = (*bnd.values)[:n]
+		}
 	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
@@ -122,11 +127,11 @@ func (bnd *bndInt64Slice) setPtr() error {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
 			if bnd.values != nil {
-				bnd.values[i].IsNull = false
-				bnd.values[i].Value = bnd.ints[i]
+				(*bnd.values)[i].IsNull = false
+				(*bnd.values)[i].Value = bnd.ints[i]
 			}
 		} else if bnd.values != nil {
-			bnd.values[i].IsNull = true
+			(*bnd.values)[i].IsNull = true
 		}
 	}
 	return nil

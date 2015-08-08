@@ -25,39 +25,39 @@ type bndStringPtr struct {
 func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	L, C := len(bnd.buf), cap(bnd.buf)
 	if stringPtrBufferSize < 2 {
 		stringPtrBufferSize = 2
 	} else if stringPtrBufferSize%2 == 1 {
 		stringPtrBufferSize++
 	}
+	L, C := len(bnd.buf), cap(bnd.buf)
 	if C < stringPtrBufferSize {
 		bnd.buf = make([]byte, L, stringPtrBufferSize)
+		C = stringPtrBufferSize
 	}
 	if value == nil {
 		bnd.isNull = C.sb2(-1)
 		bnd.alen = 0
 		bnd.buf = bnd.buf[:2]
 	} else {
-		if L%2 == 1 {
-			L++
-			bnd.buf = bnd.buf[:L]
-			bnd.buf[L-1] = 0
-		}
 		if len(*value) == 0 {
 			bnd.buf = bnd.buf[:2] // to be able to address bnd.buf[0]
 			bnd.buf[0], bnd.buf[1] = 0, 0
 		} else {
+			L = len(*value)
 			if L < 2 {
 				L = 2
+			} else if L%2 == 0 {
+				L++
 			}
 			bnd.buf = bnd.buf[:L]
+			bnd.buf[L-1] = 0
 			copy(bnd.buf, []byte(*value))
 		}
 		bnd.alen = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d alen=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen)
+		"%p pos=%d cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen, stringPtrBufferSize)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
