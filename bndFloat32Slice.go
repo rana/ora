@@ -17,29 +17,30 @@ type bndFloat32Slice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
-	values     []Float32
+	values     *[]Float32
 	floats     []float32
 	arrHlp
 }
 
-func (bnd *bndFloat32Slice) bindOra(values []Float32, position int, stmt *Stmt) (uint32, error) {
-	if cap(bnd.floats) < cap(values) {
-		bnd.floats = make([]float32, len(values), cap(values))
+func (bnd *bndFloat32Slice) bindOra(values *[]Float32, position int, stmt *Stmt) (uint32, error) {
+	L, C := len(*values), cap(*values)
+	if cap(bnd.floats) < C {
+		bnd.floats = make([]float32, L, C)
 	} else {
-		bnd.floats = bnd.floats[:len(values)]
+		bnd.floats = bnd.floats[:L]
 	}
-	if cap(bnd.nullInds) < cap(values) {
-		bnd.nullInds = make([]C.sb2, len(values), cap(values))
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
 	} else {
-		bnd.nullInds = bnd.nullInds[:len(values)]
+		bnd.nullInds = bnd.nullInds[:L]
 	}
 	bnd.values = values
-	for n := range values {
-		if values[n].IsNull {
+	for n, v := range *values {
+		if v.IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.floats[n] = values[n].Value
+			bnd.floats[n] = v.Value
 		}
 	}
 	return bnd.bind(bnd.floats, position, stmt)
@@ -110,7 +111,11 @@ func (bnd *bndFloat32Slice) setPtr() error {
 	bnd.floats = bnd.floats[:n]
 	bnd.nullInds = bnd.nullInds[:n]
 	if bnd.values != nil {
-		bnd.values = bnd.values[:n]
+		if cap(*bnd.values) < n {
+			*bnd.values = make([]Float32, n)
+		} else {
+			*bnd.values = (*bnd.values)[:n]
+		}
 	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
@@ -123,11 +128,11 @@ func (bnd *bndFloat32Slice) setPtr() error {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
 			if bnd.values != nil {
-				bnd.values[i].IsNull = false
-				bnd.values[i].Value = bnd.floats[i]
+				(*bnd.values)[i].IsNull = false
+				(*bnd.values)[i].Value = bnd.floats[i]
 			}
 		} else if bnd.values != nil {
-			bnd.values[i].IsNull = true
+			(*bnd.values)[i].IsNull = true
 		}
 	}
 	return nil
