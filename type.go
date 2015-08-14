@@ -417,7 +417,7 @@ func (this *Date) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*time.Time)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // String is a nullable string.
