@@ -69,13 +69,13 @@ func (this Int64) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Int64) UnmarshalJSON(p []byte) error {
+func (this *Int64) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*int64)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Int32 is a nullable int32.
@@ -100,13 +100,14 @@ func (this Int32) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Int32) UnmarshalJSON(p []byte) error {
+func (this *Int32) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*int32)(&this.Value))
+	err := json.Unmarshal(p, &this.Value)
+	return err
 }
 
 // Int16 is a nullable int16.
@@ -124,13 +125,13 @@ func (this Int16) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Int16) UnmarshalJSON(p []byte) error {
+func (this *Int16) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*int16)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Equals returns true when the receiver and specified Int16 are both null,
@@ -155,7 +156,7 @@ func (this Int8) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Int8) UnmarshalJSON(p []byte) error {
+func (this *Int8) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
@@ -193,13 +194,13 @@ func (this Uint64) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Uint64) UnmarshalJSON(p []byte) error {
+func (this *Uint64) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*uint64)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Uint32 is a nullable uint32.
@@ -224,13 +225,13 @@ func (this Uint32) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Uint32) UnmarshalJSON(p []byte) error {
+func (this *Uint32) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*uint32)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Uint16 is a nullable uint16.
@@ -255,13 +256,13 @@ func (this Uint16) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Uint16) UnmarshalJSON(p []byte) error {
+func (this *Uint16) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*uint16)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Uint8 is a nullable uint8.
@@ -286,13 +287,13 @@ func (this Uint8) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(this.Value)
 }
-func (this Uint8) UnmarshalJSON(p []byte) error {
+func (this *Uint8) UnmarshalJSON(p []byte) error {
 	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
 		this.IsNull = true
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*uint8)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Float64 is a nullable float64.
@@ -323,7 +324,7 @@ func (this *Float64) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*float64)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Float32 is a nullable float32.
@@ -354,7 +355,7 @@ func (this *Float32) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*float32)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Time is a nullable time.Time.
@@ -385,7 +386,7 @@ func (this *Time) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*time.Time)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // String is a nullable string.
@@ -425,7 +426,7 @@ func (this *String) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*string)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Bool is a nullable bool.
@@ -459,7 +460,7 @@ func (this *Bool) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*bool)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Raw represents a nullable byte slice for RAW or LONG RAW Oracle values.
@@ -491,7 +492,7 @@ func (this *Raw) UnmarshalJSON(p []byte) error {
 		return nil
 	}
 	this.IsNull = false
-	return json.Unmarshal(p, (*[]byte)(&this.Value))
+	return json.Unmarshal(p, &this.Value)
 }
 
 // Lob's Reader is sent to the DB on bind, if not nil.
