@@ -46,6 +46,11 @@ and library. For example:
 	CGO_CFLAGS=-Ic:/oracle/home/OCI/include/
 	CGO_LDFLAGS=c:/oracle/home/BIN/oci.dll
 
+	// example OS environment variables for Linux with InstantClient 12.1
+	CGO_CFLAGS=-I/usr/lib/oracle/12.1/client64/lib
+	CGO_LDFLAGS=-L/usr/lib/oracle/12.1/client64/lib -lclntsh
+	// maybe you'll need to set LD_LIBRARY_FLAGS or a file under /etc/ld.so.conf.d/ with /usr/lib/oracle/12.1/client64/lib
+
 CGO_CFLAGS identifies the location of the OCI header file. CGO_LDFLAGS identifies
 the location of the OCI library. These locations will vary based on whether an Oracle
 database is locally installed or whether the Oracle instant client libraries are
@@ -993,7 +998,7 @@ ora driver methods. For example:
 // enable logging of the Rset.Next method
 ora.Cfg().Log.Rset.Next = true
 ```
-	
+
 To use the standard Go log package:
 
 ```go
