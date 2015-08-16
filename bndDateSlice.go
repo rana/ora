@@ -86,7 +86,7 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
 		&bnd.alen[0],                     //ub2          *alenp,
 		&bnd.rcode[0],                    //ub2          *rcodep,
-		C.ACTUAL_LENGTH_TYPE(C),          //ub4          maxarr_len,
+		C.ub4(C),                         //ub4          maxarr_len,
 		curlenp,                          //ub4          *curelep,
 		C.OCI_DEFAULT)                    //ub4          mode );
 	if r == C.OCI_ERROR {
@@ -95,7 +95,7 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
-		valueSz,                            //ub4         pvskip,
+		C.ub4(valueSz),                     //ub4         pvskip,
 		C.ub4(C.sizeof_sb2),                //ub4         indskip,
 		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
 		C.ub4(C.sizeof_ub2))                //ub4         rcskip

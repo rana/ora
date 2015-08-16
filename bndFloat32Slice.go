@@ -74,19 +74,19 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p iterations=%d",
 		bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp, iterations)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
-		C.ub4(position),                           //ub4          position,
-		unsafe.Pointer(&bnd.ociNumbers[0]),        //void         *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber),         //sb8          value_sz,
-		C.SQLT_VNU,                                //ub2          dty,
-		unsafe.Pointer(&bnd.nullInds[0]),          //void         *indp,
-		&bnd.alen[0],                              //ub4          *alenp,
-		&bnd.rcode[0],                             //ub2          *rcodep,
-		C.ACTUAL_LENGTH_TYPE(cap(bnd.ociNumbers)), //ub4          maxarr_len,
-		curlenp,       //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
+		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
+		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
+		C.ub4(position),                    //ub4          position,
+		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
+		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
+		C.SQLT_VNU,                         //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
+		&bnd.alen[0],                       //ub4          *alenp,
+		&bnd.rcode[0],                      //ub2          *rcodep,
+		C.ub4(cap(bnd.ociNumbers)),         //ub4          maxarr_len,
+		curlenp,                            //ub4          *curelep,
+		C.OCI_DEFAULT)                      //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

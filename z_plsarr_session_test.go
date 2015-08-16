@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/rana/ora.v2"
+	"gopkg.in/rana/ora.v3"
 )
 
 func Test_plsarr_num_session(t *testing.T) {

@@ -7,7 +7,7 @@ package ora
 import "C"
 
 type arrHlp struct {
-	curlen     C.ACTUAL_LENGTH_TYPE
+	curlen     C.ub4
 	nullInds   []C.sb2
 	alen       []C.ACTUAL_LENGTH_TYPE
 	rcode      []C.ub2
@@ -22,7 +22,7 @@ func (a *arrHlp) ensureBindArrLength(
 	length, capacity *int,
 	stmtType C.ub4,
 ) (iterations uint32, curlenp *C.ub4, needsAppend bool) {
-	a.curlen = C.ACTUAL_LENGTH_TYPE(*length) // the real length, not L!
+	a.curlen = C.ub4(*length) // the real length, not L!
 	if stmtType == C.OCI_STMT_BEGIN || stmtType == C.OCI_STMT_DECLARE {
 		// for PL/SQL associative arrays
 		curlenp = &a.curlen
