@@ -79,6 +79,9 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 }
 
 func (bnd *bndStringPtr) setPtr() error {
+	if bnd.value == nil {
+		return nil
+	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"StringPtr.setPtr isNull=%d alen=%d", bnd.isNull, bnd.alen)
 	if bnd.isNull > C.sb2(-1) {
