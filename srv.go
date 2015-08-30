@@ -45,20 +45,10 @@ type LogSrvCfg struct {
 	// The default is true.
 	OpenSes bool
 
-	// Ping determines whether the Srv.Ping method is logged.
-	//
-	// The default is true.
-	Ping bool
-
 	// Version determines whether the Srv.Version method is logged.
 	//
 	// The default is true.
 	Version bool
-
-	// Break determines whether the Srv.Break method is logged.
-	//
-	// The default is true.
-	Break bool
 }
 
 // NewLogSrvCfg creates a LogSrvCfg with default values.
@@ -66,9 +56,7 @@ func NewLogSrvCfg() LogSrvCfg {
 	c := LogSrvCfg{}
 	c.Close = true
 	c.OpenSes = true
-	c.Ping = true
 	c.Version = true
-	c.Break = true
 	return c
 }
 

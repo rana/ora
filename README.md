@@ -958,14 +958,14 @@ rset, err := ses.Sel("T1",
   "C21", ora.F32)
 ```
 
-The `Srv.Ping` method checks whether the client's connection to an
+The `Ses.Ping` method checks whether the client's connection to an
 Oracle server is valid. A call to `Ping` requires an open Ses. `Ping`
 will return a nil error when the connection is fine:
 
 ```go
 // open a session before calling Ping
 ses, _ := srv.OpenSes("username", "password")
-err := srv.Ping()
+err := ses.Ping()
 if err == nil {
 	fmt.Println("Ping successful")
 }

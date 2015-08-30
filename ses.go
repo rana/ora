@@ -72,6 +72,16 @@ type LogSesCfg struct {
 	//
 	// The default is true.
 	StartTx bool
+
+	// Ping determines whether the Ses.Ping method is logged.
+	//
+	// The default is true.
+	Ping bool
+
+	// Break determines whether the Ses.Break method is logged.
+	//
+	// The default is true.
+	Break bool
 }
 
 // NewLogSesCfg creates a LogSesCfg with default values.
@@ -85,6 +95,8 @@ func NewLogSesCfg() LogSesCfg {
 	c.Upd = true
 	c.Sel = true
 	c.StartTx = true
+	c.Ping = true
+	c.Break = true
 	return c
 }
 
@@ -518,7 +530,7 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 func (ses *Ses) Ping() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Srv.Ping)
+	ses.log(_drv.cfg.Log.Ses.Ping)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -537,7 +549,7 @@ func (ses *Ses) Ping() (err error) {
 func (ses *Ses) Break() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Srv.Break)
+	ses.log(_drv.cfg.Log.Ses.Break)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
