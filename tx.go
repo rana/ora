@@ -83,7 +83,7 @@ func (tx *Tx) Commit() (err error) {
 	}
 	defer tx.closeWithRemove()
 	r := C.OCITransCommit(
-		tx.ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
+		tx.ses.ocisvcctx,  //OCISvcCtx    *svchp,
 		tx.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.OCI_DEFAULT)         //ub4          flags );
 	if r == C.OCI_ERROR {
@@ -110,7 +110,7 @@ func (tx *Tx) Rollback() (err error) {
 	}
 	defer tx.closeWithRemove()
 	r := C.OCITransRollback(
-		tx.ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
+		tx.ses.ocisvcctx,  //OCISvcCtx    *svchp,
 		tx.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.OCI_DEFAULT)         //ub4          flags );
 	if r == C.OCI_ERROR {

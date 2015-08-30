@@ -264,7 +264,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.log(_drv.cfg.Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
-		rset.stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
+		rset.stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
 		rset.ocistmt,                 //OCIStmt             *stmtp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(1),                     //ub4                 iters,

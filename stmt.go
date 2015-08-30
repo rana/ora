@@ -190,7 +190,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 	}
 	// Execute statement on Oracle server
 	r := C.OCIStmtExecute(
-		stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
+		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
 		stmt.ocistmt,            //OCIStmt             *stmtp,
 		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(iterations),       //ub4                 iters,
@@ -249,7 +249,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	}
 	// Query statement on Oracle server
 	r := C.OCIStmtExecute(
-		stmt.ses.srv.ocisvcctx,  //OCISvcCtx           *svchp,
+		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
 		stmt.ocistmt,            //OCIStmt             *stmtp,
 		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(0),                //ub4                 iters,

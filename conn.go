@@ -142,7 +142,7 @@ func (con *Con) Ping() error {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	return con.srv.Ping()
+	return con.ses.Ping()
 }
 
 // sysName returns a string representing the Con.

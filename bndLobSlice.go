@@ -77,7 +77,7 @@ func (bnd *bndLobSlice) bindReaders(
 			continue
 		}
 		if err = writeLob(bnd.ociLobLocators[i], bnd.stmt, r, lobBufferSize); err != nil {
-			bnd.stmt.ses.srv.Break()
+			bnd.stmt.ses.Break()
 			return err
 		}
 	}
@@ -128,7 +128,7 @@ func (bnd *bndLobSlice) close() (err error) {
 	for n := 0; n < len(bnd.ociLobLocators); n++ {
 		// free temporary lob
 		C.OCILobFreeTemporary(
-			bnd.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+			bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 			bnd.ociLobLocators[n])       //OCILobLocator      *locp,
 		// free lob locator handle
