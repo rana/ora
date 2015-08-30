@@ -242,7 +242,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rana/ora"
+	"gopkg.in/rana/ora.v3"
 )
 
 func main() {
@@ -1003,8 +1003,8 @@ To use the standard Go log package:
 
 ```go
 import (
-  "github.com/rana/ora"
-  "github.com/rana/ora/lg"
+  "gopkg.in/rana/ora.v3"
+  "gopkg.in/rana/ora.v3/lg"
 )
 
 func main() {
@@ -1037,8 +1037,8 @@ To use the [glog](https://github.com/golang/glog) package:
 ```go
 import (
 	"flag"
-	"github.com/rana/ora"
-	"github.com/rana/ora/glg"
+	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/glg"
 )
 
 func main() {
@@ -1071,8 +1071,8 @@ To use the [log15](http://gopkg.in/inconshreveable/log15.v2) package:
 
 ```go
 import (
-	"github.com/rana/ora"
-	"github.com/rana/ora/lg15"
+	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/lg15"
 )
 func main() {
 	// use the optional log15 package for ora logging
