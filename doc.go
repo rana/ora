@@ -1132,4 +1132,4 @@ Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 
 */
-package ora
+package ora // import "gopkg.in/rana/ora.v3"
