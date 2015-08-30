@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/rana/ora.v2"
+	"gopkg.in/rana/ora.v3"
 )
 
 func Test_open_cursors(t *testing.T) {

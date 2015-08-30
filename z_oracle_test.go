@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/rana/ora.v2"
-	"gopkg.in/rana/ora.v2/tstlg"
+	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/tstlg"
 )
 
 type oracleColumnType string

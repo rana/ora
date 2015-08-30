@@ -38,7 +38,7 @@ locally installed.
 
 The ora package has no external Go dependencies and is available on GitHub:
 
-	go get gopkg.in/rana/ora.v2
+	go get gopkg.in/rana/ora.v3
 
 Data Types
 
@@ -231,7 +231,7 @@ An example of using the ora package directly:
 
 	import (
 		"fmt"
-		"gopkg.in/rana/ora.v2"
+		"gopkg.in/rana/ora.v3"
 	)
 
 	func main() {
@@ -952,8 +952,8 @@ ora driver methods. For example:
 To use the standard Go log package:
 
 	import (
-		"gopkg.in/rana/ora.v2"
-		"gopkg.in/rana/ora.v2/lg"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/lg"
 	)
 
 	func main() {
@@ -984,8 +984,8 @@ To use the glog package:
 
 	import (
 		"flag"
-		"gopkg.in/rana/ora.v2"
-		"gopkg.in/rana/ora.v2/glg"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/glg"
 	)
 
 	func main() {
@@ -1016,8 +1016,8 @@ which produces a sample log of:
 To use the log15 package:
 
 	import (
-		"gopkg.in/rana/ora.v2"
-		"gopkg.in/rana/ora.v2/lg15"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/lg15"
 	)
 	func main() {
 		// use the optional log15 package for ora logging
@@ -1132,4 +1132,4 @@ Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 
 */
-package ora
+package ora // import "gopkg.in/rana/ora.v3"

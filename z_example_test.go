@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/rana/ora.v2"
+	"gopkg.in/rana/ora.v3"
 )
 
 func dbName() string {
