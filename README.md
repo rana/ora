@@ -56,9 +56,9 @@ the location of the OCI library. These locations will vary based on whether an O
 database is locally installed or whether the Oracle instant client libraries are
 locally installed.
 
-The ora package has no external Go dependencies and is available on GitHub:
+The ora package has no external Go dependencies and is available on GitHub and gopkg.in:
 
-	go get github.com/rana/ora
+	go get gopkg.in/rana/ora.v3
 
 ##### Data Types #####
 

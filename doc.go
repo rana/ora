@@ -36,7 +36,8 @@ the location of the OCI library. These locations will vary based on whether an O
 database is locally installed or whether the Oracle instant client libraries are
 locally installed.
 
-The ora package has no external Go dependencies and is available on GitHub:
+The ora package has no external Go dependencies and is available on GitHub and
+gopkg.in:
 
 	go get gopkg.in/rana/ora.v3
 
@@ -1127,7 +1128,7 @@ database/sql method Stmt.QueryRow is not supported.
 
 License
 
-Copyright 2014 Rana Ian. All rights reserved.
+Copyright 2015 Rana Ian. All rights reserved.
 Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 
