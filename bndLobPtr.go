@@ -32,7 +32,7 @@ func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, stmt *S
 
 	if lob != nil && lob.Reader != nil {
 		if err = writeLob(bnd.ociLobLocator, bnd.stmt, lob.Reader, lobBufferSize); err != nil {
-			bnd.stmt.ses.srv.Break()
+			bnd.stmt.ses.Break()
 			finish()
 			return err
 		}
@@ -51,15 +51,15 @@ func (bnd *bndLobPtr) setPtr() error {
 		return nil
 	}
 	//Log.Infof("setPtr OCILobOpen %p", bnd.ociLobLocator)
-	lobLength, err := lobOpen(bnd.stmt.ses.srv, bnd.ociLobLocator, C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(bnd.stmt.ses, bnd.ociLobLocator, C.OCI_LOB_READONLY)
 	if err != nil {
-		lobClose(bnd.stmt.ses.srv, bnd.ociLobLocator)
+		lobClose(bnd.stmt.ses, bnd.ociLobLocator)
 		bnd.ociLobLocator = nil
 		return err
 	}
 
 	lr := &lobReader{
-		srv:           bnd.stmt.ses.srv,
+		ses:           bnd.stmt.ses,
 		ociLobLocator: bnd.ociLobLocator,
 		piece:         C.OCI_FIRST_PIECE,
 		Length:        lobLength,
@@ -79,7 +79,7 @@ func (bnd *bndLobPtr) close() (err error) {
 	// no need to clear bnd.buf
 	// free temporary lob
 	C.OCILobFreeTemporary(
-		bnd.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 		bnd.ociLobLocator)           //OCILobLocator      *locp,
 	// free lob locator handle

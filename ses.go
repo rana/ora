@@ -90,12 +90,13 @@ func NewLogSesCfg() LogSesCfg {
 
 // Ses is an Oracle session associated with a server.
 type Ses struct {
-	id       uint64
-	cfg      SesCfg
-	mu       sync.Mutex
-	srv      *Srv
-	ocises   *C.OCISession
-	isLocked bool
+	id        uint64
+	cfg       SesCfg
+	mu        sync.Mutex
+	srv       *Srv
+	ocisvcctx *C.OCISvcCtx
+	ocises    *C.OCISession
+	isLocked  bool
 
 	openStmts *stmtList
 	openTxs   *txList
@@ -129,6 +130,7 @@ func (ses *Ses) close() (err error) {
 		}
 
 		ses.srv = nil
+		ses.ocisvcctx = nil
 		ses.ocises = nil
 		ses.openStmts.clear()
 		ses.openTxs.clear()
@@ -153,7 +155,7 @@ func (ses *Ses) close() (err error) {
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	r := C.OCISessionEnd(
-		ses.srv.ocisvcctx,  //OCISvcCtx       *svchp,
+		ses.ocisvcctx,      //OCISvcCtx       *svchp,
 		ses.srv.env.ocierr, //OCIError        *errhp,
 		ses.ocises,         //OCISession      *usrhp,
 		C.OCI_DEFAULT)      //ub4             mode );
@@ -245,7 +247,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	cSql := C.CString(sql) // prepare sql text with statement handle
 	defer C.free(unsafe.Pointer(cSql))
 	r := C.OCIStmtPrepare2(
-		ses.srv.ocisvcctx,                  // OCISvcCtx     *svchp,
+		ses.ocisvcctx,                      // OCISvcCtx     *svchp,
 		&ocistmt,                           // OCIStmt       *stmtp,
 		ses.srv.env.ocierr,                 // OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(cSql)), // const OraText *stmt,
@@ -495,7 +497,7 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 	// TODO: add timeout config value
 	var timeout C.uword = C.uword(60)
 	r := C.OCITransStart(
-		ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
+		ses.ocisvcctx,      //OCISvcCtx    *svchp,
 		ses.srv.env.ocierr, //OCIError     *errhp,
 		timeout,            //uword        timeout,
 		C.OCI_TRANS_NEW)    //ub4          flags );
@@ -510,6 +512,41 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 	ses.openTxs.add(tx)
 
 	return tx, nil
+}
+
+// Ping returns nil when an Oracle server is contacted; otherwise, an error.
+func (ses *Ses) Ping() (err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Srv.Ping)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	r := C.OCIPing(
+		ses.ocisvcctx,      //OCISvcCtx     *svchp,
+		ses.srv.env.ocierr, //OCIError      *errhp,
+		C.OCI_DEFAULT)      //ub4           mode );
+	if r == C.OCI_ERROR {
+		return errE(ses.srv.env.ociError())
+	}
+	return nil
+}
+
+// Break stops the currently running OCI function.
+func (ses *Ses) Break() (err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Srv.Break)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr)
+	if r == C.OCI_ERROR {
+		return errE(ses.srv.env.ociError())
+	}
+	return nil
 }
 
 // NumStmt returns the number of open Oracle statements.

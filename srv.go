@@ -74,13 +74,12 @@ func NewLogSrvCfg() LogSrvCfg {
 
 // Srv represents an Oracle server.
 type Srv struct {
-	id        uint64
-	cfg       SrvCfg
-	mu        sync.Mutex
-	env       *Env
-	ocisvcctx *C.OCISvcCtx
-	ocisrv    *C.OCIServer
-	dbIsUTF8  bool
+	id       uint64
+	cfg      SrvCfg
+	mu       sync.Mutex
+	env      *Env
+	ocisrv   *C.OCIServer
+	dbIsUTF8 bool
 
 	openSess *sesList
 }
@@ -114,7 +113,6 @@ func (srv *Srv) close() (err error) {
 		srv.openSess.clear()
 		srv.env = nil
 		srv.ocisrv = nil
-		srv.ocisvcctx = nil
 		_drv.srvPool.Put(srv)
 
 		multiErr := newMultiErrL(errs)
@@ -175,6 +173,16 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 			return nil, errE(err)
 		}
 	}
+	// allocate service context handle
+	ocisvcctx, err := srv.env.allocOciHandle(C.OCI_HTYPE_SVCCTX)
+	if err != nil {
+		return nil, errE(err)
+	}
+	// set server handle onto service context handle
+	err = srv.env.setAttr(ocisvcctx, C.OCI_HTYPE_SVCCTX, unsafe.Pointer(srv.ocisrv), C.ub4(0), C.OCI_ATTR_SERVER)
+	if err != nil {
+		return nil, errE(err)
+	}
 	//srv.logF(true, "CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
 	// set driver name on the session handle
 	// driver name is specified to aid diagnostics; max 9 single-byte characters
@@ -195,29 +203,30 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	}
 	// begin session
 	r := C.OCISessionBegin(
-		srv.ocisvcctx,           //OCISvcCtx     *svchp,
-		srv.env.ocierr,          //OCIError      *errhp,
-		(*C.OCISession)(ocises), //OCISession    *usrhp,
-		credentialType,          //ub4           credt,
-		C.OCI_DEFAULT)           //ub4           mode );
+		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
+		srv.env.ocierr,            //OCIError      *errhp,
+		(*C.OCISession)(ocises),   //OCISession    *usrhp,
+		credentialType,            //ub4           credt,
+		C.OCI_DEFAULT)             //ub4           mode );
 	if r == C.OCI_ERROR {
 		return nil, errE(srv.env.ociError())
 	}
 	// set session handle on service context handle
-	err = srv.env.setAttr(unsafe.Pointer(srv.ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
+	err = srv.env.setAttr(unsafe.Pointer(ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
 	if err != nil {
 		return nil, errE(err)
 	}
 	// set stmt cache size to zero
 	// https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
 	stmtCacheSize := C.ub4(0)
-	err = srv.env.setAttr(unsafe.Pointer(srv.ocisvcctx), C.OCI_HTYPE_SVCCTX, unsafe.Pointer(&stmtCacheSize), C.ub4(0), C.OCI_ATTR_STMTCACHESIZE)
+	err = srv.env.setAttr(unsafe.Pointer(ocisvcctx), C.OCI_HTYPE_SVCCTX, unsafe.Pointer(&stmtCacheSize), C.ub4(0), C.OCI_ATTR_STMTCACHESIZE)
 	if err != nil {
 		return nil, errE(err)
 	}
 
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
 	ses.srv = srv
+	ses.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	ses.ocises = (*C.OCISession)(ocises)
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
@@ -229,27 +238,6 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	srv.openSess.add(ses)
 
 	return ses, nil
-}
-
-// Ping return nil when an Oracle server is contacted; otherwise, an error.
-//
-// Ping requires the server have at least one open session.
-func (srv *Srv) Ping() (err error) {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	srv.log(_drv.cfg.Log.Srv.Ping)
-	err = srv.checkClosed()
-	if err != nil {
-		return errE(err)
-	}
-	r := C.OCIPing(
-		srv.ocisvcctx,  //OCISvcCtx     *svchp,
-		srv.env.ocierr, //OCIError      *errhp,
-		C.OCI_DEFAULT)  //ub4           mode );
-	if r == C.OCI_ERROR {
-		return errE(srv.env.ociError())
-	}
-	return nil
 }
 
 // Version returns the Oracle database server version.
@@ -274,22 +262,6 @@ func (srv *Srv) Version() (ver string, err error) {
 		return "", errE(srv.env.ociError())
 	}
 	return C.GoString(&buf[0]), nil
-}
-
-// Break the currently running OCI function.
-func (srv *Srv) Break() (err error) {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	srv.log(_drv.cfg.Log.Srv.Break)
-	err = srv.checkClosed()
-	if err != nil {
-		return errE(err)
-	}
-	r := C.OCIBreak(unsafe.Pointer(srv.ocisvcctx), srv.env.ocierr)
-	if r == C.OCI_ERROR {
-		return errE(srv.env.ociError())
-	}
-	return nil
 }
 
 // NumSes returns the number of open Oracle sessions.
@@ -327,7 +299,7 @@ func (srv *Srv) IsOpen() bool {
 
 // checkClosed returns an error if Srv is closed. No locking occurs.
 func (srv *Srv) checkClosed() error {
-	if srv == nil || srv.ocisrv == nil || srv.ocisvcctx == nil {
+	if srv == nil || srv.ocisrv == nil {
 		return er("Srv is closed.")
 	}
 	return srv.env.checkClosed()

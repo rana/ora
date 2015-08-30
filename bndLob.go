@@ -45,7 +45,7 @@ func (bnd *bndLob) bindReader(rdr io.Reader, position int, lobBufferSize int, st
 	}
 
 	if err = writeLob(bnd.ociLobLocator, bnd.stmt, rdr, lobBufferSize); err != nil {
-		bnd.stmt.ses.srv.Break()
+		bnd.stmt.ses.Break()
 		finish()
 		return err
 	}
@@ -77,7 +77,7 @@ func (bnd *bndLob) close() (err error) {
 	// no need to clear bnd.buf
 	// free temporary lob
 	C.OCILobFreeTemporary(
-		bnd.stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 		bnd.ociLobLocator)           //OCILobLocator      *locp,
 	// free lob locator handle
@@ -181,7 +181,7 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 		}
 		// Write to Oracle
 		if C.OCILobWrite2(
-			stmt.ses.srv.ocisvcctx,     //OCISvcCtx          *svchp,
+			stmt.ses.ocisvcctx,         //OCISvcCtx          *svchp,
 			stmt.ses.srv.env.ocierr,    //OCIError           *errhp,
 			ociLobLocator,              //OCILobLocator      *locp,
 			&byte_amtp,                 //oraub8          *byte_amtp,
@@ -229,7 +229,7 @@ func allocTempLob(stmt *Stmt) (
 
 	// Create temporary lob
 	r = C.OCILobCreateTemporary(
-		stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+		stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 		ociLobLocator,           //OCILobLocator      *locp,
 		C.OCI_DEFAULT,           //ub2                csid,
@@ -247,7 +247,7 @@ func allocTempLob(stmt *Stmt) (
 
 	return ociLobLocator, func() {
 		C.OCILobFreeTemporary(
-			stmt.ses.srv.ocisvcctx,  //OCISvcCtx          *svchp,
+			stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 			ociLobLocator)           //OCILobLocator      *locp,
 		// free lob locator handle

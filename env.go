@@ -140,21 +140,10 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	if r == C.OCI_ERROR {
 		return nil, errE(env.ociError())
 	}
-	// allocate service context handle
-	ocisvcctx, err := env.allocOciHandle(C.OCI_HTYPE_SVCCTX)
-	if err != nil {
-		return nil, errE(err)
-	}
-	// set server handle onto service context handle
-	err = env.setAttr(ocisvcctx, C.OCI_HTYPE_SVCCTX, ocisrv, C.ub4(0), C.OCI_ATTR_SERVER)
-	if err != nil {
-		return nil, errE(err)
-	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
-	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
