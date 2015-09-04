@@ -7,7 +7,7 @@ package ora_test
 import (
 	"testing"
 
-	"gopkg.in/rana/ora.v2"
+	"gopkg.in/rana/ora.v3"
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {
@@ -41,7 +41,7 @@ func TestServer_Ping(t *testing.T) {
 	defer ses.Close()
 	testErr(err, t)
 
-	err = srv.Ping()
+	err = ses.Ping()
 	testErr(err, t)
 }
 

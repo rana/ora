@@ -821,7 +821,7 @@ func ExampleSrv_Ping() {
 	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
-	err := srv.Ping()
+	err := ses.Ping()
 	if err == nil {
 		fmt.Println("Ping successful")
 	}
