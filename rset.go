@@ -264,7 +264,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.log(_drv.cfg.Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
-		rset.stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
+		rset.stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
 		rset.ocistmt,                 //OCIStmt             *stmtp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(1),                     //ub4                 iters,
@@ -324,6 +324,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		//fmt.Printf("Rset.open: ociTypeCode (%v)\n", ociTypeCode)
 		//Log.Infof("Rset.open: ociTypeCode=%d name=%s size=%d", ociTypeCode, rset.ColumnNames[n], columnSize)
 		//log(true, "ociTypeCode=", int(ociTypeCode), ", name=", rset.ColumnNames[n], ", size=", columnSize)
+		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.ColumnNames[n], ociTypeCode)
 		switch ociTypeCode {
 		case C.SQLT_NUM:
 			// NUMBER
@@ -339,40 +340,30 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			if err != nil {
 				return err
 			}
-			// If the precision is nonzero and scale is -127, then it is a FLOAT;
-			// otherwise, it's a NUMBER(precision, scale).
-			if precision != 0 && (numericScale > 0 || numericScale == -127) {
-				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					if numericScale == -127 {
-						gct = rset.stmt.cfg.Rset.float
-					} else {
-						gct = rset.stmt.cfg.Rset.numberFloat
-					}
-				} else {
-					err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
-					if err != nil {
-						return err
-					}
-					gct = stmt.gcts[n]
-				}
-				err := rset.defineNumeric(n, gct)
-				if err != nil {
-					return err
+			// If the precision is zero and scale is -127, the it is a NUMBER;
+			// if the precision is nonzero and scale is -127, then it is a FLOAT;
+			// if the scale is positive, then it is a NUMBER(precision, scale);
+			// otherwise, it's an int.
+			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+				switch {
+				case precision != 0 && numericScale == -127:
+					gct = rset.stmt.cfg.Rset.float
+				case numericScale == 0:
+					gct = rset.stmt.cfg.Rset.numberInt
+				default:
+					gct = rset.stmt.cfg.Rset.numberFloat
 				}
 			} else {
-				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.cfg.Rset.numberInt
-				} else {
-					err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
-					if err != nil {
-						return err
-					}
-					gct = stmt.gcts[n]
-				}
-				err := rset.defineNumeric(n, gct)
+				err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
 				if err != nil {
 					return err
 				}
+				gct = stmt.gcts[n]
+			}
+			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%v", n+1, precision, numericScale, gct)
+			err := rset.defineNumeric(n, gct)
+			if err != nil {
+				return err
 			}
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE

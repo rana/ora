@@ -15,7 +15,7 @@ func Test_cursor1_session(t *testing.T) {
 
 	// create table
 	tableName := tableName()
-	createTblStmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 char), c2 number)", tableName))
+	createTblStmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 char), c2 integer)", tableName))
 	defer createTblStmt.Close()
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
