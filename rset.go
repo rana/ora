@@ -335,20 +335,20 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				return err
 			}
 			// Get scale (the number of decimal places)
-			var scale C.sb1
-			err = rset.paramAttr(ocipar, unsafe.Pointer(&scale), 0, C.OCI_ATTR_SCALE)
+			var numericScale C.sb1
+			err = rset.paramAttr(ocipar, unsafe.Pointer(&numericScale), 0, C.OCI_ATTR_SCALE)
 			if err != nil {
 				return err
 			}
-			// If the precision is zero and scale is -127 or 0, the it is a NUMBER;
+			// If the precision is zero and scale is -127, the it is a NUMBER;
 			// if the precision is nonzero and scale is -127, then it is a FLOAT;
 			// if the scale is positive, then it is a NUMBER(precision, scale);
 			// otherwise, it's an int.
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				switch {
-				case precision != 0 && scale == -127:
+				case precision != 0 && numericScale == -127:
 					gct = rset.stmt.cfg.Rset.float
-				case precision != 0 && scale == 0:
+				case numericScale == 0:
 					gct = rset.stmt.cfg.Rset.numberInt
 				default:
 					gct = rset.stmt.cfg.Rset.numberFloat
@@ -360,7 +360,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				}
 				gct = stmt.gcts[n]
 			}
-			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%v", n+1, precision, scale, gct)
+			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%v", n+1, precision, numericScale, gct)
 			err := rset.defineNumeric(n, gct)
 			if err != nil {
 				return err
