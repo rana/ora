@@ -29,6 +29,7 @@ The ora package has been verified to work with
 * [Limitations](https://github.com/rana/ora#limitations)
 * [License](https://github.com/rana/ora#license)
 * [API Reference](http://godoc.org/github.com/rana/ora#pkg-index)
+* [Examples](./examples)
 
 ---
 
