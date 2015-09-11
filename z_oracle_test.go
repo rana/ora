@@ -2755,6 +2755,7 @@ func TestFils(t *testing.T) {
 
 func TestUnderflow(t *testing.T) {
 	tbl := "test_underflow"
+	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
 	testDb.Exec(`DROP TABLE ` + tbl)
 	if _, err := testDb.Exec(`CREATE TABLE ` + tbl + ` (
 		caco3_wt_pct NUMBER NULL,
@@ -2763,11 +2764,10 @@ func TestUnderflow(t *testing.T) {
 	)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testDb.Exec(`INSERT INTO ` + tbl + ` (
-		caco3_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (9., 13., 14.)`,
-	); err != nil {
-		t.Fatal(err)
+	var skipView bool
+	if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view AS SELECT * FROM ` + tbl); err != nil {
+		t.Logf("cannot create view: %v", err)
+		skipView = true
 	}
 
 	enableLogging(t)
@@ -2785,37 +2785,43 @@ func TestUnderflow(t *testing.T) {
 		); err != nil {
 			t.Fatalf("%d. %v", caseNum, err)
 		}
-
-		qry := `SELECT caco3_wt_pct, sul_wt_pct, h_wt_pct
-		FROM ` + tbl
-
-		rows, err := testDb.Query(qry)
-		if err != nil {
-			t.Errorf(`%d. Error with "%s": %s`, caseNum, qry, err)
-			return
+		queries := []string{
+			`SELECT * FROM ` + tbl,
+			`SELECT * FROM (SELECT * FROM ` + tbl + `)`,
 		}
-		defer rows.Close()
+		if !skipView {
+			queries = append(queries, `SELECT * FROM `+tbl+`_view`)
+		}
 
-		i := 0
-		for rows.Next() {
-			i++
-			got := make([]sql.NullFloat64, len(test))
-
-			if err := rows.Scan(&got[0], &got[1], &got[2]); err != nil {
-				t.Fatalf("scan %d. record: %v", i, err)
+		for _, qry := range queries {
+			rows, err := testDb.Query(qry)
+			if err != nil {
+				t.Errorf(`%d. Error with %q: %s`, caseNum, qry, err)
+				return
 			}
+			defer rows.Close()
 
-			t.Logf("Results: %v", got)
+			i := 0
+			for rows.Next() {
+				i++
+				got := make([]sql.NullFloat64, len(test))
 
-			for j, f := range got {
-				if !f.Valid || f.Float64 != test[j] {
-					t.Errorf("%d. %d. got %v, awaited %v.", caseNum, j, f, test[j])
+				if err := rows.Scan(&got[0], &got[1], &got[2]); err != nil {
+					t.Fatalf("%d. %q scan %d. record: %v", caseNum, qry, i, err)
+				}
+
+				t.Logf("Results: %v", got)
+
+				for j, f := range got {
+					if !f.Valid || f.Float64 != test[j] {
+						t.Errorf("%d. %q %d. got %v, awaited %v.", caseNum, qry, j, f, test[j])
+					}
 				}
 			}
+			if err := rows.Err(); err != nil {
+				t.Errorf("%d. %q: %v", caseNum, qry, err)
+			}
+			rows.Close()
 		}
-		if err := rows.Err(); err != nil {
-			t.Errorf("%d. %v", caseNum, err)
-		}
-		rows.Close()
 	}
 }
