@@ -538,3 +538,24 @@ func (c *RsetCfg) SetLongRaw(gct GoColumnType) (err error) {
 func (c *RsetCfg) LongRaw() GoColumnType {
 	return c.longRaw
 }
+
+// numericColumnType returns the GoColumnType for the NUMBER/INTEGER
+// column, based on precision and scale.
+//
+// See issue #33 and #36 for the reason this became a testable separate function.
+func (c *RsetCfg) numericColumnType(precision, scale int) GoColumnType {
+	// If the precision is zero and scale is -127, the it is a NUMBER;
+	// if the precision is nonzero and scale is -127, then it is a FLOAT;
+	// if the scale is positive, then it is a NUMBER(precision, scale);
+	// otherwise, it's an int.
+	if precision != 0 {
+		if scale == 0 {
+			return c.numberInt
+		}
+		return c.numberFloat
+	}
+	if scale == -127 {
+		return c.float
+	}
+	return c.numberFloat
+}

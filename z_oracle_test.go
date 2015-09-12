@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"reflect"
 	"runtime"
@@ -2757,46 +2758,72 @@ func TestUnderflow(t *testing.T) {
 	tbl := "test_underflow"
 	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
 	testDb.Exec(`DROP TABLE ` + tbl)
-	if _, err := testDb.Exec(`CREATE TABLE ` + tbl + ` (
-		caco3_wt_pct NUMBER NULL,
-		sul_wt_pct NUMBER NULL,
-		h_wt_pct NUMBER(6,3) NULL
-	)`); err != nil {
-		t.Fatal(err)
+	qry := `CREATE TABLE ` + tbl + ` (
+		num NUMBER NULL,
+		num_6 NUMBER(6) NULL,
+		num_6_3 NUMBER(6,3) NULL,
+		num_6_n2 NUMBER(6, -2) NULL,
+		flo FLOAT NULL,
+		flo_6 FLOAT(6) NULL,
+		bflo BINARY_FLOAT NULL,
+		bdouble BINARY_DOUBLE NULL,
+		int INTEGER NULL
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%q: %v", qry, err)
 	}
-	var skipView bool
-	if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view AS SELECT * FROM ` + tbl); err != nil {
+
+	const colCount = 9
+
+	queries := []string{
+		`SELECT * FROM ` + tbl,
+		`SELECT * FROM (SELECT * FROM ` + tbl + `)`,
+	}
+	if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view1 AS SELECT * FROM ` + tbl); err != nil {
 		t.Logf("cannot create view: %v", err)
-		skipView = true
+	} else {
+		queries = append(queries, `SELECT * FROM `+tbl+`_view1`)
+		if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view2 AS
+			SELECT
+				TO_NUMBER(num) num,
+				TO_NUMBER(num_6) num_6,
+				TO_NUMBER(num_6_3) num_6_3,
+				TO_NUMBER(num_6_n2) num_6_n2,
+				TO_NUMBER(flo) flo,
+				TO_NUMBER(flo_6) flo_6,
+				TO_NUMBER(bflo) bflo,
+				TO_NUMBER(bdouble) bdouble,
+				TO_NUMBER(int) int
+			FROM ` + tbl); err != nil {
+			t.Fatal(err)
+		}
+		queries = append(queries, `SELECT * FROM `+tbl+`_view2`)
 	}
+	want := make([]interface{}, colCount)
+	got := make([]sql.NullFloat64, colCount)
+	gotP := make([]interface{}, len(got))
+	for i := range gotP {
+		gotP[i] = &got[i]
+	}
+	ins := `INSERT INTO ` + tbl + ` VALUES (` + strings.Repeat(",%f", colCount)[1:] + `)`
 
 	enableLogging(t)
 
-	for caseNum, test := range [][3]float64{
-		{10., 0.8, 4.2},
-		{9.19, 0.8, 0.12},
-		{9.99, 0.8, 0.42},
+	for caseNum, test := range [][colCount]float64{
+		{0.99, 8, 4.2, 65400., 0.7, 0.6, 3.14, 2.78, 42},
 	} {
 		testDb.Exec("TRUNCATE TABLE " + tbl)
-		if _, err := testDb.Exec(fmt.Sprintf(
-			`INSERT INTO `+tbl+` (
-		caco3_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (%f, %f, %f)`, test[0], test[1], test[2]),
-		); err != nil {
-			t.Fatalf("%d. %v", caseNum, err)
+		for i, f := range test[:] {
+			want[i] = f
 		}
-		queries := []string{
-			`SELECT * FROM ` + tbl,
-			`SELECT * FROM (SELECT * FROM ` + tbl + `)`,
-		}
-		if !skipView {
-			queries = append(queries, `SELECT * FROM `+tbl+`_view`)
+		if _, err := testDb.Exec(fmt.Sprintf(ins, want...)); err != nil {
+			t.Fatalf("%d. %v", caseNum+1, err)
 		}
 
-		for _, qry := range queries {
+		for _, qry = range queries {
 			rows, err := testDb.Query(qry)
 			if err != nil {
-				t.Errorf(`%d. Error with %q: %s`, caseNum, qry, err)
+				t.Errorf(`%d. Error with %q: %s`, caseNum+1, qry, err)
 				return
 			}
 			defer rows.Close()
@@ -2804,22 +2831,21 @@ func TestUnderflow(t *testing.T) {
 			i := 0
 			for rows.Next() {
 				i++
-				got := make([]sql.NullFloat64, len(test))
 
-				if err := rows.Scan(&got[0], &got[1], &got[2]); err != nil {
-					t.Fatalf("%d. %q scan %d. record: %v", caseNum, qry, i, err)
+				if err := rows.Scan(gotP...); err != nil {
+					t.Fatalf("%d. %q scan %d. record: %v", caseNum+1, qry, i, err)
 				}
 
 				t.Logf("Results: %v", got)
 
 				for j, f := range got {
-					if !f.Valid || f.Float64 != test[j] {
-						t.Errorf("%d. %q %d. got %v, awaited %v.", caseNum, qry, j, f, test[j])
+					if !f.Valid || f.Float64 != test[j] && math.Abs(f.Float64-test[j]) > 0.000001 {
+						t.Errorf("%d. %q %d. got %v, awaited %v.", caseNum+1, qry, j+1, f, test[j])
 					}
 				}
 			}
 			if err := rows.Err(); err != nil {
-				t.Errorf("%d. %q: %v", caseNum, qry, err)
+				t.Errorf("%d. %q: %v", caseNum+1, qry, err)
 			}
 			rows.Close()
 		}
