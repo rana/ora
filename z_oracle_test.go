@@ -3129,203 +3129,115 @@ func TestFilsIssue36(t *testing.T) {
 
 	//////
 
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (42285,114942,'SHI')`); err != nil {
-		t.Fatal(err)
+	for i, line := range []struct {
+		id, sample int
+		location   string
+	}{
+		{42285, 114942, "SHI"},
+		{42290, 114943, "SHI"},
+		{42295, 114944, "SHI"},
+		{3295, 25277, "SHI"},
+		{3300, 25263, "SHI"},
+		{3240, 25061, "SHI"},
+		{3245, 25063, "SHI"},
+		{3250, 25107, "SHI"},
+		{3250, 25107, "SHI"},
+		{3255, 25106, "SHI"},
+		{3255, 25106, "SHI"},
+		{3260, 25105, "SHI"},
+		{3260, 25105, "SHI"},
+		{3265, 25102, "SHI"},
+		{3265, 25102, "SHI"},
+		{3270, 25104, "SHI"},
+		{3270, 25104, "SHI"},
+		{3275, 25103, "SHI"},
+		{3275, 25103, "SHI"},
+		{3280, 25101, "SHI"},
+		{3280, 25101, "SHI"},
+		{3285, 25100, "SHI"},
+		{3285, 25100, "SHI"},
+		{3290, 25099, "SHI"},
+		{3290, 25099, "SHI"},
+		{8171, 227155, "SHI"},
+		{8176, 227154, "SHI"},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_chem_carb_sample_test (RUN_ID,SAMPLE_ID,LOCATION) VALUES (:1, :2, :3)`, line.id, line.sample, line.location); err != nil {
+			t.Fatalf("INSERT INTO ocd_chem_carb_sample_test line %d: %v", i, err)
+		}
 	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (42290,114943,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (42295,114944,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3295,25277,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3300,25263,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3240,25061,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3245,25063,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3250,25107,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3250,25107,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3255,25106,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3255,25106,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3260,25105,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3260,25105,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3265,25102,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3265,25102,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3270,25104,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3270,25104,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3275,25103,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3275,25103,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3280,25101,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3280,25101,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3285,25100,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3285,25100,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3290,25099,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (3290,25099,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (8171,227155,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_CHEM_CARB_SAMPLE_TEST (RUN_ID,SAMPLE_ID,LOCATION) values (8176,227154,'SHI')`); err != nil {
-		t.Fatal(err)
-	}
+
+	/////
+
 	if _, err := testDb.Exec(`Insert into OCD_HOLE_TEST (LEG,SITE,HOLE) values (171,1049,'B')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25099,'SHI',42830,0.21,0.22)`); err != nil {
-		t.Fatal(err)
+
+	for i, line := range []struct {
+		id          int
+		location    string
+		section     int
+		top, bottom float64
+	}{
+		{25099, "SHI", 42830, 0.21, 0.22},
+		{25100, "SHI", 42830, 0.19, 0.21},
+		{25101, "SHI", 42830, 0.175, 0.19},
+		{25102, "SHI", 42830, 0.125, 0.22},
+		{25103, "SHI", 42830, 0.16, 0.175},
+		{25104, "SHI", 42830, 0.135, 0.16},
+		{25105, "SHI", 42830, 0.125, 0.135},
+		{25106, "SHI", 42830, 0.085, 0.125},
+		{25107, "SHI", 42830, 0.07, 0.085},
+		{227154, "SHI", 42830, 0.205, 0.22},
+		{227155, "SHI", 42830, 0.19, 0.205},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_sample_test (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) VALUES (:1, :2, :3, :4, :5)`,
+			line.id, line.location, line.section, line.top, line.bottom); err != nil {
+			t.Fatalf("INSERT INTO ocd_sample_test line %d: %v", i, err)
+		}
 	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25100,'SHI',42830,0.19,0.21)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25101,'SHI',42830,0.175,0.19)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25102,'SHI',42830,0.125,0.22)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25103,'SHI',42830,0.16,0.175)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25104,'SHI',42830,0.135,0.16)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25105,'SHI',42830,0.125,0.135)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25106,'SHI',42830,0.085,0.125)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (25107,'SHI',42830,0.07,0.085)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (227154,'SHI',42830,0.205,0.22)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SAMPLE_TEST (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) values (227155,'SHI',42830,0.19,0.205)`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42730,1,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42730,1,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42740,3,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42740,3,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42740,3,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42745,4,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42735,2,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42735,2,'S',171,1049,'B',8,'H')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42820,1,'S',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42820,1,'S',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42820,1,'S',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := testDb.Exec(`Insert into OCD_SECTION_TEST (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) values (42830,3,'C',171,1049,'B',11,'X')`); err != nil {
-		t.Fatal(err)
+
+	/////
+
+	for i, line := range []struct {
+		id, number int
+		typ        string
+		leg, site  int
+		hole       string
+		core       int
+		core_typ   string
+	}{
+		{42730, 1, "S", 171, 1049, "B", 8, "H"},
+		{42730, 1, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42735, 2, "S", 171, 1049, "B", 8, "H"},
+		{42735, 2, "S", 171, 1049, "B", 8, "H"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_section_test (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
+			line.id, line.number, line.typ, line.leg, line.site, line.hole, line.core, line.core_typ); err != nil {
+			t.Fatalf("INSERT INTO ocd_section_test line %d: %v", i, err)
+		}
 	}
 
 	if _, err := testDb.Exec(`CREATE VIEW ocd_chem_carb_test_v AS
@@ -3359,61 +3271,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
 		t.Fatal(err)
 	}
 
-	//testDb.Exec(`DROP PUBLIC SYNONYM fils_ocd_chem_carb_test`)
-	testDb.Exec(`DROP PUBLIC SYNONYM ocd_chem_carb_test`)
-
-	//if _, err := testDb.Exec(`GRANT SELECT ON ocd_chem_carb_test_v TO PUBLIC`); err != nil {
-	//t.Fatal(err)
-	//}
-	//if _, err := testDb.Exec(`CREATE PUBLIC SYNONYM ocd_chem_carb_test FOR fils.ocd_chem_carb_test_v`); err != nil {
-	//t.Fatal(err)
-	//}
-
 	testDb.Exec(`DROP TABLE ocd_chem_carb_test_table`)
-
-	//if _, err := testDb.Exec(`CREATE TABLE ocd_chem_carb_test_table AS SELECT * FROM fils.ocd_chem_carb_test_v`); err != nil {
-	//t.Fatal(err)
-	//}
-
-	qry := `SELECT
-	   leg, site, hole, core, core_type
-	 , section_number, section_type
-	 , top_cm, bot_cm
-	  , depth_mbsf
-	 , inor_c_wt_pct
-	 , caco3_wt_pct
-	 , tot_c_wt_pct
-	 , org_c_wt_pct
-	 , nit_wt_pct
-	 , sul_wt_pct
-	 , h_wt_pct
-	FROM
-	   test_janus
-	WHERE
-	       leg = 171
-	    AND site = 1049
-	   AND hole = 'B'
-	ORDER BY leg, site, hole, core, section_number, top_cm
-`
-
-	qry2 := `SELECT
-	   leg, site, hole, core, core_type
-	 , section_number, section_type
-	 , top_cm, bot_cm
-	 , inor_c_wt_pct
-	 , caco3_wt_pct
-	 , tot_c_wt_pct
-	 , org_c_wt_pct
-	 , nit_wt_pct
-	 , sul_wt_pct
-	 , h_wt_pct
-	   FROM test_janus_v
-	WHERE
-	       leg = 171
-	    AND site = 1049
-	   AND hole = 'B'
-	ORDER BY leg, site, hole, core, section_number, top_cm
-	`
 
 	qry3 := `SELECT
             x.leg, x.site, x.hole
@@ -3445,94 +3303,6 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
         GROUP BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, x.section_type, s.top_interval, s.bottom_interval
         ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_interval
 `
-
-	qry4 := `SELECT
-	   leg, site, hole, core, core_type
-	 , section_number, section_type
-	 , top_cm, bot_cm
-	 , inor_c_wt_pct
-	 , caco3_wt_pct
-	 , tot_c_wt_pct
-	 , org_c_wt_pct
-	 , nit_wt_pct
-	 , sul_wt_pct
-	 , h_wt_pct
-	   FROM  ocd_chem_carb_test
-	WHERE
-	       leg = 171
-	    AND site = 1049
-	   AND hole = 'B'
-	ORDER BY leg, site, hole, core, section_number, top_cm
-	`
-
-	qry5 := `SELECT
-	   leg, site, hole, core, core_type
-	 , section_number, section_type
-	 , top_cm, bot_cm
-	 , inor_c_wt_pct
-	 , caco3_wt_pct
-	 , tot_c_wt_pct
-	 , org_c_wt_pct
-	 , nit_wt_pct
-	 , sul_wt_pct
-	 , h_wt_pct
-	   FROM  ocd_chem_carb_test_v
-	WHERE
-	       leg = 171
-	    AND site = 1049
-	   AND hole = 'B'
-	ORDER BY leg, site, hole, core, section_number, top_cm
-	`
-
-	qry6 := `SELECT
-	   leg, site, hole, core, core_type
-	 , section_number, section_type
-	 , top_cm, bot_cm
-	 , inor_c_wt_pct
-	 , caco3_wt_pct
-	 , tot_c_wt_pct
-	 , org_c_wt_pct
-	 , nit_wt_pct
-	 , sul_wt_pct
-	 , h_wt_pct
-	   FROM  ocd_chem_carb_test_table
-	WHERE
-	       leg = 171
-	    AND site = 1049
-	   AND hole = 'B'
-	ORDER BY leg, site, hole, core, section_number, top_cm
-	`
-
-	// qry2 := `SELECT
-	//     x.leg, x.site, x.hole
-	//   , x.core, x.core_type
-	//   , x.section_number, x.section_type
-	//   , s.top_interval*100.0 top_cm
-	//   , s.bottom_interval*100.0 bot_cm
-	//   , AVG(DECODE(cca.analysis_code,'INOR_C',cca.analysis_result)) INOR_C_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'CaCO3', cca.analysis_result)) CaCO3_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'TOT_C', cca.analysis_result)) TOT_C_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'ORG_C', cca.analysis_result)) ORG_C_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'NIT',   cca.analysis_result)) NIT_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
-	//   , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
-	// FROM
-	//     hole h, section x, sample s
-	//   , chem_carb_sample ccs, chem_carb_analysis cca
-	// WHERE
-	//         h.leg = x.leg
-	//     AND h.site = x.site
-	//     AND h.hole = x.hole
-	//     AND x.section_id = s.sam_section_id
-	//     AND s.sample_id = ccs.sample_id
-	//     AND s.location = ccs.location
-	//     AND ccs.run_id = cca.run_id
-	//     AND h.leg = 171
-	//     AND h.site = 1049
-	//     AND h.hole = 'B'
-	// GROUP BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, x.section_type, s.top_interval, s.bottom_interval
-	// ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_interval
-	// `
 
 	type Column struct {
 		Schema, Name                   string
@@ -3605,193 +3375,24 @@ END;`, qry, &res,
 		return cols, nil
 	}
 
-	desc, err := DescribeQuery(testDb, qry2)
+	t.Logf("Describe query 3\n")
+	desc, err := DescribeQuery(testDb, qry3)
 	if err != nil {
 		t.Errorf(`Error with : %s`, err)
 	}
 	t.Logf("desc: %#v", desc)
 
-	t.Logf("Run query 1\n")
-
-	rows, err := testDb.Query(qry)
-	if err != nil {
-		t.Errorf(`Error with "%s": %s`, qry, err)
-		return
-	}
-	defer rows.Close()
-
-	i := 0
-	for rows.Next() {
-		i++
-		var (
-			Leg            int
-			Site           int
-			Hole           string
-			Core           int
-			Core_type      string
-			Section_number int
-			Section_type   string
-			Top_cm         sql.NullFloat64
-			Bot_cm         sql.NullFloat64
-			Depth_mbsf     sql.NullFloat64
-			Inor_c_wt_pct  sql.NullFloat64
-			Caco3_wt_pct   sql.NullFloat64
-			Tot_c_wt_pct   sql.NullFloat64
-			Org_c_wt_pct   sql.NullFloat64
-			Nit_wt_pct     sql.NullFloat64
-			Sul_wt_pct     sql.NullFloat64
-			H_wt_pct       sql.NullFloat64
-		)
-
-		if err := rows.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Depth_mbsf, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-			t.Fatalf("scan %d. record: %v", i, err)
-		}
-
-		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Depth_mbsf, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
-
-	}
-	if err := rows.Err(); err != nil {
-		t.Error(err)
-	}
-
-	t.Logf("Run query 2\n")
-
-	rows2, err := testDb.Query(qry2)
-	if err != nil {
-		t.Errorf(`Error with "%s": %s`, qry2, err)
-		return
-	}
-	defer rows2.Close()
-
-	ii := 0
-	for rows2.Next() {
-		ii++
-		var (
-			Leg            int
-			Site           int
-			Hole           string
-			Core           int
-			Core_type      string
-			Section_number int
-			Section_type   string
-			Top_cm         sql.NullFloat64
-			Bot_cm         sql.NullFloat64
-			Inor_c_wt_pct  sql.NullFloat64
-			Caco3_wt_pct   sql.NullFloat64
-			Tot_c_wt_pct   sql.NullFloat64
-			Org_c_wt_pct   sql.NullFloat64
-			Nit_wt_pct     sql.NullFloat64
-			Sul_wt_pct     sql.NullFloat64
-			H_wt_pct       sql.NullFloat64
-		)
-
-		if err := rows2.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-			t.Fatalf("scan %d. record: %v", ii, err)
-		}
-
-		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
-
-	}
-	if err := rows2.Err(); err != nil {
-		t.Error(err)
-	}
-
 	t.Logf("Run query 3\n")
 
 	rows3, err := testDb.Query(qry3)
 	if err != nil {
-		t.Skipf(`Error with "%s": %s`, qry3, err)
-	} else {
-		defer rows3.Close()
-
-		iii := 0
-		for rows3.Next() {
-			iii++
-			var (
-				Leg            int
-				Site           int
-				Hole           string
-				Core           int
-				Core_type      string
-				Section_number int
-				Section_type   string
-				Top_cm         sql.NullFloat64
-				Bot_cm         sql.NullFloat64
-				Inor_c_wt_pct  sql.NullFloat64
-				Caco3_wt_pct   sql.NullFloat64
-				Tot_c_wt_pct   sql.NullFloat64
-				Org_c_wt_pct   sql.NullFloat64
-				Nit_wt_pct     sql.NullFloat64
-				Sul_wt_pct     sql.NullFloat64
-				H_wt_pct       sql.NullFloat64
-			)
-
-			if err := rows3.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-				t.Fatalf("scan %d. record: %v", iii, err)
-			}
-
-			t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
-
-		}
-		if err := rows3.Err(); err != nil {
-			t.Error(err)
-		}
+		t.Fatalf(`Error with "%s": %s`, qry3, err)
 	}
+	defer rows3.Close()
 
-	t.Logf("Run query 4\n")
-
-	rows4, err := testDb.Query(qry4)
-	if err != nil {
-		t.Skipf(`Error with "%s": %s`, qry4, err)
-	} else {
-		defer rows4.Close()
-
-		iiii := 0
-		for rows4.Next() {
-			iiii++
-			var (
-				Leg            int
-				Site           int
-				Hole           string
-				Core           int
-				Core_type      string
-				Section_number int
-				Section_type   string
-				Top_cm         sql.NullFloat64
-				Bot_cm         sql.NullFloat64
-				Inor_c_wt_pct  sql.NullFloat64
-				Caco3_wt_pct   sql.NullFloat64
-				Tot_c_wt_pct   sql.NullFloat64
-				Org_c_wt_pct   sql.NullFloat64
-				Nit_wt_pct     sql.NullFloat64
-				Sul_wt_pct     sql.NullFloat64
-				H_wt_pct       sql.NullFloat64
-			)
-
-			if err := rows4.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-				t.Fatalf("scan %d. record: %v", iiii, err)
-			}
-
-			t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
-
-		}
-		if err := rows4.Err(); err != nil {
-			t.Error(err)
-		}
-	}
-
-	t.Logf("Run query 5\n")
-
-	rows5, err := testDb.Query(qry5)
-	if err != nil {
-		t.Errorf(`Error with "%s": %s`, qry5, err)
-		return
-	}
-	defer rows5.Close()
-
-	v := 0
-	for rows5.Next() {
-		v++
+	iii := 0
+	for rows3.Next() {
+		iii++
 		var (
 			Leg            int
 			Site           int
@@ -3811,56 +3412,14 @@ END;`, qry, &res,
 			H_wt_pct       sql.NullFloat64
 		)
 
-		if err := rows5.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-			t.Fatalf("scan %d. record: %v", v, err)
+		if err := rows3.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
+			t.Fatalf("scan %d. record: %v", iii, err)
 		}
 
 		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
 
 	}
-	if err := rows5.Err(); err != nil {
-		t.Error(err)
-	}
-
-	t.Logf("Run query 6\n")
-
-	rows6, err := testDb.Query(qry6)
-	if err != nil {
-		t.Errorf(`Error with "%s": %s`, qry6, err)
-		return
-	}
-	defer rows6.Close()
-
-	vi := 0
-	for rows6.Next() {
-		vi++
-		var (
-			Leg            int
-			Site           int
-			Hole           string
-			Core           int
-			Core_type      string
-			Section_number int
-			Section_type   string
-			Top_cm         sql.NullFloat64
-			Bot_cm         sql.NullFloat64
-			Inor_c_wt_pct  sql.NullFloat64
-			Caco3_wt_pct   sql.NullFloat64
-			Tot_c_wt_pct   sql.NullFloat64
-			Org_c_wt_pct   sql.NullFloat64
-			Nit_wt_pct     sql.NullFloat64
-			Sul_wt_pct     sql.NullFloat64
-			H_wt_pct       sql.NullFloat64
-		)
-
-		if err := rows6.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-			t.Fatalf("scan %d. record: %v", v, err)
-		}
-
-		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
-
-	}
-	if err := rows6.Err(); err != nil {
+	if err := rows3.Err(); err != nil {
 		t.Error(err)
 	}
 }
