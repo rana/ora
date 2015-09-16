@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"reflect"
 	"runtime"
@@ -2753,69 +2754,779 @@ func TestFils(t *testing.T) {
 	}
 }
 
-func TestUnderflow(t *testing.T) {
-	tbl := "test_underflow"
-	testDb.Exec(`DROP TABLE ` + tbl)
-	if _, err := testDb.Exec(`CREATE TABLE ` + tbl + ` (
+func TestFilsIssue36(t *testing.T) {
+	testDb.Exec(`DROP TABLE test_janus`)
+	testDb.Exec(`DROP VIEW test_janus_v`)
+
+	if _, err := testDb.Exec(`CREATE TABLE test_janus (
+		leg NUMBER(5),
+		site NUMBER(6),
+		hole VARCHAR2(1),
+		core NUMBER(5),
+		core_type VARCHAR2(1),
+		section_number NUMBER(2),
+		section_Type VARCHAR2(2) NULL,
+		top_cm NUMBER(6,3) NULL,
+		bot_cm NUMBER(6,3) NULL,
+		depth_mbsf NUMBER NULL,
+		inor_c_wt_pct NUMBER NULL,
 		caco3_wt_pct NUMBER NULL,
+		tot_c_wt_pct NUMBER NULL,
+		org_c_wt_pct NUMBER NULL,
+		nit_wt_pct NUMBER NULL,
 		sul_wt_pct NUMBER NULL,
 		h_wt_pct NUMBER(6,3) NULL
 	)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testDb.Exec(`INSERT INTO ` + tbl + ` (
-		caco3_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (9., 13., 14.)`,
+
+	if _, err := testDb.Exec(`INSERT INTO test_janus (
+		leg, site, hole, core, core_type, section_number,
+		section_type, top_cm, bot_cm, depth_mbsf,
+		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
+		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
+	VALUES (207, 1259, 'C', 3, 'B', 4, '@', 5.2, NULL, 7.6, 8., 9., 10., 11., NULL , 13., 14.)`,
 	); err != nil {
 		t.Fatal(err)
 	}
 
+	if _, err := testDb.Exec(`INSERT INTO test_janus (
+		leg, site, hole, core, core_type, section_number,
+		section_type, top_cm, bot_cm, depth_mbsf,
+		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
+		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
+	VALUES (171, 1049, 'B', 3, 'B', 4.2, '@', NULL, 6.12, 7.12, 8, 9.99, NULL, 11., NULL , 0.8, 0.42)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := testDb.Exec(`CREATE VIEW test_janus_v AS SELECT * FROM test_janus`); err != nil {
+		t.Fatal(err)
+	}
+
+	testDb.Exec(`DROP TABLE ocd_hole_test`)
+	testDb.Exec(`DROP TABLE ocd_section_test`)
+	testDb.Exec(`DROP TABLE ocd_sample_test`)
+	testDb.Exec(`DROP TABLE ocd_chem_carb_sample_test`)
+	testDb.Exec(`DROP TABLE ocd_chem_carb_analysis_test`)
+
+	if _, err := testDb.Exec(`CREATE TABLE ocd_hole_test (
+ LEG    NUMBER(5) NOT NULL,
+ SITE   NUMBER(6) NOT NULL,
+ HOLE   VARCHAR2(1) NOT NULL
+)`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := testDb.Exec(`CREATE TABLE ocd_section_test (
+ SECTION_ID       NUMBER(7) NOT NULL,
+ SECTION_NUMBER   NUMBER(2) NOT NULL,
+ SECTION_TYPE     VARCHAR2(2),
+ LEG              NUMBER(5) NOT NULL,
+ SITE             NUMBER(6) NOT NULL,
+ HOLE             VARCHAR2(1) NOT NULL,
+ CORE             NUMBER(5) NOT NULL,
+ CORE_TYPE        VARCHAR2(1) NOT NULL
+)`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := testDb.Exec(`CREATE TABLE ocd_sample_test (
+ SAMPLE_ID               NUMBER(9) NOT NULL,
+ LOCATION                VARCHAR2(3) NOT NULL,
+ SAM_SECTION_ID          NUMBER(7),
+ TOP_INTERVAL            NUMBER(6,3),
+ BOTTOM_INTERVAL         NUMBER(6,3)
+)`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := testDb.Exec(`CREATE TABLE ocd_chem_carb_sample_test (
+ RUN_ID                  NUMBER(9) NOT NULL,
+ SAMPLE_ID               NUMBER(9) NOT NULL,
+ LOCATION                VARCHAR2(3) NOT NULL
+)`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := testDb.Exec(`CREATE TABLE ocd_chem_carb_analysis_test (
+ RUN_ID                  NUMBER(9) NOT NULL,
+ ANALYSIS_CODE           VARCHAR2(15) NOT NULL,
+ METHOD_CODE             VARCHAR2(10) NOT NULL,
+ ANALYSIS_RESULT         NUMBER(15,5)
+)`); err != nil {
+		t.Fatal(err)
+	}
+
+	// create the views
+
+	testDb.Exec(`DROP PUBLIC SYNONYM ocd_chem_carb_test`)
+	testDb.Exec(`DROP VIEW ocd_chem_carb_test_v`)
+
+	for i, line := range []struct {
+		id               int
+		analysis, method string
+		result           float64
+	}{
+		{42285, "CaCO3", "C", 1},
+		{42285, "INOR_C", "C", 0.12},
+		{42290, "CaCO3", "C", 0.45},
+		{42290, "H", "CNS", 0.62},
+		{42290, "HI", "RE", 187},
+		{42290, "INOR_C", "C", 0.054},
+		{42290, "NIT", "CNS", 0},
+		{42290, "OI", "RE", 56},
+		{42290, "ORG_C", "CNS", 0.6},
+		{42290, "PC", "RE", 0.07},
+		{42290, "PI", "RE", 0.1},
+		{42290, "S1", "RE", 0.09},
+		{42290, "S2", "RE", 0.77},
+		{42290, "S3", "RE", 0.23},
+		{42290, "SUL", "CNS", 0.06},
+		{42290, "TMX", "RE", 460},
+		{42290, "TOC", "RE", 0.41},
+		{42290, "TOT_C", "CNS", 0.65},
+		{42295, "CaCO3", "C", 0.45},
+		{42295, "INOR_C", "C", 0.054},
+		{3295, "CaCO3", "C", 73.91},
+		{3295, "H", "CNS", 0.27},
+		{3295, "INOR_C", "C", 8.87},
+		{3295, "ORG_C", "CNS", 0.11},
+		{3295, "TOT_C", "CNS", 8.98},
+		{3300, "CaCO3", "C", 76.07},
+		{3300, "H", "CNS", 0.24},
+		{3300, "INOR_C", "C", 9.13},
+		{3300, "ORG_C", "CNS", 0},
+		{3300, "TOT_C", "CNS", 9.11},
+		{3240, "CaCO3", "C", 70.97},
+		{3240, "H", "CNS", 0.15},
+		{3240, "INOR_C", "C", 8.52},
+		{3240, "ORG_C", "CNS", 0},
+		{3240, "TOT_C", "CNS", 8.24},
+		{3245, "CaCO3", "C", 82.33},
+		{3245, "H", "CNS", 0.09},
+		{3245, "INOR_C", "C", 9.88},
+		{3245, "ORG_C", "CNS", 0},
+		{3245, "TOT_C", "CNS", 9.6},
+		{3250, "CaCO3", "C", 29.66},
+		{3250, "H", "CNS", 0.5},
+		{3250, "INOR_C", "C", 3.56},
+		{3250, "ORG_C", "CNS", 0.08},
+		{3250, "PI", "RE", 0.25},
+		{3250, "S1", "RE", 0.02},
+		{3250, "S2", "RE", 0.1},
+		{3250, "S3", "RE", 1.92},
+		{3250, "TMX", "RE", 413},
+		{3250, "TOC", "RE", 0},
+		{3250, "TOT_C", "CNS", 3.64},
+		{3250, "CaCO3", "C", 29.66},
+		{3250, "H", "CNS", 0.5},
+		{3250, "INOR_C", "C", 3.56},
+		{3250, "ORG_C", "CNS", 0.08},
+		{3250, "PI", "RE", 0.25},
+		{3250, "S1", "RE", 0.02},
+		{3250, "S2", "RE", 0.1},
+		{3250, "S3", "RE", 1.92},
+		{3250, "TMX", "RE", 413},
+		{3250, "TOC", "RE", 0},
+		{3250, "TOT_C", "CNS", 3.64},
+		{3255, "CaCO3", "C", 63.12},
+		{3255, "H", "CNS", 0.24},
+		{3255, "HI", "RE", 50},
+		{3255, "INOR_C", "C", 7.58},
+		{3255, "OI", "RE", 1675},
+		{3255, "ORG_C", "CNS", 0.16},
+		{3255, "PI", "RE", 0},
+		{3255, "S1", "RE", 0},
+		{3255, "S2", "RE", 0.04},
+		{3255, "S3", "RE", 1.34},
+		{3255, "TMX", "RE", 410},
+		{3255, "TOC", "RE", 0.08},
+		{3255, "TOT_C", "CNS", 7.74},
+		{3255, "CaCO3", "C", 63.12},
+		{3255, "H", "CNS", 0.24},
+		{3255, "HI", "RE", 50},
+		{3255, "INOR_C", "C", 7.58},
+		{3255, "OI", "RE", 1675},
+		{3255, "ORG_C", "CNS", 0.16},
+		{3255, "PI", "RE", 0},
+		{3255, "S1", "RE", 0},
+		{3255, "S2", "RE", 0.04},
+		{3255, "S3", "RE", 1.34},
+		{3255, "TMX", "RE", 410},
+		{3255, "TOC", "RE", 0.08},
+		{3255, "TOT_C", "CNS", 7.74},
+		{3260, "CaCO3", "C", 55.44},
+		{3260, "H", "CNS", 0.46},
+		{3260, "HI", "RE", 543},
+		{3260, "INOR_C", "C", 6.66},
+		{3260, "NIT", "CNS", 0.014},
+		{3260, "OI", "RE", 152},
+		{3260, "ORG_C", "CNS", 1.68},
+		{3260, "PI", "RE", 0.01},
+		{3260, "S1", "RE", 0.08},
+		{3260, "S2", "RE", 6.6},
+		{3260, "S3", "RE", 1.86},
+		{3260, "TMX", "RE", 403},
+		{3260, "TOC", "RE", 1.22},
+		{3260, "TOT_C", "CNS", 8.34},
+		{3260, "CaCO3", "C", 55.44},
+		{3260, "H", "CNS", 0.46},
+		{3260, "HI", "RE", 543},
+		{3260, "INOR_C", "C", 6.66},
+		{3260, "NIT", "CNS", 0.014},
+		{3260, "OI", "RE", 152},
+		{3260, "ORG_C", "CNS", 1.68},
+		{3260, "PI", "RE", 0.01},
+		{3260, "S1", "RE", 0.08},
+		{3260, "S2", "RE", 6.6},
+		{3260, "S3", "RE", 1.86},
+		{3260, "TMX", "RE", 403},
+		{3260, "TOC", "RE", 1.22},
+		{3260, "TOT_C", "CNS", 8.34},
+		{3265, "CaCO3", "C", 51.53},
+		{3265, "H", "CNS", 0.64},
+		{3265, "INOR_C", "C", 6.19},
+		{3265, "NIT", "CNS", 0.04},
+		{3265, "ORG_C", "CNS", 2.97},
+		{3265, "TOT_C", "CNS", 9.16},
+		{3265, "CaCO3", "C", 51.53},
+		{3265, "H", "CNS", 0.64},
+		{3265, "INOR_C", "C", 6.19},
+		{3265, "NIT", "CNS", 0.04},
+		{3265, "ORG_C", "CNS", 2.97},
+		{3265, "TOT_C", "CNS", 9.16},
+		{3270, "CaCO3", "C", 74.48},
+		{3270, "H", "CNS", 0.34},
+		{3270, "HI", "RE", 605},
+		{3270, "INOR_C", "C", 8.94},
+		{3270, "NIT", "CNS", 0.012},
+		{3270, "OI", "RE", 85},
+		{3270, "ORG_C", "CNS", 1.69},
+		{3270, "PI", "RE", 0.01},
+		{3270, "S1", "RE", 0.1},
+		{3270, "S2", "RE", 8.4},
+		{3270, "S3", "RE", 1.19},
+		{3270, "SUL", "CNS", 0.1},
+		{3270, "TMX", "RE", 395},
+		{3270, "TOC", "RE", 1.39},
+		{3270, "TOT_C", "CNS", 10.63},
+		{3270, "CaCO3", "C", 74.48},
+		{3270, "H", "CNS", 0.34},
+		{3270, "HI", "RE", 605},
+		{3270, "INOR_C", "C", 8.94},
+		{3270, "NIT", "CNS", 0.012},
+		{3270, "OI", "RE", 85},
+		{3270, "ORG_C", "CNS", 1.69},
+		{3270, "PI", "RE", 0.01},
+		{3270, "S1", "RE", 0.1},
+		{3270, "S2", "RE", 8.4},
+		{3270, "S3", "RE", 1.19},
+		{3270, "SUL", "CNS", 0.1},
+		{3270, "TMX", "RE", 395},
+		{3270, "TOC", "RE", 1.39},
+		{3270, "TOT_C", "CNS", 10.63},
+		{3275, "CaCO3", "C", 41.65},
+		{3275, "H", "CNS", 0.73},
+		{3275, "HI", "RE", 485},
+		{3275, "INOR_C", "C", 5},
+		{3275, "NIT", "CNS", 0.038},
+		{3275, "OI", "RE", 79},
+		{3275, "ORG_C", "CNS", 3.99},
+		{3275, "PI", "RE", 0.01},
+		{3275, "S1", "RE", 0.18},
+		{3275, "S2", "RE", 15.6},
+		{3275, "S3", "RE", 2.55},
+		{3275, "TMX", "RE", 406},
+		{3275, "TOC", "RE", 3.2},
+		{3275, "TOT_C", "CNS", 8.99},
+		{3275, "CaCO3", "C", 41.65},
+		{3275, "H", "CNS", 0.73},
+		{3275, "HI", "RE", 485},
+		{3275, "INOR_C", "C", 5},
+		{3275, "NIT", "CNS", 0.038},
+		{3275, "OI", "RE", 79},
+		{3275, "ORG_C", "CNS", 3.99},
+		{3275, "PI", "RE", 0.01},
+		{3275, "S1", "RE", 0.18},
+		{3275, "S2", "RE", 15.6},
+		{3275, "S3", "RE", 2.55},
+		{3275, "TMX", "RE", 406},
+		{3275, "TOC", "RE", 3.2},
+		{3275, "TOT_C", "CNS", 8.99},
+		{3280, "CaCO3", "C", 49.76},
+		{3280, "H", "CNS", 1.54},
+		{3280, "HI", "RE", 699},
+		{3280, "INOR_C", "C", 5.97},
+		{3280, "NIT", "CNS", 0.16},
+		{3280, "OI", "RE", 45},
+		{3280, "ORG_C", "CNS", 11.45},
+		{3280, "PI", "RE", 0.02},
+		{3280, "S1", "RE", 1.35},
+		{3280, "S2", "RE", 70.9},
+		{3280, "S3", "RE", 4.63},
+		{3280, "SUL", "CNS", 0.62},
+		{3280, "TMX", "RE", 393},
+		{3280, "TOC", "RE", 10.14},
+		{3280, "TOT_C", "CNS", 17.42},
+		{3280, "CaCO3", "C", 49.76},
+		{3280, "H", "CNS", 1.54},
+		{3280, "HI", "RE", 699},
+		{3280, "INOR_C", "C", 5.97},
+		{3280, "NIT", "CNS", 0.16},
+		{3280, "OI", "RE", 45},
+		{3280, "ORG_C", "CNS", 11.45},
+		{3280, "PI", "RE", 0.02},
+		{3280, "S1", "RE", 1.35},
+		{3280, "S2", "RE", 70.9},
+		{3280, "S3", "RE", 4.63},
+		{3280, "SUL", "CNS", 0.62},
+		{3280, "TMX", "RE", 393},
+		{3280, "TOC", "RE", 10.14},
+		{3280, "TOT_C", "CNS", 17.42},
+		{3285, "CaCO3", "C", 51.2},
+		{3285, "H", "CNS", 0.85},
+		{3285, "INOR_C", "C", 6.15},
+		{3285, "NIT", "CNS", 0.085},
+		{3285, "ORG_C", "CNS", 5.39},
+		{3285, "TOT_C", "CNS", 11.54},
+		{3285, "CaCO3", "C", 51.2},
+		{3285, "H", "CNS", 0.85},
+		{3285, "INOR_C", "C", 6.15},
+		{3285, "NIT", "CNS", 0.085},
+		{3285, "ORG_C", "CNS", 5.39},
+		{3285, "TOT_C", "CNS", 11.54},
+		{3290, "CaCO3", "C", 88.42},
+		{3290, "H", "CNS", 0.007},
+		{3290, "INOR_C", "C", 10.61},
+		{3290, "ORG_C", "CNS", 0},
+		{3290, "TOT_C", "CNS", 10.43},
+		{3290, "CaCO3", "C", 88.42},
+		{3290, "H", "CNS", 0.007},
+		{3290, "INOR_C", "C", 10.61},
+		{3290, "ORG_C", "CNS", 0},
+		{3290, "TOT_C", "CNS", 10.43},
+		{8171, "HI", "RE", 451},
+		{8171, "OI", "RE", 70},
+		{8171, "PI", "RE", 0.01},
+		{8171, "S1", "RE", 0.26},
+		{8171, "S2", "RE", 20.6},
+		{8171, "S3", "RE", 3.24},
+		{8171, "TMX", "RE", 407},
+		{8171, "TOC", "RE", 4.57},
+		{8176, "OI", "RE", 1016},
+		{8176, "PI", "RE", 0.04},
+		{8176, "S1", "RE", 0.03},
+		{8176, "S2", "RE", 0.8},
+		{8176, "S3", "RE", 0.61},
+		{8176, "TMX", "RE", 445},
+		{8176, "TOC", "RE", 0.06},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_chem_carb_analysis_test (RUN_ID,ANALYSIS_CODE,METHOD_CODE,ANALYSIS_RESULT) VALUES (:1, :2, :3, :4)`, line.id, line.analysis, line.method, line.result); err != nil {
+			t.Fatalf("INSERT INTO ocd_chem_carb_analysis_test, line %d: %v", i, err)
+		}
+	}
+
+	//////
+
+	for i, line := range []struct {
+		id, sample int
+		location   string
+	}{
+		{42285, 114942, "SHI"},
+		{42290, 114943, "SHI"},
+		{42295, 114944, "SHI"},
+		{3295, 25277, "SHI"},
+		{3300, 25263, "SHI"},
+		{3240, 25061, "SHI"},
+		{3245, 25063, "SHI"},
+		{3250, 25107, "SHI"},
+		{3250, 25107, "SHI"},
+		{3255, 25106, "SHI"},
+		{3255, 25106, "SHI"},
+		{3260, 25105, "SHI"},
+		{3260, 25105, "SHI"},
+		{3265, 25102, "SHI"},
+		{3265, 25102, "SHI"},
+		{3270, 25104, "SHI"},
+		{3270, 25104, "SHI"},
+		{3275, 25103, "SHI"},
+		{3275, 25103, "SHI"},
+		{3280, 25101, "SHI"},
+		{3280, 25101, "SHI"},
+		{3285, 25100, "SHI"},
+		{3285, 25100, "SHI"},
+		{3290, 25099, "SHI"},
+		{3290, 25099, "SHI"},
+		{8171, 227155, "SHI"},
+		{8176, 227154, "SHI"},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_chem_carb_sample_test (RUN_ID,SAMPLE_ID,LOCATION) VALUES (:1, :2, :3)`, line.id, line.sample, line.location); err != nil {
+			t.Fatalf("INSERT INTO ocd_chem_carb_sample_test line %d: %v", i, err)
+		}
+	}
+
+	/////
+
+	if _, err := testDb.Exec(`Insert into OCD_HOLE_TEST (LEG,SITE,HOLE) values (171,1049,'B')`); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, line := range []struct {
+		id          int
+		location    string
+		section     int
+		top, bottom float64
+	}{
+		{25099, "SHI", 42830, 0.21, 0.22},
+		{25100, "SHI", 42830, 0.19, 0.21},
+		{25101, "SHI", 42830, 0.175, 0.19},
+		{25102, "SHI", 42830, 0.125, 0.22},
+		{25103, "SHI", 42830, 0.16, 0.175},
+		{25104, "SHI", 42830, 0.135, 0.16},
+		{25105, "SHI", 42830, 0.125, 0.135},
+		{25106, "SHI", 42830, 0.085, 0.125},
+		{25107, "SHI", 42830, 0.07, 0.085},
+		{227154, "SHI", 42830, 0.205, 0.22},
+		{227155, "SHI", 42830, 0.19, 0.205},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_sample_test (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) VALUES (:1, :2, :3, :4, :5)`,
+			line.id, line.location, line.section, line.top, line.bottom); err != nil {
+			t.Fatalf("INSERT INTO ocd_sample_test line %d: %v", i, err)
+		}
+	}
+
+	/////
+
+	for i, line := range []struct {
+		id, number int
+		typ        string
+		leg, site  int
+		hole       string
+		core       int
+		core_typ   string
+	}{
+		{42730, 1, "S", 171, 1049, "B", 8, "H"},
+		{42730, 1, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42740, 3, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42745, 4, "S", 171, 1049, "B", 8, "H"},
+		{42735, 2, "S", 171, 1049, "B", 8, "H"},
+		{42735, 2, "S", 171, 1049, "B", 8, "H"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42820, 1, "S", 171, 1049, "B", 11, "X"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+		{42830, 3, "C", 171, 1049, "B", 11, "X"},
+	} {
+		if _, err := testDb.Exec(`INSERT INTO ocd_section_test (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
+			line.id, line.number, line.typ, line.leg, line.site, line.hole, line.core, line.core_typ); err != nil {
+			t.Fatalf("INSERT INTO ocd_section_test line %d: %v", i, err)
+		}
+	}
+
+	if _, err := testDb.Exec(`CREATE VIEW ocd_chem_carb_test_v AS
+SELECT
+    x.leg, x.site, x.hole
+  , x.core, x.core_type
+  , x.section_number, x.section_type
+  , s.top_interval*100.0 top_cm
+  , s.bottom_interval*100.0 bot_cm
+  , AVG(DECODE(cca.analysis_code,'INOR_C',cca.analysis_result)) INOR_C_wt_pct
+  , AVG(DECODE(cca.analysis_code,'CaCO3', cca.analysis_result)) CaCO3_wt_pct
+  , AVG(DECODE(cca.analysis_code,'TOT_C', cca.analysis_result)) TOT_C_wt_pct
+  , AVG(DECODE(cca.analysis_code,'ORG_C', cca.analysis_result)) ORG_C_wt_pct
+  , AVG(DECODE(cca.analysis_code,'NIT',   cca.analysis_result)) NIT_wt_pct
+  , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
+  , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
+FROM
+    ocd_hole_test h, ocd_section_test x, ocd_sample_test s
+  , ocd_chem_carb_sample_test ccs, ocd_chem_carb_analysis_test cca
+WHERE
+        h.leg = x.leg
+    AND h.site = x.site
+    AND h.hole = x.hole
+    AND x.section_id = s.sam_section_id
+    AND s.sample_id = ccs.sample_id
+    AND s.location = ccs.location
+    AND ccs.run_id = cca.run_id
+GROUP BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, x.section_type, s.top_interval, s.bottom_interval
+ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_interval
+`); err != nil {
+		t.Fatal(err)
+	}
+
+	testDb.Exec(`DROP TABLE ocd_chem_carb_test_table`)
+
+	qry3 := `SELECT
+            x.leg, x.site, x.hole
+          , x.core, x.core_type
+          , x.section_number, x.section_type
+          , s.top_interval*100.0 top_cm
+          , s.bottom_interval*100.0 bot_cm
+          , AVG(DECODE(cca.analysis_code,'INOR_C',cca.analysis_result)) INOR_C_wt_pct
+          , AVG(DECODE(cca.analysis_code,'CaCO3', cca.analysis_result)) CaCO3_wt_pct
+          , AVG(DECODE(cca.analysis_code,'TOT_C', cca.analysis_result)) TOT_C_wt_pct
+          , AVG(DECODE(cca.analysis_code,'ORG_C', cca.analysis_result)) ORG_C_wt_pct
+          , AVG(DECODE(cca.analysis_code,'NIT',   cca.analysis_result)) NIT_wt_pct
+          , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
+          , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
+        FROM
+            ocd_hole_test h, ocd_section_test x, ocd_sample_test s
+          , ocd_chem_carb_sample_test ccs, ocd_chem_carb_analysis_test cca
+        WHERE
+                h.leg = x.leg
+            AND h.site = x.site
+            AND h.hole = x.hole
+            AND x.section_id = s.sam_section_id
+            AND s.sample_id = ccs.sample_id
+            AND s.location = ccs.location
+            AND ccs.run_id = cca.run_id
+            AND x.leg = 171
+            AND x.site = 1049
+            AND x.hole = upper('B')
+        GROUP BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, x.section_type, s.top_interval, s.bottom_interval
+        ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_interval
+`
+
+	type Column struct {
+		Schema, Name                   string
+		Type, Length, Precision, Scale int
+		Nullable                       bool
+		CharsetID, CharsetForm         int
+	}
+	// copied from github.com/tgulacsi/go/orahlp
+	DescribeQuery := func(db *sql.DB, qry string) ([]Column, error) {
+		//res := strings.Repeat("\x00", 32767)
+		res := make([]byte, 32767)
+		if _, err := db.Exec(`DECLARE
+  c INTEGER;
+  col_cnt INTEGER;
+  rec_tab DBMS_SQL.DESC_TAB;
+  a DBMS_SQL.DESC_REC;
+  v_idx PLS_INTEGER;
+  res VARCHAR2(32767);
+BEGIN
+  c := DBMS_SQL.OPEN_CURSOR;
+  BEGIN
+    DBMS_SQL.PARSE(c, :1, DBMS_SQL.NATIVE);
+    DBMS_SQL.DESCRIBE_COLUMNS(c, col_cnt, rec_tab);
+    v_idx := rec_tab.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      a := rec_tab(v_idx);
+      res := res||a.col_schema_name||' '||a.col_name||' '||a.col_type||' '||
+                  a.col_max_len||' '||a.col_precision||' '||a.col_scale||' '||
+                  (CASE WHEN a.col_null_ok THEN 1 ELSE 0 END)||' '||
+                  a.col_charsetid||' '||a.col_charsetform||
+                  CHR(10);
+      v_idx := rec_tab.NEXT(v_idx);
+    END LOOP;
+  EXCEPTION WHEN OTHERS THEN NULL;
+    DBMS_SQL.CLOSE_CURSOR(c);
+	RAISE;
+  END;
+  :2 := UTL_RAW.CAST_TO_RAW(res);
+END;`, qry, &res,
+		); err != nil {
+			return nil, err
+		}
+		if i := bytes.IndexByte(res, 0); i >= 0 {
+			res = res[:i]
+		}
+		lines := bytes.Split(res, []byte{'\n'})
+		cols := make([]Column, 0, len(lines))
+		var nullable int
+		for _, line := range lines {
+			if len(line) == 0 {
+				continue
+			}
+			var col Column
+			switch j := bytes.IndexByte(line, ' '); j {
+			case -1:
+				continue
+			case 0:
+				line = line[1:]
+			default:
+				col.Schema, line = string(line[:j]), line[j+1:]
+			}
+			if n, err := fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d",
+				&col.Name, &col.Type, &col.Length, &col.Precision, &col.Scale, &nullable, &col.CharsetID, &col.CharsetForm,
+			); err != nil {
+				return cols, fmt.Errorf("parsing %q (parsed: %d): %v", line, n, err)
+			}
+			col.Nullable = nullable != 0
+			cols = append(cols, col)
+		}
+		return cols, nil
+	}
+
+	t.Logf("Describe query 3\n")
+	desc, err := DescribeQuery(testDb, qry3)
+	if err != nil {
+		t.Errorf(`Error with : %s`, err)
+	}
+	t.Logf("desc: %#v", desc)
+
+	t.Logf("Run query 3\n")
+
+	rows3, err := testDb.Query(qry3)
+	if err != nil {
+		t.Fatalf(`Error with "%s": %s`, qry3, err)
+	}
+	defer rows3.Close()
+
+	iii := 0
+	for rows3.Next() {
+		iii++
+		var (
+			Leg            int
+			Site           int
+			Hole           string
+			Core           int
+			Core_type      string
+			Section_number int
+			Section_type   string
+			Top_cm         sql.NullFloat64
+			Bot_cm         sql.NullFloat64
+			Inor_c_wt_pct  sql.NullFloat64
+			Caco3_wt_pct   sql.NullFloat64
+			Tot_c_wt_pct   sql.NullFloat64
+			Org_c_wt_pct   sql.NullFloat64
+			Nit_wt_pct     sql.NullFloat64
+			Sul_wt_pct     sql.NullFloat64
+			H_wt_pct       sql.NullFloat64
+		)
+
+		if err := rows3.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
+			t.Fatalf("scan %d. record: %v", iii, err)
+		}
+
+		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
+
+	}
+	if err := rows3.Err(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnderflow(t *testing.T) {
+	tbl := "test_underflow"
+	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
+	testDb.Exec(`DROP TABLE ` + tbl)
+	qry := `CREATE TABLE ` + tbl + ` (
+		num NUMBER NULL,
+		num_6 NUMBER(6) NULL,
+		num_6_3 NUMBER(6,3) NULL,
+		num_6_n2 NUMBER(6, -2) NULL,
+		flo FLOAT NULL,
+		flo_6 FLOAT(6) NULL,
+		bflo BINARY_FLOAT NULL,
+		bdouble BINARY_DOUBLE NULL,
+		int INTEGER NULL
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%q: %v", qry, err)
+	}
+
+	const colCount = 9
+
+	queries := []string{
+		`SELECT * FROM ` + tbl,
+		`SELECT * FROM (SELECT * FROM ` + tbl + `)`,
+	}
+	if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view1 AS SELECT * FROM ` + tbl); err != nil {
+		t.Logf("cannot create view: %v", err)
+	} else {
+		queries = append(queries, `SELECT * FROM `+tbl+`_view1`)
+		if _, err := testDb.Exec(`CREATE VIEW ` + tbl + `_view2 AS
+			SELECT
+				TO_NUMBER(num) num,
+				TO_NUMBER(num_6) num_6,
+				TO_NUMBER(num_6_3) num_6_3,
+				TO_NUMBER(num_6_n2) num_6_n2,
+				TO_NUMBER(flo) flo,
+				TO_NUMBER(flo_6) flo_6,
+				TO_NUMBER(bflo) bflo,
+				TO_NUMBER(bdouble) bdouble,
+				TO_NUMBER(int) int
+			FROM ` + tbl); err != nil {
+			t.Fatal(err)
+		}
+		queries = append(queries, `SELECT * FROM `+tbl+`_view2`)
+	}
+	want := make([]interface{}, colCount)
+	got := make([]sql.NullFloat64, colCount)
+	gotP := make([]interface{}, len(got))
+	for i := range gotP {
+		gotP[i] = &got[i]
+	}
+	ins := `INSERT INTO ` + tbl + ` VALUES (` + strings.Repeat(",%f", colCount)[1:] + `)`
+
 	enableLogging(t)
 
-	for caseNum, test := range [][3]float64{
-		{10., 0.8, 4.2},
-		{9.19, 0.8, 0.12},
-		{9.99, 0.8, 0.42},
+	for caseNum, test := range [][colCount]float64{
+		{0.99, 8, 4.2, 65400., 0.7, 0.6, 3.14, 2.78, 42},
+		{0.89, 8, 4.2, 65400., 0.8, 0.5, 3.14, 2.78, 42},
+		{0.79, 8, 4.2, 65400., 0.9, 0.4, 3.14, 2.78, 42},
+		{0.69, 8, 4.2, 65400., 0.6, 0.3, 3.14, 2.78, 42},
+		{0.59, 8, 4.2, 65400., 0.5, 0.2, 3.14, 2.78, 42},
+		{0.49, 8, 4.2, 65400., 0.4, 0.1, 3.14, 2.78, 42},
+		{0.39, 8, 4.2, 65400., 0.3, 0.01, 3.14, 2.78, 42},
+		{0.29, 8, 4.2, 65400., 0.2, 0.71, 3.14, 2.78, 42},
+		{0.19, 8, 4.2, 65400., 0.1, 0.81, 3.14, 2.78, 42},
+		{0.09, 8, 4.2, 65400., 0.0, 0.91, 3.14, 2.78, 42},
 	} {
 		testDb.Exec("TRUNCATE TABLE " + tbl)
-		if _, err := testDb.Exec(fmt.Sprintf(
-			`INSERT INTO `+tbl+` (
-		caco3_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (%f, %f, %f)`, test[0], test[1], test[2]),
-		); err != nil {
-			t.Fatalf("%d. %v", caseNum, err)
+		for i, f := range test[:] {
+			want[i] = f
+		}
+		if _, err := testDb.Exec(fmt.Sprintf(ins, want...)); err != nil {
+			t.Fatalf("%d. %v", caseNum+1, err)
 		}
 
-		qry := `SELECT caco3_wt_pct, sul_wt_pct, h_wt_pct
-		FROM ` + tbl
-
-		rows, err := testDb.Query(qry)
-		if err != nil {
-			t.Errorf(`%d. Error with "%s": %s`, caseNum, qry, err)
-			return
-		}
-		defer rows.Close()
-
-		i := 0
-		for rows.Next() {
-			i++
-			got := make([]sql.NullFloat64, len(test))
-
-			if err := rows.Scan(&got[0], &got[1], &got[2]); err != nil {
-				t.Fatalf("scan %d. record: %v", i, err)
+		for _, qry = range queries {
+			rows, err := testDb.Query(qry)
+			if err != nil {
+				t.Errorf(`%d. Error with %q: %s`, caseNum+1, qry, err)
+				return
 			}
+			defer rows.Close()
 
-			t.Logf("Results: %v", got)
+			i := 0
+			for rows.Next() {
+				i++
 
-			for j, f := range got {
-				if !f.Valid || f.Float64 != test[j] {
-					t.Errorf("%d. %d. got %v, awaited %v.", caseNum, j, f, test[j])
+				if err := rows.Scan(gotP...); err != nil {
+					t.Fatalf("%d. %q scan %d. record: %v", caseNum+1, qry, i, err)
+				}
+
+				t.Logf("Results: %v", got)
+
+				for j, f := range got {
+					if !f.Valid || f.Float64 != test[j] && math.Abs(f.Float64-test[j]) > 0.000001 {
+						t.Errorf("%d. %q %d. got %v, awaited %v.", caseNum+1, qry, j+1, f, test[j])
+					}
 				}
 			}
+			if err := rows.Err(); err != nil {
+				t.Errorf("%d. %q: %v", caseNum+1, qry, err)
+			}
+			rows.Close()
 		}
-		if err := rows.Err(); err != nil {
-			t.Errorf("%d. %v", caseNum, err)
-		}
-		rows.Close()
 	}
 }
