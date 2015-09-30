@@ -3424,6 +3424,39 @@ END;`, qry, &res,
 	}
 }
 
+func TestLobSelect(t *testing.T) {
+	tbl := "test_lob"
+	testDb.Exec("DROP TABLE " + tbl)
+	qry := "CREATE TABLE " + tbl + " (content BLOB)"
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	qry = "INSERT INTO " + tbl + " (content) VALUES (HEXTORAW('7f7f7f'))"
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	rows, err := testDb.Query("SELECT * FROM " + tbl)
+	if err != nil {
+		t.Errorf("SELECT: %v", err)
+		return
+	}
+	defer rows.Close()
+	var buf bytes.Buffer
+	for rows.Next() {
+		var v interface{}
+		if err = rows.Scan(&v); err != nil {
+			t.Errorf("Scan: %v", err)
+		}
+		t.Logf("%#v (%T)", v, v)
+		n, err := io.Copy(&buf, v.(io.Reader))
+		if err != nil {
+			t.Errorf("Read: %v", err)
+		}
+		t.Logf("n=%d data=%v", n, buf.Bytes())
+		buf.Reset()
+	}
+}
+
 func TestUnderflow(t *testing.T) {
 	tbl := "test_underflow"
 	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
