@@ -17,6 +17,7 @@ type defString struct {
 	null       C.sb2
 	isNullable bool
 	buf        []byte
+	rlen       C.ACTUAL_LENGTH_TYPE
 }
 
 func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
@@ -52,9 +53,9 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 		C.LENGTH_TYPE(n),                 //sb8         value_sz,
 		C.SQLT_CHR,                       //ub2         dty,
 		unsafe.Pointer(&def.null),        //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
+		&def.rlen,                        //ub2         *rlenp,
+		nil,                              //ub2         *rcodep,
+		C.OCI_DEFAULT)                    //ub4         mode );
 	if r == C.OCI_ERROR {
 		return def.rset.stmt.ses.srv.env.ociError()
 	}
@@ -66,14 +67,14 @@ func (def *defString) value() (value interface{}, err error) {
 	if def.isNullable {
 		oraStringValue := String{IsNull: def.null < C.sb2(0)}
 		if !oraStringValue.IsNull {
-			oraStringValue.Value = stringTrimmed(def.buf, 32)
+			oraStringValue.Value = string(def.buf[:int(def.rlen)])
 		}
 		value = oraStringValue
 	} else {
 		if def.null < C.sb2(0) {
 			value = ""
 		} else {
-			value = stringTrimmed(def.buf, 32)
+			value = def.buf[:int(def.rlen)]
 		}
 	}
 	return value, err

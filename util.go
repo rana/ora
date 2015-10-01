@@ -129,25 +129,8 @@ func GctName(gct GoColumnType) string {
 	return ""
 }
 
-func stringTrimmed(buffer []byte, pad byte) string {
-	// Find length of non-padded string value
-	// String buffer returned from Oracle is padded with Space char (32)
-	//fmt.Println("stringTrimmed: len(buffer): ", len(buffer))
-	var n int
-	for n = len(buffer) - 1; n > -1; n-- {
-		if buffer[n] != pad {
-			n++
-			break
-		}
-	}
-	if n > 0 {
-		return string(buffer[:n])
-	}
-	return ""
-}
-
 func clear(buffer []byte, fill byte) {
-	for n, _ := range buffer {
+	for n := range buffer {
 		buffer[n] = fill
 	}
 }
