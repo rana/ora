@@ -63,21 +63,17 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 }
 
 func (def *defString) value() (value interface{}, err error) {
-	// Buffer is padded with Space char (32)
 	if def.isNullable {
 		oraStringValue := String{IsNull: def.null < C.sb2(0)}
 		if !oraStringValue.IsNull {
 			oraStringValue.Value = string(def.buf[:int(def.rlen)])
 		}
-		value = oraStringValue
-	} else {
-		if def.null < C.sb2(0) {
-			value = ""
-		} else {
-			value = def.buf[:int(def.rlen)]
-		}
+		return oraStringValue, nil
 	}
-	return value, err
+	if def.null < C.sb2(0) {
+		return "", nil
+	}
+	return string(def.buf[:int(def.rlen)]), nil
 }
 
 func (def *defString) alloc() error {
