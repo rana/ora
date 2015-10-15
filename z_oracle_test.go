@@ -164,7 +164,6 @@ END;`)
 	fmt.Println("Tables dropped.")
 
 	// setup test db
-	ora.Register(nil)
 	testDb, err = sql.Open(ora.Name, testConStr)
 	if err != nil {
 		fmt.Println("initError: ", err)

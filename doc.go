@@ -119,22 +119,16 @@ types. The Go-to-Oracle type mapping for database/sql is:
 	³ The Go bool value false is mapped to the zero rune '0'. The Go bool value
 	true is mapped to the one rune '1'.
 
-To register the ora driver for use with sql.Open, you have to call ora.Register
-once before sql.Open in your app:
-
-    func init() {
-		ora.Register(nil)
-	}
-
-You may specify an optional *DrvCfg to ora.Register to configure various
-configuration options including statement configuration and Rset configuration.
+The "ora" driver is automatically registered for use with sql.Open, but you can
+call ora.SetDrvCfg to set the used configuration options including
+statement configuration and Rset configuration.
 
     func init() {
 		drvCfg := ora.NewDrvCfg()
 		drvCfg.Env.StmtCfg.FalseRune = 'N'
 		drvCfg.Env.StmtCfg.TrueRune = 'Y'
 		drvCfg.Env.StmtCfg.Rset.TrueRune = 'Y'
-		ora.Register(drvCfg)
+		ora.SetDrvCfg(drvCfg)
 	}
 
 When configuring the driver for use with database/sql, keep in mind that
@@ -146,13 +140,6 @@ The ora package allows programming with pointers, slices, nullable types,
 numerics of various sizes, Oracle-specific types, Go return type configuration, and
 Oracle abstractions such as environment, server and session. When working with the
 ora package directly, the API is slightly different than database/sql.
-
-To register the ora driver for use with sql.Open, you have to call ora.Register,
-once before sql.Open in your app:
-
-    func init() {
-		ora.Register(nil)
-	}
 
 When using the ora package directly, the mapping between Go types and Oracle types
 may be changed. The Go-to-Oracle type mapping for the ora package is:

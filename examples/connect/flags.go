@@ -90,7 +90,6 @@ func GetConnection(dsn string) (*sql.DB, error) {
 		dsn = GetDSN(GetCfg(""))
 	}
 	log.Printf("GetConnection dsn=%v", dsn)
-	oraInit.Do(func() { ora.Register(nil) })
 	conn, err := sql.Open("ora", dsn)
 	if err != nil {
 		return nil, errgo.Notef(err, "dsn=%q", dsn)
