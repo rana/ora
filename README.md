@@ -137,15 +137,7 @@ When using [database/sql](http://golang.org/pkg/database/sql/), the mapping betw
 	³ The Go bool value false is mapped to the zero rune '0'. The Go bool value
 	true is mapped to the one rune '1'.
 
-To register the ora driver for use with `sql.Open`, you have to call `ora.Register`, once before `sql.Open` in your app:
-
-```go
-func init() {
-	ora.Register(nil)
-}
-```
-
-You may specify an optional *DrvCfg to ora.Register to configure various configuration options including statement configuration and Rset configuration.
+You may specify an optional *DrvCfg to ora.SetDrvCfg to configure various configuration options including statement configuration and Rset configuration.
 
 ```go
 func init() {
@@ -153,7 +145,7 @@ func init() {
 	drvCfg.Env.StmtCfg.FalseRune = 'N'
 	drvCfg.Env.StmtCfg.TrueRune = 'Y'
 	drvCfg.Env.StmtCfg.Rset.TrueRune = 'Y'
-	ora.Register(drvCfg)
+	ora.SetDrvCfg(drvCfg)
 }
 ```
 

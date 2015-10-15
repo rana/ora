@@ -35,7 +35,6 @@ import (
 	"github.com/tgulacsi/go/text"
 	"golang.org/x/text/encoding"
 	"gopkg.in/inconshreveable/log15.v2"
-	"gopkg.in/rana/ora.v3"
 )
 
 var Log = log15.New()
@@ -59,7 +58,6 @@ func main() {
 		}
 	}
 
-	ora.Register(nil)
 	db, err := sql.Open("ora", *flagConnect)
 	if err != nil {
 		Log.Crit("connect to db", "dsn", *flagConnect, "error", err)

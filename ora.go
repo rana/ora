@@ -122,29 +122,30 @@ func init() {
 	_drv.defPools[defIdxRowid] = newPool(func() interface{} { return &defRowid{} })
 }
 
-// Register registers the ora database driver with the database/sql package.
-//
-// Call Register once before sql.Open when working with database/sql:
-//
-//	func init() {
-//		ora.Register(nil)
-//	}
-//
-// Register is unnecessary if you're working directly with the ora package.
-func Register(cfg *DrvCfg) {
-	if _drv.sqlPkgEnv == nil {
-		if cfg != nil {
-			_drv.cfg = *cfg
-		}
-		env, err := OpenEnv(nil)
-		if err != nil {
-			errE(err)
-		}
-		// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
-		env.cfg.StmtCfg.Rset.binaryFloat = F64
-		_drv.sqlPkgEnv = env
-		sql.Register(Name, _drv)
+func init() {
+	var err error
+	_drv.sqlPkgEnv, err = OpenEnv(nil)
+	if err != nil {
+		errE(err)
 	}
+	// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
+	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
+	sql.Register(Name, _drv)
+}
+
+// SetDrvCfg sets the used configuration options for the driver.
+func SetDrvCfg(cfg *DrvCfg) {
+	if cfg == nil {
+		return
+	}
+	_drv.cfg = *cfg
+}
+
+// Register used to register the ora database driver with the database/sql package,
+// but this is automatic now - so this function is deprecated, has the same effect
+// as SetDrvCfg.
+func Register(cfg *DrvCfg) {
+	SetDrvCfg(cfg)
 }
 
 // OpenEnv opens an Oracle environment.
