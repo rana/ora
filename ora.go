@@ -139,6 +139,8 @@ func SetDrvCfg(cfg *DrvCfg) {
 		return
 	}
 	_drv.cfg = *cfg
+	_drv.sqlPkgEnv.cfg = *cfg.Env
+	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
 }
 
 // Register used to register the ora database driver with the database/sql package,

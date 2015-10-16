@@ -3562,3 +3562,30 @@ func TestUnderflow(t *testing.T) {
 		}
 	}
 }
+
+func TestSetDrvCfg(t *testing.T) {
+	drvCfg := ora.NewDrvCfg()
+	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
+
+	drvCfg.Env.StmtCfg.Rset.SetChar1(ora.B)
+	ora.SetDrvCfg(drvCfg)
+	var b bool
+	if err := testDb.QueryRow(qry).Scan(&b); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	t.Logf("B=%v", b)
+	if b != false {
+		t.Errorf("got %q, awaited 'false'", b)
+	}
+
+	drvCfg.Env.StmtCfg.Rset.SetChar1(ora.S)
+	ora.SetDrvCfg(drvCfg)
+	var s string
+	if err := testDb.QueryRow(qry).Scan(&s); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	t.Logf("S=%v", s)
+	if s != "S" {
+		t.Errorf("got %q, awaited 'S'", s)
+	}
+}
