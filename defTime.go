@@ -48,15 +48,17 @@ func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defTime) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraTimeValue := Time{IsNull: def.null < C.sb2(0)}
+		oraTimeValue := Time{IsNull: def.null < 0}
 		if !oraTimeValue.IsNull {
 			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
 		}
 		value = oraTimeValue
-	} else {
-		value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
+		return value, err
 	}
-	return value, err
+	if def.null < 0 {
+		return time.Time{}, nil // zero time
+	}
+	return getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
 }
 
 func (def *defTime) alloc() error {
