@@ -52,11 +52,10 @@ func (def *defTime) value() (value interface{}, err error) {
 		if !oraTimeValue.IsNull {
 			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
 		}
-		value = oraTimeValue
-		return value, err
+		return oraTimeValue, err
 	}
 	if def.null < 0 {
-		return time.Time{}, nil // zero time
+		return nil, nil
 	}
 	return getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
 }
