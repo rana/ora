@@ -38,7 +38,7 @@ The ora package has been verified to work with
 Minimum requirements are Go 1.3 with CGO enabled, a GCC C compiler, and
 Oracle 11g (11.2.0.4.0) or Oracle Instant Client (11.2.0.4.0).
 
-Install Oracle or Oracle Instant Client.
+Install Oracle or Oracle Instant Client. Make sure to install a version with the same architecture as your Go version (32 or 64 bit).
 
 Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
 and library. For example:
@@ -60,6 +60,8 @@ locally installed.
 The ora package has no external Go dependencies and is available on GitHub and gopkg.in:
 
 	go get gopkg.in/rana/ora.v3
+	
+Verify that your PATH environment variable contains the folder where oci.dll is located. This is needed to run applications after building.
 
 ##### Data Types #####
 
