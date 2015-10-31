@@ -304,23 +304,24 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		}
 		// Get column size in bytes
 		var columnSize uint32
-		err = rset.paramAttr(ocipar, unsafe.Pointer(&columnSize), 0, C.OCI_ATTR_DATA_SIZE)
+		err = rset.paramAttr(ocipar, unsafe.Pointer(&columnSize), nil, C.OCI_ATTR_DATA_SIZE)
 		if err != nil {
 			return err
 		}
 		// Get oci data type code
 		var ociTypeCode C.ub2
-		err = rset.paramAttr(ocipar, unsafe.Pointer(&ociTypeCode), 0, C.OCI_ATTR_DATA_TYPE)
+		err = rset.paramAttr(ocipar, unsafe.Pointer(&ociTypeCode), nil, C.OCI_ATTR_DATA_TYPE)
 		if err != nil {
 			return err
 		}
 		// Get column name
 		var columnName *C.char
-		err := rset.paramAttr(ocipar, unsafe.Pointer(&columnName), 0, C.OCI_ATTR_NAME)
+		var colSize C.ub4
+		err := rset.paramAttr(ocipar, unsafe.Pointer(&columnName), &colSize, C.OCI_ATTR_NAME)
 		if err != nil {
 			return err
 		}
-		rset.ColumnNames[n] = C.GoString(columnName)
+		rset.ColumnNames[n] = C.GoStringN(columnName, C.int(colSize))
 		//fmt.Printf("Rset.open: ociTypeCode (%v)\n", ociTypeCode)
 		//Log.Infof("Rset.open: ociTypeCode=%d name=%s size=%d", ociTypeCode, rset.ColumnNames[n], columnSize)
 		//log(true, "ociTypeCode=", int(ociTypeCode), ", name=", rset.ColumnNames[n], ", size=", columnSize)
@@ -330,13 +331,13 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			// NUMBER
 			// Get precision
 			var precision C.sb2
-			err = rset.paramAttr(ocipar, unsafe.Pointer(&precision), 0, C.OCI_ATTR_PRECISION)
+			err = rset.paramAttr(ocipar, unsafe.Pointer(&precision), nil, C.OCI_ATTR_PRECISION)
 			if err != nil {
 				return err
 			}
 			// Get scale (the number of decimal places)
 			var scale C.sb1
-			err = rset.paramAttr(ocipar, unsafe.Pointer(&scale), 0, C.OCI_ATTR_SCALE)
+			err = rset.paramAttr(ocipar, unsafe.Pointer(&scale), nil, C.OCI_ATTR_SCALE)
 			if err != nil {
 				return err
 			}
@@ -506,7 +507,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			}
 			// Get character set form
 			var charsetForm C.ub1
-			err = rset.paramAttr(ocipar, unsafe.Pointer(&charsetForm), 0, C.OCI_ATTR_CHARSET_FORM)
+			err = rset.paramAttr(ocipar, unsafe.Pointer(&charsetForm), nil, C.OCI_ATTR_CHARSET_FORM)
 			if err != nil {
 				return err
 			}
@@ -713,12 +714,15 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (err error) {
 }
 
 // paramAttr gets an attribute from the parameter handle.
-func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
+func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep *C.ub4, attrType C.ub4) error {
+	if attrSizep == nil {
+		attrSizep = new(C.ub4)
+	}
 	r := C.OCIAttrGet(
 		unsafe.Pointer(ocipar),       //const void     *trgthndlp,
 		C.OCI_DTYPE_PARAM,            //ub4            trghndltyp,
 		attrup,                       //void           *attributep,
-		&attrSize,                    //ub4            *sizep,
+		attrSizep,                    //ub4            *sizep,
 		attrType,                     //ub4            attrtype,
 		rset.stmt.ses.srv.env.ocierr) //OCIError       *errhp );
 	if r == C.OCI_ERROR {
