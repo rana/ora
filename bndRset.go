@@ -55,6 +55,7 @@ func (bnd *bndRset) setPtr() error {
 	err := bnd.value.open(bnd.stmt, bnd.ocistmt)
 	bnd.stmt.openRsets.add(bnd.value)
 	if err == nil {
+		err = bnd.stmt.setPrefetchSize()
 		// open result set is successful; will be freed by Rset
 		bnd.ocistmt = nil
 	}
