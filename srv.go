@@ -79,7 +79,18 @@ type Srv struct {
 // Calling Close will cause Srv.IsOpen to return false. Once closed, a server cannot
 // be re-opened. Call Env.OpenSrv to open a new server.
 func (srv *Srv) Close() (err error) {
+	if srv == nil {
+		return nil
+	}
+	srv.mu.Lock()
+	if srv.env == nil {
+		srv.mu.Unlock()
+		return nil
+	}
+	srv.env.mu.Lock()
 	srv.env.openSrvs.remove(srv)
+	srv.env.mu.Unlock()
+	srv.mu.Unlock()
 	return srv.close()
 }
 
@@ -254,6 +265,9 @@ func (srv *Srv) Version() (ver string, err error) {
 
 // NumSes returns the number of open Oracle sessions.
 func (srv *Srv) NumSes() int {
+	if srv == nil {
+		return 0
+	}
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	return srv.openSess.len()

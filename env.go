@@ -142,6 +142,7 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
+	srv.mu.Lock()
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	if srv.id == 0 {
@@ -151,6 +152,7 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	if srv.cfg.StmtCfg == nil && srv.env.cfg.StmtCfg != nil {
 		srv.cfg.StmtCfg = &(*srv.env.cfg.StmtCfg) // copy by value so that user may change independently
 	}
+	srv.mu.Unlock()
 	env.openSrvs.add(srv)
 
 	return srv, nil
@@ -284,6 +286,9 @@ func (env *Env) checkClosed() error {
 
 // sysName returns a string representing the Env.
 func (env *Env) sysName() string {
+	if env == nil {
+		return "E_"
+	}
 	return fmt.Sprintf("E%v", env.id)
 }
 

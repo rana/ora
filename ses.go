@@ -121,7 +121,18 @@ type Ses struct {
 // Calling Close will cause Ses.IsOpen to return false. Once closed, a session
 // cannot be re-opened. Call Srv.OpenSes to open a new session.
 func (ses *Ses) Close() (err error) {
+	if ses == nil {
+		return nil
+	}
+	ses.mu.Lock()
+	if ses.srv == nil {
+		ses.mu.Unlock()
+		return nil
+	}
+	ses.srv.mu.Lock()
 	ses.srv.openSess.remove(ses)
+	ses.srv.mu.Unlock()
+	ses.mu.Unlock()
 	return ses.close()
 }
 

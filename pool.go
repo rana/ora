@@ -52,6 +52,35 @@ type SrvPool struct {
 	ses      *idlePool
 }
 
+type pooledSes struct {
+	*Ses
+	sync.Mutex
+}
+
+func (ps *pooledSes) Close() error {
+	if ps == nil {
+		return nil
+	}
+	ps.Lock()
+	defer ps.Unlock()
+	if ps == nil || ps.Ses == nil {
+		return nil
+	}
+	ps.Ses.mu.Lock()
+	srv := ps.Ses.srv
+	ps.Ses.mu.Unlock()
+	err := ps.Ses.Close()
+	ps.Ses = nil
+
+	if srv == nil {
+		return err
+	}
+	if srv.NumSes() == 0 {
+		srv.Close()
+	}
+	return err
+}
+
 // Close closes all held Srvs.
 func (p *SrvPool) Close() error {
 	p.mu.Lock()
@@ -65,11 +94,10 @@ func (p *SrvPool) Close() error {
 
 // Get returns a new Srv from the pool, or creates a new if no idle is in the pool.
 func (p *SrvPool) Get() (*Srv, error) {
-	x := p.srv.Get()
-	if x == nil {
-		return p.env.OpenSrv(p.srvCfg)
+	if x := p.srv.Get(); x != nil {
+		return x.(*Srv), nil
 	}
-	return x.(*Srv), nil
+	return p.env.OpenSrv(p.srvCfg)
 }
 
 // Put the unneeded srv back into the pool.
@@ -81,16 +109,17 @@ func (p *SrvPool) Put(srv *Srv) {
 
 // Get a session from an idle Srv.
 func (p *SrvPool) GetSes() (*Ses, error) {
-	var ses *Ses
 	for {
 		x := p.ses.Get()
 		if x == nil { // the pool is empty
 			break
 		}
-		ses = x.(*Ses)
+		ps := x.(*pooledSes)
+		ses := ps.Ses
 		if err := ses.Ping(); err == nil {
 			return ses, nil
 		}
+		ps.Close()
 	}
 	srv, err := p.Get()
 	if err != nil {
@@ -105,13 +134,21 @@ func (p *SrvPool) PutSes(ses *Ses) {
 	if ses == nil || !ses.IsOpen() {
 		return
 	}
+	ses.mu.Lock()
 	srv := ses.srv
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	p.ses.Put(ses)
-	if srv.openSess.len() == 0 {
-		p.Put(srv)
+	if srv != nil {
+		srv.mu.Lock()
+		if srv.openSess.len() == 1 { // this is the only session
+			p.srv.Put(srv)
+			srv.mu.Unlock()
+			ses.mu.Unlock()
+			ses.Close()
+			return
+		}
+		srv.mu.Unlock()
 	}
+	ses.mu.Unlock()
+	p.ses.Put(&pooledSes{Ses: ses})
 }
 
 // Set the eviction duration to the given.
@@ -225,7 +262,9 @@ func (p *idlePool) Put(c io.Closer) {
 			return
 		}
 	}
-	p.elems[i0].Close()
+	if p.elems[i0] != nil {
+		p.elems[i0].Close()
+	}
 	p.elems[i0] = c
 	p.times[i0] = now
 }
