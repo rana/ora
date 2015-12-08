@@ -55,6 +55,7 @@ type SrvPool struct {
 type pooledSes struct {
 	*Ses
 	sync.Mutex
+	p *idlePool
 }
 
 func (ps *pooledSes) Close() error {
@@ -76,7 +77,11 @@ func (ps *pooledSes) Close() error {
 		return err
 	}
 	if srv.NumSes() == 0 {
-		srv.Close()
+		if ps.p != nil {
+			ps.p.Put(srv)
+		} else {
+			srv.Close()
+		}
 	}
 	return err
 }
@@ -148,7 +153,7 @@ func (p *SrvPool) PutSes(ses *Ses) {
 		srv.mu.Unlock()
 	}
 	ses.mu.Unlock()
-	p.ses.Put(&pooledSes{Ses: ses})
+	p.ses.Put(&pooledSes{Ses: ses, p: p.srv})
 }
 
 // Set the eviction duration to the given.
