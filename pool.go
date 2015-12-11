@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,149 +18,120 @@ const (
 	DefaultEvictDuration = time.Minute
 )
 
-// NewSrvPool returns a connection pool, which evicts the idle connections in every minute.
-// The pool holds at most size idle Srv/Ses.
+// NewSrvPool returns a connection pool, which evicts the idle sessions in every minute.
+// The pool holds at most size idle Srv.
 // If size is zero, DefaultPoolSize will be used.
-func (env *Env) NewSrvPool(dsn string, size int) *SrvPool {
+func (env *Env) NewSrvPool(dblink string, size int) *SrvPool {
 	srvCfg := NewSrvCfg()
-	sesCfg := NewSesCfg()
-	if strings.IndexByte(dsn, '@') == -1 {
-		srvCfg.Dblink = dsn
-	} else {
-		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	}
+	srvCfg.Dblink = dblink
 	p := &SrvPool{
 		env:    env,
-		srvCfg: srvCfg,
-		sesCfg: sesCfg,
-		evict:  DefaultEvictDuration,
 		srv:    newIdlePool(size),
-		ses:    newIdlePool(size),
+		srvCfg: srvCfg,
 	}
-	p.SetEvictDuration(p.evict)
+	p.poolEvictor = &poolEvictor{Evict: p.srv.Evict}
+	p.SetEvictDuration(DefaultEvictDuration)
 	return p
 }
 
 type SrvPool struct {
 	env    *Env
 	srvCfg *SrvCfg
-	sesCfg *SesCfg
+	srv    *idlePool
 
-	mu       sync.Mutex // protects following fields
-	evict    time.Duration
-	tickerCh chan *time.Ticker
-	srv      *idlePool
-	ses      *idlePool
+	*poolEvictor
 }
 
-type pooledSes struct {
-	*Ses
-	sync.Mutex
-	p *idlePool
-}
-
-func (ps *pooledSes) Close() error {
-	if ps == nil {
-		return nil
-	}
-	ps.Lock()
-	defer ps.Unlock()
-	if ps == nil || ps.Ses == nil {
-		return nil
-	}
-	ps.Ses.mu.Lock()
-	srv := ps.Ses.srv
-	ps.Ses.mu.Unlock()
-	err := ps.Ses.Close()
-	ps.Ses = nil
-
-	if srv == nil {
-		return err
-	}
-	if srv.NumSes() == 0 {
-		if ps.p != nil {
-			ps.p.Put(srv)
-		} else {
-			srv.Close()
-		}
-	}
-	return err
-}
-
-// Close closes all held Srvs.
 func (p *SrvPool) Close() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	err := p.ses.Close()
-	if srvErr := p.srv.Close(); srvErr != nil && err == nil {
-		return srvErr
-	}
-	return err
+	return p.srv.Close()
 }
 
-// Get returns a new Srv from the pool, or creates a new if no idle is in the pool.
+// Get a connection.
 func (p *SrvPool) Get() (*Srv, error) {
-	if x := p.srv.Get(); x != nil {
+	for {
+		x := p.srv.Get()
+		if x == nil { // the pool is empty
+			break
+		}
 		return x.(*Srv), nil
 	}
 	return p.env.OpenSrv(p.srvCfg)
 }
 
-// Put the unneeded srv back into the pool.
+// Put the connection back to the idle pool.
 func (p *SrvPool) Put(srv *Srv) {
-	if srv != nil && srv.IsOpen() {
-		p.srv.Put(srv)
+	if srv == nil || !srv.IsOpen() {
+		return
 	}
+	p.srv.Put(srv)
+}
+
+// NewSesPool returns a session pool, which evicts the idle sessions in every minute.
+// The pool holds at most size idle Ses.
+// If size is zero, DefaultPoolSize will be used.
+func (srv *Srv) NewSesPool(username, password string, size int) *SesPool {
+	sesCfg := NewSesCfg()
+	sesCfg.Username, sesCfg.Password = username, password
+	p := &SesPool{
+		env:    srv.env,
+		srv:    srv,
+		sesCfg: sesCfg,
+		ses:    newIdlePool(size),
+	}
+	p.poolEvictor = &poolEvictor{Evict: p.ses.Evict}
+	p.SetEvictDuration(DefaultEvictDuration)
+	return p
+}
+
+type SesPool struct {
+	env    *Env
+	srv    *Srv
+	sesCfg *SesCfg
+	ses    *idlePool
+
+	*poolEvictor
+}
+
+func (p *SesPool) Close() error {
+	return p.ses.Close()
 }
 
 // Get a session from an idle Srv.
-func (p *SrvPool) GetSes() (*Ses, error) {
+func (p *SesPool) Get() (*Ses, error) {
 	for {
 		x := p.ses.Get()
 		if x == nil { // the pool is empty
 			break
 		}
-		ps := x.(*pooledSes)
-		ses := ps.Ses
+		ses := x.(*Ses)
 		if err := ses.Ping(); err == nil {
 			return ses, nil
 		}
-		ps.Close()
+		ses.Close()
 	}
-	srv, err := p.Get()
-	if err != nil {
-		return nil, err
-	}
-	return srv.OpenSes(p.sesCfg)
+	return p.srv.OpenSes(p.sesCfg)
 }
 
 // Put the session back to the session pool.
-// Also puts back the srv into the pool if has no used sessions.
-func (p *SrvPool) PutSes(ses *Ses) {
+func (p *SesPool) Put(ses *Ses) {
 	if ses == nil || !ses.IsOpen() {
 		return
 	}
-	ses.mu.Lock()
-	srv := ses.srv
-	if srv != nil {
-		srv.mu.Lock()
-		if srv.openSess.len() == 1 { // this is the only session
-			p.srv.Put(srv)
-			srv.mu.Unlock()
-			ses.mu.Unlock()
-			ses.Close()
-			return
-		}
-		srv.mu.Unlock()
-	}
-	ses.mu.Unlock()
-	p.ses.Put(&pooledSes{Ses: ses, p: p.srv})
+	p.ses.Put(ses)
+}
+
+type poolEvictor struct {
+	Evict func(time.Duration)
+
+	sync.Mutex
+	evictDurSec uint32 // evict duration, in seconds
+	tickerCh    chan *time.Ticker
 }
 
 // Set the eviction duration to the given.
 // Also starts eviction if not yet started.
-func (p *SrvPool) SetEvictDuration(dur time.Duration) {
-	p.mu.Lock()
+func (p *poolEvictor) SetEvictDuration(dur time.Duration) {
+	p.Lock()
 	if p.tickerCh == nil { // first initialize
 		p.tickerCh = make(chan *time.Ticker)
 		go func(tickerCh <-chan *time.Ticker) {
@@ -167,11 +139,11 @@ func (p *SrvPool) SetEvictDuration(dur time.Duration) {
 			for {
 				select {
 				case <-ticker.C:
-					p.mu.Lock()
-					dur := p.evict
-					p.mu.Unlock()
-					p.ses.Evict(dur)
-					p.srv.Evict(dur)
+					dur := time.Second * time.Duration(atomic.LoadUint32(&p.evictDurSec))
+					p.Lock()
+					evict := p.Evict
+					p.Unlock()
+					evict(dur)
 				case nxt := <-tickerCh:
 					ticker.Stop()
 					ticker = nxt
@@ -179,8 +151,8 @@ func (p *SrvPool) SetEvictDuration(dur time.Duration) {
 			}
 		}(p.tickerCh)
 	}
-	p.evict = dur
-	p.mu.Unlock()
+	p.Unlock()
+	atomic.StoreUint32(&p.evictDurSec, uint32(dur/time.Second))
 	p.tickerCh <- time.NewTicker(dur)
 }
 
