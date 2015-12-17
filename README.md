@@ -60,7 +60,7 @@ locally installed.
 The ora package has no external Go dependencies and is available on GitHub and gopkg.in:
 
 	go get gopkg.in/rana/ora.v3
-	
+
 Verify that your PATH environment variable contains the folder where oci.dll is located. This is needed to run applications after building.
 
 ##### Data Types #####
@@ -94,6 +94,13 @@ characters, prefixed with a colon `:`. For example:
 Placeholders within a SQL statement are bound by position. The actual name is not
 used by the ora package driver e.g., placeholder names `:c1`, `:1`, or `:xyz` are
 treated equally.
+
+###### LastInsertId ######
+
+The `database/sql` package provides a LastInsertId method to return the
+last inserted row's id. Oracle does not provide such functionality,
+but if you append `... RETURNING col AS LastInsertId` to your SQL, then it will
+be presented as LastInsertId.
 
 ##### Working With The Sql Package #####
 

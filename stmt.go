@@ -150,6 +150,8 @@ func (stmt *Stmt) Exe(params ...interface{}) (rowsAffected uint64, err error) {
 	return rowsAffected, err
 }
 
+var spcRpl = strings.NewReplacer("\t", " ", "   ", " ", "  ", " ")
+
 // exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
 func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
 	stmt.mu.Lock()
@@ -167,10 +169,10 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 	// for case of inserting and returning identity for database/sql package
 	if _drv.sqlPkgEnv == stmt.ses.srv.env && stmt.stmtType == C.OCI_STMT_INSERT {
 		lastIndex := strings.LastIndex(stmt.sql, ")")
-		sqlEnd := stmt.sql[lastIndex+1 : len(stmt.sql)]
+		sqlEnd := spcRpl.Replace(stmt.sql[lastIndex+1 : len(stmt.sql)])
 		sqlEnd = strings.ToUpper(sqlEnd)
 		// add *int64 arg to capture identity
-		if strings.Contains(sqlEnd, "RETURNING") {
+		if i := strings.LastIndex(sqlEnd, "RETURNING"); i >= 0 && strings.Contains(sqlEnd[i:], " LASTINSERTID INTO ") {
 			params[len(params)-1] = &lastInsertId
 		}
 	}
@@ -190,7 +192,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 	}
 	// Execute statement on Oracle server
 	r := C.OCIStmtExecute(
-		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
+		stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
 		stmt.ocistmt,            //OCIStmt             *stmtp,
 		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(iterations),       //ub4                 iters,
@@ -249,7 +251,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	}
 	// Query statement on Oracle server
 	r := C.OCIStmtExecute(
-		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
+		stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
 		stmt.ocistmt,            //OCIStmt             *stmtp,
 		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
 		C.ub4(0),                //ub4                 iters,
