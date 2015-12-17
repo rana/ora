@@ -21,9 +21,7 @@ const (
 // NewSrvPool returns a connection pool, which evicts the idle sessions in every minute.
 // The pool holds at most size idle Srv.
 // If size is zero, DefaultPoolSize will be used.
-func (env *Env) NewSrvPool(dblink string, size int) *SrvPool {
-	srvCfg := NewSrvCfg()
-	srvCfg.Dblink = dblink
+func (env *Env) NewSrvPool(srvCfg *SrvCfg, size int) *SrvPool {
 	p := &SrvPool{
 		env:    env,
 		srv:    newIdlePool(size),

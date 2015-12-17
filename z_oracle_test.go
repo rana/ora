@@ -129,8 +129,8 @@ func init() {
 		fmt.Println("initError: ", err)
 	}
 
-	pool := testEnv.NewSrvPool(testConStr, 0)
 	//testSrv, err = testEnv.OpenSrv(testSrvCfg)
+	pool := testEnv.NewSrvPool(testSrvCfg, 1)
 	testSrv, err = pool.Get()
 	if err != nil {
 		fmt.Println("initError: ", err)
