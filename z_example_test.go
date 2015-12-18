@@ -5,6 +5,7 @@
 package ora_test
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"io"
@@ -1526,6 +1527,66 @@ func ExampleBytes() {
 	// []
 	// [0 3 6 9 12 15 18 21 24 27]
 	// [0 4 8 12 16 20 24 28 32 36]
+}
+
+func ExampleWriteLOB() {
+	// setup
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, _ := env.OpenSrv(testSrvCfg)
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+
+	// create table
+	tableName := tableName()
+	qry := fmt.Sprintf("create table %v (c1 blob)", tableName)
+	stmt, err := ses.Prep(qry)
+	if err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exe(); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	n := 32767 + 1
+
+	// insert Binary slice
+	qry = fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)
+	blob := &ora.Lob{Reader: bytes.NewReader(make([]byte, n))}
+	if stmt, err = ses.Prep(qry); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exe(blob); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+
+	fmt.Println(n)
+
+	// Specify OraBin to Prep method to return Binary values
+	// fetch records
+	qry = fmt.Sprintf("select c1 from %v", tableName)
+	if stmt, err = ses.Prep(qry, ora.Bin); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	for rset.Next() {
+		lob := rset.Row[0].(io.Reader)
+		b, err := ioutil.ReadAll(lob)
+		if err != nil {
+			log.Printf("ERROR: %v", err)
+		} else {
+			fmt.Println(len(b))
+		}
+	}
+	// Output:
+	// 32768
+	// 32768
 }
 
 func ExampleBfile() {
