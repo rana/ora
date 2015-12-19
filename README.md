@@ -99,8 +99,10 @@ treated equally.
 
 The `database/sql` package provides a LastInsertId method to return the
 last inserted row's id. Oracle does not provide such functionality,
-but if you append `... RETURNING col AS LastInsertId` to your SQL, then it will
-be presented as LastInsertId.
+but if you append `... RETURNING col /*LastInsertId*/` to your SQL, then it will
+be presented as LastInsertId. Note that you have to mark with a `/*LastInsertId*/`
+(case insensitive) your `RETURNING` part, to allow ora to return the last column
+as `LastInsertId()`. That column must fit in `int64`, though!
 
 ##### Working With The Sql Package #####
 

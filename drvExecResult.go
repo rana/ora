@@ -28,7 +28,7 @@ type DrvExecResult struct {
 //
 //	db.Exec("CREATE TABLE T1 (C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 VARCHAR2(48 CHAR))")
 //
-//	result, err := db.Exec("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 lastInsertId INTO :C1", nil)
+//	result, err := db.Exec("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 /*lastInsertId*/ INTO :C1", nil)
 //
 //	id, err := result.LastInsertId()
 func (er *DrvExecResult) LastInsertId() (int64, error) {

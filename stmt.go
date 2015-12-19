@@ -172,7 +172,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 		sqlEnd := spcRpl.Replace(stmt.sql[lastIndex+1 : len(stmt.sql)])
 		sqlEnd = strings.ToUpper(sqlEnd)
 		// add *int64 arg to capture identity
-		if i := strings.LastIndex(sqlEnd, "RETURNING"); i >= 0 && strings.Contains(sqlEnd[i:], " LASTINSERTID INTO ") {
+		if i := strings.LastIndex(sqlEnd, "RETURNING"); i >= 0 && strings.Contains(sqlEnd[i:], " /*LASTINSERTID*/ INTO ") {
 			params[len(params)-1] = &lastInsertId
 		}
 	}
