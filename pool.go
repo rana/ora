@@ -67,9 +67,7 @@ func (p *SrvPool) Put(srv *Srv) {
 // NewSesPool returns a session pool, which evicts the idle sessions in every minute.
 // The pool holds at most size idle Ses.
 // If size is zero, DefaultPoolSize will be used.
-func (srv *Srv) NewSesPool(username, password string, size int) *SesPool {
-	sesCfg := NewSesCfg()
-	sesCfg.Username, sesCfg.Password = username, password
+func (srv *Srv) NewSesPool(sesCfg *SesCfg, size int) *SesPool {
 	p := &SesPool{
 		env:    srv.env,
 		srv:    srv,
