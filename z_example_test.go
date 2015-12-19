@@ -61,7 +61,7 @@ func ExampleDrvStmt_Exec_insert_return_identity() {
 
 	// use a 'returning into' SQL clause and specify a nil parameter to Exec
 	// placeholder ':c1' is bound by position; ':c1' may be any name
-	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName), nil)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 lastinsertid into :c1", tableName), nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error inserting 'go' with returning: %v", err)
 		return

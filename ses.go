@@ -368,10 +368,10 @@ func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 	buf.WriteString(lastColName)
 	buf.WriteString(" INTO :RET_VAL")
 	stmt, err := ses.Prep(buf.String()) // prep
-	defer stmt.Close()
 	if err != nil {
 		return errE(err)
 	}
+	defer stmt.Close()
 	_, err = stmt.Exe(params...) // exe
 	if err != nil {
 		return errE(err)
