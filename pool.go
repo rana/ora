@@ -226,9 +226,16 @@ func (p *idlePool) Get() io.Closer {
 func (p *idlePool) Put(c io.Closer) {
 	p.Lock()
 	defer p.Unlock()
-	now := time.Now()
 	n := len(p.elems)
-	i0 := rand.Intn(n)
+	if n == 0 {
+		c.Close()
+		return
+	}
+	now := time.Now()
+	i0 := 0
+	if n != 1 {
+		i0 = rand.Intn(n)
+	}
 	for i := 0; i < n; i++ {
 		j := (i0 + i) % n
 		if p.elems[j] == nil {
