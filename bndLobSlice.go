@@ -83,8 +83,8 @@ func (bnd *bndLobSlice) bindReaders(
 	}
 
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                    //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                          //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,                         //OCIError     *errhp,
 		C.ub4(position),                                     //ub4          position,
 		unsafe.Pointer(&bnd.ociLobLocators[0]),              //void         *valuep,

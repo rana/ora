@@ -1211,6 +1211,15 @@ Run the tests.
 
 [database/sql](http://golang.org/pkg/database/sql/) method `Stmt.QueryRow` is not supported.
 
+Go 1.6 introduced stricter cgo (call C from Go) rules, and introduced runtime checks.
+This is good, as the possibility of C code corrupting Go code is almost completely eliminated,
+but it also means a severe call overhead grow.
+[Sometimes](https://groups.google.com/forum/#!topic/golang-nuts/ccMkPG6Bi5k)
+this can be 22x the go 1.5.3 call time!
+
+So if you need performance more than correctness, start your programs with
+"GODEBUG=cgocheck=0" environment setting.
+
 ##### License #####
 
 Copyright 2014 Rana Ian. All rights reserved.

@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -16,10 +17,10 @@ import (
 type defLongRaw struct {
 	rset         *Rset
 	ocidef       *C.OCIDefine
-	null         C.sb2
 	isNullable   bool
 	returnLength C.ACTUAL_LENGTH_TYPE
 	buf          []byte
+	nullp
 }
 
 func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rset *Rset) error {
@@ -28,17 +29,17 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 	def.buf = make([]byte, int(bufSize))
 	//logF(true, "position %v, def.buf %v", position, len(def.buf))
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(len(def.buf)),      //sb8         value_sz,
-		C.SQLT_LBI,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
-		&def.returnLength,                //ub4         *rlenp,
-		nil,                              //ub2         *rcodep,
-		C.OCI_DEFAULT)                    //ub4         mode );
+		def.rset.ocistmt,                    //OCIStmt     *stmtp,
+		&def.ocidef,                         //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
+		C.ub4(position),                     //ub4         position,
+		unsafe.Pointer(&def.buf[0]),         //void        *valuep,
+		C.LENGTH_TYPE(len(def.buf)),         //sb8         value_sz,
+		C.SQLT_LBI,                          //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
+		&def.returnLength,                   //ub4         *rlenp,
+		nil,                                 //ub2         *rcodep,
+		C.OCI_DEFAULT)                       //ub4         mode );
 	if r == C.OCI_ERROR {
 		return def.rset.stmt.ses.srv.env.ociError()
 	}
@@ -47,7 +48,7 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 
 func (def *defLongRaw) value() (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Raw{IsNull: def.null < C.sb2(0)}
+		bytesValue := Raw{IsNull: def.nullp.IsNull()}
 		if !bytesValue.IsNull {
 			// Make a slice of length equal to the return length
 			bytesValue.Value = make([]byte, def.returnLength)
@@ -76,7 +77,6 @@ func (def *defLongRaw) alloc() error {
 }
 
 func (def *defLongRaw) free() {
-
 }
 
 func (def *defLongRaw) close() (err error) {
@@ -90,6 +90,7 @@ func (def *defLongRaw) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.buf = nil
+	def.nullp.Free()
 	rset.putDef(defIdxLongRaw, def)
 	return nil
 }

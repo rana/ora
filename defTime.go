@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -18,25 +19,26 @@ import (
 )
 
 type defTime struct {
-	rset        *Rset
-	ocidef      *C.OCIDefine
-	ociDateTime *C.OCIDateTime
-	null        C.sb2
-	isNullable  bool
+	rset         *Rset
+	ocidef       *C.OCIDefine
+	ociDateTimep **C.OCIDateTime
+	isNullable   bool
+	nullp
+	dateTimep
 }
 
 func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                              //OCIStmt     *stmtp,
-		&def.ocidef,                                   //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,              //OCIError    *errhp,
-		C.ub4(position),                               //ub4         position,
-		unsafe.Pointer(&def.ociDateTime),              //void        *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(def.ociDateTime)), //sb8         value_sz,
-		C.SQLT_TIMESTAMP_TZ,                           //defineTypeCode,                               //ub2         dty,
-		unsafe.Pointer(&def.null),                     //void        *indp,
+		def.rset.ocistmt,                        //OCIStmt     *stmtp,
+		&def.ocidef,                             //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
+		C.ub4(position),                         //ub4         position,
+		unsafe.Pointer(def.dateTimep.Pointer()), //void        *valuep,
+		C.LENGTH_TYPE(def.dateTimep.Size()),     //sb8         value_sz,
+		C.SQLT_TIMESTAMP_TZ,                     //defineTypeCode,                               //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()),     //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
@@ -48,22 +50,22 @@ func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defTime) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraTimeValue := Time{IsNull: def.null < C.sb2(0)}
+		oraTimeValue := Time{IsNull: def.nullp.IsNull()}
 		if !oraTimeValue.IsNull {
-			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
+			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
 		}
 		value = oraTimeValue
 	} else {
-		value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
+		value, err = getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
 	}
 	return value, err
 }
 
 func (def *defTime) alloc() error {
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),    //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&def.ociDateTime)), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                            //ub4           type,
+		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),           //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(def.dateTimep.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_TIMESTAMP_TZ,                                   //ub4           type,
 		0,   //size_t        xtramem_sz,
 		nil) //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
@@ -79,9 +81,11 @@ func (def *defTime) free() {
 	defer func() {
 		recover()
 	}()
-	C.OCIDescriptorFree(
-		unsafe.Pointer(def.ociDateTime), //void     *descp,
-		C.OCI_DTYPE_TIMESTAMP_TZ)        //ub4      type );
+	if dt := def.dateTimep.Value(); dt != nil {
+		C.OCIDescriptorFree(
+			unsafe.Pointer(dt),       //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
+	}
 }
 
 func (def *defTime) close() (err error) {
@@ -94,6 +98,8 @@ func (def *defTime) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	def.dateTimep.Free()
+	def.nullp.Free()
 	rset.putDef(defIdxTime, def)
 	return nil
 }

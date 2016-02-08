@@ -50,3 +50,31 @@
 	#define OCILOBTRIM 					OCILobTrim
 	#define OCILOBWRITE					OCILobWrite
 #endif
+
+sword
+numberFromIntSlice(
+	OCIError *err,
+	void *inum,
+	uword inum_length,
+	uword inum_s_flag,
+	OCINumber *numbers,
+	ub4 arr_length
+);
+
+sword
+numberFromFloatSlice(
+	OCIError *err,
+	void *inum,
+	uword inum_length,
+	OCINumber *numbers,
+	ub4 arr_length
+);
+
+sword
+decriptorAllocSlice(
+	OCIEnv *env,
+	void *dest,
+	ub4 elem_size,
+	ub4 type,
+	size_t length
+);

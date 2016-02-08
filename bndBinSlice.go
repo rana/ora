@@ -61,7 +61,7 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lo
 	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,             //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),   //OCIBind      **bindpp,
+		&bnd.ocibnd,                  //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,  //OCIError     *errhp,
 		C.ub4(position),              //ub4          position,
 		unsafe.Pointer(&bnd.buf[0]),  //void         *valuep,

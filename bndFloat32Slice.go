@@ -59,23 +59,25 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 	} else {
 		bnd.ociNumbers = bnd.ociNumbers[:L]
 	}
+	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	for n := range values {
-		bnd.alen[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-		r := C.OCINumberFromReal(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(&values[n]),  //const void          *rnum,
-			4,                  //uword               rnum_length,
-			&bnd.ociNumbers[n]) //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return iterations, bnd.stmt.ses.srv.env.ociError()
-		}
+		bnd.alen[n] = alen
+	}
+	if r := C.numberFromFloatSlice(
+		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+		unsafe.Pointer(&values[0]),  //const void          *rnum,
+		4,                  //uword               rnum_length,
+		&bnd.ociNumbers[0], //OCINumber           *number
+		C.ub4(len(values)),
+	); r == C.OCI_ERROR {
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p iterations=%d",
 		bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp, iterations)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
 		C.ub4(position),                    //ub4          position,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,

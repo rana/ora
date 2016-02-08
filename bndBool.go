@@ -36,7 +36,7 @@ func (bnd *bndBool) bind(value bool, position int, c StmtCfg, stmt *Stmt) (err e
 	bnd.cString = C.CString(str)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(bnd.cString), //void         *valuep,

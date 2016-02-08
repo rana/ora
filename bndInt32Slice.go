@@ -58,21 +58,23 @@ func (bnd *bndInt32Slice) bind(values []int32, position int, stmt *Stmt) (iterat
 	} else {
 		bnd.ociNumbers = bnd.ociNumbers[:L]
 	}
+	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	for n := range values {
-		bnd.alen[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-		r := C.OCINumberFromInt(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(&values[n]),  //const void          *inum,
-			4,                   //uword               inum_length,
-			C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
-			&bnd.ociNumbers[n])  //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return iterations, bnd.stmt.ses.srv.env.ociError()
-		}
+		bnd.alen[n] = alen
+	}
+	if r := C.numberFromIntSlice(
+		bnd.stmt.ses.srv.env.ocierr,
+		unsafe.Pointer(&values[0]),
+		4,
+		C.OCI_NUMBER_SIGNED,
+		&bnd.ociNumbers[0],
+		C.ub4(len(values)),
+	); r == C.OCI_ERROR {
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
 		C.ub4(position),                    //ub4          position,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,

@@ -61,7 +61,7 @@ func ExampleDrvStmt_Exec_insert_return_identity() {
 
 	// use a 'returning into' SQL clause and specify a nil parameter to Exec
 	// placeholder ':c1' is bound by position; ':c1' may be any name
-	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 lastinsertid into :c1", tableName), nil)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 /*lastinsertid*/ into :c1", tableName), nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error inserting 'go' with returning: %v", err)
 		return
@@ -397,7 +397,7 @@ func ExampleStmt_Exe_insert_slice() {
 	stmt.Exe()
 
 	// insert one million rows with single round-trip to server
-	values := make([]int64, 1000000)
+	values := make([]int64, 1000)
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
@@ -405,7 +405,7 @@ func ExampleStmt_Exe_insert_slice() {
 	defer stmt.Close()
 	rowsAffected, _ := stmt.Exe(values)
 	fmt.Println(rowsAffected)
-	// Output: 1000000
+	// Output: 1000
 }
 
 func ExampleStmt_Exe_insert_nullable() {
@@ -594,7 +594,7 @@ func ExampleStmt_Qry_nullable() {
 	for rset.Next() {
 		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
-	// Output: {true 0} {false slice} {false false}, {false 7} {true } {false true}, {false 9} {false channel} {true false},
+	// Output: {true 0} slice {false false}, {false 7}  {false true}, {false 9} channel {true false},
 }
 
 func ExampleStmt_Qry_numerics() {
@@ -1291,11 +1291,11 @@ func ExampleString() {
 		fmt.Println(rset.Row[0])
 	}
 	// Output:
-	// {false Go is expressive, concise, clean, and efficient.}
-	// {false Its concurrency mechanisms make it easy to}
-	// {true }
-	// {false It's a fast, statically typed, compiled}
-	// {false One of Go's key design goals is code}
+	// Go is expressive, concise, clean, and efficient.
+	// Its concurrency mechanisms make it easy to
+	//
+	// It's a fast, statically typed, compiled
+	// One of Go's key design goals is code
 }
 
 func ExampleBool() {

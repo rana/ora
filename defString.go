@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -14,10 +15,11 @@ import "unsafe"
 type defString struct {
 	rset       *Rset
 	ocidef     *C.OCIDefine
-	null       C.sb2
+	buf        *C.char
+	bufLen     int
 	isNullable bool
-	buf        []byte
 	rlen       C.ACTUAL_LENGTH_TYPE
+	nullp
 }
 
 func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
@@ -40,22 +42,26 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 	if n%2 != 0 {
 		n++
 	}
-	if def.buf == nil || cap(def.buf) < n {
-		def.buf = make([]byte, n)
+	if def.buf == nil || def.bufLen < n {
+		if def.buf != nil {
+			C.free(unsafe.Pointer(def.buf))
+		}
+		def.bufLen = n
+		def.buf = (*C.char)(C.malloc(C.size_t(n)))
 	}
 	// Create oci define handle
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(n),                 //sb8         value_sz,
-		C.SQLT_CHR,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
-		&def.rlen,                        //ub2         *rlenp,
-		nil,                              //ub2         *rcodep,
-		C.OCI_DEFAULT)                    //ub4         mode );
+		def.rset.ocistmt,                    //OCIStmt     *stmtp,
+		&def.ocidef,                         //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
+		C.ub4(position),                     //ub4         position,
+		unsafe.Pointer(def.buf),             //void        *valuep,
+		C.LENGTH_TYPE(n),                    //sb8         value_sz,
+		C.SQLT_CHR,                          //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
+		&def.rlen,                           //ub2         *rlenp,
+		nil,                                 //ub2         *rcodep,
+		C.OCI_DEFAULT)                       //ub4         mode );
 	if r == C.OCI_ERROR {
 		return def.rset.stmt.ses.srv.env.ociError()
 	}
@@ -64,16 +70,16 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 
 func (def *defString) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraStringValue := String{IsNull: def.null < C.sb2(0)}
+		oraStringValue := String{IsNull: def.nullp.IsNull()}
 		if !oraStringValue.IsNull {
-			oraStringValue.Value = string(def.buf[:int(def.rlen)])
+			oraStringValue.Value = C.GoStringN(def.buf, C.int(def.rlen))
 		}
 		return oraStringValue, nil
 	}
-	if def.null < C.sb2(0) {
+	if def.nullp.IsNull() {
 		return "", nil
 	}
-	return string(def.buf[:int(def.rlen)]), nil
+	return C.GoStringN(def.buf, C.int(def.rlen)), nil
 }
 
 func (def *defString) alloc() error {
@@ -81,7 +87,6 @@ func (def *defString) alloc() error {
 }
 
 func (def *defString) free() {
-
 }
 
 func (def *defString) close() (err error) {
@@ -94,7 +99,11 @@ func (def *defString) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	clear(def.buf, 32)
+	def.nullp.Free()
+	if def.buf != nil {
+		C.free(unsafe.Pointer(def.buf))
+		def.buf = nil
+	}
 	rset.putDef(defIdxString, def)
 	return nil
 }

@@ -9,30 +9,28 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type defInt64 struct {
 	rset       *Rset
 	ocidef     *C.OCIDefine
-	ociNumber  C.OCINumber
-	null       C.sb2
+	ociNumber  [1]C.OCINumber
 	isNullable bool
+	nullp
 }
 
 func (def *defInt64) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                  //OCIStmt     *stmtp,
-		&def.ocidef,                       //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,  //OCIError    *errhp,
-		C.ub4(position),                   //ub4         position,
-		unsafe.Pointer(&def.ociNumber),    //void        *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8         value_sz,
-		C.SQLT_VNU,                        //ub2         dty,
-		unsafe.Pointer(&def.null),         //void        *indp,
+		def.rset.ocistmt,                    //OCIStmt     *stmtp,
+		&def.ocidef,                         //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
+		C.ub4(position),                     //ub4         position,
+		unsafe.Pointer(&def.ociNumber[0]),   //void        *valuep,
+		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8         value_sz,
+		C.SQLT_VNU,                          //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
@@ -44,11 +42,11 @@ func (def *defInt64) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defInt64) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraInt64Value := Int64{IsNull: def.null < C.sb2(0)}
+		oraInt64Value := Int64{IsNull: def.nullp.IsNull()}
 		if !oraInt64Value.IsNull {
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr,     //OCIError              *err,
-				&def.ociNumber,                       //const OCINumber       *number,
+				&def.ociNumber[0],                    //const OCINumber       *number,
 				C.uword(8),                           //uword                 rsl_length,
 				C.OCI_NUMBER_SIGNED,                  //uword                 rsl_flag,
 				unsafe.Pointer(&oraInt64Value.Value)) //void                  *rsl );
@@ -58,19 +56,19 @@ func (def *defInt64) value() (value interface{}, err error) {
 		}
 		value = oraInt64Value
 	} else {
-		if def.null > C.sb2(-1) {
-			var int64Value int64
+		var int64Value int64
+		if !def.nullp.IsNull() {
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&def.ociNumber,                   //const OCINumber       *number,
+				&def.ociNumber[0],                //const OCINumber       *number,
 				C.uword(8),                       //uword                 rsl_length,
 				C.OCI_NUMBER_SIGNED,              //uword                 rsl_flag,
 				unsafe.Pointer(&int64Value))      //void                  *rsl );
 			if r == C.OCI_ERROR {
 				err = def.rset.stmt.ses.srv.env.ociError()
 			}
-			value = int64Value
 		}
+		value = int64Value
 	}
 	return value, err
 }
@@ -80,7 +78,6 @@ func (def *defInt64) alloc() error {
 }
 
 func (def *defInt64) free() {
-
 }
 
 func (def *defInt64) close() (err error) {
@@ -89,10 +86,10 @@ func (def *defInt64) close() (err error) {
 			err = errR(value)
 		}
 	}()
-
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	def.nullp.Free()
 	rset.putDef(defIdxInt64, def)
 	return nil
 }

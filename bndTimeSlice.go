@@ -134,19 +134,19 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 		bnd, position, cap(bnd.ociDateTimes), len(bnd.ociDateTimes), bnd.curlen, curlenp,
 		valueSz, bnd.alen)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                     //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),           //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,          //OCIError     *errhp,
-		C.ub4(position),                      //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTimes[0]), //void         *valuep,
-		C.LENGTH_TYPE(valueSz),               //sb8          value_sz,
-		C.ub2(C.SQLT_TIMESTAMP_TZ),           //ub2          dty,
-		unsafe.Pointer(&bnd.nullInds[0]),     //void         *indp,
-		&bnd.alen[0],                         //ub2          *alenp,
-		&bnd.rcode[0],                        //ub2          *rcodep,
-		C.ub4(C),                             //ub4          maxarr_len,
-		curlenp,                              //ub4          *curelep,
-		C.OCI_DEFAULT)                        //ub4          mode );
+		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
+		&bnd.ocibnd,                                       //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
+		C.ub4(position),                                   //ub4          position,
+		unsafe.Pointer(&bnd.ociDateTimes[0]),              //void         *valuep,
+		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                               //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
+		&bnd.alen[0],                                      //ub2          *alenp,
+		&bnd.rcode[0],                                     //ub2          *rcodep,
+		C.ub4(C),                                          //ub4          maxarr_len,
+		curlenp,                                           //ub4          *curelep,
+		C.OCI_DEFAULT)                                     //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

@@ -20,7 +20,7 @@ type arrHlp struct {
 // Returns whether and element is needed to be appended to the value slice.
 func (a *arrHlp) ensureBindArrLength(
 	length, capacity *int,
-	stmtType C.ub4,
+	stmtType C.ACTUAL_LENGTH_TYPE,
 ) (iterations uint32, curlenp *C.ub4, needsAppend bool) {
 	a.curlen = C.ub4(*length) // the real length, not L!
 	if stmtType == C.OCI_STMT_BEGIN || stmtType == C.OCI_STMT_DECLARE {

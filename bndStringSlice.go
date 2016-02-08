@@ -72,7 +72,7 @@ func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt) (iter
 		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),       //OCIBind      **bindpp,
+		&bnd.ocibnd,                      //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
 		C.ub4(position),                  //ub4          position,
 		unsafe.Pointer(&bnd.bytes[0]),    //void         *valuep,

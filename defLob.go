@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -26,13 +27,13 @@ var lobChunkPool = sync.Pool{
 }
 
 type defLob struct {
-	rset          *Rset
-	ocidef        *C.OCIDefine
-	ociLobLocator *C.OCILobLocator
-	null          C.sb2
-	gct           GoColumnType
-	sqlt          C.ub2
-	charsetForm   C.ub1
+	rset        *Rset
+	ocidef      *C.OCIDefine
+	gct         GoColumnType
+	sqlt        C.ub2
+	charsetForm C.ub1
+	lobLocatorp
+	nullp
 }
 
 func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoColumnType, rset *Rset) error {
@@ -40,16 +41,15 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
-	def.ociLobLocator = nil
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                                //OCIStmt     *stmtp,
-		&def.ocidef,                                     //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,                //OCIError    *errhp,
-		C.ub4(position),                                 //ub4         position,
-		unsafe.Pointer(&def.ociLobLocator),              //void        *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
+		def.rset.ocistmt,                          //OCIStmt     *stmtp,
+		&def.ocidef,                               //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,          //OCIError    *errhp,
+		C.ub4(position),                           //ub4         position,
+		unsafe.Pointer(def.lobLocatorp.Pointer()), //void        *valuep,
+		C.LENGTH_TYPE(def.lobLocatorp.Size()),     //sb8         value_sz,
 		sqlt, //ub2         dty,
-		unsafe.Pointer(&def.null), //void        *indp,
+		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
@@ -63,14 +63,13 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 func (def *defLob) Bytes() (value []byte, err error) {
 	// Open the lob to obtain length; round-trip to database
 	//Log.Infof("Bytes OCILobOpen %p", def.ociLobLocator)
-	lobLength, err := lobOpen(def.rset.stmt.ses, def.ociLobLocator, C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobLocatorp.Value(), C.OCI_LOB_READONLY)
 	if err != nil {
-		def.ociLobLocator = nil
 		return nil, err
 	}
 	defer func() {
 		//Log.Infof("Bytes OCILobClose %p", def.ociLobLocator)
-		if closeErr := lobClose(def.rset.stmt.ses, def.ociLobLocator); closeErr != nil && err == nil {
+		if closeErr := lobClose(def.rset.stmt.ses, def.lobLocatorp.Value()); closeErr != nil && err == nil {
 			err = closeErr
 		}
 	}()
@@ -86,7 +85,7 @@ func (def *defLob) Bytes() (value []byte, err error) {
 		r := C.OCILobRead2(
 			def.rset.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-			def.ociLobLocator,                //OCILobLocator      *locp,
+			def.lobLocatorp.Value(),          //OCILobLocator      *locp,
 			&byte_amtp,                       //oraub8             *byte_amtp,
 			nil,                              //oraub8             *char_amtp,
 			C.oraub8(off+1),                  //oraub8             offset, offset is 1-based
@@ -119,20 +118,18 @@ func (def *defLob) String() (value string, err error) {
 func (def *defLob) Reader() (io.Reader, error) {
 	// Open the lob to obtain length; round-trip to database
 	//Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
-	lobLength, err := lobOpen(def.rset.stmt.ses, def.ociLobLocator, C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobLocatorp.Value(), C.OCI_LOB_READONLY)
 	if err != nil {
-		def.ociLobLocator = nil
 		return nil, err
 	}
 
 	lr := &lobReader{
 		ses:           def.rset.stmt.ses,
-		ociLobLocator: def.ociLobLocator,
+		ociLobLocator: def.lobLocatorp.Value(),
 		charsetForm:   def.charsetForm,
 		piece:         C.OCI_FIRST_PIECE,
 		Length:        lobLength,
 	}
-	def.ociLobLocator = nil
 	return lr, nil
 }
 
@@ -140,12 +137,12 @@ func (def *defLob) value() (value interface{}, err error) {
 	//lob := def.ociLobLocator
 	//Log.Infof("value %p null=%d", lob, def.null)
 	if def.gct == Bin {
-		if def.null > C.sb2(-1) {
+		if !def.nullp.IsNull() {
 			return def.Reader()
 		}
 		return value, err
 	}
-	if def.null < C.sb2(0) {
+	if def.nullp.IsNull() {
 		return Lob{}, nil
 	}
 	var r io.Reader
@@ -158,11 +155,11 @@ func (def *defLob) alloc() error {
 	// Allocate lob locator handle
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),      //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&def.ociLobLocator)), //dvoid         **descpp,
-		C.OCI_DTYPE_LOB,                                       //ub4           type,
-		0,                                                     //size_t        xtramem_sz,
-		nil)                                                   //dvoid         **usrmempp);
+		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(def.lobLocatorp.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_LOB, //ub4           type,
+		0,               //size_t        xtramem_sz,
+		nil)             //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
 		return def.rset.stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
@@ -172,22 +169,21 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
-	if def.ociLobLocator == nil { // dissociated or already freed
-		return
+	if def.lobLocatorp.Value() != nil {
+		C.OCIDescriptorFree(
+			unsafe.Pointer(def.lobLocatorp.Pointer()), //void     *descp,
+			C.OCI_DTYPE_LOB)                           //ub4      type );
 	}
-	C.OCIDescriptorFree(
-		unsafe.Pointer(def.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_LOB)                   //ub4      type );
-	def.ociLobLocator = nil
 }
 
 func (def *defLob) close() (err error) {
 	//Log.Infof("defLob close %p", def.ociLobLocator)
-	lob := def.ociLobLocator
+	lob := def.lobLocatorp.Value()
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.ociLobLocator = nil
+	def.nullp.Free()
+	def.lobLocatorp.Free()
 	rset.putDef(defIdxLob, def)
 
 	if lob == nil {
