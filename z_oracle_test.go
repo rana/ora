@@ -199,7 +199,7 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	} else {
 		gct = goColumnTypeFromValue(expected)
 	}
-	//t.Logf("testBindDefine gct (%v, %v)", gct, ora.GctName(gct))
+	t.Logf("testBindDefine gct (%v, %v)", gct, ora.GctName(gct))
 
 	tableName, err := createTable(1, oct, testSes)
 	testErr(err, t)
@@ -736,7 +736,7 @@ func createTable(multiple int, oct oracleColumnType, ses *ora.Ses) (string, erro
 	return tableName, err
 }
 
-func dropTable(tableName string, ses *ora.Ses, t *testing.T) {
+func dropTable(tableName string, ses *ora.Ses, t testing.TB) {
 	stmt, err := ses.Prep(fmt.Sprintf("drop table %v", tableName))
 	defer stmt.Close()
 	testErr(err, t)
@@ -783,7 +783,7 @@ func tableName() string {
 	return "t" + strconv.Itoa(testTableId)
 }
 
-func testErr(err error, t *testing.T, expectedErrs ...error) {
+func testErr(err error, t testing.TB, expectedErrs ...error) {
 	if err != nil {
 		if expectedErrs == nil {
 			t.Fatalf("%v: %s", err, getStack(1))
@@ -1227,6 +1227,10 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
+			t.Errorf("actual=%p", actual)
+			if actual == nil {
+				panic("NIL")
+			}
 			t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 		}
 	}

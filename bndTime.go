@@ -18,11 +18,11 @@ import (
 )
 
 type bndTime struct {
-	stmt        *Stmt
-	ocibnd      *C.OCIBind
-	ociDateTime *C.OCIDateTime
-	cZone       *C.char
-	zoneBuf     bytes.Buffer
+	stmt    *Stmt
+	ocibnd  *C.OCIBind
+	cZone   *C.char
+	zoneBuf bytes.Buffer
+	dateTimep
 }
 
 func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
@@ -30,9 +30,9 @@ func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
 	zone := zoneOffset(value, &bnd.zoneBuf)
 	bnd.cZone = C.CString(zone)
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),         //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociDateTime)), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                            //ub4           type,
+		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),                //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(bnd.dateTimep.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_TIMESTAMP_TZ,                                   //ub4           type,
 		0,   //size_t        xtramem_sz,
 		nil) //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
@@ -43,7 +43,7 @@ func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
 	r = C.OCIDateTimeConstruct(
 		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //dvoid         *hndl,
 		bnd.stmt.ses.srv.env.ocierr,                 //OCIError      *err,
-		bnd.ociDateTime,                             //OCIDateTime   *datetime,
+		bnd.dateTimep.Value(),                       //OCIDateTime   *datetime,
 		C.sb2(value.Year()),                         //sb2           year,
 		C.ub1(int32(value.Month())),                 //ub1           month,
 		C.ub1(value.Day()),                          //ub1           day,
@@ -57,19 +57,19 @@ func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                    //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                   //OCIError     *errhp,
-		C.ub4(position),                               //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTime),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                           //ub2          dty,
-		nil,                                           //void         *indp,
-		nil,                                           //ub2          *alenp,
-		nil,                                           //ub2          *rcodep,
-		0,                                             //ub4          maxarr_len,
-		nil,                                           //ub4          *curelep,
-		C.OCI_DEFAULT)                                 //ub4          mode );
+		bnd.stmt.ocistmt,                        //OCIStmt      *stmtp,
+		&bnd.ocibnd,                             //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,             //OCIError     *errhp,
+		C.ub4(position),                         //ub4          position,
+		unsafe.Pointer(bnd.dateTimep.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.dateTimep.Size()),     //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                     //ub2          dty,
+		nil,                                     //void         *indp,
+		nil,                                     //ub2          *alenp,
+		nil,                                     //ub2          *rcodep,
+		0,                                       //ub4          maxarr_len,
+		nil,                                     //ub4          *curelep,
+		C.OCI_DEFAULT)                           //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
@@ -108,14 +108,15 @@ func (bnd *bndTime) close() (err error) {
 	if bnd.cZone != nil {
 		C.free(unsafe.Pointer(bnd.cZone))
 		bnd.cZone = nil
-		C.OCIDescriptorFree(
-			unsafe.Pointer(bnd.ociDateTime), //void     *descp,
-			C.OCI_DTYPE_TIMESTAMP_TZ)        //ub4      type );
+		if dt := bnd.dateTimep.Value(); dt != nil {
+			C.OCIDescriptorFree(
+				unsafe.Pointer(dt),       //void     *descp,
+				C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
+		}
 	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociDateTime = nil
 	bnd.zoneBuf.Reset()
 	stmt.putBnd(bndIdxTime, bnd)
 	return nil

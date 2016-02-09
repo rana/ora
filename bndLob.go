@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -15,9 +16,9 @@ import (
 )
 
 type bndLob struct {
-	stmt          *Stmt
-	ocibnd        *C.OCIBind
-	ociLobLocator *C.OCILobLocator
+	stmt   *Stmt
+	ocibnd *C.OCIBind
+	lobLocatorp
 }
 
 // bindReader binds an io.Reader: reads from rdr, and writes to a temprary LOB,
@@ -44,7 +45,7 @@ func (bnd *bndLob) bindReader(rdr io.Reader, position int, lobBufferSize int, st
 		return err
 	}
 
-	if err = writeLob(bnd.ociLobLocator, bnd.stmt, rdr, lobBufferSize); err != nil {
+	if err = writeLob(bnd.lobLocatorp.Value(), bnd.stmt, rdr, lobBufferSize); err != nil {
 		bnd.stmt.ses.Break()
 		finish()
 		return err
@@ -79,39 +80,42 @@ func (bnd *bndLob) close() (err error) {
 	C.OCILobFreeTemporary(
 		bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		bnd.ociLobLocator)           //OCILobLocator      *locp,
+		bnd.lobLocatorp.Value())     //OCILobLocator      *locp,
 	// free lob locator handle
 	C.OCIDescriptorFree(
-		unsafe.Pointer(bnd.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_LOB)                   //ub4      type );
+		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void     *descp,
+		C.OCI_DTYPE_LOB)                           //ub4      type );
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociLobLocator = nil
 	stmt.putBnd(bndIdxLob, bnd)
 	return nil
 }
 
 func (bnd *bndLob) allocTempLob() (finish func(), err error) {
-	bnd.ociLobLocator, finish, err = allocTempLob(bnd.stmt)
+	var lob *C.OCILobLocator
+	lob, finish, err = allocTempLob(bnd.stmt)
+	if err == nil {
+		*(bnd.lobLocatorp.Pointer()) = lob
+	}
 	return
 }
 
 func (bnd *bndLob) bindByPos(position int) error {
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                     //OCIError     *errhp,
-		C.ub4(position),                                 //ub4          position,
-		unsafe.Pointer(&bnd.ociLobLocator),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocator)), //sb8          value_sz,
-		C.SQLT_BLOB,   //ub2          dty,
-		nil,           //void         *indp,
-		nil,           //ub2          *alenp,
-		nil,           //ub2          *rcodep,
-		0,             //ub4          maxarr_len,
-		nil,           //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
+		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
+		&bnd.ocibnd,                               //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
+		C.ub4(position),                           //ub4          position,
+		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.lobLocatorp.Size()),     //sb8          value_sz,
+		C.SQLT_BLOB,                               //ub2          dty,
+		nil,                                       //void         *indp,
+		nil,                                       //ub2          *alenp,
+		nil,                                       //ub2          *rcodep,
+		0,                                         //ub4          maxarr_len,
+		nil,                                       //ub4          *curelep,
+		C.OCI_DEFAULT)                             //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
@@ -209,18 +213,20 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 	return nil
 }
 
-func allocTempLob(stmt *Stmt) (
-	ociLobLocator *C.OCILobLocator,
-	finish func(),
-	err error,
-) {
+func allocTempLob(stmt *Stmt) (ociLobLocator *C.OCILobLocator, finish func(), err error) {
+	locatorp := (**C.OCILobLocator)(C.malloc(C.sizeof_dvoid))
+	defer C.free(unsafe.Pointer(locatorp))
 	// Allocate lob locator handle
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(stmt.ses.srv.env.ocienv),           //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&ociLobLocator)), //dvoid         **descpp,
-		C.OCI_DTYPE_LOB,                                   //ub4           type,
-		0,                                                 //size_t        xtramem_sz,
-		nil)                                               //dvoid         **usrmempp);
+		unsafe.Pointer(stmt.ses.srv.env.ocienv),     //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(locatorp)), //dvoid         **descpp,
+		C.OCI_DTYPE_LOB,                             //ub4           type,
+		0,                                           //size_t        xtramem_sz,
+		nil)                                         //dvoid         **usrmempp);
+	if r == C.OCI_SUCCESS {
+		ociLobLocator = *locatorp
+	}
+	//C.free(unsafe.Pointer(locatorp))
 	if r == C.OCI_ERROR {
 		return nil, nil, stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {

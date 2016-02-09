@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -16,23 +17,23 @@ import (
 type defBfile struct {
 	rset           *Rset
 	ocidef         *C.OCIDefine
-	null           C.sb2
-	ociLobLocator  *C.OCILobLocator
 	directoryAlias [30]byte
 	filename       [255]byte
+	lobLocatorp
+	nullp
 }
 
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                                //OCIStmt     *stmtp,
-		&def.ocidef,                                     //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,                //OCIError    *errhp,
-		C.ub4(position),                                 //ub4         position,
-		unsafe.Pointer(&def.ociLobLocator),              //void        *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(def.ociLobLocator)), //sb8         value_sz,
-		C.SQLT_FILE,               //ub2         dty,
-		unsafe.Pointer(&def.null), //void        *indp,
+		def.rset.ocistmt,                          //OCIStmt     *stmtp,
+		&def.ocidef,                               //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,          //OCIError    *errhp,
+		C.ub4(position),                           //ub4         position,
+		unsafe.Pointer(def.lobLocatorp.Pointer()), //void        *valuep,
+		C.LENGTH_TYPE(def.lobLocatorp.Size()),     //sb8         value_sz,
+		C.SQLT_FILE,                               //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()),       //void        *indp,
 		nil,           //ub4         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
@@ -43,7 +44,7 @@ func (def *defBfile) define(position int, rset *Rset) error {
 }
 func (def *defBfile) value() (value interface{}, err error) {
 	var bfileValue Bfile
-	bfileValue.IsNull = def.null < C.sb2(0)
+	bfileValue.IsNull = def.nullp.IsNull()
 	if !bfileValue.IsNull {
 		// Get directory alias and filename
 		dLength := C.ub2(len(def.directoryAlias))
@@ -51,7 +52,7 @@ func (def *defBfile) value() (value interface{}, err error) {
 		r := C.OCILobFileGetName(
 			def.rset.stmt.ses.srv.env.ocienv,                     //OCIEnv                   *envhp,
 			def.rset.stmt.ses.srv.env.ocierr,                     //OCIError                 *errhp,
-			def.ociLobLocator,                                    //const OCILobLocator      *filep,
+			def.lobLocatorp.Value(),                              //const OCILobLocator      *filep,
 			(*C.OraText)(unsafe.Pointer(&def.directoryAlias[0])), //OraText                  *dir_alias,
 			&dLength, //ub2                      *d_length,
 			(*C.OraText)(unsafe.Pointer(&def.filename[0])), //OraText                  *filename,
@@ -69,11 +70,11 @@ func (def *defBfile) value() (value interface{}, err error) {
 func (def *defBfile) alloc() error {
 	// Allocate lob locator handle
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),      //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&def.ociLobLocator)), //dvoid         **descpp,
-		C.OCI_DTYPE_FILE,                                      //ub4           type,
-		0,                                                     //size_t        xtramem_sz,
-		nil)                                                   //dvoid         **usrmempp);
+		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(def.lobLocatorp.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_FILE,                                             //ub4           type,
+		0,                                                            //size_t        xtramem_sz,
+		nil)                                                          //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
 		return def.rset.stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
@@ -86,9 +87,11 @@ func (def *defBfile) free() {
 	defer func() {
 		recover()
 	}()
-	C.OCIDescriptorFree(
-		unsafe.Pointer(def.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_FILE)                  //ub4      type );
+	if lob := def.lobLocatorp.Value(); lob != nil {
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_FILE)    //ub4      type );
+	}
 }
 
 func (def *defBfile) close() (err error) {
@@ -107,7 +110,8 @@ func (def *defBfile) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.ociLobLocator = nil
+	def.nullp.Free()
+	def.lobLocatorp.Free()
 	rset.putDef(defIdxBfile, def)
 	return nil
 }

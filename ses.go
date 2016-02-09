@@ -299,10 +299,12 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	if stmt.id == 0 {
 		stmt.id = _drv.stmtId.nextId()
 	}
-	err = stmt.attr(unsafe.Pointer(&stmt.stmtType), 4, C.OCI_ATTR_STMT_TYPE) // determine statement type
+	st, err := stmt.attr(2, C.OCI_ATTR_STMT_TYPE) // determine statement type
 	if err != nil {
 		return nil, errE(err)
 	}
+	stmt.stmtType = *((*C.ub2)(st))
+	C.free(unsafe.Pointer(st))
 	ses.openStmts.add(stmt)
 
 	return stmt, nil

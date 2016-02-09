@@ -16,9 +16,9 @@ import (
 type bndRset struct {
 	stmt    *Stmt
 	ocibnd  *C.OCIBind
-	ocistmt *C.OCIStmt
-	isNull  C.sb2
+	ocistmt [1]*C.OCIStmt
 	value   *Rset
+	nullp
 }
 
 func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
@@ -26,19 +26,19 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 	bnd.value = value
 	// Allocate a statement handle
 	ocistmt, err := bnd.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
-	bnd.ocistmt = (*C.OCIStmt)(ocistmt)
+	bnd.ocistmt[0] = (*C.OCIStmt)(ocistmt)
 	if err != nil {
 		return err
 	}
 	r := C.OCIBINDBYPOS(
-		stmt.ocistmt,                 //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),   //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,  //OCIError     *errhp,
-		C.ub4(position),              //ub4          position,
-		unsafe.Pointer(&bnd.ocistmt), //void         *valuep,
-		0,                           //sb8          value_sz,
-		C.SQLT_RSET,                 //ub2          dty,
-		unsafe.Pointer(&bnd.isNull), //void         *indp,
+		stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,     //OCIError     *errhp,
+		C.ub4(position),                 //ub4          position,
+		unsafe.Pointer(&bnd.ocistmt[0]), //void         *valuep,
+		0,                                   //sb8          value_sz,
+		C.SQLT_RSET,                         //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
@@ -52,12 +52,12 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndRset) setPtr() error {
-	err := bnd.value.open(bnd.stmt, bnd.ocistmt)
+	err := bnd.value.open(bnd.stmt, bnd.ocistmt[0])
 	bnd.stmt.openRsets.add(bnd.value)
 	if err == nil {
 		err = bnd.stmt.setPrefetchSize()
 		// open result set is successful; will be freed by Rset
-		bnd.ocistmt = nil
+		bnd.ocistmt[0] = nil
 	}
 
 	return err
@@ -72,8 +72,9 @@ func (bnd *bndRset) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ocistmt = nil
+	bnd.ocistmt[0] = nil
 	bnd.value = nil
+	bnd.nullp.Free()
 	stmt.putBnd(bndIdxRset, bnd)
 	return nil
 }

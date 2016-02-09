@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -20,7 +21,7 @@ func (bnd *bndBin) bind(value []byte, position int, stmt *Stmt) (err error) {
 	bnd.stmt = stmt
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(&value[0]),   //void         *valuep,
@@ -35,12 +36,14 @@ func (bnd *bndBin) bind(value []byte, position int, stmt *Stmt) (err error) {
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
-
 	return nil
 }
 
 func (bnd *bndBin) setPtr() error {
 	return nil
+}
+
+func (bnd *bndBin) free() {
 }
 
 func (bnd *bndBin) close() (err error) {

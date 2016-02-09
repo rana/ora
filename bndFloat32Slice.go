@@ -40,20 +40,22 @@ func (bnd *bndFloat32Slice) bind(values []float32, nullInds []C.sb2, position in
 	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
 	bnd.ociNumbers = make([]C.OCINumber, len(values))
+	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	for n := range values {
-		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-		r := C.OCINumberFromReal(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(&values[n]),  //const void          *rnum,
-			4,                  //uword               rnum_length,
-			&bnd.ociNumbers[n]) //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		}
+		alenp[n] = alen
+	}
+	if r := C.numberFromFloatSlice(
+		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+		unsafe.Pointer(&values[0]),  //const void          *rnum,
+		4,                  //uword               rnum_length,
+		&bnd.ociNumbers[0], //OCINumber           *number
+		C.ub4(len(values)),
+	); r == C.OCI_ERROR {
+		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
 		C.ub4(position),                    //ub4          position,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
