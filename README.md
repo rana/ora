@@ -1,5 +1,22 @@
 ### Golang Oracle Database Driver ###
 
+#### TL;DR; just use it ####
+
+```go
+	import (
+		"database/sql"
+
+		_ "gopkg.in/rana/ora.v3"
+	)
+
+	func main() {
+		db, err := sql.Open("ora", "user/passw@host:port/sid")
+		defer db.Close()
+	}
+```
+
+#### Background ####
+
 Package ora implements an Oracle database driver for the Go programming language.
 
 An Oracle database may be accessed through the [database/sql](http://golang.org/pkg/database/sql/) package or through the
