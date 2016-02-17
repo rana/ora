@@ -185,7 +185,9 @@ func (rset *Rset) beginRow() (err error) {
 func (rset *Rset) endRow() {
 	rset.log(_drv.cfg.Log.Rset.EndRow)
 	for _, define := range rset.defs {
-		define.free()
+		if define != nil {
+			define.free()
+		}
 	}
 }
 
