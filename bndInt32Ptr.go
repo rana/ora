@@ -36,7 +36,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 			return bnd.stmt.ses.srv.env.ociError()
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-			"%p pos=%d value(%p)=%d => number=%#v", bnd, position, bnd.value, *value, bnd.ociNumber)
+			"Int32Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber[0])
 	}
 	alen := C.ACTUAL_LENGTH_TYPE(4)
 	r := C.OCIBINDBYPOS(
@@ -60,8 +60,6 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndInt32Ptr) setPtr() error {
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"%p value=%p isNull=%d number=%#v", bnd, bnd.value, bnd.nullp.IsNull(), bnd.ociNumber)
 	if !bnd.nullp.IsNull() {
 		r := C.OCINumberToInt(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
