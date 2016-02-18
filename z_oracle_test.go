@@ -3570,6 +3570,65 @@ func TestUnderflow(t *testing.T) {
 	}
 }
 
+// TestIntFloat: see https://github.com/rana/ora/issues/57#issuecomment-185473949
+func TestIntFloat(t *testing.T) {
+	tbl := "test_intfloat"
+	testDb.Exec(`DROP TABLE ` + tbl)
+	qry := `CREATE TABLE ` + tbl + ` (
+			  NUMBER_SIMPLE  NUMBER,
+			  NUMBER_SCALE0  NUMBER(*,0)
+			)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(err)
+	}
+	qry = "INSERT INTO " + tbl + " (NUMBER_SIMPLE, NUMBER_SCALE0) VALUES (:1, :2)"
+	stmt, err := testDb.Prepare(qry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, numbers := range [][2]string{
+		{"1", "2"},
+		{"10", "20"},
+		{"100", "200"},
+		{"1000", "2000"},
+		{"10000", "20000"},
+		{"100000", "200000"},
+		{"1000000", "2000000"},
+		{"1.5", "2.5"},
+	} {
+		if _, err := stmt.Exec(numbers[0], numbers[1]); err != nil {
+			t.Errorf("INSERT %#v: %v", numbers, err)
+		}
+	}
+	rows, err := testDb.Query("SELECT * FROM " + tbl)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ni, ni0 int64
+		err := rows.Scan(&ni, &ni0)
+		if err != nil {
+			if strings.Contains(err.Error(), "e+") {
+				t.Errorf("scan: %v", err)
+				continue
+			}
+			var fi, fi0 float64
+			if err := rows.Scan(&fi, &fi0); err != nil {
+				t.Errorf("scan: %v", err)
+				continue
+			}
+			t.Logf("float64 (%v, %v)", fi, fi0)
+			continue
+		}
+		t.Logf("int64 (%v, %v)", ni, ni0)
+	}
+	err = rows.Err()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestSetDrvCfg(t *testing.T) {
 	drvCfg := ora.NewDrvCfg()
 	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
