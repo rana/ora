@@ -42,19 +42,20 @@ func (bnd *bndInt16Slice) bind(values []int16, nullInds []C.sb2, position int, s
 	bnd.ociNumbers = make([]C.OCINumber, len(values))
 	for n := range values {
 		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-		r := C.OCINumberFromInt(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(&values[n]),  //const void          *inum,
-			2,                   //uword               inum_length,
-			C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
-			&bnd.ociNumbers[n])  //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		}
+	}
+	if r := C.numberFromIntSlice(
+		bnd.stmt.ses.srv.env.ocierr,
+		unsafe.Pointer(&values[0]),
+		2,
+		C.OCI_NUMBER_SIGNED,
+		&bnd.ociNumbers[0],
+		C.ub4(len(values)),
+	); r == C.OCI_ERROR {
+		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                   //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),         //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
 		C.ub4(position),                    //ub4          position,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,

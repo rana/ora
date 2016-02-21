@@ -17,10 +17,10 @@ import (
 type bndBoolPtr struct {
 	stmt     *Stmt
 	ocibnd   *C.OCIBind
-	isNull   C.sb2
 	value    *bool
 	buf      []byte
 	trueRune rune
+	nullp
 }
 
 func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt) error {
@@ -33,14 +33,14 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 	}
 	// FIXME(tgulacsi): bnd.buf should be populated with *value!
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
-		C.ub4(position),             //ub4          position,
-		unsafe.Pointer(&bnd.buf[0]), //void         *valuep,
-		C.LENGTH_TYPE(len(bnd.buf)), //sb8          value_sz,
-		C.SQLT_CHR,                  //ub2          dty,
-		unsafe.Pointer(&bnd.isNull), //void         *indp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
+		C.ub4(position),                     //ub4          position,
+		unsafe.Pointer(&bnd.buf[0]),         //void         *valuep,
+		C.LENGTH_TYPE(len(bnd.buf)),         //sb8          value_sz,
+		C.SQLT_CHR,                          //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
@@ -54,7 +54,7 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 
 func (bnd *bndBoolPtr) setPtr() error {
 	//Log.Infof("%s.setPtr()", bnd)
-	if bnd.isNull > C.sb2(-1) {
+	if !bnd.nullp.IsNull() {
 		r, _ := utf8.DecodeRune(bnd.buf)
 		*bnd.value = r == bnd.trueRune
 	} else {
@@ -74,6 +74,7 @@ func (bnd *bndBoolPtr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.nullp.Free()
 	clear(bnd.buf, 0)
 	stmt.putBnd(bndIdxBoolPtr, bnd)
 	return nil

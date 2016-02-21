@@ -16,23 +16,23 @@ import (
 )
 
 type defIntervalDS struct {
-	rset        *Rset
-	ocidef      *C.OCIDefine
-	ociInterval *C.OCIInterval
-	null        C.sb2
+	rset   *Rset
+	ocidef *C.OCIDefine
+	intervalp
+	nullp
 }
 
 func (def *defIntervalDS) define(position int, rset *Rset) error {
 	def.rset = rset
 	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                              //OCIStmt     *stmtp,
-		&def.ocidef,                                   //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,              //OCIError    *errhp,
-		C.ub4(position),                               //ub4         position,
-		unsafe.Pointer(&def.ociInterval),              //void        *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(def.ociInterval)), //sb8         value_sz,
-		C.SQLT_INTERVAL_DS,                            //ub2         dty,
-		unsafe.Pointer(&def.null),                     //void        *indp,
+		def.rset.ocistmt,                        //OCIStmt     *stmtp,
+		&def.ocidef,                             //OCIDefine   **defnpp,
+		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
+		C.ub4(position),                         //ub4         position,
+		unsafe.Pointer(def.intervalp.Pointer()), //void        *valuep,
+		C.LENGTH_TYPE(def.intervalp.Size()),     //sb8         value_sz,
+		C.SQLT_INTERVAL_DS,                      //ub2         dty,
+		unsafe.Pointer(def.nullp.Pointer()),     //void        *indp,
 		nil,           //ub2         *rlenp,
 		nil,           //ub2         *rcodep,
 		C.OCI_DEFAULT) //ub4         mode );
@@ -43,7 +43,7 @@ func (def *defIntervalDS) define(position int, rset *Rset) error {
 }
 
 func (def *defIntervalDS) value() (value interface{}, err error) {
-	intervalDS := IntervalDS{IsNull: def.null < C.sb2(0)}
+	intervalDS := IntervalDS{IsNull: def.nullp.IsNull()}
 	if !intervalDS.IsNull {
 		var day C.sb4
 		var hour C.sb4
@@ -53,12 +53,12 @@ func (def *defIntervalDS) value() (value interface{}, err error) {
 		r := C.OCIIntervalGetDaySecond(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //void               *hndl,
 			def.rset.stmt.ses.srv.env.ocierr,                 //OCIError           *err,
-			&day,            //sb4                *dy,
-			&hour,           //sb4                *hr,
-			&minute,         //sb4                *mm,
-			&second,         //sb4                *ss,
-			&nanosecond,     //sb4                *fsec,
-			def.ociInterval) //const OCIInterval  *interval );
+			&day,                  //sb4                *dy,
+			&hour,                 //sb4                *hr,
+			&minute,               //sb4                *mm,
+			&second,               //sb4                *ss,
+			&nanosecond,           //sb4                *fsec,
+			def.intervalp.Value()) //const OCIInterval  *interval );
 		if r == C.OCI_ERROR {
 			err = def.rset.stmt.ses.srv.env.ociError()
 		}
@@ -73,9 +73,9 @@ func (def *defIntervalDS) value() (value interface{}, err error) {
 
 func (def *defIntervalDS) alloc() error {
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),    //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&def.ociInterval)), //dvoid         **descpp,
-		C.OCI_DTYPE_INTERVAL_DS,                             //ub4           type,
+		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),           //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(def.intervalp.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_INTERVAL_DS,                                    //ub4           type,
 		0,   //size_t        xtramem_sz,
 		nil) //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
@@ -91,8 +91,8 @@ func (def *defIntervalDS) free() {
 		recover()
 	}()
 	C.OCIDescriptorFree(
-		unsafe.Pointer(def.ociInterval), //void     *descp,
-		C.OCI_DTYPE_INTERVAL_DS)         //timeDefine.descTypeCode)                //ub4      type );
+		unsafe.Pointer(def.intervalp.Pointer()), //void     *descp,
+		C.OCI_DTYPE_INTERVAL_DS)                 //timeDefine.descTypeCode)                //ub4      type );
 }
 
 func (def *defIntervalDS) close() (err error) {
@@ -105,7 +105,8 @@ func (def *defIntervalDS) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.ociInterval = nil
+	def.intervalp.Free()
+	def.nullp.Free()
 	rset.putDef(defIdxIntervalDS, def)
 	return nil
 }

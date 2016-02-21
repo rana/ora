@@ -12,10 +12,10 @@ import "C"
 import "unsafe"
 
 type bndLobPtr struct {
-	stmt          *Stmt
-	ocibnd        *C.OCIBind
-	ociLobLocator *C.OCILobLocator
-	value         *Lob
+	stmt   *Stmt
+	ocibnd *C.OCIBind
+	value  *Lob
+	lobLocatorp
 }
 
 func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, stmt *Stmt) (err error) {
@@ -31,7 +31,7 @@ func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, stmt *S
 	}
 
 	if lob != nil && lob.Reader != nil {
-		if err = writeLob(bnd.ociLobLocator, bnd.stmt, lob.Reader, lobBufferSize); err != nil {
+		if err = writeLob(bnd.lobLocatorp.Value(), bnd.stmt, lob.Reader, lobBufferSize); err != nil {
 			bnd.stmt.ses.Break()
 			finish()
 			return err
@@ -51,21 +51,19 @@ func (bnd *bndLobPtr) setPtr() error {
 		return nil
 	}
 	//Log.Infof("setPtr OCILobOpen %p", bnd.ociLobLocator)
-	lobLength, err := lobOpen(bnd.stmt.ses, bnd.ociLobLocator, C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(bnd.stmt.ses, bnd.lobLocatorp.Value(), C.OCI_LOB_READONLY)
 	if err != nil {
-		lobClose(bnd.stmt.ses, bnd.ociLobLocator)
-		bnd.ociLobLocator = nil
+		lobClose(bnd.stmt.ses, bnd.lobLocatorp.Value())
 		return err
 	}
 
 	lr := &lobReader{
 		ses:           bnd.stmt.ses,
-		ociLobLocator: bnd.ociLobLocator,
+		ociLobLocator: bnd.lobLocatorp.Value(),
 		piece:         C.OCI_FIRST_PIECE,
 		Length:        lobLength,
 	}
 	bnd.value.Reader, bnd.value.Closer = lr, lr
-	bnd.ociLobLocator = nil
 	return nil
 }
 
@@ -77,44 +75,49 @@ func (bnd *bndLobPtr) close() (err error) {
 	}()
 
 	// no need to clear bnd.buf
-	// free temporary lob
-	C.OCILobFreeTemporary(
-		bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-		bnd.ociLobLocator)           //OCILobLocator      *locp,
-	// free lob locator handle
-	C.OCIDescriptorFree(
-		unsafe.Pointer(bnd.ociLobLocator), //void     *descp,
-		C.OCI_DTYPE_LOB)                   //ub4      type );
+	if lob := bnd.lobLocatorp.Value(); lob != nil {
+		// free temporary lob
+		C.OCILobFreeTemporary(
+			bnd.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
+			bnd.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
+			lob) //OCILobLocator      *locp,
+		// free lob locator handle
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_LOB)     //ub4      type );
+	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.value = nil
 	bnd.ocibnd = nil
-	bnd.ociLobLocator = nil
 	stmt.putBnd(bndIdxLobPtr, bnd)
 	return nil
 }
 
 func (bnd *bndLobPtr) allocTempLob() (finish func(), err error) {
-	bnd.ociLobLocator, finish, err = allocTempLob(bnd.stmt)
+	var lob *C.OCILobLocator
+	lob, finish, err = allocTempLob(bnd.stmt)
+	if err == nil {
+		*(bnd.lobLocatorp.Pointer()) = lob
+	}
 	return
 }
 
 func (bnd *bndLobPtr) bindByPos(position int) error {
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                     //OCIError     *errhp,
-		C.ub4(position),                                 //ub4          position,
-		unsafe.Pointer(&bnd.ociLobLocator),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocator)), //sb8          value_sz,
-		C.SQLT_BLOB,   //ub2          dty,
-		nil,           //void         *indp,
-		nil,           //ub2          *alenp,
-		nil,           //ub2          *rcodep,
-		0,             //ub4          maxarr_len,
-		nil,           //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
+		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
+		&bnd.ocibnd,                               //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
+		C.ub4(position),                           //ub4          position,
+		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.lobLocatorp.Size()),     //sb8          value_sz,
+		C.SQLT_BLOB,                               //ub2          dty,
+		nil,                                       //void         *indp,
+		nil,                                       //ub2          *alenp,
+		nil,                                       //ub2          *rcodep,
+		0,                                         //ub4          maxarr_len,
+		nil,                                       //ub4          *curelep,
+		C.OCI_DEFAULT)                             //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

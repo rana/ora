@@ -25,19 +25,28 @@ func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position int, stmt *Stm
 	nullInds := make([]C.sb2, len(values))
 	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
+	alen := C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[0]))
+
+	if r := C.decriptorAllocSlice(
+		bnd.stmt.ses.srv.env.ocienv,          //CONST dvoid   *parenth,
+		unsafe.Pointer(&bnd.ociIntervals[0]), //dvoid         **descpp,
+		C.ub4(alen),
+		C.OCI_DTYPE_INTERVAL_DS, //ub4           type,
+		C.size_t(len(values)),   //size_t        xtramem_sz,
+	); r == C.OCI_ERROR {
+		return bnd.stmt.ses.srv.env.ociError()
+	} else if r == C.OCI_INVALID_HANDLE {
+		return errNew("unable to allocate oci interval handle during bind")
+	}
+
 	for n, value := range values {
-		r := C.OCIDescriptorAlloc(
-			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
-			(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociIntervals[n])), //dvoid         **descpp,
-			C.OCI_DTYPE_INTERVAL_DS,                                 //ub4           type,
-			0,   //size_t        xtramem_sz,
-			nil) //dvoid         **usrmempp);
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		} else if r == C.OCI_INVALID_HANDLE {
-			return errNew("unable to allocate oci interval handle during bind")
+		alenp[n] = alen
+		if values[n].IsNull {
+			nullInds[n] = C.sb2(-1)
+		} else {
+			nullInds[n] = C.sb2(0)
 		}
-		r = C.OCIIntervalSetDaySecond(
+		r := C.OCIIntervalSetDaySecond(
 			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //void               *hndl,
 			bnd.stmt.ses.srv.env.ocierr,                 //OCIError           *err,
 			C.sb4(value.Day),                            //sb4                dy,
@@ -49,16 +58,11 @@ func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position int, stmt *Stm
 		if r == C.OCI_ERROR {
 			return bnd.stmt.ses.srv.env.ociError()
 		}
-		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
-		} else {
-			nullInds[n] = C.sb2(0)
-		}
 		alenp[n] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[n]))
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                        //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
 		C.ub4(position),                                   //ub4          position,
 		unsafe.Pointer(&bnd.ociIntervals[0]),              //void         *valuep,

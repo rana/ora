@@ -82,7 +82,7 @@ func (bnd *bndTimeSlice) bind(values []time.Time, nullInds []C.sb2, position int
 
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                        //OCIBind      **bindpp,
+		&bnd.ocibnd,                                       //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
 		C.ub4(position),                                   //ub4          position,
 		unsafe.Pointer(&bnd.ociDateTimes[0]),              //void         *valuep,

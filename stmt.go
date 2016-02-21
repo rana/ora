@@ -61,7 +61,7 @@ type Stmt struct {
 	mu         sync.Mutex
 	ses        *Ses
 	ocistmt    *C.OCIStmt
-	stmtType   C.ub4
+	stmtType   C.ub2
 	sql        string
 	gcts       []GoColumnType
 	bnds       []bnd
@@ -113,7 +113,7 @@ func (stmt *Stmt) close() (err error) {
 
 		stmt.ses = nil
 		stmt.ocistmt = nil
-		stmt.stmtType = C.ub4(0)
+		stmt.stmtType = 0
 		stmt.sql = ""
 		stmt.gcts = nil
 		stmt.bnds = nil
@@ -203,15 +203,18 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 	if r == C.OCI_ERROR {
 		return 0, 0, errE(stmt.ses.srv.env.ociError())
 	}
-	var ub8RowsAffected C.ub8 // Get rowsAffected based on statement type
+	// Get rowsAffected based on statement type
 	switch stmt.stmtType {
 	case C.OCI_STMT_SELECT, C.OCI_STMT_UPDATE, C.OCI_STMT_DELETE, C.OCI_STMT_INSERT:
-		err := stmt.attr(unsafe.Pointer(&ub8RowsAffected), 8, C.OCI_ATTR_UB8_ROW_COUNT)
+		ra, err := stmt.attr(8, C.OCI_ATTR_UB8_ROW_COUNT)
 		if err != nil {
 			return 0, 0, errE(err)
 		}
-		rowsAffected = uint64(ub8RowsAffected)
-	case C.OCI_STMT_CREATE, C.OCI_STMT_DROP, C.OCI_STMT_ALTER, C.OCI_STMT_BEGIN:
+		rowsAffected = uint64(*((*C.ub8)(ra)))
+		C.free(ra)
+		//case C.OCI_STMT_CREATE, C.OCI_STMT_DROP, C.OCI_STMT_ALTER, C.OCI_STMT_BEGIN:
+	default:
+		//fmt.Printf("stmtType=%d\n", stmt.stmtType)
 	}
 	if stmt.hasPtrBind { // Set any bind pointers
 		err = stmt.setBindPtrs()
@@ -1043,12 +1046,13 @@ func (stmt *Stmt) NumRset() int {
 func (stmt *Stmt) NumInput() int {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
-	var bindCount uint32
-	err := stmt.attr(unsafe.Pointer(&bindCount), 4, C.OCI_ATTR_BIND_COUNT)
+	bc, err := stmt.attr(4, C.OCI_ATTR_BIND_COUNT)
 	if err != nil {
 		return 0
 	}
-	return int(bindCount)
+	bindCount := int(*((*C.ub4)(bc)))
+	C.free(bc)
+	return bindCount
 }
 
 // SetGcts sets a slice of GoColumnType used in a Stmt.Qry *ora.Rset.
@@ -1136,13 +1140,13 @@ func (stmt *Stmt) setPrefetchSize() error {
 	if stmt.cfg.prefetchRowCount > 0 {
 		//fmt.Println("stmt.setPrefetchSize: prefetchRowCount ", stmt.cfg.prefetchRowCount)
 		// set prefetch row count
-		if err := stmt.setAttr(unsafe.Pointer(&stmt.cfg.prefetchRowCount), 4, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
+		if err := stmt.setAttr(stmt.cfg.prefetchRowCount, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
 			return errE(err)
 		}
 	} else {
 		//fmt.Println("stmt.setPrefetchSize: prefetchMemorySize ", stmt.cfg.prefetchMemorySize)
 		// Set prefetch memory size
-		if err := stmt.setAttr(unsafe.Pointer(&stmt.cfg.prefetchMemorySize), 4, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
+		if err := stmt.setAttr(stmt.cfg.prefetchMemorySize, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
 			return errE(err)
 		}
 	}
@@ -1150,29 +1154,32 @@ func (stmt *Stmt) setPrefetchSize() error {
 }
 
 // attr gets an attribute from the statement handle. No locking occurs.
-func (stmt *Stmt) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
+func (stmt *Stmt) attr(attrSize C.ub4, attrType C.ub4) (unsafe.Pointer, error) {
+	attrup := C.malloc(C.size_t(attrSize))
 	r := C.OCIAttrGet(
 		unsafe.Pointer(stmt.ocistmt), //const void     *trgthndlp,
 		C.OCI_HTYPE_STMT,             //ub4         cfgtrghndltyp,
 		attrup,                       //void           *attributep,
 		&attrSize,                    //ub4            *sizep,
 		attrType,                     //ub4            attrtype,
-		stmt.ses.srv.env.ocierr)      //OCIError       *errhp );
+		stmt.ses.srv.env.ocierr,      //OCIError       *errhp
+	)
 	if r == C.OCI_ERROR {
-		return stmt.ses.srv.env.ociError()
+		C.free(unsafe.Pointer(attrup))
+		return nil, stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return attrup, nil
 }
 
 // setAttr sets an attribute on the statement handle. No locking occurs.
-func (stmt *Stmt) setAttr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
+func (stmt *Stmt) setAttr(attrValue uint32, attrType C.ub4) error {
 	r := C.OCIAttrSet(
 		unsafe.Pointer(stmt.ocistmt), //void        *trgthndlp,
 		C.OCI_HTYPE_STMT,             //ub4         trghndltyp,
-		attrup,                       //void        *attributep,
-		attrSize,                     //ub4         size,
-		attrType,                     //ub4         attrtype,
-		stmt.ses.srv.env.ocierr)      //OCIError    *errhp );
+		unsafe.Pointer(&attrValue),   //void        *attributep,
+		4,                       //ub4         size,
+		attrType,                //ub4         attrtype,
+		stmt.ses.srv.env.ocierr) //OCIError    *errhp );
 	if r == C.OCI_ERROR {
 		return errE(stmt.ses.srv.env.ociError())
 	}

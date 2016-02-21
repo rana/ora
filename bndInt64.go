@@ -9,14 +9,12 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndInt64 struct {
 	stmt      *Stmt
 	ocibnd    *C.OCIBind
-	ociNumber C.OCINumber
+	ociNumber [1]C.OCINumber
 }
 
 func (bnd *bndInt64) bind(value int64, position int, stmt *Stmt) error {
@@ -26,16 +24,16 @@ func (bnd *bndInt64) bind(value int64, position int, stmt *Stmt) error {
 		unsafe.Pointer(&value),      //const void          *inum,
 		8,                   //uword               inum_length,
 		C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
-		&bnd.ociNumber)      //OCINumber           *number );
+		&bnd.ociNumber[0])   //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,       //OCIError     *errhp,
 		C.ub4(position),                   //ub4          position,
-		unsafe.Pointer(&bnd.ociNumber),    //void         *valuep,
+		unsafe.Pointer(&bnd.ociNumber[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
 		C.SQLT_VNU,                        //ub2          dty,
 		nil,                               //void         *indp,

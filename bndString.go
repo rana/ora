@@ -25,7 +25,7 @@ func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 	bnd.cString = C.CString(value)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(bnd.cString), //void         *valuep,
@@ -53,7 +53,9 @@ func (bnd *bndString) close() (err error) {
 			err = errR(value)
 		}
 	}()
-	C.free(unsafe.Pointer(bnd.cString))
+	if bnd.cString != nil {
+		C.free(unsafe.Pointer(bnd.cString))
+	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

@@ -14,17 +14,17 @@ import (
 )
 
 type bndIntervalYM struct {
-	stmt        *Stmt
-	ocibnd      *C.OCIBind
-	ociInterval *C.OCIInterval
+	stmt   *Stmt
+	ocibnd *C.OCIBind
+	intervalp
 }
 
 func (bnd *bndIntervalYM) bind(value IntervalYM, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),         //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociInterval)), //dvoid         **descpp,
-		C.OCI_DTYPE_INTERVAL_YM,                             //ub4           type,
+		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),                //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(bnd.intervalp.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_INTERVAL_YM,                                    //ub4           type,
 		0,   //size_t        xtramem_sz,
 		nil) //dvoid         **usrmempp);
 	if r == C.OCI_ERROR {
@@ -37,24 +37,24 @@ func (bnd *bndIntervalYM) bind(value IntervalYM, position int, stmt *Stmt) error
 		bnd.stmt.ses.srv.env.ocierr,                 //OCIError           *err,
 		C.sb4(value.Year),                           //sb4                yr,
 		C.sb4(value.Month),                          //sb4                mnth,
-		bnd.ociInterval)                             //OCIInterval        *result );
+		bnd.intervalp.Value())                       //OCIInterval        *result );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                    //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                   //OCIError     *errhp,
-		C.ub4(position),                               //ub4          position,
-		unsafe.Pointer(&bnd.ociInterval),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociInterval)), //sb8          value_sz,
-		C.SQLT_INTERVAL_YM,                            //ub2          dty,
-		nil,                                           //void         *indp,
-		nil,                                           //ub2          *alenp,
-		nil,                                           //ub2          *rcodep,
-		0,                                             //ub4          maxarr_len,
-		nil,                                           //ub4          *curelep,
-		C.OCI_DEFAULT)                                 //ub4          mode );
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,             //OCIError     *errhp,
+		C.ub4(position),                         //ub4          position,
+		unsafe.Pointer(bnd.intervalp.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.intervalp.Size()),     //sb8          value_sz,
+		C.SQLT_INTERVAL_YM,                      //ub2          dty,
+		nil,                                     //void         *indp,
+		nil,                                     //ub2          *alenp,
+		nil,                                     //ub2          *rcodep,
+		0,                                       //ub4          maxarr_len,
+		nil,                                     //ub4          *curelep,
+		C.OCI_DEFAULT)                           //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
@@ -73,12 +73,12 @@ func (bnd *bndIntervalYM) close() (err error) {
 	}()
 
 	C.OCIDescriptorFree(
-		unsafe.Pointer(bnd.ociInterval), //void     *descp,
-		C.OCI_DTYPE_INTERVAL_YM)         //timeDefine.descTypeCode)                //ub4      type );
+		unsafe.Pointer(bnd.intervalp.Value()), //void     *descp,
+		C.OCI_DTYPE_INTERVAL_YM)               //timeDefine.descTypeCode)                //ub4      type );
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociInterval = nil
+	bnd.intervalp.Free()
 	stmt.putBnd(bndIdxIntervalYM, bnd)
 	return nil
 }
