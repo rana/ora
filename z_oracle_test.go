@@ -3568,16 +3568,16 @@ func TestIntFloat(t *testing.T) {
 		{"1000", "2000"},
 		{"10000", "20000"},
 		{"100000", "200000"},
-		//{"1000000", "2000000"},
+		{"1000000", "2000000"},
 		//{"1.5", "2.5"},
 	} {
 		if _, err := stmt.Exec(numbers[0], numbers[1]); err != nil {
-			t.Errorf("INSERT %#v: %v", numbers, err)
+			t.Fatalf("INSERT %#v: %v", numbers, err)
 		}
 	}
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatal(err)
 	}
 	defer rows.Close()
 	for rows.Next() {

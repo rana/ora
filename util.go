@@ -133,6 +133,10 @@ func GctName(gct GoColumnType) string {
 	return ""
 }
 
+func (gct GoColumnType) String() string {
+	return GctName(gct)
+}
+
 func clear(buffer []byte, fill byte) {
 	for n := range buffer {
 		buffer[n] = fill

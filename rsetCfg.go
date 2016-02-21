@@ -549,19 +549,29 @@ func (c *RsetCfg) LongRaw() GoColumnType {
 // column, based on precision and scale.
 //
 // See issue #33 and #36 for the reason this became a testable separate function.
-func (c *RsetCfg) numericColumnType(precision, scale int) GoColumnType {
+func (c *RsetCfg) numericColumnType(precision, scale int) (gct GoColumnType) {
+	//defer func() {
+	//	fmt.Printf("numericColumnType(%d, %d): %s\n", precision, scale, gct)
+	//}()
+
 	// If the precision is zero and scale is -127, the it is a NUMBER;
+	if precision == 0 && scale == -127 {
+		return N
+	}
 	// if the precision is nonzero and scale is -127, then it is a FLOAT;
+	if precision != 0 && scale == -127 {
+		return c.float
+	}
 	// if the scale is positive, then it is a NUMBER(precision, scale);
-	// otherwise, it's an int.
-	if precision != 0 {
-		if scale == 0 {
-			return c.numberInt
+	if scale > 0 {
+		if precision > 15 {
+			return N
 		}
 		return c.numberFloat
 	}
-	if scale == -127 {
-		return c.float
+	// otherwise, it's an int.
+	if precision > 18 {
+		return N
 	}
-	return N
+	return c.numberInt
 }
