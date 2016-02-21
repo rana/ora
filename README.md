@@ -15,12 +15,6 @@
 	}
 ```
 
-#### Go 1.6 ####
-As Go 1.6 introduces some new restrictions (and checks the compliance at runtime),
-some code rewrite has been in the works. So with Go 1.6, use the go1.6 branch:
-
-	cd $GOPATH/src/gopkg.in/rana/ora.v3 && git fetch origin && git checkout -b go1.6 origin/go1.6
-
 #### Background ####
 
 Package ora implements an Oracle database driver for the Go programming language.
