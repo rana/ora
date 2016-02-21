@@ -174,7 +174,8 @@ func (rset *Rset) beginRow() (err error) {
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
 	if r == C.OCI_ERROR {
-		return rset.stmt.ses.srv.env.ociError()
+		err := rset.stmt.ses.srv.env.ociError()
+		return err
 	} else if r == C.OCI_NO_DATA {
 		// Adjust Index so that Len() returns correct value when all rows read
 		rset.Index--

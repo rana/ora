@@ -9,9 +9,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type defNumString struct {
 	rset       *Rset
@@ -49,21 +47,8 @@ func (def *defNumString) value() (value interface{}, err error) {
 		}
 		return "0", nil
 	}
-	bufSize := C.ub4(cap(def.buf))
-	r := C.OCINumberToText(
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-		&def.ociNumber[0],                //const OCINumber     *number,
-		numberFmtC,
-		C.ub4(numberFmtLen), //ub4                fmt_length,
-		numberNLSC,          //CONST OraText      *nls_params,
-		C.ub4(numberNLSLen), //ub4                nls_p_length,
-		&bufSize,            //ub4 ,
-		(*C.oratext)(unsafe.Pointer(&def.buf[0])), //OraText                *rsl );
-	)
-	if r == C.OCI_ERROR {
-		err = def.rset.stmt.ses.srv.env.ociError()
-	}
-	s := string(def.buf[:int(bufSize)])
+	b, err := def.rset.stmt.ses.srv.env.numberToText(def.buf[:], def.ociNumber[0])
+	s := string(b)
 	if def.isNullable {
 		return String{Value: s}, nil
 	}
@@ -90,4 +75,27 @@ func (def *defNumString) close() (err error) {
 	def.nullp.Free()
 	rset.putDef(defIdxNumString, def)
 	return nil
+}
+
+func (env *Env) numberToText(dest []byte, number C.OCINumber) ([]byte, error) {
+	if cap(dest) < numStringLen {
+		dest = make([]byte, numStringLen)
+	} else {
+		dest = dest[:numStringLen]
+	}
+	bufSize := C.ub4(len(dest))
+	r := C.OCINumberToText(
+		env.ocierr, //OCIError              *err,
+		&number,    //const OCINumber     *number,
+		numberFmtC,
+		C.ub4(numberFmtLen), //ub4                fmt_length,
+		numberNLSC,          //CONST OraText      *nls_params,
+		C.ub4(numberNLSLen), //ub4                nls_p_length,
+		&bufSize,            //ub4 ,
+		(*C.oratext)(unsafe.Pointer(&dest[0])), //OraText                *rsl );
+	)
+	if r == C.OCI_ERROR {
+		return dest, env.ociError()
+	}
+	return dest[:bufSize], nil
 }

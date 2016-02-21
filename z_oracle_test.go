@@ -1161,7 +1161,6 @@ func compare(expected interface{}, actual interface{}, goColumnType ora.GoColumn
 
 func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(int64)
-	a, aOk := actual.(int64)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*int64)
 		if ePtrOk {
@@ -1170,17 +1169,19 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to int64 or *int64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*int64)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Errorf("actual=%p", actual)
-			if actual == nil {
-				panic("NIL")
-			}
-			t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a int64
+	switch x := actual.(type) {
+	case int64:
+		a = x
+	case *int64:
+		a = *x
+	case string:
+		var err error
+		if a, err = strconv.ParseInt(x, 10, 64); err != nil {
+			t.Error(err)
 		}
+	default:
+		t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if e != a {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1357,7 +1358,6 @@ func compare_uint8(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(float64)
-	a, aOk := actual.(float64)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*float64)
 		if ePtrOk {
@@ -1366,13 +1366,19 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to float64 or *float64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*float64)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a float64
+	switch x := actual.(type) {
+	case float64:
+		a = x
+	case *float64:
+		a = *x
+	case string:
+		var err error
+		if a, err = strconv.ParseFloat(x, 64); err != nil {
+			t.Error(err)
 		}
+	default:
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if !isFloat64Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1381,7 +1387,6 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(float32)
-	a, aOk := actual.(float32)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*float32)
 		if ePtrOk {
@@ -1390,13 +1395,20 @@ func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to float32 or *float32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*float32)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Fatalf("Unable to cast actual value to float32 or *float32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a float32
+	switch x := actual.(type) {
+	case float32:
+		a = x
+	case *float32:
+		a = *x
+	case string:
+		f, err := strconv.ParseFloat(x, 32)
+		if err != nil {
+			t.Error(err)
 		}
+		a = float32(f)
+	default:
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if !isFloat32Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -3575,6 +3587,7 @@ func TestIntFloat(t *testing.T) {
 			t.Fatalf("INSERT %#v: %v", numbers, err)
 		}
 	}
+	ora.Cfg().Env.StmtCfg.Rset.SetFloat(ora.N)
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Fatal(err)
