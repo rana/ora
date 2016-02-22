@@ -70,6 +70,10 @@ func (def *defInt64) value() (value interface{}, err error) {
 		}
 		value = int64Value
 	}
+	//if err != nil {
+	//	b, err := def.rset.stmt.ses.srv.env.numberToText(nil, def.ociNumber[0])
+	//	fmt.Printf("%#v (%q): %v\n", def.ociNumber[0], b, err)
+	//}
 	return value, err
 }
 

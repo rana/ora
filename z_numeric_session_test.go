@@ -65,6 +65,9 @@ func TestBindDefine_float64_numberP38S0_session(t *testing.T) {
 func TestBindDefine_float32_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_float32Trunc(), numberP38S0, t, nil)
 }
+func TestBindDefine_NumString_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_NumStringTrunc(), numberP38S0, t, nil)
+}
 
 func TestBindDefine_OraInt64_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), numberP38S0, t, nil)
@@ -148,6 +151,9 @@ func TestBindPtr_float64_numberP38S0_session(t *testing.T) {
 func TestBindPtr_float32_numberP38S0_session(t *testing.T) {
 	testBindPtr(gen_float32Trunc(), numberP38S0, t)
 }
+func TestBindPtr_NumString_numberP38S0_session(t *testing.T) {
+	testBindPtr(gen_NumStringTrunc(), numberP38S0, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP38S0
@@ -193,6 +199,9 @@ func TestBindSlice_float64_numberP38S0_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_float32TruncSlice(), numberP38S0, t, nil)
+}
+func TestBindSlice_NumString_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_NumStringTruncSlice(), numberP38S0, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP38S0_session(t *testing.T) {
@@ -272,6 +281,9 @@ func TestBindDefine_float64_numberP38S0Null_session(t *testing.T) {
 
 func TestBindDefine_float32_numberP38S0Null_session(t *testing.T) {
 	testBindDefine(gen_float32Trunc(), numberP38S0Null, t, nil)
+}
+func TestBindDefine_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringTrunc(), numberP38S0Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_numberP38S0Null_session(t *testing.T) {
@@ -396,6 +408,9 @@ func TestBindPtr_float64_numberP38S0Null_session(t *testing.T) {
 func TestBindPtr_float32_numberP38S0Null_session(t *testing.T) {
 	testBindPtr(gen_float32Trunc(), numberP38S0Null, t)
 }
+func TestBindPtr_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindPtr(gen_NumStringTrunc(), numberP38S0Null, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP38S0Null
@@ -441,6 +456,9 @@ func TestBindSlice_float64_numberP38S0Null_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP38S0Null_session(t *testing.T) {
 	testBindDefine(gen_float32TruncSlice(), numberP38S0Null, t, nil)
+}
+func TestBindSlice_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringTruncSlice(), numberP38S0Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP38S0Null_session(t *testing.T) {
@@ -549,6 +567,9 @@ func TestBindDefine_float64_numberP16S15_session(t *testing.T) {
 func TestBindDefine_float32_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_float32(), numberP16S15, t, nil)
 }
+func TestBindDefine_NumString_numberP16S15_session(t *testing.T) {
+	testBindDefine(gen_NumString(), numberP16S15, t, nil)
+}
 
 func TestBindDefine_OraInt64_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), numberP16S15, t, nil)
@@ -632,6 +653,9 @@ func TestBindPtr_float64_numberP16S15_session(t *testing.T) {
 func TestBindPtr_float32_numberP16S15_session(t *testing.T) {
 	testBindPtr(gen_float32(), numberP16S15, t)
 }
+func TestBindPtr_NumString_numberP16S15_session(t *testing.T) {
+	testBindPtr(gen_NumString(), numberP16S15, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP16S15
@@ -677,6 +701,9 @@ func TestBindSlice_float64_numberP16S15_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), numberP16S15, t, nil)
+}
+func TestBindSlice_NumString_numberP16S15_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), numberP16S15, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP16S15_session(t *testing.T) {
@@ -756,6 +783,10 @@ func TestBindDefine_float64_numberP16S15Null_session(t *testing.T) {
 
 func TestBindDefine_float32_numberP16S15Null_session(t *testing.T) {
 	testBindDefine(gen_float32(), numberP16S15Null, t, nil)
+}
+
+func TestBindDefine_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindDefine(gen_NumString(), numberP16S15Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_numberP16S15Null_session(t *testing.T) {
@@ -881,6 +912,10 @@ func TestBindPtr_float32_numberP16S15Null_session(t *testing.T) {
 	testBindPtr(gen_float32(), numberP16S15Null, t)
 }
 
+func TestBindPtr_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindPtr(gen_NumString(), numberP16S15Null, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP16S15Null
 ////////////////////////////////////////////////////////////////////////////////
@@ -925,6 +960,10 @@ func TestBindSlice_float64_numberP16S15Null_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP16S15Null_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), numberP16S15Null, t, nil)
+}
+
+func TestBindSlice_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), numberP16S15Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP16S15Null_session(t *testing.T) {
@@ -1032,6 +1071,10 @@ func TestBindDefine_float64_binaryDouble_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryDouble_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryDouble, t, nil)
+}
+
+func TestBindDefine_NumString_binaryDouble_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryDouble, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryDouble_session(t *testing.T) {
@@ -1163,6 +1206,10 @@ func TestBindSlice_float32_binaryDouble_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryDouble, t, nil)
 }
 
+func TestBindSlice_NumString_binaryDouble_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryDouble, t, nil)
+}
+
 func TestBindSlice_OraInt64_binaryDouble_session(t *testing.T) {
 	testBindDefine(gen_OraInt64Slice(false), binaryDouble, t, nil)
 }
@@ -1240,6 +1287,10 @@ func TestBindDefine_float64_binaryDoubleNull_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryDoubleNull, t, nil)
+}
+
+func TestBindDefine_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryDoubleNull, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryDoubleNull_session(t *testing.T) {
@@ -1365,6 +1416,10 @@ func TestBindPtr_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryDoubleNull, t)
 }
 
+func TestBindPtr_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryDoubleNull, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryDoubleNull
 ////////////////////////////////////////////////////////////////////////////////
@@ -1409,6 +1464,10 @@ func TestBindSlice_float64_binaryDoubleNull_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryDoubleNull, t, nil)
+}
+
+func TestBindSlice_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryDoubleNull, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryDoubleNull_session(t *testing.T) {
@@ -1518,6 +1577,10 @@ func TestBindDefine_float32_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryFloat, t, nil)
 }
 
+func TestBindDefine_NumString_binaryFloat_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryFloat, t, nil)
+}
+
 func TestBindDefine_OraInt64_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), binaryFloat, t, nil)
 }
@@ -1601,6 +1664,10 @@ func TestBindPtr_float32_binaryFloat_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryFloat, t)
 }
 
+func TestBindPtr_NumString_binaryFloat_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryFloat, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryFloat
 ////////////////////////////////////////////////////////////////////////////////
@@ -1645,6 +1712,10 @@ func TestBindSlice_float64_binaryFloat_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryFloat, t, nil)
+}
+
+func TestBindSlice_NumString_binaryFloat_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryFloat, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryFloat_session(t *testing.T) {
@@ -1724,6 +1795,10 @@ func TestBindDefine_float64_binaryFloatNull_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryFloatNull_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryFloatNull, t, nil)
+}
+
+func TestBindDefine_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryFloatNull, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryFloatNull_session(t *testing.T) {
@@ -1849,6 +1924,10 @@ func TestBindPtr_float32_binaryFloatNull_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryFloatNull, t)
 }
 
+func TestBindPtr_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryFloatNull, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryFloatNull
 ////////////////////////////////////////////////////////////////////////////////
@@ -1893,6 +1972,10 @@ func TestBindSlice_float64_binaryFloatNull_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryFloatNull_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryFloatNull, t, nil)
+}
+
+func TestBindSlice_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryFloatNull, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryFloatNull_session(t *testing.T) {
@@ -2002,6 +2085,10 @@ func TestBindDefine_float32_floatP126_session(t *testing.T) {
 	testBindDefine(gen_float32(), floatP126, t, nil)
 }
 
+func TestBindDefine_NumString_floatP126_session(t *testing.T) {
+	testBindDefine(gen_NumString(), floatP126, t, nil)
+}
+
 func TestBindDefine_OraInt64_floatP126_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), floatP126, t, nil)
 }
@@ -2085,6 +2172,10 @@ func TestBindPtr_float32_floatP126_session(t *testing.T) {
 	testBindPtr(gen_float32(), floatP126, t)
 }
 
+func TestBindPtr_NumString_floatP126_session(t *testing.T) {
+	testBindPtr(gen_NumString(), floatP126, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE floatP126
 ////////////////////////////////////////////////////////////////////////////////
@@ -2129,6 +2220,10 @@ func TestBindSlice_float64_floatP126_session(t *testing.T) {
 
 func TestBindSlice_float32_floatP126_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), floatP126, t, nil)
+}
+
+func TestBindSlice_NumString_floatP126_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), floatP126, t, nil)
 }
 
 func TestBindSlice_OraInt64_floatP126_session(t *testing.T) {
@@ -2208,6 +2303,10 @@ func TestBindDefine_float64_floatP126Null_session(t *testing.T) {
 
 func TestBindDefine_float32_floatP126Null_session(t *testing.T) {
 	testBindDefine(gen_float32(), floatP126Null, t, nil)
+}
+
+func TestBindDefine_NumString_floatP126Null_session(t *testing.T) {
+	testBindDefine(gen_NumString(), floatP126Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_floatP126Null_session(t *testing.T) {
@@ -2333,6 +2432,10 @@ func TestBindPtr_float32_floatP126Null_session(t *testing.T) {
 	testBindPtr(gen_float32(), floatP126Null, t)
 }
 
+func TestBindPtr_NumString_floatP126Null_session(t *testing.T) {
+	testBindPtr(gen_NumString(), floatP126Null, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE floatP126Null
 ////////////////////////////////////////////////////////////////////////////////
@@ -2377,6 +2480,10 @@ func TestBindSlice_float64_floatP126Null_session(t *testing.T) {
 
 func TestBindSlice_float32_floatP126Null_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), floatP126Null, t, nil)
+}
+
+func TestBindSlice_NumString_floatP126Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), floatP126Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_floatP126Null_session(t *testing.T) {

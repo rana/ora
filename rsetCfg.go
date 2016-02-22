@@ -9,6 +9,7 @@ package ora
 type RsetCfg struct {
 	numberInt    GoColumnType
 	numberFloat  GoColumnType
+	number       GoColumnType
 	binaryDouble GoColumnType
 	binaryFloat  GoColumnType
 	float        GoColumnType
@@ -60,7 +61,8 @@ func NewRsetCfg() RsetCfg {
 // NUMBER column defined with scale zero.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
-// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c *RsetCfg) SetNumberInt(gct GoColumnType) (err error) {
@@ -89,7 +91,8 @@ func (c *RsetCfg) NumberInt() GoColumnType {
 // NUMBER column defined with a scale greater than zero.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
-// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c *RsetCfg) SetNumberFloat(gct GoColumnType) (err error) {
@@ -118,7 +121,8 @@ func (c *RsetCfg) NumberFloat() GoColumnType {
 // BINARY_DOUBLE column.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
-// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c *RsetCfg) SetBinaryDouble(gct GoColumnType) (err error) {
@@ -147,7 +151,8 @@ func (c *RsetCfg) BinaryDouble() GoColumnType {
 // BINARY_FLOAT column.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
-// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// Num, OraNum.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c *RsetCfg) SetBinaryFloat(gct GoColumnType) (err error) {
@@ -178,7 +183,8 @@ func (c *RsetCfg) BinaryFloat() GoColumnType {
 // FLOAT column.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
-// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32.
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c *RsetCfg) SetFloat(gct GoColumnType) (err error) {
@@ -543,19 +549,29 @@ func (c *RsetCfg) LongRaw() GoColumnType {
 // column, based on precision and scale.
 //
 // See issue #33 and #36 for the reason this became a testable separate function.
-func (c *RsetCfg) numericColumnType(precision, scale int) GoColumnType {
+func (c *RsetCfg) numericColumnType(precision, scale int) (gct GoColumnType) {
+	//defer func() {
+	//    fmt.Printf("numericColumnType(%d, %d): %s\n", precision, scale, gct)
+	//}()
+
 	// If the precision is zero and scale is -127, the it is a NUMBER;
 	// if the precision is nonzero and scale is -127, then it is a FLOAT;
 	// if the scale is positive, then it is a NUMBER(precision, scale);
 	// otherwise, it's an int.
 	if precision != 0 {
 		if scale == 0 {
-			return c.numberInt
+			if precision <= 19 {
+				return c.numberInt
+			}
+			return N
 		}
-		return c.numberFloat
+		if precision <= 15 {
+			return c.numberFloat
+		}
+		return N
 	}
 	if scale == -127 {
 		return c.float
 	}
-	return c.numberFloat
+	return N
 }

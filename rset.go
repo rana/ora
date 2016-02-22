@@ -157,6 +157,9 @@ func (rset *Rset) beginRow() (err error) {
 	for _, define := range rset.defs {
 		//glog.Infof("Rset.define: ", define)
 		rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
+		if define == nil {
+			continue
+		}
 		err := define.alloc()
 		if err != nil {
 			return err
@@ -171,7 +174,8 @@ func (rset *Rset) beginRow() (err error) {
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
 	if r == C.OCI_ERROR {
-		return rset.stmt.ses.srv.env.ociError()
+		err := rset.stmt.ses.srv.env.ociError()
+		return err
 	} else if r == C.OCI_NO_DATA {
 		// Adjust Index so that Len() returns correct value when all rows read
 		rset.Index--
@@ -671,6 +675,10 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (err error) {
 		def := rset.getDef(defIdxFloat32).(*defFloat32)
 		rset.defs[n] = def
 		err = def.define(n+1, false, rset)
+	case N:
+		def := rset.getDef(defIdxNumString).(*defNumString)
+		rset.defs[n] = def
+		err = def.define(n+1, false, rset)
 	case OraI64:
 		def := rset.getDef(defIdxInt64).(*defInt64)
 		rset.defs[n] = def
@@ -709,6 +717,10 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (err error) {
 		err = def.define(n+1, true, rset)
 	case OraF32:
 		def := rset.getDef(defIdxFloat32).(*defFloat32)
+		rset.defs[n] = def
+		err = def.define(n+1, true, rset)
+	case OraN:
+		def := rset.getDef(defIdxNumString).(*defNumString)
 		rset.defs[n] = def
 		err = def.define(n+1, true, rset)
 	}

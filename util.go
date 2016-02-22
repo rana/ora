@@ -10,13 +10,13 @@ import (
 // checkNumericColumn returns nil when the column type is numeric; otherwise, an error.
 func checkNumericColumn(gct GoColumnType, columnName string) error {
 	switch gct {
-	case I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32:
+	case I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN:
 		return nil
 	}
 	if columnName == "" {
-		return errF("Invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", GctName(gct))
+		return errF("Invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or OraN.", GctName(gct))
 	} else {
-		return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64 or OraF32.", GctName(gct), columnName)
+		return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or ORaN.", GctName(gct), columnName)
 	}
 }
 
@@ -125,8 +125,16 @@ func GctName(gct GoColumnType) string {
 		return "Bin"
 	case OraBin:
 		return "OraBin"
+	case N:
+		return "N"
+	case OraN:
+		return "OraN"
 	}
 	return ""
+}
+
+func (gct GoColumnType) String() string {
+	return GctName(gct)
 }
 
 func clear(buffer []byte, fill byte) {

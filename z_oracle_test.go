@@ -784,22 +784,18 @@ func tableName() string {
 }
 
 func testErr(err error, t testing.TB, expectedErrs ...error) {
-	if err != nil {
-		if expectedErrs == nil {
-			t.Fatalf("%v: %s", err, getStack(1))
-		} else {
-			var isSkipping bool
-			for _, expectedErr := range expectedErrs {
-				isSkipping = expectedErr == err
-				if isSkipping {
-					break
-				}
-			}
-			if !isSkipping {
-				t.Fatal(err)
-			}
+	if err == nil {
+		return
+	}
+	if expectedErrs == nil {
+		t.Fatalf("%v: %s", err, getStack(1))
+	}
+	for _, expectedErr := range expectedErrs {
+		if expectedErr == err { // skip it
+			return
 		}
 	}
+	t.Fatal(err)
 }
 
 func goColumnTypeFromValue(value interface{}) ora.GoColumnType {
@@ -844,6 +840,10 @@ func goColumnTypeFromValue(value interface{}) ora.GoColumnType {
 		return ora.OraF64
 	case ora.Float32, []ora.Float32:
 		return ora.OraF32
+	case ora.Num, []ora.Num:
+		return ora.N
+	case ora.OraNum, []ora.OraNum:
+		return ora.OraN
 	case time.Time, []time.Time:
 		return ora.T
 	case ora.Time, []ora.Time:
@@ -863,64 +863,12 @@ func goColumnTypeFromValue(value interface{}) ora.GoColumnType {
 }
 
 func isNumeric(value interface{}) bool {
-	if _, ok := value.(int64); ok {
+	switch value.(type) {
+	case int8, int16, int32, int64, int, ora.Int8, ora.Int16, ora.Int32, ora.Int64:
 		return true
-	}
-	if _, ok := value.(int32); ok {
+	case uint, uint8, uint16, uint32, uint64, ora.Uint8, ora.Uint16, ora.Uint32, ora.Uint64:
 		return true
-	}
-	if _, ok := value.(int16); ok {
-		return true
-	}
-	if _, ok := value.(int8); ok {
-		return true
-	}
-	if _, ok := value.(uint64); ok {
-		return true
-	}
-	if _, ok := value.(uint32); ok {
-		return true
-	}
-	if _, ok := value.(uint16); ok {
-		return true
-	}
-	if _, ok := value.(uint8); ok {
-		return true
-	}
-	if _, ok := value.(float64); ok {
-		return true
-	}
-	if _, ok := value.(float32); ok {
-		return true
-	}
-	if _, ok := value.(ora.Int64); ok {
-		return true
-	}
-	if _, ok := value.(ora.Int32); ok {
-		return true
-	}
-	if _, ok := value.(ora.Int16); ok {
-		return true
-	}
-	if _, ok := value.(ora.Int8); ok {
-		return true
-	}
-	if _, ok := value.(ora.Uint64); ok {
-		return true
-	}
-	if _, ok := value.(ora.Uint32); ok {
-		return true
-	}
-	if _, ok := value.(ora.Uint16); ok {
-		return true
-	}
-	if _, ok := value.(ora.Uint8); ok {
-		return true
-	}
-	if _, ok := value.(ora.Float64); ok {
-		return true
-	}
-	if _, ok := value.(ora.Float32); ok {
+	case float32, float64, ora.Float32, ora.Float64, ora.Num, ora.OraNum:
 		return true
 	}
 	return false
@@ -1213,7 +1161,6 @@ func compare(expected interface{}, actual interface{}, goColumnType ora.GoColumn
 
 func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(int64)
-	a, aOk := actual.(int64)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*int64)
 		if ePtrOk {
@@ -1222,17 +1169,19 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to int64 or *int64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*int64)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Errorf("actual=%p", actual)
-			if actual == nil {
-				panic("NIL")
-			}
-			t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a int64
+	switch x := actual.(type) {
+	case int64:
+		a = x
+	case *int64:
+		a = *x
+	case string:
+		var err error
+		if a, err = strconv.ParseInt(x, 10, 64); err != nil {
+			t.Error(err)
 		}
+	default:
+		t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if e != a {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1409,7 +1358,6 @@ func compare_uint8(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(float64)
-	a, aOk := actual.(float64)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*float64)
 		if ePtrOk {
@@ -1418,13 +1366,19 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to float64 or *float64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*float64)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a float64
+	switch x := actual.(type) {
+	case float64:
+		a = x
+	case *float64:
+		a = *x
+	case string:
+		var err error
+		if a, err = strconv.ParseFloat(x, 64); err != nil {
+			t.Error(err)
 		}
+	default:
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if !isFloat64Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1433,7 +1387,6 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(float32)
-	a, aOk := actual.(float32)
 	if !eOk {
 		ePtr, ePtrOk := expected.(*float32)
 		if ePtrOk {
@@ -1442,13 +1395,20 @@ func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 			t.Fatalf("Unable to cast expected value to float32 or *float32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
 		}
 	}
-	if !aOk {
-		aPtr, aPtrOk := actual.(*float32)
-		if aPtrOk {
-			a = *aPtr
-		} else {
-			t.Fatalf("Unable to cast actual value to float32 or *float32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+	var a float32
+	switch x := actual.(type) {
+	case float32:
+		a = x
+	case *float32:
+		a = *x
+	case string:
+		f, err := strconv.ParseFloat(x, 32)
+		if err != nil {
+			t.Error(err)
 		}
+		a = float32(f)
+	default:
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
 	if !isFloat32Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -2112,6 +2072,12 @@ func gen_float32() float32 {
 func gen_float32Trunc() float32 {
 	return float32(6)
 }
+func gen_NumString() ora.Num {
+	return "6.28318" //53071795) //86)
+}
+func gen_NumStringTrunc() ora.Num {
+	return "6" //53071795) //86)
+}
 
 func gen_OraInt64(isNull bool) ora.Int64 {
 	return ora.Int64{Value: gen_int64(), IsNull: isNull}
@@ -2278,6 +2244,25 @@ func gen_float32TruncSlice() []float32 {
 	expected[2] = 0
 	expected[3] = float32(3)
 	expected[4] = float32(6)
+	return expected
+}
+func gen_NumStringSlice() []ora.Num {
+	expected := make([]ora.Num, 5)
+	expected[0] = "-6.28318" //5307179586)
+	expected[1] = "-3.14159" //2653589793)
+	expected[2] = "0"
+	expected[3] = "3.14159" //2653589793)
+	expected[4] = "6.28318" //5307179586)
+	return expected
+}
+
+func gen_NumStringTruncSlice() []ora.Num {
+	expected := make([]ora.Num, 5)
+	expected[0] = "-6"
+	expected[1] = "-3"
+	expected[2] = "0"
+	expected[3] = "3"
+	expected[4] = "6"
 	return expected
 }
 
@@ -3386,7 +3371,9 @@ END;`, qry, &res,
 	if err != nil {
 		t.Errorf(`Error with : %s`, err)
 	}
-	t.Logf("desc: %#v", desc)
+	for i, d := range desc {
+		t.Logf("desc[%d]: %#v", i, d)
+	}
 
 	t.Logf("Run query 3\n")
 
@@ -3594,15 +3581,16 @@ func TestIntFloat(t *testing.T) {
 		{"10000", "20000"},
 		{"100000", "200000"},
 		{"1000000", "2000000"},
-		{"1.5", "2.5"},
+		//{"1.5", "2.5"},
 	} {
 		if _, err := stmt.Exec(numbers[0], numbers[1]); err != nil {
-			t.Errorf("INSERT %#v: %v", numbers, err)
+			t.Fatalf("INSERT %#v: %v", numbers, err)
 		}
 	}
+	ora.Cfg().Env.StmtCfg.Rset.SetFloat(ora.N)
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
-		fmt.Println(err)
+		t.Fatal(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
