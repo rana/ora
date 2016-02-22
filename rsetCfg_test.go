@@ -18,7 +18,7 @@ func TestNumericColumnType(t *testing.T) {
 		{6, 3, F64},
 		{3, 0, I64},
 		{0, -127, F32},
-		{0, 0, F64},
+		{0, 0, N},
 	} {
 		got := c.numericColumnType(tc.precision, tc.scale)
 		if got != tc.want {

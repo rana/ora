@@ -507,6 +507,24 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 						return iterations, err
 					}
 				}
+			case Num:
+				bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(value, n+1, stmt)
+				if err != nil {
+					return iterations, err
+				}
+			case OraNum:
+				if value.IsNull {
+					stmt.setNilBind(n, C.SQLT_VNU)
+				} else {
+					bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
+					stmt.bnds[n] = bnd
+					err = bnd.bind(Num(value.Value), n+1, stmt)
+					if err != nil {
+						return iterations, err
+					}
+				}
 			case *int64:
 				bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
 				stmt.bnds[n] = bnd
@@ -690,6 +708,14 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 					return iterations, err
 				}
 				iterations = uint32(len(value))
+			case []Num:
+				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(value, nil, n+1, stmt)
+				if err != nil {
+					return iterations, err
+				}
+				iterations = uint32(len(value))
 
 			case []Int64:
 				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
@@ -765,6 +791,14 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				iterations = uint32(len(value))
 			case []Float32:
 				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
+				stmt.bnds[n] = bnd
+				err = bnd.bindOra(value, n+1, stmt)
+				if err != nil {
+					return iterations, err
+				}
+				iterations = uint32(len(value))
+			case []OraNum:
+				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
 				stmt.bnds[n] = bnd
 				err = bnd.bindOra(value, n+1, stmt)
 				if err != nil {

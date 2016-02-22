@@ -429,6 +429,46 @@ func (this *String) UnmarshalJSON(p []byte) error {
 	return json.Unmarshal(p, &this.Value)
 }
 
+type Num string
+type OraNum struct {
+	IsNull bool
+	Value  string
+}
+
+// Equals returns true when the receiver and specified OraNum are both null,
+// or when the receiver and specified OraNum are both not null and Values are equal.
+func (this OraNum) Equals(other OraNum) bool {
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull && this.Value == other.Value)
+}
+func (this OraNum) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return this.Value
+}
+
+var _ = (json.Marshaler)(OraNum{})
+var _ = (json.Unmarshaler)((*OraNum)(nil))
+
+func (this OraNum) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	if this.Value == "" {
+		return []byte(`""`), nil
+	}
+	return json.Marshal(this.Value)
+}
+func (this *OraNum) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	return json.Unmarshal(p, &this.Value)
+}
+
 // Bool is a nullable bool.
 type Bool struct {
 	IsNull bool

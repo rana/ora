@@ -6,6 +6,7 @@ package ora
 
 import (
 	"database/sql/driver"
+	"fmt"
 )
 
 // DrvQueryResult contains methods to retrieve the results of a SQL select statement.
@@ -30,6 +31,7 @@ func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
 	for n, define := range qr.rset.defs {
 		value, err := define.value()
 		if err != nil {
+			fmt.Printf("%d. %T (%#v): %v\n", n, define, define, err)
 			return err
 		}
 		dest[n] = value

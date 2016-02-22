@@ -67,6 +67,10 @@ const (
 	Bin
 	// OraBin defines a sql select column as a nullable Go ora.Binary.
 	OraBin
+	// N defines a sql select column as a Go string for number.
+	N
+	// OraN defines a sql select column as a nullable Go string for number.
+	OraN
 )
 
 // bind pool indexes
@@ -81,6 +85,7 @@ const (
 	bndIdxUint8
 	bndIdxFloat64
 	bndIdxFloat32
+	bndIdxNumString
 
 	bndIdxInt64Ptr
 	bndIdxInt32Ptr
@@ -92,6 +97,7 @@ const (
 	bndIdxUint8Ptr
 	bndIdxFloat64Ptr
 	bndIdxFloat32Ptr
+	bndIdxNumStringPtr
 
 	bndIdxInt64Slice
 	bndIdxInt32Slice
@@ -103,6 +109,7 @@ const (
 	bndIdxUint8Slice
 	bndIdxFloat64Slice
 	bndIdxFloat32Slice
+	bndIdxNumStringSlice
 
 	bndIdxTime
 	bndIdxTimePtr
@@ -144,6 +151,7 @@ const (
 	defIdxUint8
 	defIdxFloat64
 	defIdxFloat32
+	defIdxNumString
 
 	defIdxTime
 	defIdxString
