@@ -42,7 +42,7 @@ func Test_open_cursors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := rset.NextRow()[0].(float64)
+	before, _ := strconv.Atoi(rset.NextRow()[0].(string))
 	rounds := 100
 	if cgocheck() != 0 {
 		rounds = 10
@@ -70,8 +70,8 @@ func Test_open_cursors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	after := rset.NextRow()[0].(float64)
-	if after-before >= float64(rounds) {
+	after, _ := strconv.Atoi(rset.NextRow()[0].(string))
+	if after-before >= rounds {
 		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
 		return
 	}
