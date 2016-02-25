@@ -82,9 +82,14 @@ func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndTimePtr) setPtr() (err error) {
-	if bnd.value != nil && !bnd.nullp.IsNull() {
-		*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.dateTimep.Value())
+	if bnd.value == nil { // cannot set on a nil pointer
+		return nil
 	}
+	if bnd.nullp.IsNull() {
+		*bnd.value = time.Time{} // zero time
+		return nil
+	}
+	*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.dateTimep.Value())
 	return err
 }
 
