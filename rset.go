@@ -348,7 +348,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				return err
 			}
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.numericColumnType(int(precision), int(scale))
+				gct = rset.stmt.cfg.Rset.numericColumnType(int(ociTypeCode), int(precision), int(scale))
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
 				if err != nil {

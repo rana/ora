@@ -12,18 +12,19 @@ func TestNumericColumnType(t *testing.T) {
 	// be exact
 	c.float, c.numberFloat, c.numberInt = F32, F64, I64
 	for i, tc := range []struct {
-		precision, scale int
-		want             GoColumnType
+		typ, precision, scale int
+		want                  GoColumnType
 	}{
-		{6, 3, F64},
-		{3, 0, I64},
-		{0, -127, F32},
-		{0, 0, N},
+		{2, 6, 3, F64},
+		{2, 3, 0, I64},
+		{100, 0, -127, F32},
+		{2, 1, 0, I64},
+		{2, 0, -127, N},
 	} {
-		got := c.numericColumnType(tc.precision, tc.scale)
+		got := c.numericColumnType(tc.typ, tc.precision, tc.scale)
 		if got != tc.want {
-			t.Errorf("%d. (%d,%d) got %s, want %s.",
-				i, tc.precision, tc.scale, GctName(got), GctName(tc.want))
+			t.Errorf("%d. (%d,%d,%d) got %s, want %s.",
+				i, tc.typ, tc.precision, tc.scale, GctName(got), GctName(tc.want))
 		}
 	}
 }
