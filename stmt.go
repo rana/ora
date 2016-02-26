@@ -325,7 +325,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 	if params != nil && len(params) > 0 {
 		stmt.bnds = make([]bnd, len(params))
 		for n := range params {
-			//fmt.Printf("Stmt.bind: params[%v] (%v)\n", n, params[n])
+			//fmt.Printf("Stmt.bind: params[%v] (%v %T)\n", n, params[n], params[n])
 			switch value := params[n].(type) {
 			case int64:
 				bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)

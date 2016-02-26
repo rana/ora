@@ -278,3 +278,27 @@ func benchmarkSession_PrepAndExe_Insert(b *testing.B) {
 		}
 	}
 }
+
+func TestSessionCallPkg(t *testing.T) {
+	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE PACKAGE mypkg AS
+  FUNCTION myproc(user IN VARCHAR2, pass IN VARCHAR2) RETURN PLS_INTEGER;
+END mypkg;`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE PACKAGE BODY mypkg AS
+  FUNCTION myproc(user IN VARCHAR2, pass IN VARCHAR2) RETURN PLS_INTEGER IS
+  BEGIN
+    RETURN NVL(LENGTH(user), 0) + NVL(LENGTH(pass), 0);
+  END myproc;
+END mypkg;`); err != nil {
+		t.Fatal(err)
+	}
+	rc := int64(-100)
+	if _, err := testSes.PrepAndExe("BEGIN :1 := MYPKG.MYPROC(:2, :3); END;", &rc, "a", "bc"); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%d", rc)
+	if rc != 3 {
+		t.Errorf("got %d, awaited %d.", rc, 3)
+	}
+}
