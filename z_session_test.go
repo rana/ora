@@ -302,3 +302,86 @@ END mypkg;`); err != nil {
 		t.Errorf("got %d, awaited %d.", rc, 3)
 	}
 }
+
+func TestIssue59(t *testing.T) {
+	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE
+PROCEDURE test_59(theoutput OUT VARCHAR2, param1 IN VARCHAR2, param2 IN VARCHAR2, param3 IN VARCHAR2) IS
+  TYPE vc_tab_typ IS TABLE OF VARCHAR2(32767) INDEX BY PLS_INTEGER;
+  rows vc_tab_typ;
+  res VARCHAR2(32767);
+BEGIN
+  SELECT ROWNUM||';'||A.object_name||';'||B.object_type||';'||param1||';'||param2||';'||param3
+    BULK COLLECT INTO rows
+    FROM all_objects B, all_objects A
+	WHERE ROWNUM < 1000;
+  FOR i IN 1..rows.COUNT LOOP
+    res := SUBSTR(res||CHR(10)||rows(i), 1, 32767);
+    EXIT WHEN LENGTH(res) >= 32767;
+  END LOOP;
+  theoutput := SUBSTR(res, 1, 2000);
+END test_59;`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	ces, err := GetCompileErrors(testSes, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ces) > 0 {
+		for _, ce := range ces {
+			t.Error(ce)
+		}
+	}
+
+	res := strings.Repeat("\x00", 32768)
+	if _, err := testSes.PrepAndExe("CALL test_59(:1, :2, :3, :4)", &res, "a", "b", "c"); err != nil {
+		t.Error(err)
+	}
+	t.Logf("res=%q", res)
+}
+
+// CompileError represents a compile-time error as in user_errors view.
+type CompileError struct {
+	Owner, Name, Type    string
+	Line, Position, Code int64
+	Text                 string
+	Warning              bool
+}
+
+func (ce CompileError) Error() string {
+	prefix := "ERROR "
+	if ce.Warning {
+		prefix = "WARN  "
+	}
+	return fmt.Sprintf("%s %s.%s %s %d:%d [%d] %s",
+		prefix, ce.Owner, ce.Name, ce.Type, ce.Line, ce.Position, ce.Code, ce.Text)
+}
+
+// GetCompileErrors returns the slice of the errors in user_errors.
+//
+// If all is false, only errors are returned; otherwise, warnings, too.
+func GetCompileErrors(ses *ora.Ses, all bool) ([]CompileError, error) {
+	rows, err := ses.PrepAndQry(`
+	SELECT USER owner, name, type, line, position, message_number, text, attribute
+		FROM user_errors
+		ORDER BY name, sequence`)
+	if err != nil {
+		return nil, err
+	}
+	var errors []CompileError
+	var warn string
+	for rows.Next() {
+		var ce CompileError
+		ce.Owner, ce.Name, ce.Type,
+			ce.Line, ce.Position, ce.Code,
+			ce.Text, warn =
+			rows.Row[0].(string), rows.Row[1].(string), rows.Row[2].(string),
+			int64(rows.Row[3].(float64)), int64(rows.Row[4].(float64)), int64(rows.Row[5].(float64)),
+			rows.Row[6].(string), rows.Row[7].(string)
+		ce.Warning = warn == "WARNING"
+		if !ce.Warning || all {
+			errors = append(errors, ce)
+		}
+	}
+	return errors, rows.Err
+}
