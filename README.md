@@ -15,6 +15,31 @@
 	}
 ```
 
+Call stored procedure with OUT parameters:
+
+```go
+import (
+	"gopkg.in/rana/ora.v3"
+)
+
+func main() {
+	env, srv, ses, err := ora.NewEnvSrvSes("user/passw@host:port/sid")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer env.Close()
+	defer srv.Close()
+	defer ses.Close()
+
+	var user string
+	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &res, "SESSION_USER"); err != nil {
+		log.Fatal(err)
+	}
+    log.Printf("user: %q", user)
+}
+```
+
+
 #### Background ####
 
 Package ora implements an Oracle database driver for the Go programming language.
