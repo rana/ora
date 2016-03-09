@@ -326,7 +326,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 	if params != nil && len(params) > 0 {
 		stmt.bnds = make([]bnd, len(params))
 		for n := range params {
-			//fmt.Printf("Stmt.bind: params[%v] (%v)\n", n, params[n])
+			//fmt.Printf("Stmt.bind: params[%v] (%v %T)\n", n, params[n], params[n])
 			switch value := params[n].(type) {
 			case int64:
 				bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)
@@ -1170,7 +1170,10 @@ func (stmt *Stmt) checkClosed() error {
 
 // sysName returns a string representing the Stmt.
 func (stmt *Stmt) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vS%v", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
+	if stmt == nil {
+		return "E_S_S_S_"
+	}
+	return stmt.ses.sysName() + fmt.Sprintf("S%v", stmt.id)
 }
 
 // log writes a message with an Stmt system name and caller info.

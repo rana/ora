@@ -167,6 +167,33 @@ func SplitDSN(dsn string) (username, password, sid string) {
 	return
 }
 
+// NewEnvSrvSes is a comfort function which opens the environment,
+// creates a connection (Srv) to the server,
+// and opens a session (Ses), in one call.
+//
+// Ideal for simple use cases.
+func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
+	env, err := OpenEnv(envCfg)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	srvCfg := NewSrvCfg()
+	sesCfg := NewSesCfg()
+	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+	srv, err := env.OpenSrv(srvCfg)
+	if err != nil {
+		env.Close()
+		return nil, nil, nil, err
+	}
+	ses, err := srv.OpenSes(sesCfg)
+	if err != nil {
+		srv.Close()
+		env.Close()
+		return nil, nil, nil, err
+	}
+	return env, srv, ses, nil
+}
+
 // idlePool is a pool of io.Closers.
 // Each element will be Closed on eviction.
 //

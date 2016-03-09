@@ -20,6 +20,7 @@ type bndInt64Ptr struct {
 }
 
 func (bnd *bndInt64Ptr) bind(value *int64, position int, stmt *Stmt) error {
+	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Int64Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
@@ -34,7 +35,7 @@ func (bnd *bndInt64Ptr) bind(value *int64, position int, stmt *Stmt) error {
 			return bnd.stmt.ses.srv.env.ociError()
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-			"Int64Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber[0])
+			"Int64Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,

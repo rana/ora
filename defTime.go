@@ -19,10 +19,9 @@ import (
 )
 
 type defTime struct {
-	rset         *Rset
-	ocidef       *C.OCIDefine
-	ociDateTimep **C.OCIDateTime
-	isNullable   bool
+	rset       *Rset
+	ocidef     *C.OCIDefine
+	isNullable bool
 	nullp
 	dateTimep
 }
@@ -54,11 +53,12 @@ func (def *defTime) value() (value interface{}, err error) {
 		if !oraTimeValue.IsNull {
 			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
 		}
-		value = oraTimeValue
-	} else {
-		value, err = getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
+		return oraTimeValue, err
 	}
-	return value, err
+	if def.nullp.IsNull() {
+		return nil, nil
+	}
+	return getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
 }
 
 func (def *defTime) alloc() error {
