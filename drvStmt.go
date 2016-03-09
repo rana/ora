@@ -98,7 +98,10 @@ func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
 
 // sysName returns a string representing the DrvStmt.
 func (ds *DrvStmt) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vS%v", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
+	if ds == nil {
+		return "E_S_S_S_S_"
+	}
+	return ds.stmt.sysName() + fmt.Sprintf("S%v", ds.stmt.id)
 }
 
 // log writes a message with an DrvStmt system name and caller info.

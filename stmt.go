@@ -1144,7 +1144,10 @@ func (stmt *Stmt) checkClosed() error {
 
 // sysName returns a string representing the Stmt.
 func (stmt *Stmt) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vS%v", stmt.ses.srv.env.id, stmt.ses.srv.id, stmt.ses.id, stmt.id)
+	if stmt == nil {
+		return "E_S_S_S_"
+	}
+	return stmt.ses.sysName() + fmt.Sprintf("S%v", stmt.id)
 }
 
 // log writes a message with an Stmt system name and caller info.
