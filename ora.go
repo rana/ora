@@ -7,6 +7,11 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+
+#cgo linux,amd64 pkg-config: ora_posix_amd64
+#cgo linux,386 pkg-config: ora_posix_386
+#cgo darwin pkg-config: ora_darwin
+#cgo windows,amd64 pkg-config: ora_windows_amd64
 */
 import "C"
 import (
