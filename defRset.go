@@ -20,7 +20,11 @@ type defRset struct {
 
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
-	def.result = rset
+
+	var result = &Rset{}
+	result.stmt = rset.stmt
+	result.ocistmt = result.ocistmt
+	def.result = result
 
 	upOciStmt, err := def.rset.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
 	if err != nil {
@@ -47,13 +51,11 @@ func (def *defRset) define(position int, rset *Rset) error {
 }
 
 func (def *defRset) value() (value interface{}, err error) {
-	err = def.result.open(def.result.stmt, def.ocistmt)
-	def.result.stmt.openRsets.add(def.result)
-	if err == nil {
-		err = def.result.stmt.setPrefetchSize()
-		// open result set is successful; will be freed by Rset
-		def.ocistmt = nil
-	}
+	rst := def.result
+
+	err = rst.open(rst.stmt, def.ocistmt)
+	rst.stmt.openRsets.add(rst)
+
 	return def.result, err
 }
 
