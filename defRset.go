@@ -21,7 +21,11 @@ type defRset struct {
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
 
-	var result = &Rset{}
+	// create result set
+	result := _drv.rsetPool.Get().(*Rset)
+	if result.id == 0 {
+		result.id = _drv.rsetId.nextId()
+	}
 	result.stmt = rset.stmt
 	result.ocistmt = result.ocistmt
 	def.result = result
