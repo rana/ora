@@ -3643,3 +3643,36 @@ func TestSetDrvCfg(t *testing.T) {
 		t.Errorf("got %q, awaited 'S'", s)
 	}
 }
+
+// BenchmarkMemory usage for querying rows.
+//
+// go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
+func BenchmarkMemory(b *testing.B) {
+	qry := `SELECT B.owner||'.'||B.object_name||'.'||B.subobject_name name,
+			B.object_id id, B.object_type type, B.created
+		FROM all_objects B, all_objects A
+		WHERE ROWNUM <= 1000`
+	var (
+		name, typ string
+		created   time.Time
+		id        int64
+	)
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 10; j++ {
+			rows, err := testDb.Query(qry)
+			if err != nil {
+				b.Fatal(err)
+			}
+			for rows.Next() {
+				if err := rows.Scan(&name, &id, &typ, &created); err != nil {
+					b.Fatal(err)
+				}
+				b.SetBytes(int64(len(name) + len(typ)))
+				//b.Logf("%s: %d [%s] @ %s", name, id, typ, created)
+			}
+			if err := rows.Err(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
