@@ -75,10 +75,20 @@ type Stmt struct {
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
 // cannot be re-opened. Call Stmt.Prep to create a new statement.
 func (stmt *Stmt) Close() (err error) {
-	if stmt == nil || stmt.ses == nil || stmt.ses.openStmts == nil {
+	if stmt == nil {
 		return nil
 	}
-	stmt.ses.openStmts.remove(stmt)
+	stmt.mu.Lock()
+	if stmt.ses == nil {
+		stmt.mu.Unlock()
+		return nil
+	}
+	stmt.ses.mu.Lock()
+	if stmt.ses.openStmts != nil {
+		stmt.ses.openStmts.remove(stmt)
+	}
+	stmt.ses.mu.Unlock()
+	stmt.mu.Unlock()
 	return stmt.close()
 }
 

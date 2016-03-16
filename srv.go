@@ -224,6 +224,7 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	}
 
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
+	ses.mu.Lock()
 	ses.srv = srv
 	ses.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	ses.ocises = (*C.OCISession)(ocises)
@@ -235,6 +236,7 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 		ses.cfg.StmtCfg = &(*ses.srv.cfg.StmtCfg) // copy by value so that user may change independently
 	}
 	srv.openSess.add(ses)
+	ses.mu.Unlock()
 
 	return ses, nil
 }

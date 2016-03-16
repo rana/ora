@@ -284,6 +284,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	}
 	// set stmt struct
 	stmt = _drv.stmtPool.Get().(*Stmt)
+	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
 	stmtCfg := ses.cfg.StmtCfg
@@ -301,11 +302,13 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	}
 	st, err := stmt.attr(2, C.OCI_ATTR_STMT_TYPE) // determine statement type
 	if err != nil {
+		stmt.mu.Unlock()
 		return nil, errE(err)
 	}
 	stmt.stmtType = *((*C.ub2)(st))
 	C.free(unsafe.Pointer(st))
 	ses.openStmts.add(stmt)
+	stmt.mu.Unlock()
 
 	return stmt, nil
 }
