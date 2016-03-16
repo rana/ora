@@ -170,4 +170,5 @@ const (
 	defIdxIntervalDS
 	defIdxBfile
 	defIdxRowid
+	defIdxRset
 )

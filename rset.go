@@ -613,7 +613,13 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			if err != nil {
 				return err
 			}
-			break
+		case C.SQLT_RSET:
+			def := rset.getDef(defIdxRset).(*defRset)
+			rset.defs[n] = def
+			err = def.define(n+1, rset)
+			if err != nil {
+				return err
+			}
 		default:
 			return errF("unsupported select-list column type (ociTypeCode: %v)", ociTypeCode)
 		}

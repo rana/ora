@@ -1,0 +1,14 @@
+prefix=/usr
+
+version=12.1
+build=client64
+
+libdir=${prefix}/lib/oracle/${version}/${build}/lib
+includedir=${prefix}/include/oracle/${version}/${build}
+
+Name: oci8
+Description: Oracle database engine
+Version: ${version}
+Libs: -L${libdir} -lclntsh
+Libs.private:
+Cflags: -I${includedir}

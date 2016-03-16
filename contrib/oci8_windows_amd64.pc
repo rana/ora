@@ -1,0 +1,18 @@
+prefix=c:/Oracle64Instant/sdk
+
+version=12.1
+build=client64
+
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+glib_genmarshal=glib-genmarshal
+gobject_query=gobject-query
+glib_mkenums=glib-mkenums
+
+Name: oci8
+Description: Oracle database engine
+Version: ${version}
+Libs: -L${libdir} -loci
+Libs.private:
+Cflags: -I${includedir}
