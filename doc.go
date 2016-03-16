@@ -24,17 +24,11 @@ Oracle 11g (11.2.0.4.0) or Oracle Instant Client (11.2.0.4.0).
 
 Install Oracle or Oracle Instant Client.
 
-Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
-and library. For example:
+Copy the [oci8.pc](contrib/oci8.pc) from the `contrib` folder
+(or the one for your system, maybe tailored to your specific locations) to a folder
+in `$PKG_CONFIG_PATH` or a system folder, such as
 
-	// example OS environment variables for Oracle 12c on Windows
-	CGO_CFLAGS=-Ic:/oracle/home/OCI/include/
-	CGO_LDFLAGS=c:/oracle/home/BIN/oci.dll
-
-CGO_CFLAGS identifies the location of the OCI header file. CGO_LDFLAGS identifies
-the location of the OCI library. These locations will vary based on whether an Oracle
-database is locally installed or whether the Oracle instant client libraries are
-locally installed.
+	cp -aL contrib/oci8.pc /usr/local/lib/pkgconfig/oci8.pc
 
 The ora package has no external Go dependencies and is available on GitHub and
 gopkg.in:

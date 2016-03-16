@@ -7,6 +7,8 @@ package ora
 /*
 #include <oci.h>
 #include <stdlib.h>
+
+#cgo pkg-config: oci8
 */
 import "C"
 import (
