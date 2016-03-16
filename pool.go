@@ -69,7 +69,6 @@ func (p *SrvPool) Put(srv *Srv) {
 // If size is zero, DefaultPoolSize will be used.
 func (srv *Srv) NewSesPool(sesCfg *SesCfg, size int) *SesPool {
 	p := &SesPool{
-		env:    srv.env,
 		srv:    srv,
 		sesCfg: sesCfg,
 		ses:    newIdlePool(size),
@@ -80,7 +79,6 @@ func (srv *Srv) NewSesPool(sesCfg *SesCfg, size int) *SesPool {
 }
 
 type SesPool struct {
-	env    *Env
 	srv    *Srv
 	sesCfg *SesCfg
 	ses    *idlePool
