@@ -10,7 +10,7 @@ glib_genmarshal=glib-genmarshal
 gobject_query=gobject-query
 glib_mkenums=glib-mkenums
 
-Name: ora_windows_amd64
+Name: oci8
 Description: Oracle database engine
 Version: ${version}
 Libs: -L${libdir} -loci

@@ -6,7 +6,7 @@ build=client64
 libdir=${prefix}
 includedir=${prefix}/sdk/include
 
-Name: ora_darwin
+Name: oci8
 Description: Oracle database engine
 Version: ${version}
 Libs: -L${libdir} -lclntsh

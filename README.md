@@ -82,15 +82,11 @@ Oracle 11g (11.2.0.4.0) or Oracle Instant Client (11.2.0.4.0).
 
 Install Oracle or Oracle Instant Client. Make sure to install a version with the same architecture as your Go version (32 or 64 bit).
 
-Set the PKG_CONFIG_PATH to the location of the ora.v3 dir:
+Copy the [oci8.pc](contrib/oci8.pc) from the `contrib` folder
+(or the one for your system, maybe tailored to your specific locations) to a folder
+in `$PKG_CONFIG_PATH` or a system folder, such as
 
-    export PKG_CONFIG_PATH=${GOPATH}/src/gopkg.in/rana/ora.v3:$PKG_CONFIG_PATH
-
-This way the `pkg-config` tool will find the proper `ora_xxx.pc` config file, and
-provide the needed `-I` and `-L`, `-l` flags to `gcc`.
-
-If your environment has the libs in a different place, modify in the proper
-`ora_xxx.pc`, and send a PR to modify it!
+	cp -aL contrib/oci8.pc /usr/local/lib/pkgconfig/oci8.pc
 
 The ora package has no external Go dependencies and is available on GitHub and gopkg.in:
 
