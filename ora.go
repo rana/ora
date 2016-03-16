@@ -104,7 +104,7 @@ func init() {
 	_drv.bndPools[bndIdxNil] = newPool(func() interface{} { return &bndNil{} })
 
 	// init def pools
-	_drv.defPools = make([]*pool, defIdxRowid+1)
+	_drv.defPools = make([]*pool, defIdxRset+1)
 	_drv.defPools[defIdxInt64] = newPool(func() interface{} { return &defInt64{} })
 	_drv.defPools[defIdxInt32] = newPool(func() interface{} { return &defInt32{} })
 	_drv.defPools[defIdxInt16] = newPool(func() interface{} { return &defInt16{} })
@@ -126,6 +126,7 @@ func init() {
 	_drv.defPools[defIdxIntervalYM] = newPool(func() interface{} { return &defIntervalYM{} })
 	_drv.defPools[defIdxIntervalDS] = newPool(func() interface{} { return &defIntervalDS{} })
 	_drv.defPools[defIdxRowid] = newPool(func() interface{} { return &defRowid{} })
+	_drv.defPools[defIdxRset] = newPool(func() interface{} { return &defRset{} })
 }
 
 func init() {
