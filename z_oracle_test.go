@@ -152,7 +152,7 @@ func init() {
 	fmt.Println("Dropping previous tables...")
 	stmt, err := testSes.Prep(`
 BEGIN
-	FOR c IN (SELECT table_name FROM user_tables) LOOP
+	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE 'TEST_%') LOOP
 		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
 	END LOOP;
 END;`)
@@ -780,7 +780,7 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 
 func tableName() string {
 	testTableId++
-	return "t" + strconv.Itoa(testTableId)
+	return "test_t" + strconv.Itoa(testTableId)
 }
 
 func testErr(err error, t testing.TB, expectedErrs ...error) {
@@ -3295,79 +3295,9 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
         ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_interval
 `
 
-	type Column struct {
-		Schema, Name                   string
-		Type, Length, Precision, Scale int
-		Nullable                       bool
-		CharsetID, CharsetForm         int
-	}
 	// copied from github.com/tgulacsi/go/orahlp
-	DescribeQuery := func(db *sql.DB, qry string) ([]Column, error) {
-		//res := strings.Repeat("\x00", 32767)
-		res := make([]byte, 32767)
-		if _, err := db.Exec(`DECLARE
-  c INTEGER;
-  col_cnt INTEGER;
-  rec_tab DBMS_SQL.DESC_TAB;
-  a DBMS_SQL.DESC_REC;
-  v_idx PLS_INTEGER;
-  res VARCHAR2(32767);
-BEGIN
-  c := DBMS_SQL.OPEN_CURSOR;
-  BEGIN
-    DBMS_SQL.PARSE(c, :1, DBMS_SQL.NATIVE);
-    DBMS_SQL.DESCRIBE_COLUMNS(c, col_cnt, rec_tab);
-    v_idx := rec_tab.FIRST;
-    WHILE v_idx IS NOT NULL LOOP
-      a := rec_tab(v_idx);
-      res := res||a.col_schema_name||' '||a.col_name||' '||a.col_type||' '||
-                  a.col_max_len||' '||a.col_precision||' '||a.col_scale||' '||
-                  (CASE WHEN a.col_null_ok THEN 1 ELSE 0 END)||' '||
-                  a.col_charsetid||' '||a.col_charsetform||
-                  CHR(10);
-      v_idx := rec_tab.NEXT(v_idx);
-    END LOOP;
-  EXCEPTION WHEN OTHERS THEN NULL;
-    DBMS_SQL.CLOSE_CURSOR(c);
-	RAISE;
-  END;
-  :2 := UTL_RAW.CAST_TO_RAW(res);
-END;`, qry, &res,
-		); err != nil {
-			return nil, err
-		}
-		if i := bytes.IndexByte(res, 0); i >= 0 {
-			res = res[:i]
-		}
-		lines := bytes.Split(res, []byte{'\n'})
-		cols := make([]Column, 0, len(lines))
-		var nullable int
-		for _, line := range lines {
-			if len(line) == 0 {
-				continue
-			}
-			var col Column
-			switch j := bytes.IndexByte(line, ' '); j {
-			case -1:
-				continue
-			case 0:
-				line = line[1:]
-			default:
-				col.Schema, line = string(line[:j]), line[j+1:]
-			}
-			if n, err := fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d",
-				&col.Name, &col.Type, &col.Length, &col.Precision, &col.Scale, &nullable, &col.CharsetID, &col.CharsetForm,
-			); err != nil {
-				return cols, fmt.Errorf("parsing %q (parsed: %d): %v", line, n, err)
-			}
-			col.Nullable = nullable != 0
-			cols = append(cols, col)
-		}
-		return cols, nil
-	}
-
 	t.Logf("Describe query 3\n")
-	desc, err := DescribeQuery(testDb, qry3)
+	desc, err := ora.DescribeQuery(testDb, qry3)
 	if err != nil {
 		t.Errorf(`Error with : %s`, err)
 	}
@@ -3641,38 +3571,5 @@ func TestSetDrvCfg(t *testing.T) {
 	t.Logf("S=%v", s)
 	if s != "S" {
 		t.Errorf("got %q, awaited 'S'", s)
-	}
-}
-
-// BenchmarkMemory usage for querying rows.
-//
-// go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
-func BenchmarkMemory(b *testing.B) {
-	qry := `SELECT B.owner||'.'||B.object_name||'.'||B.subobject_name name,
-			B.object_id id, B.object_type type, B.created
-		FROM all_objects B, all_objects A
-		WHERE ROWNUM <= 1000`
-	var (
-		name, typ string
-		created   time.Time
-		id        int64
-	)
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 10; j++ {
-			rows, err := testDb.Query(qry)
-			if err != nil {
-				b.Fatal(err)
-			}
-			for rows.Next() {
-				if err := rows.Scan(&name, &id, &typ, &created); err != nil {
-					b.Fatal(err)
-				}
-				b.SetBytes(int64(len(name) + len(typ)))
-				//b.Logf("%s: %d [%s] @ %s", name, id, typ, created)
-			}
-			if err := rows.Err(); err != nil {
-				b.Fatal(err)
-			}
-		}
 	}
 }
