@@ -5,7 +5,6 @@
 package ora_test
 
 import (
-	"fmt"
 	"runtime"
 	"testing"
 
@@ -15,42 +14,61 @@ import (
 // BenchmarkMemory usage for querying rows.
 //
 // go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
-func BenchmarkMemoryNumString(b *testing.B) {
-	benchMem(b, `SELECT
-		TO_NUMBER('123456789012345678901234567890') bn01
-		, TO_NUMBER('223456789012345678901234567890') bn02
-		, TO_NUMBER('323456789012345678901234567890') bn03
-		, TO_NUMBER('423456789012345678901234567890') bn04
-		, TO_NUMBER('523456789012345678901234567890') bn05
-		, TO_NUMBER('623456789012345678901234567890') bn06
-		, TO_NUMBER('723456789012345678901234567890') bn07
-		, TO_NUMBER('823456789012345678901234567890') bn08
-		, TO_NUMBER('923456789012345678901234567890') bn09
-		, TO_NUMBER('023456789012345678901234567890') bn10
+func TestMemoryNumString(t *testing.T) {
+	benchMem(t, 1794456, `SELECT
+		TO_NUMBER('123456789012345678') bn01
+		, TO_NUMBER('223456789012345678') bn02
+		, TO_NUMBER('323456789012345678') bn03
+		, TO_NUMBER('423456789012345678') bn04
+		, TO_NUMBER('523456789012345678') bn05
+		, TO_NUMBER('623456789012345678') bn06
+		, TO_NUMBER('723456789012345678') bn07
+		, TO_NUMBER('823456789012345678') bn08
+		, TO_NUMBER('923456789012345678') bn09
+		, TO_NUMBER('023456789012345678') bn10
+	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
+}
+func TestMemoryNumStringI64(t *testing.T) {
+	drvCfg := ora.NewDrvCfg()
+	drvCfg.Env.StmtCfg.Rset.SetNumberBigInt(ora.I64)
+	drvCfg.Env.StmtCfg.Rset.SetNumberBigFloat(ora.I64)
+	ora.SetCfg(*drvCfg)
+	benchMem(t, 1349992, `SELECT
+		TO_NUMBER('123456789012345678') bn01
+		, TO_NUMBER('223456789012345678') bn02
+		, TO_NUMBER('323456789012345678') bn03
+		, TO_NUMBER('423456789012345678') bn04
+		, TO_NUMBER('523456789012345678') bn05
+		, TO_NUMBER('623456789012345678') bn06
+		, TO_NUMBER('723456789012345678') bn07
+		, TO_NUMBER('823456789012345678') bn08
+		, TO_NUMBER('923456789012345678') bn09
+		, TO_NUMBER('023456789012345678') bn10
+	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
+	ora.SetCfg(*ora.NewDrvCfg())
+}
+
+func TestMemoryString(t *testing.T) {
+	benchMem(t, 1424968, `SELECT
+		'123456789012345678' bs01
+		, '223456789012345678' bs02
+		, '323456789012345678' bs03
+		, '423456789012345678' bs04
+		, '523456789012345678' bs05
+		, '623456789012345678' bs06
+		, '723456789012345678' bs07
+		, '823456789012345678' bs08
+		, '923456789012345678' bs09
+		, '023456789012345678' bs10
 	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
 }
 
-func BenchmarkMemoryString(b *testing.B) {
-	benchMem(b, `SELECT
-		'123456789012345678901234567890' bs01
-		, '223456789012345678901234567890' bs02
-		, '323456789012345678901234567890' bs03
-		, '423456789012345678901234567890' bs04
-		, '523456789012345678901234567890' bs05
-		, '623456789012345678901234567890' bs06
-		, '723456789012345678901234567890' bs07
-		, '823456789012345678901234567890' bs08
-		, '923456789012345678901234567890' bs09
-		, '023456789012345678901234567890' bs10
-	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
-}
-
-func benchMem(b *testing.B, qry string) {
+func benchMem(tb testing.TB, maxBytes uint64, qry string) {
 	columns, err := ora.DescribeQuery(testDb, qry)
 	if err != nil {
-		b.Fatal(err)
+		tb.Fatal(err)
 	}
-	b.Logf("columns: %#v", columns)
+	tb.Logf("columns: %#v", columns)
 
 	cols := make([]string, len(columns))
 	for i, c := range columns {
@@ -65,7 +83,7 @@ func benchMem(b *testing.B, qry string) {
 
 		rows, err := testDb.Query(qry, args...)
 		if err != nil {
-			b.Fatalf("ERROR: DB.Query, query='%s' args='%v' error=%v", qry, args, err)
+			tb.Fatalf("ERROR: DB.Query, query='%s' args='%v' error=%v", qry, args, err)
 		}
 		defer rows.Close()
 
@@ -80,7 +98,7 @@ func benchMem(b *testing.B, qry string) {
 			err := rows.Scan(valPtrs...)
 			//        err := rows.Scan(vals...)
 			if err != nil {
-				b.Fatalf("ERROR: rows.Scan, dest='%v', error=%v", vals, err)
+				tb.Fatalf("ERROR: rows.Scan, dest='%v', error=%v", vals, err)
 			}
 			rec := make(Record)
 			length := 0
@@ -92,12 +110,11 @@ func benchMem(b *testing.B, qry string) {
 			}
 			out = append(out, rec)
 			if len(out) == 1 {
-				b.Logf("One record's length: %d", length)
+				tb.Logf("One record's length: %d", length)
 			}
-			b.SetBytes(int64(length))
 		}
 		if err = rows.Err(); err != nil {
-			b.Fatal(err)
+			tb.Fatal(err)
 		}
 		return out
 	}
@@ -107,7 +124,11 @@ func benchMem(b *testing.B, qry string) {
 	for j := 0; j < 1; j++ {
 		results := execute(qry, cols, args...)
 		runtime.ReadMemStats(&nstat)
-		fmt.Printf("test %d, nres=%d, allocated %d bytes\n", j, len(results), nstat.TotalAlloc-ostat.TotalAlloc)
+		d := nstat.TotalAlloc - ostat.TotalAlloc
+		tb.Logf("test %d, nres=%d, allocated %d bytes\n", j, len(results), d)
+		if maxBytes > 0 && d > maxBytes {
+			tb.Errorf("test %d, nres=%d, allocated %d bytes (max: %d)", j, len(results), d, maxBytes)
+		}
 		ostat = nstat
 	}
 }

@@ -7,24 +7,25 @@ package ora
 // RsetCfg affects the association of Oracle select-list columns to
 // Go types.
 type RsetCfg struct {
-	numberInt    GoColumnType
-	numberFloat  GoColumnType
-	number       GoColumnType
-	binaryDouble GoColumnType
-	binaryFloat  GoColumnType
-	float        GoColumnType
-	date         GoColumnType
-	timestamp    GoColumnType
-	timestampTz  GoColumnType
-	timestampLtz GoColumnType
-	char1        GoColumnType
-	char         GoColumnType
-	varchar      GoColumnType
-	long         GoColumnType
-	clob         GoColumnType
-	blob         GoColumnType
-	raw          GoColumnType
-	longRaw      GoColumnType
+	numberInt      GoColumnType
+	numberBigInt   GoColumnType
+	numberFloat    GoColumnType
+	numberBigFloat GoColumnType
+	binaryDouble   GoColumnType
+	binaryFloat    GoColumnType
+	float          GoColumnType
+	date           GoColumnType
+	timestamp      GoColumnType
+	timestampTz    GoColumnType
+	timestampLtz   GoColumnType
+	char1          GoColumnType
+	char           GoColumnType
+	varchar        GoColumnType
+	long           GoColumnType
+	clob           GoColumnType
+	blob           GoColumnType
+	raw            GoColumnType
+	longRaw        GoColumnType
 
 	// TrueRune is rune a Go bool true value from SQL select-list character column.
 	//
@@ -36,7 +37,9 @@ type RsetCfg struct {
 func NewRsetCfg() RsetCfg {
 	c := RsetCfg{}
 	c.numberInt = I64
+	c.numberBigInt = N
 	c.numberFloat = F64
+	c.numberBigFloat = N
 	c.binaryDouble = F64
 	c.binaryFloat = F32
 	c.float = F64
@@ -58,7 +61,7 @@ func NewRsetCfg() RsetCfg {
 }
 
 // SetNumberInt sets a GoColumnType associated to an Oracle select-list
-// NUMBER column defined with scale zero.
+// NUMBER column defined with scale zero and precision <= 19.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
@@ -74,7 +77,7 @@ func (c *RsetCfg) SetNumberInt(gct GoColumnType) (err error) {
 }
 
 // NumberInt returns a GoColumnType associated to an Oracle select-list
-// NUMBER column defined with scale zero.
+// NUMBER column defined with scale zero and precision <= 19.
 //
 // The default is I64.
 //
@@ -87,8 +90,38 @@ func (c *RsetCfg) NumberInt() GoColumnType {
 	return c.numberInt
 }
 
+// SetNumberBigInt sets a GoColumnType associated to an Oracle select-list
+// NUMBER column defined with scale zero and precision unknown or > 19.
+//
+// Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
+//
+// Returns an error if a non-numeric GoColumnType is specified.
+func (c *RsetCfg) SetNumberBigInt(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
+	if err == nil {
+		c.numberBigInt = gct
+	}
+	return err
+}
+
+// NumberBigInt returns a GoColumnType associated to an Oracle select-list
+// NUMBER column defined with scale zero and precision unknown or > 19.
+//
+// The default is N.
+//
+// The database/sql package uses NumberBigInt.
+//
+// When using the ora package directly, custom GoColumnType associations may
+// be specified to the Ses.Prep method. If no custom GoColumnType association
+// is specified, NumberInt is used.
+func (c *RsetCfg) NumberBigInt() GoColumnType {
+	return c.numberBigInt
+}
+
 // SetNumberFloat sets a GoColumnType associated to an Oracle select-list
-// NUMBER column defined with a scale greater than zero.
+// NUMBER column defined with a scale greater than zero and precision <= 15.
 //
 // Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
 // OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
@@ -115,6 +148,36 @@ func (c *RsetCfg) SetNumberFloat(gct GoColumnType) (err error) {
 // is specified, NumberFloat is used.
 func (c *RsetCfg) NumberFloat() GoColumnType {
 	return c.numberFloat
+}
+
+// SetNumberBigFloat sets a GoColumnType associated to an Oracle select-list
+// NUMBER column defined with a scale greater than zero and precision unkonw or > 15.
+//
+// Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64,
+// OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32,
+// N, OraN.
+//
+// Returns an error if a non-numeric GoColumnType is specified.
+func (c *RsetCfg) SetNumberBigFloat(gct GoColumnType) (err error) {
+	err = checkNumericColumn(gct, "")
+	if err == nil {
+		c.numberBigFloat = gct
+	}
+	return err
+}
+
+// NumberBigFloat returns a GoColumnType associated to an Oracle select-list
+// NUMBER column defined with a scale greater than zero and precision unknown or > 15.
+//
+// The default is N.
+//
+// NumberBugFloat is used by the database/sql package.
+//
+// When using the ora package directly, custom GoColumnType associations may
+// be specified to the Ses.Prep method. If no custom GoColumnType association
+// is specified, NumberFloat is used.
+func (c *RsetCfg) NumberBigFloat() GoColumnType {
+	return c.numberBigFloat
 }
 
 // SetBinaryDouble sets a GoColumnType associated to an Oracle select-list
@@ -563,15 +626,15 @@ func (c *RsetCfg) numericColumnType(precision, scale int) (gct GoColumnType) {
 			if precision <= 19 {
 				return c.numberInt
 			}
-			return N
+			return c.numberBigInt
 		}
 		if precision <= 15 {
 			return c.numberFloat
 		}
-		return N
+		return c.numberBigFloat
 	}
 	if scale == -127 {
 		return c.float
 	}
-	return N
+	return c.numberBigFloat
 }
