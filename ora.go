@@ -115,7 +115,7 @@ func init() {
 	_drv.defPools[defIdxUint8] = newPool(func() interface{} { return &defUint8{} })
 	_drv.defPools[defIdxFloat64] = newPool(func() interface{} { return &defFloat64{} })
 	_drv.defPools[defIdxFloat32] = newPool(func() interface{} { return &defFloat32{} })
-	_drv.defPools[defIdxNumString] = newPool(func() interface{} { return &defNumString{} })
+	_drv.defPools[defIdxOCINum] = newPool(func() interface{} { return &defOCINum{} })
 	_drv.defPools[defIdxTime] = newPool(func() interface{} { return &defTime{} })
 	_drv.defPools[defIdxString] = newPool(func() interface{} { return &defString{} })
 	_drv.defPools[defIdxBool] = newPool(func() interface{} { return &defBool{} })
