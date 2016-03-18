@@ -43,34 +43,48 @@ func (num OCINum) Print(buf []byte) []byte {
 	if bytes.Equal(num, []byte{128}) {
 		return append(res, '0')
 	}
-	b := num[0]
+	onum := []byte(num)
+	b, num := num[0], num[1:]
+	exp := int(b) & 0x7f
 	negative := b&(1<<7) == 0
-	exp := int16(b & ((1 << 7) - 1))
-	fmt.Printf("%v negative? %t; exp=%d\n", buf, negative, exp)
+	D := func(b byte) int64 { return int64(b - 1) }
 	if negative {
+		D = func(b byte) int64 { return int64(101 - b) }
 		res = append(res, '-')
-		exp = ^exp - 128 - 65
-		length := len(num)
-		if num[length-1] == 102 {
-			length--
+		exp = int((^b) & 0x7f)
+		if num[len(num)-1] == 102 {
+			num = num[:len(num)-1]
 		}
-		for i, b := range num[1:length] {
-			j := int64(101 - b)
-			if i != 0 && j < 10 {
-				res = append(res, '0')
-			}
-			res = strconv.AppendInt(res, j, 10)
+	}
+	exp -= 65
+	fmt.Printf("%v negative? %t; exp=%d\n", onum, negative, exp)
+
+	var noexp bool
+	if exp < 0 {
+		res = append(res, '0', '.')
+		noexp = true
+		exp++
+		for exp < 0 {
+			res = append(res, '0', '0')
+			exp++
 		}
-	} else {
-		exp += 65 + 128
-		for i, b := range num[1:] {
-			fmt.Printf("i=%d\n", b-1)
-			j := int64(b - 1)
-			if i != 0 && j < 10 {
-				res = append(res, '0')
-			}
-			res = strconv.AppendInt(res, j, 10)
+	}
+	for i, b := range num {
+		j := D(b)
+		if i != 0 && j < 10 {
+			res = append(res, '0')
 		}
+		res = strconv.AppendInt(res, j, 10)
+		if !noexp {
+			exp--
+		}
+	}
+	if noexp && res[len(res)-1] == '0' {
+		res = res[:len(res)-1]
+	}
+	for exp > 0 {
+		res = append(res, '0', '0')
+		exp--
 	}
 	return res
 }
