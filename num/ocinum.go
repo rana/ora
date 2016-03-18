@@ -35,9 +35,13 @@ Up to 20 data bytes can represent the mantissa. However, only 19 are guaranteed 
 
 If you specify the datatype code 2 in the dty parameter of an OCIDefineByPos() call, your program receives numeric data in this Oracle internal format. The output variable should be a 21-byte array to accommodate the largest possible number. Note that only the bytes that represent the number are returned. There is no blank padding or NULL termination. If you need to know the number of bytes returned, use the VARNUM external datatype instead of NUMBER.
 */
+//
+// So the number is stored as sign * significand * 100^exponent where significand is in 1.xxx format.
 type OCINum []byte
 
 // Print the number into the given byte slice.
+//
+//
 func (num OCINum) Print(buf []byte) []byte {
 	res := buf[:0]
 	if bytes.Equal(num, []byte{128}) {
@@ -60,10 +64,23 @@ func (num OCINum) Print(buf []byte) []byte {
 	fmt.Printf("%v negative? %t; exp=%d\n", onum, negative, exp)
 
 	var noexp bool
+	// 1	= 1		* 100^0
+	// 10	= 10	* 100^0
+	// 100	= 1		* 100^1
+	// 1000	= 10	* 100^1
+	// 0.1	= 10	* 100^-1
+	// 0.01 = 1		* 100^-1
+	// 0.001 = 10	* 100^-2
+	// 0.0001 = 1	* 100^-2
 	if exp < 0 {
 		res = append(res, '0', '.')
 		noexp = true
 		exp++
+		if D(num[0]) < 10 {
+			res = append(res, '0')
+		} else {
+			exp++
+		}
 		for exp < 0 {
 			res = append(res, '0', '0')
 			exp++
@@ -71,20 +88,30 @@ func (num OCINum) Print(buf []byte) []byte {
 	}
 	for i, b := range num {
 		j := D(b)
-		if i != 0 && j < 10 {
-			res = append(res, '0')
+		if j < 10 {
+			if i != 0 {
+				res = append(res, '0')
+			}
+			res = append(res, '0'+(byte(j)))
+		} else {
+			res = strconv.AppendInt(res, j, 10)
 		}
-		res = strconv.AppendInt(res, j, 10)
-		if !noexp {
+		if !noexp && i == exp {
+			res = append(res, '.')
+		}
+	}
+	if res[len(res)-1] == '.' {
+		res = res[:len(res)-1]
+	} else {
+		for exp > 0 {
+			res = append(res, '0', '0')
 			exp--
 		}
 	}
-	if noexp && res[len(res)-1] == '0' {
-		res = res[:len(res)-1]
-	}
-	for exp > 0 {
-		res = append(res, '0', '0')
-		exp--
+	if noexp {
+		for res[len(res)-1] == '0' {
+			res = res[:len(res)-1]
+		}
 	}
 	return res
 }
