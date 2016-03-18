@@ -682,7 +682,7 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (err error) {
 		rset.defs[n] = def
 		err = def.define(n+1, false, rset)
 	case N:
-		def := rset.getDef(defIdxNumString).(*defNumString)
+		def := rset.getDef(defIdxOCINum).(*defOCINum)
 		rset.defs[n] = def
 		err = def.define(n+1, false, rset)
 	case OraI64:
@@ -726,7 +726,7 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (err error) {
 		rset.defs[n] = def
 		err = def.define(n+1, true, rset)
 	case OraN:
-		def := rset.getDef(defIdxNumString).(*defNumString)
+		def := rset.getDef(defIdxOCINum).(*defOCINum)
 		rset.defs[n] = def
 		err = def.define(n+1, true, rset)
 	}
