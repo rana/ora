@@ -10,18 +10,33 @@ package ora
 #include <string.h>
 */
 import "C"
+
+/*
+
+func writeOCINumber(dst *C.OCINumber, src Num) {
+	C.writeOCINumber(
+		dst,
+		(*C.ub1)(unsafe.Pointer(&src.OCINum[0])),
+		C.ub1(len(src.OCINum)),
+	)
+}
+
+void writeOCINumber(OCINumber *dst, ub1 *src, ub1 src_len) {
+	dst->OCINumberPart[0] = src_len;
+	memcpy(dst->OCINumberPart+1, src, src_len);
+}
+*/
+
 import (
 	"bytes"
 	"container/list"
-	"database/sql/driver"
 	"encoding/json"
+	"github.com/rana/ora/num"
 	"io"
 	"io/ioutil"
 	"math"
 	"sync"
 	"time"
-
-	"github.com/rana/ora/num"
 )
 
 // When a parent handle is freed, all child handles associated with it are also
@@ -432,49 +447,23 @@ func (this *String) UnmarshalJSON(p []byte) error {
 	return json.Unmarshal(p, &this.Value)
 }
 
-type Num struct {
-	num.OCINum
-}
-
-// Value implements database/sql/driver's Valuer interface to return the number as string.
-func (num Num) Value() (driver.Value, error) {
-	return num.String(), nil
-}
-
-var _ = (json.Marshaler)(Num{})
-var _ = (json.Unmarshaler)((*Num)(nil))
-
-func (this Num) MarshalJSON() ([]byte, error) {
-	return json.Marshal(this.String())
-}
-func (this *Num) UnmarshalJSON(p []byte) error {
-	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
-		this.OCINum = this.OCINum[:0]
-		return nil
-	}
-	var s string
-	if err := json.Unmarshal(p, &s); err != nil {
-		return err
-	}
-	return this.OCINum.SetString(s)
-}
-
+type Num string
 type OraNum struct {
 	IsNull bool
-	Value  Num
+	Value  string
 }
 
 // Equals returns true when the receiver and specified OraNum are both null,
 // or when the receiver and specified OraNum are both not null and Values are equal.
 func (this OraNum) Equals(other OraNum) bool {
 	return (this.IsNull && other.IsNull) ||
-		(this.IsNull == other.IsNull && bytes.Equal(this.Value.OCINum, other.Value.OCINum))
+		(this.IsNull == other.IsNull && this.Value == other.Value)
 }
 func (this OraNum) String() string {
 	if this.IsNull {
 		return ""
 	}
-	return this.Value.String()
+	return this.Value
 }
 
 var _ = (json.Marshaler)(OraNum{})
@@ -484,7 +473,7 @@ func (this OraNum) MarshalJSON() ([]byte, error) {
 	if this.IsNull {
 		return []byte("null"), nil
 	}
-	if len(this.Value.OCINum) == 0 {
+	if this.Value == "" {
 		return []byte(`""`), nil
 	}
 	return json.Marshal(this.Value)
@@ -496,6 +485,52 @@ func (this *OraNum) UnmarshalJSON(p []byte) error {
 	}
 	this.IsNull = false
 	return json.Unmarshal(p, &this.Value)
+}
+
+type OCINum struct {
+	num.OCINum
+}
+type OraOCINum struct {
+	IsNull bool
+	Value  num.OCINum
+}
+
+// Equals returns true when the receiver and specified OraOCINum are both null,
+// or when the receiver and specified OraOCINum are both not null and Values are equal.
+func (this OraOCINum) Equals(other OraOCINum) bool {
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull && bytes.Equal(this.Value, other.Value))
+}
+func (this OraOCINum) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return this.Value.String()
+}
+
+var _ = (json.Marshaler)(OraOCINum{})
+var _ = (json.Unmarshaler)((*OraOCINum)(nil))
+
+func (this OraOCINum) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	if len(this.Value) == 0 {
+		return []byte(`""`), nil
+	}
+	return json.Marshal(this.Value.String())
+}
+func (this *OraOCINum) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	var s string
+	if err := json.Unmarshal(p, &s); err != nil {
+		return err
+	}
+	return this.Value.SetString(s)
 }
 
 // Bool is a nullable bool.

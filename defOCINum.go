@@ -9,18 +9,21 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
 
-type defNumString struct {
+	"github.com/rana/ora/num"
+)
+
+type defOCINum struct {
 	rset       *Rset
 	ocidef     *C.OCIDefine
 	ociNumber  [1]C.OCINumber
-	buf        [numStringLen]byte
 	isNullable bool
 	nullp
 }
 
-func (def *defNumString) define(position int, isNullable bool, rset *Rset) error {
+func (def *defOCINum) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	r := C.OCIDEFINEBYPOS(
@@ -40,29 +43,31 @@ func (def *defNumString) define(position int, isNullable bool, rset *Rset) error
 	}
 	return nil
 }
-func (def *defNumString) value() (value interface{}, err error) {
+func (def *defOCINum) value() (value interface{}, err error) {
 	if def.nullp.IsNull() {
 		if def.isNullable {
 			return String{IsNull: true}, nil
 		}
 		return "0", nil
 	}
-	b, err := def.rset.stmt.ses.srv.env.numberToText(def.buf[:], def.ociNumber[0])
-	s := string(b)
+	length := int(def.ociNumber[0].OCINumberPart[0])
+	num := num.OCINum(((*[C.OCI_NUMBER_SIZE]byte)(
+		unsafe.Pointer(&def.ociNumber[0].OCINumberPart[1]),
+	))[:length])
 	if def.isNullable {
-		return String{Value: s}, nil
+		return OraOCINum{Value: num}, nil
 	}
-	return s, nil
+	return OCINum{OCINum: num}, nil
 }
 
-func (def *defNumString) alloc() error {
+func (def *defOCINum) alloc() error {
 	return nil
 }
 
-func (def *defNumString) free() {
+func (def *defOCINum) free() {
 }
 
-func (def *defNumString) close() (err error) {
+func (def *defOCINum) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -73,7 +78,7 @@ func (def *defNumString) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.nullp.Free()
-	rset.putDef(defIdxNumString, def)
+	rset.putDef(defIdxOCINum, def)
 	return nil
 }
 
