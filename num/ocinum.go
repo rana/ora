@@ -11,9 +11,8 @@ package num
 //import "C"
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -47,10 +46,9 @@ func (num OCINum) Print(buf []byte) []byte {
 	if bytes.Equal(num, []byte{128}) {
 		return append(res, '0')
 	}
-	onum := []byte(num)
 	b, num := num[0], num[1:]
-	exp := int(b) & 0x7f
 	negative := b&(1<<7) == 0
+	exp := int(b) & 0x7f
 	D := func(b byte) int64 { return int64(b - 1) }
 	if negative {
 		D = func(b byte) int64 { return int64(101 - b) }
@@ -61,7 +59,6 @@ func (num OCINum) Print(buf []byte) []byte {
 		}
 	}
 	exp -= 65
-	fmt.Printf("%v negative? %t; exp=%d\n", onum, negative, exp)
 
 	var noexp bool
 	// 1	= 1		* 100^0
@@ -128,5 +125,64 @@ func (num OCINum) String() string {
 
 // SetString sets the OCINum to the number in s.
 func (num *OCINum) SetString(s string) error {
-	return errors.New("not implemented")
+	if len(s) == 0 || s == "0" {
+		*num = OCINum([]byte{128})
+		return nil
+	}
+	// x = b - 1 <=> b = x + 1
+	D := func(b byte) byte { return b + 1 }
+	var negative bool
+	if s[0] == '-' {
+		negative = true
+		s = s[1:]
+		// x = 101 - b <=> b = 101 - x
+		D = func(b byte) byte { return 101 - b }
+	}
+	for len(s) > 0 && s[0] == '0' {
+		s = s[1:]
+	}
+	if !strings.Contains(s, ".") {
+		s = s + "."
+	}
+	i := strings.IndexByte(s, '.')
+	s = s[:i] + s[i+1:]
+	if (len(s))%2 != 0 {
+		if i == 0 {
+			s = s + "0"
+		} else {
+			s = "0" + s
+		}
+	}
+	for len(s) > 0 && s[len(s)-1] == '0' {
+		s = s[:len(s)-1]
+	}
+	if len(s)%2 != 0 {
+		s = s + "0"
+	}
+	exp := (i - 1) >> 1
+
+	n := 1 + len(*num)*2 + 1
+	if n > 21 {
+		n = 21
+	}
+	if cap(*num) < n {
+		*num = make([]byte, 1, n)
+	} else {
+		*num = (*num)[:1]
+	}
+	for i := 0; i < len(s)-1; i += 2 {
+		b := 10*(s[i]-'0') + s[i+1] - '0'
+		*num = append(*num, D(b))
+	}
+	exp += 65
+	if negative {
+		exp = (^exp) & 0x7f
+		if n < 21 {
+			*num = append(*num, 102)
+		}
+	} else {
+		exp |= (1 << 7)
+	}
+	(*num)[0] = byte(exp)
+	return nil
 }
