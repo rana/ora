@@ -87,11 +87,12 @@ func (env *Env) numberFromText(dest *C.OCINumber, value string) error {
 
 func (bnd *bndNumString) bind(value Num, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
-	cstr := (*C.oratext)(unsafe.Pointer(C.CString(string(value))))
-	defer C.free(unsafe.Pointer(cstr))
-	if err := bnd.stmt.ses.srv.env.numberFromText(&bnd.ociNumber[0], string(value)); err != nil {
-		return err
-	}
+	//cstr := (*C.oratext)(unsafe.Pointer(C.CString(string(value))))
+	//defer C.free(unsafe.Pointer(cstr))
+	//if err := bnd.stmt.ses.srv.env.numberFromText(&bnd.ociNumber[0], string(value)); err != nil {
+	//return err
+	//}
+	copy(bnd.ociNumber[0], Num.OCINumber)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,

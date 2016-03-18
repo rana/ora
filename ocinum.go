@@ -10,5 +10,13 @@ package ora
 */
 //import "C"
 import "gopkg.in/rana/ora.v3/num"
+import "database/sql/driver"
 
-type OCINum num.OCINum
+type OCINum struct {
+	num.OCINum
+}
+
+// Value implements database/sql/driver's Valuer interface to return the number as string.
+func (num OCINum) Value() (driver.Value, error) {
+	return num.String(), nil
+}
