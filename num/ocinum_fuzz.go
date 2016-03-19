@@ -4,6 +4,8 @@
 
 package num
 
+import "strings"
+
 //go:generate go-fuzz-build gopkg.in/rana/ora.v3/num
 
 // Fuzz:
@@ -16,7 +18,7 @@ func Fuzz(p []byte) int {
 		return 0
 	}
 	s := n.String()
-	if s != pS {
+	if s != strings.TrimSpace(pS) {
 		return 1
 	}
 	return 0

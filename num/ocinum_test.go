@@ -116,6 +116,7 @@ var setStringCasesGood = []string{
 }
 
 var setStringCasesBad = []string{
+	"-",
 	``,
 	`đľżżđľżżđ˝ż˝đ˝ż˝`,
 	``,

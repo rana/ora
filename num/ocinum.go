@@ -139,26 +139,38 @@ func (num *OCINum) SetString(s string) error {
 		*num = OCINum([]byte{128})
 		return nil
 	}
-	var dotSeen bool
-	var corr int
+	var (
+		dotSeen            bool
+		nonZeros, numCount int
+	)
 	for i, r := range s {
-		if i-corr == 39 {
-			return errors.New("input string too long")
-		}
 		if '0' <= r && r <= '9' {
+			numCount++
+			if numCount == 40 {
+				return errors.New("input string too long")
+			}
+			if r != '0' {
+				nonZeros++
+			}
 			continue
 		}
 		if i == 0 && r == '-' {
-			corr++
 			continue
 		}
 		if !dotSeen && r == '.' {
-			corr++
 			dotSeen = true
 			continue
 		}
 		return fmt.Errorf("bad character %c in %q", r, s)
 	}
+	if numCount == 0 {
+		return errors.New("no digit found")
+	}
+	if nonZeros == 0 {
+		*num = OCINum([]byte{128})
+		return nil
+	}
+
 	// x = b - 1 <=> b = x + 1
 	D := func(b byte) byte { return b + 1 }
 	var negative bool
