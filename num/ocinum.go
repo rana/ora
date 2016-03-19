@@ -11,6 +11,8 @@ package num
 //import "C"
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,9 +44,15 @@ type OCINum []byte
 //
 //
 func (num OCINum) Print(buf []byte) []byte {
+	if len(num) == 0 {
+		return buf[:0]
+	}
 	res := buf[:0]
 	if bytes.Equal(num, []byte{128}) {
 		return append(res, '0')
+	}
+	if len(num) < 2 {
+		return buf[:0]
 	}
 	b, num := num[0], num[1:]
 	negative := b&(1<<7) == 0
@@ -60,7 +68,7 @@ func (num OCINum) Print(buf []byte) []byte {
 	}
 	exp -= 65
 
-	var noexp bool
+	var dotWritten bool
 	// 1	= 1		* 100^0
 	// 10	= 10	* 100^0
 	// 100	= 1		* 100^1
@@ -71,7 +79,7 @@ func (num OCINum) Print(buf []byte) []byte {
 	// 0.0001 = 1	* 100^-2
 	if exp < 0 {
 		res = append(res, '0', '.')
-		noexp = true
+		dotWritten = true
 		exp++
 		if D(num[0]) < 10 {
 			res = append(res, '0')
@@ -93,21 +101,22 @@ func (num OCINum) Print(buf []byte) []byte {
 		} else {
 			res = strconv.AppendInt(res, j, 10)
 		}
-		if !noexp && i == exp {
+		if !dotWritten && i == exp {
 			res = append(res, '.')
+			dotWritten = true
+		}
+	}
+	if dotWritten { // strip trailing zeros
+		for res[len(res)-1] == '0' {
+			res = res[:len(res)-1]
 		}
 	}
 	if res[len(res)-1] == '.' {
 		res = res[:len(res)-1]
-	} else {
+	} else if !dotWritten && exp > 0 {
 		for exp > 0 {
 			res = append(res, '0', '0')
 			exp--
-		}
-	}
-	if noexp {
-		for res[len(res)-1] == '0' {
-			res = res[:len(res)-1]
 		}
 	}
 	return res
@@ -125,9 +134,30 @@ func (num OCINum) String() string {
 
 // SetString sets the OCINum to the number in s.
 func (num *OCINum) SetString(s string) error {
+	s = strings.TrimSpace(s)
 	if len(s) == 0 || s == "0" {
 		*num = OCINum([]byte{128})
 		return nil
+	}
+	var dotSeen bool
+	var corr int
+	for i, r := range s {
+		if i-corr == 39 {
+			return errors.New("input string too long")
+		}
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		if i == 0 && r == '-' {
+			corr++
+			continue
+		}
+		if !dotSeen && r == '.' {
+			corr++
+			dotSeen = true
+			continue
+		}
+		return fmt.Errorf("bad character %c in %q", r, s)
 	}
 	// x = b - 1 <=> b = x + 1
 	D := func(b byte) byte { return b + 1 }
