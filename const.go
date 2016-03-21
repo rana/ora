@@ -115,6 +115,10 @@ const (
 	bndIdxTimePtr
 	bndIdxTimeSlice
 
+	bndIdxDate
+	bndIdxDatePtr
+	bndIdxDateSlice
+
 	bndIdxString
 	bndIdxStringPtr
 	bndIdxStringSlice
@@ -154,6 +158,7 @@ const (
 	defIdxNumString
 
 	defIdxTime
+	defIdxDate
 	defIdxString
 	defIdxBool
 
