@@ -6,6 +6,7 @@ package num
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -15,6 +16,37 @@ var testNums = []struct {
 	num   []byte
 }{
 	{"0", []byte{128}},
+	{"1", []byte{193, 2}},
+	{"10", []byte{193, 11}},
+	{"100", []byte{194, 2}},
+	{"1000", []byte{194, 11}},
+	{"10000", []byte{195, 2}},
+	{"123", []byte{194, 2, 24}},
+	{"12.3", []byte{193, 13, 31}},
+	{"1.23", []byte{193, 2, 24}},
+
+	/*
+
+	   SQL> select dump(12345), dump(1234.5), dump(123.45), dump(12.345), dump(1.2345), dump(0.12345), dump(0.012345) from dual;
+
+	   DUMP(12345)              DUMP(1234.5)              DUMP(123.45)
+	   ------------------------ ------------------------- ------------------------
+	   DUMP(12.345)              DUMP(1.2345)             DUMP(0.12345)
+	   ------------------------- ------------------------ -------------------------
+	   DUMP(0.012345)
+	   ------------------------
+	   Typ=2 Len=4: 195,2,24,46 Typ=2 Len=4: 194,13,35,51 Typ=2 Len=4: 194,2,24,46
+	   Typ=2 Len=4: 193,13,35,51 Typ=2 Len=4: 193,2,24,46 Typ=2 Len=4: 192,13,35,51
+	   Typ=2 Len=4: 192,2,24,46
+	*/
+	{"12345", []byte{195, 2, 24, 46}},
+	{"1234.5", []byte{194, 13, 35, 51}},
+	{"123.45", []byte{194, 2, 24, 46}},
+	{"12.345", []byte{193, 13, 35, 51}},
+	{"1.2345", []byte{193, 2, 24, 46}},
+	{"0.12345", []byte{192, 13, 35, 51}},
+	{"0.012345", []byte{192, 2, 24, 46}},
+
 	{"1", []byte{193, 2}},
 	{"-1", []byte{62, 100, 102}},
 	{"12", []byte{193, 13}},
@@ -35,11 +67,22 @@ var testNums = []struct {
 	{"-0.12", []byte{63, 89, 102}},
 	{"0.012", []byte{192, 2, 21}},
 	{"-0.012", []byte{63, 100, 81, 102}},
+
+	{`66000`, []byte{195, 7, 61}},
+	{`3999900`, []byte{196, 4, 100, 100}},
+	{`509090007050906000600`, []byte{203, 6, 10, 10, 1, 8, 6, 10, 7, 1, 7}},
+	{`600066000`, []byte{197, 7, 1, 7, 61}},
+	{"-11166232058078251449.063252477", []byte{53, 90, 85, 39, 69, 96, 21, 23, 76, 87, 52, 95, 69, 49, 54, 31, 102}},
+	{"-9402004353104906.474368202171", []byte{55, 7, 99, 101, 58, 48, 91, 52, 95, 54, 58, 33, 81, 80, 30, 102}},
 }
 
 func TestOCINumPrint(t *testing.T) {
+	only := os.Getenv("ONLY")
 	var b []byte
 	for eltNum, elt := range testNums {
+		if only != "" && only != elt.await {
+			continue
+		}
 		b = OCINum(elt.num).Print(b)
 		if !bytes.Equal(b, []byte(elt.await)) {
 			t.Errorf("%d. % v\ngot\n\t%s (% v)\nawaited\n\t%s (% v).", eltNum, elt.num, b, b, elt.await, []byte(elt.await))
@@ -48,8 +91,12 @@ func TestOCINumPrint(t *testing.T) {
 }
 
 func TestOCINumSet(t *testing.T) {
+	only := os.Getenv("ONLY")
 	var num OCINum
 	for eltNum, elt := range testNums {
+		if only != "" && only != elt.await {
+			continue
+		}
 		if err := num.SetString(elt.await); err != nil {
 			t.Errorf("%d. %s: %v", eltNum, elt.await, err)
 			continue
@@ -61,6 +108,7 @@ func TestOCINumSet(t *testing.T) {
 }
 
 func TestOCINumSetString(t *testing.T) {
+	only := os.Getenv("ONLY")
 	var a [22]byte
 	for _, group := range []struct {
 		bad   bool
@@ -70,6 +118,9 @@ func TestOCINumSetString(t *testing.T) {
 		{true, setStringCasesBad},
 	} {
 		for eltNum, elt := range group.cases {
+			if only != "" && only != elt {
+				continue
+			}
 			n := OCINum(a[:0])
 			err := n.SetString(elt)
 			if group.bad && err == nil {
@@ -113,6 +164,47 @@ var setStringCasesGood = []string{
 	`-129`,
 	`1`,
 	`6 `,
+
+	`907050906`,
+	`9　`,
+	`66000`,
+	`142108547152020037174224853515625`,
+	` 2 `,
+	`745580596923828125`,
+	`600`,
+	`6005000000000000000000000000000000000`,
+	`0 `,
+	`3444089209850062616169452667236328125`,
+	`-102`,
+	`4 `,
+	` 9 `,
+	`6000000`,
+	`60705090600066000`,
+	`6000000000`,
+	`7810000000000000000`,
+	`-506210721134567`,
+	`-2`,
+	`390625`,
+	`5　　　　　　　　　　　　　　　　　`,
+	`90707050906050906`,
+	`6 `,
+	` 4`,
+	`6058068096923806600`,
+	`9090906`,
+	` 0`,
+	`600055756156289135105907917022705078125`,
+	`9　　`,
+	`600596923806600`,
+	`-11166232058465661287307739257812547`,
+	`2 `,
+	`60000000000000000000000000000000006`,
+	`0　　　　　　　　　`,
+	`39900`,
+	`7450580596923828125`,
+	`3390909062`,
+	`-11166232058078251449.063252477`,
+	`0.6`,
+	`390`,
 }
 
 var setStringCasesBad = []string{

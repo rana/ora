@@ -69,6 +69,57 @@ func (num OCINum) Print(buf []byte) []byte {
 	exp -= 65
 
 	var dotWritten bool
+	digits := bytesPool.Get().([]byte)[:0]
+	for i, b := range num {
+		j := D(b)
+		if j < 10 {
+			digits = append(digits, '0', '0'+(byte(j)))
+		} else {
+			digits = strconv.AppendInt(digits, j, 10)
+		}
+		if i == exp {
+			digits = append(digits, '.')
+			dotWritten = true
+		}
+	}
+	for i := len(num) - 1; i < exp; i++ {
+		digits = append(digits, '0', '0')
+	}
+	if !dotWritten {
+		if exp < 0 {
+			dexp := (-exp) << 1
+			digits = append(make([]byte, dexp+1, dexp+1+len(digits)), digits...)
+			for i := 0; i < dexp; i++ {
+				digits[i] = '0'
+			}
+			digits[dexp] = '.'
+		} else {
+			n := len(digits)
+			if cap(digits) < n+1 {
+				digits = append(digits, '0')
+			} else {
+				digits = digits[:n+1]
+			}
+			place := (exp + 1) << 1
+			copy(digits[place+1:], digits[place:n])
+			digits[place] = '.'
+		}
+		dotWritten = true
+	}
+	for len(digits) > 2 && digits[0] == '0' && digits[1] != '.' {
+		digits = digits[1:]
+	}
+	res = append(res, digits...)
+	bytesPool.Put(digits)
+
+	if dotWritten {
+		for res[len(res)-1] == '0' {
+			res = res[:len(res)-1]
+		}
+		if res[len(res)-1] == '.' {
+			res = res[:len(res)-1]
+		}
+	}
 	// 1	= 1		* 100^0
 	// 10	= 10	* 100^0
 	// 100	= 1		* 100^1
@@ -77,48 +128,6 @@ func (num OCINum) Print(buf []byte) []byte {
 	// 0.01 = 1		* 100^-1
 	// 0.001 = 10	* 100^-2
 	// 0.0001 = 1	* 100^-2
-	if exp < 0 {
-		res = append(res, '0', '.')
-		dotWritten = true
-		exp++
-		if D(num[0]) < 10 {
-			res = append(res, '0')
-		} else {
-			exp++
-		}
-		for exp < 0 {
-			res = append(res, '0', '0')
-			exp++
-		}
-	}
-	for i, b := range num {
-		j := D(b)
-		if j < 10 {
-			if i != 0 {
-				res = append(res, '0')
-			}
-			res = append(res, '0'+(byte(j)))
-		} else {
-			res = strconv.AppendInt(res, j, 10)
-		}
-		if !dotWritten && i == exp {
-			res = append(res, '.')
-			dotWritten = true
-		}
-	}
-	if dotWritten { // strip trailing zeros
-		for res[len(res)-1] == '0' {
-			res = res[:len(res)-1]
-		}
-	}
-	if res[len(res)-1] == '.' {
-		res = res[:len(res)-1]
-	} else if !dotWritten && exp > 0 {
-		for exp > 0 {
-			res = append(res, '0', '0')
-			exp--
-		}
-	}
 	return res
 }
 
@@ -180,30 +189,33 @@ func (num *OCINum) SetString(s string) error {
 		// x = 101 - b <=> b = 101 - x
 		D = func(b byte) byte { return 101 - b }
 	}
-	for len(s) > 0 && s[0] == '0' {
-		s = s[1:]
-	}
-	if !strings.Contains(s, ".") {
-		s = s + "."
-	}
-	i := strings.IndexByte(s, '.')
-	s = s[:i] + s[i+1:]
-	if (len(s))%2 != 0 {
-		if i == 0 {
-			s = s + "0"
+	i := len(s)
+	if j := strings.IndexByte(s, '.'); j >= 0 {
+		if j == 1 && s[0] == '0' {
+			s = s[2:]
+			i = 0
 		} else {
-			s = "0" + s
+			if j%2 != 0 {
+				s = "0" + s
+				j++
+			}
+			s = s[:j] + s[j+1:]
+			i = j
 		}
+		if len(s)%2 == 1 {
+			s = s + "0"
+		}
+	} else if len(s)%2 == 1 {
+		s = "0" + s
+		i = len(s)
 	}
-	for len(s) > 0 && s[len(s)-1] == '0' {
-		s = s[:len(s)-1]
-	}
-	if len(s)%2 != 0 {
-		s = s + "0"
-	}
-	exp := (i - 1) >> 1
 
-	n := 1 + len(*num)*2 + 1
+	for j := len(s) - 2; j > 0 && s[j] == '0' && s[j+1] == '0'; j -= 2 {
+		s = s[:j]
+	}
+	exp := (i >> 1) - 1
+
+	n := 1 + (len(s) >> 1) + 1
 	if n > 21 {
 		n = 21
 	}
