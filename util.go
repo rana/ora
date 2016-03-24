@@ -1,6 +1,8 @@
 package ora
 
 import (
+	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"runtime"
@@ -231,4 +233,78 @@ func errE(e error) (err error) {
 	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
+}
+
+// Column type for describing a column (see DescribeQuery).
+type Column struct {
+	Schema, Name                   string
+	Type, Length, Precision, Scale int
+	Nullable                       bool
+	CharsetID, CharsetForm         int
+}
+
+// DescribeQuery parses the query and returns the column types, as
+// DBMS_SQL.describe_column does.
+func DescribeQuery(db *sql.DB, qry string) ([]Column, error) {
+	//res := strings.Repeat("\x00", 32767)
+	res := make([]byte, 32767)
+	if _, err := db.Exec(`DECLARE
+  c INTEGER;
+  col_cnt INTEGER;
+  rec_tab DBMS_SQL.DESC_TAB;
+  a DBMS_SQL.DESC_REC;
+  v_idx PLS_INTEGER;
+  res VARCHAR2(32767);
+BEGIN
+  c := DBMS_SQL.OPEN_CURSOR;
+  BEGIN
+    DBMS_SQL.PARSE(c, :1, DBMS_SQL.NATIVE);
+    DBMS_SQL.DESCRIBE_COLUMNS(c, col_cnt, rec_tab);
+    v_idx := rec_tab.FIRST;
+    WHILE v_idx IS NOT NULL LOOP
+      a := rec_tab(v_idx);
+      res := res||a.col_schema_name||' '||a.col_name||' '||a.col_type||' '||
+                  a.col_max_len||' '||a.col_precision||' '||a.col_scale||' '||
+                  (CASE WHEN a.col_null_ok THEN 1 ELSE 0 END)||' '||
+                  a.col_charsetid||' '||a.col_charsetform||
+                  CHR(10);
+      v_idx := rec_tab.NEXT(v_idx);
+    END LOOP;
+  EXCEPTION WHEN OTHERS THEN NULL;
+    DBMS_SQL.CLOSE_CURSOR(c);
+	RAISE;
+  END;
+  :2 := UTL_RAW.CAST_TO_RAW(res);
+END;`, qry, &res,
+	); err != nil {
+		return nil, err
+	}
+	if i := bytes.IndexByte(res, 0); i >= 0 {
+		res = res[:i]
+	}
+	lines := bytes.Split(res, []byte{'\n'})
+	cols := make([]Column, 0, len(lines))
+	var nullable int
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		var col Column
+		switch j := bytes.IndexByte(line, ' '); j {
+		case -1:
+			continue
+		case 0:
+			line = line[1:]
+		default:
+			col.Schema, line = string(line[:j]), line[j+1:]
+		}
+		if n, err := fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d",
+			&col.Name, &col.Type, &col.Length, &col.Precision, &col.Scale, &nullable, &col.CharsetID, &col.CharsetForm,
+		); err != nil {
+			return cols, fmt.Errorf("parsing %q (parsed: %d): %v", line, n, err)
+		}
+		col.Nullable = nullable != 0
+		cols = append(cols, col)
+	}
+	return cols, nil
 }
