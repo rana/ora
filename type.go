@@ -31,12 +31,13 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/json"
-	"github.com/rana/ora/num"
 	"io"
 	"io/ioutil"
 	"math"
 	"sync"
 	"time"
+
+	"gopkg.in/rana/ora.v3/num"
 )
 
 // When a parent handle is freed, all child handles associated with it are also
