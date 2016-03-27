@@ -18,35 +18,43 @@ type bndNumStringSlice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
+	arrHlp
 }
 
-func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt) error {
+func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt) (iterations uint32, err error) {
 	stringValues := make([]Num, len(values))
-	nullInds := make([]C.sb2, len(values))
+	if cap(bnd.nullInds) < len(values) {
+		bnd.nullInds = make([]C.sb2, len(values))
+	} else {
+		bnd.nullInds = bnd.nullInds[:len(values)]
+	}
 	for n := range values {
 		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			stringValues[n] = Num(values[n].Value)
 		}
 	}
-	return bnd.bind(stringValues, nullInds, position, stmt)
+	return bnd.bind(stringValues, bnd.nullInds, position, stmt)
 }
 
-func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int, stmt *Stmt) error {
+func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int, stmt *Stmt) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	L, C := len(values), cap(values)
+	if nullInds != nil {
+		bnd.nullInds = nullInds
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	if needAppend {
+		values = append(values, Num("0"))
+	}
 	bnd.ociNumbers = make([]C.OCINumber, len(values))
 	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	for n := range values {
-		alenp[n] = alen
+		bnd.alen[n] = alen
 		numbers := bnd.ociNumbers[n : n+1 : n+1] // against _cgoCheckPointer0
 		if err := bnd.stmt.ses.srv.env.numberFromText(&numbers[0], string(values[n])); err != nil {
-			return err
+			return iterations, err
 		}
 	}
 	r := C.OCIBINDBYPOS(
@@ -57,14 +65,14 @@ func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),       //void         *indp,
-		&alenp[0],                          //ub4          *alenp,
-		&rcodep[0],                         //ub2          *rcodep,
-		0,                                  //ub4          maxarr_len,
-		nil,                                //ub4          *curelep,
+		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
+		&bnd.alen[0],                       //ub4          *alenp,
+		&bnd.rcode[0],                      //ub2          *rcodep,
+		C.ub4(C),                           //ub4          maxarr_len,
+		curlenp,                            //ub4          *curelep,
 		C.OCI_DEFAULT)                      //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
@@ -74,9 +82,9 @@ func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int,
 		C.ub4(C.sizeof_ub4),       //ub4         alskip,
 		C.ub4(C.sizeof_ub2))       //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndNumStringSlice) setPtr() error {
@@ -94,6 +102,7 @@ func (bnd *bndNumStringSlice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.ociNumbers = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxNumStringSlice, bnd)
 	return nil
 }

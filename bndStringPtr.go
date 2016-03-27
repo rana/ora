@@ -17,34 +17,47 @@ type bndStringPtr struct {
 	stmt   *Stmt
 	ocibnd *C.OCIBind
 	value  *string
-	alen   []C.ACTUAL_LENGTH_TYPE
 	buf    []byte
+	alen   [1]C.ACTUAL_LENGTH_TYPE
 	nullp
 }
 
 func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	var length int
-	if cap(bnd.buf) < stringPtrBufferSize {
-		bnd.buf = make([]byte, 1, stringPtrBufferSize)
+	if stringPtrBufferSize < 2 {
+		stringPtrBufferSize = 2
+	} else if stringPtrBufferSize%2 == 1 {
+		stringPtrBufferSize++
+	}
+	L, C := len(bnd.buf), cap(bnd.buf)
+	if C < stringPtrBufferSize {
+		bnd.buf = make([]byte, L, stringPtrBufferSize)
+		C = stringPtrBufferSize
 	}
 	bnd.nullp.Set(value == nil)
-	if length == 0 {
-		bnd.buf = bnd.buf[:1] // to be able to address bnd.buf[0]
-		bnd.buf[0] = 0
+	if value == nil {
+		bnd.alen[0] = 0
+		bnd.buf = bnd.buf[:2]
 	} else {
-		bnd.buf = bnd.buf[:length]
-		copy(bnd.buf, []byte(*value))
-	}
-	if cap(bnd.alen) < 1 {
-		bnd.alen = []C.ACTUAL_LENGTH_TYPE{C.ACTUAL_LENGTH_TYPE(length)}
-	} else {
-		bnd.alen = bnd.alen[:1]
-		bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(length)
+		if len(*value) == 0 {
+			bnd.buf = bnd.buf[:2] // to be able to address bnd.buf[0]
+			bnd.buf[0], bnd.buf[1] = 0, 0
+		} else {
+			L = len(*value)
+			if L < 2 {
+				L = 2
+			} else if L%2 == 0 {
+				L++
+			}
+			bnd.buf = bnd.buf[:L]
+			bnd.buf[L-1] = 0
+			copy(bnd.buf, []byte(*value))
+		}
+		bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-		"StringPtr.bind(%d) cap=%d len=%d alen=%d", position, cap(bnd.buf), len(bnd.buf), bnd.alen[0])
+		"%p pos=%d cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -66,11 +79,17 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 }
 
 func (bnd *bndStringPtr) setPtr() error {
+	if bnd.value == nil {
+		return nil
+	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"StringPtr.setPtr isNull=%t alen=%d", bnd.nullp.IsNull(), bnd.alen[0])
 	if !bnd.nullp.IsNull() {
 		*bnd.value = string(bnd.buf[:bnd.alen[0]])
+	} else {
+		*bnd.value = ""
 	}
+
 	return nil
 }
 
@@ -86,7 +105,7 @@ func (bnd *bndStringPtr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
-	bnd.alen = bnd.alen[:0]
+	bnd.alen[0] = 0
 	bnd.buf = bnd.buf[:0]
 	bnd.nullp.Free()
 	stmt.putBnd(bndIdxStringPtr, bnd)

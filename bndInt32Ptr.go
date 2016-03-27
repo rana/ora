@@ -38,6 +38,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 			"Int32Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber[0])
 	}
+	alen := C.ACTUAL_LENGTH_TYPE(4)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -47,7 +48,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8          value_sz,
 		C.SQLT_VNU,                          //ub2          dty,
 		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
-		nil,           //ub2          *alenp,
+		&alen,         //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
@@ -81,6 +82,7 @@ func (bnd *bndInt32Ptr) close() (err error) {
 			err = errR(value)
 		}
 	}()
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Int32Ptr.close value=%p", bnd.value)
 
 	stmt := bnd.stmt
 	bnd.stmt = nil
