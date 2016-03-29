@@ -155,7 +155,7 @@ const (
 	defIdxUint8
 	defIdxFloat64
 	defIdxFloat32
-	defIdxNumString
+	defIdxOCINum
 
 	defIdxTime
 	defIdxDate

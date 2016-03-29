@@ -247,7 +247,7 @@ type Column struct {
 // DBMS_SQL.describe_column does.
 func DescribeQuery(db *sql.DB, qry string) ([]Column, error) {
 	//res := strings.Repeat("\x00", 32767)
-	res := make([]byte, 32767)
+	res := make([]byte, 32766)
 	if _, err := db.Exec(`DECLARE
   c INTEGER;
   col_cnt INTEGER;
@@ -331,7 +331,7 @@ func (ce CompileError) Error() string {
 // If all is false, only errors are returned; otherwise, warnings, too.
 func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 	rset, err := ses.PrepAndQry(`
-	SELECT USER owner, name, type, line, position, message_number, text, attribute
+	SELECT user owner, name, type, line, position, message_number, text, attribute
 		FROM user_errors
 		ORDER BY name, sequence`)
 	if err != nil {
@@ -342,6 +342,9 @@ func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 		warn := rset.Row[7].(string) == "WARNING"
 		if warn && !all {
 			continue
+		}
+		if len(rset.Row) != 8 {
+			panic(fmt.Sprintf("rset.Row=%#v", rset.Row))
 		}
 		errors = append(errors,
 			CompileError{

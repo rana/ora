@@ -4,6 +4,7 @@
   * Implement PL/SQL TABLE support to be able to call PL/SQL blocks/stored procedures with slices of simple types.
   * Add numberBigInt and numberBigFloat colum types.
     This allows tweaking the used column types for NUMBER columns with unknown scale/precision.
+  * OCINum instead of OraNum - space saving and less C calls (implemented pure Go read/write of Oracle OCINumber, in num directory).
 
 ## v3.3 ##
   * Introduce new `Num` and `OraNum` data types and `N` Go Column Type to represent Oracle numbers fully, by exchanging them with Go as strings.

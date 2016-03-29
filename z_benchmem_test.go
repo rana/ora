@@ -15,7 +15,8 @@ import (
 //
 // go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
 func TestMemoryNumString(t *testing.T) {
-	benchMem(t, 1794456, `SELECT
+	n := 1000
+	benchMem(t, n, 1360, `SELECT
 		TO_NUMBER('123456789012345678') bn01
 		, TO_NUMBER('223456789012345678') bn02
 		, TO_NUMBER('323456789012345678') bn03
@@ -29,11 +30,14 @@ func TestMemoryNumString(t *testing.T) {
 	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
 }
 func TestMemoryNumStringI64(t *testing.T) {
-	drvCfg := ora.NewDrvCfg()
-	drvCfg.Env.StmtCfg.Rset.SetNumberBigInt(ora.I64)
-	drvCfg.Env.StmtCfg.Rset.SetNumberBigFloat(ora.I64)
-	ora.SetCfg(*drvCfg)
-	benchMem(t, 1349992, `SELECT
+	ora.Cfg().Env.StmtCfg.Rset.SetNumberBigInt(ora.I64)
+	ora.Cfg().Env.StmtCfg.Rset.SetNumberBigFloat(ora.I64)
+	defer func() {
+		ora.Cfg().Env.StmtCfg.Rset.SetNumberBigInt(ora.N)
+		ora.Cfg().Env.StmtCfg.Rset.SetNumberBigFloat(ora.N)
+	}()
+	n := 1000
+	benchMem(t, n, 1352, `SELECT
 		TO_NUMBER('123456789012345678') bn01
 		, TO_NUMBER('223456789012345678') bn02
 		, TO_NUMBER('323456789012345678') bn03
@@ -45,11 +49,11 @@ func TestMemoryNumStringI64(t *testing.T) {
 		, TO_NUMBER('923456789012345678') bn09
 		, TO_NUMBER('023456789012345678') bn10
 	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
-	ora.SetCfg(*ora.NewDrvCfg())
 }
 
 func TestMemoryString(t *testing.T) {
-	benchMem(t, 1424968, `SELECT
+	n := 1000
+	benchMem(t, n, 1432, `SELECT
 		'123456789012345678' bs01
 		, '223456789012345678' bs02
 		, '323456789012345678' bs03
@@ -63,7 +67,7 @@ func TestMemoryString(t *testing.T) {
 	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
 }
 
-func benchMem(tb testing.TB, maxBytes uint64, qry string) {
+func benchMem(tb testing.TB, n int, maxBytesPerRun uint64, qry string) {
 	columns, err := ora.DescribeQuery(testDb, qry)
 	if err != nil {
 		tb.Fatal(err)
@@ -74,7 +78,7 @@ func benchMem(tb testing.TB, maxBytes uint64, qry string) {
 	for i, c := range columns {
 		cols[i] = c.Name
 	}
-	args := []interface{}{1000}
+	args := []interface{}{int64(n)}
 
 	type Record map[string]interface{}
 
@@ -121,14 +125,13 @@ func benchMem(tb testing.TB, maxBytes uint64, qry string) {
 
 	var ostat, nstat runtime.MemStats
 	runtime.ReadMemStats(&ostat)
-	for j := 0; j < 1; j++ {
-		results := execute(qry, cols, args...)
-		runtime.ReadMemStats(&nstat)
-		d := nstat.TotalAlloc - ostat.TotalAlloc
-		tb.Logf("test %d, nres=%d, allocated %d bytes\n", j, len(results), d)
-		if maxBytes > 0 && d > maxBytes {
-			tb.Errorf("test %d, nres=%d, allocated %d bytes (max: %d)", j, len(results), d, maxBytes)
-		}
-		ostat = nstat
+	results := execute(qry, cols, args...)
+	runtime.ReadMemStats(&nstat)
+	d := nstat.TotalAlloc - ostat.TotalAlloc
+	tb.Logf("nres=%d, allocated %d bytes\n", len(results), d)
+	maxBytes := maxBytesPerRun * uint64(n)
+	if maxBytes > 0 && d > maxBytes {
+		tb.Errorf("nres=%d, allocated %d bytes (max: %d)", len(results), d, maxBytes)
 	}
+	ostat = nstat
 }

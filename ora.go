@@ -118,7 +118,7 @@ func init() {
 	_drv.defPools[defIdxUint8] = newPool(func() interface{} { return &defUint8{} })
 	_drv.defPools[defIdxFloat64] = newPool(func() interface{} { return &defFloat64{} })
 	_drv.defPools[defIdxFloat32] = newPool(func() interface{} { return &defFloat32{} })
-	_drv.defPools[defIdxNumString] = newPool(func() interface{} { return &defNumString{} })
+	_drv.defPools[defIdxOCINum] = newPool(func() interface{} { return &defOCINum{} })
 	_drv.defPools[defIdxTime] = newPool(func() interface{} { return &defTime{} })
 	_drv.defPools[defIdxDate] = newPool(func() interface{} { return &defDate{} })
 	_drv.defPools[defIdxString] = newPool(func() interface{} { return &defString{} })
@@ -227,9 +227,9 @@ func NumEnv() int {
 // SetCfg applies the specified cfg to the ora database driver and any open Envs.
 func SetCfg(cfg DrvCfg) {
 	_drv.mu.Lock()
-	defer _drv.mu.Unlock()
 	_drv.cfg = cfg
 	_drv.openEnvs.setAllCfg(cfg.Env)
+	_drv.mu.Unlock()
 }
 
 // Cfg returns the ora database driver's cfg.

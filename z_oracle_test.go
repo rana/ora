@@ -1180,6 +1180,11 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 		if a, err = strconv.ParseInt(x, 10, 64); err != nil {
 			t.Error(err)
 		}
+	case ora.OCINum:
+		var err error
+		if a, err = strconv.ParseInt(x.String(), 10, 64); err != nil {
+			t.Error(err)
+		}
 	default:
 		t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
@@ -1377,6 +1382,11 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 		if a, err = strconv.ParseFloat(x, 64); err != nil {
 			t.Error(err)
 		}
+	case ora.OCINum:
+		var err error
+		if a, err = strconv.ParseFloat(x.String(), 64); err != nil {
+			t.Error(err)
+		}
 	default:
 		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
 	}
@@ -1403,6 +1413,12 @@ func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 		a = *x
 	case string:
 		f, err := strconv.ParseFloat(x, 32)
+		if err != nil {
+			t.Error(err)
+		}
+		a = float32(f)
+	case ora.OCINum:
+		f, err := strconv.ParseFloat(x.String(), 32)
 		if err != nil {
 			t.Error(err)
 		}
@@ -3527,16 +3543,21 @@ func TestIntFloat(t *testing.T) {
 		var ni, ni0 int64
 		err := rows.Scan(&ni, &ni0)
 		if err != nil {
-			if strings.Contains(err.Error(), "e+") {
+			if !strings.Contains(err.Error(), "e+") {
 				t.Errorf("scan: %v", err)
 				continue
 			}
 			var fi, fi0 float64
-			if err := rows.Scan(&fi, &fi0); err != nil {
+			if err := rows.Scan(&fi, &fi0); err == nil {
+				t.Logf("float64 (%v, %v)", fi, fi0)
+				continue
+			}
+			var si, si0 string
+			if err := rows.Scan(&si, &si0); err != nil {
 				t.Errorf("scan: %v", err)
 				continue
 			}
-			t.Logf("float64 (%v, %v)", fi, fi0)
+			t.Logf("string (%v, %v)", si, si0)
 			continue
 		}
 		t.Logf("int64 (%v, %v)", ni, ni0)

@@ -10,6 +10,23 @@ package ora
 #include <string.h>
 */
 import "C"
+
+/*
+
+func writeOCINumber(dst *C.OCINumber, src Num) {
+	C.writeOCINumber(
+		dst,
+		(*C.ub1)(unsafe.Pointer(&src.OCINum[0])),
+		C.ub1(len(src.OCINum)),
+	)
+}
+
+void writeOCINumber(OCINumber *dst, ub1 *src, ub1 src_len) {
+	dst->OCINumberPart[0] = src_len;
+	memcpy(dst->OCINumberPart+1, src, src_len);
+}
+*/
+
 import (
 	"bytes"
 	"container/list"
@@ -19,6 +36,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"gopkg.in/rana/ora.v3/num"
 )
 
 // When a parent handle is freed, all child handles associated with it are also
@@ -498,6 +517,52 @@ func (this *OraNum) UnmarshalJSON(p []byte) error {
 	}
 	this.IsNull = false
 	return json.Unmarshal(p, &this.Value)
+}
+
+type OCINum struct {
+	num.OCINum
+}
+type OraOCINum struct {
+	IsNull bool
+	Value  num.OCINum
+}
+
+// Equals returns true when the receiver and specified OraOCINum are both null,
+// or when the receiver and specified OraOCINum are both not null and Values are equal.
+func (this OraOCINum) Equals(other OraOCINum) bool {
+	return (this.IsNull && other.IsNull) ||
+		(this.IsNull == other.IsNull && bytes.Equal(this.Value, other.Value))
+}
+func (this OraOCINum) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return this.Value.String()
+}
+
+var _ = (json.Marshaler)(OraOCINum{})
+var _ = (json.Unmarshaler)((*OraOCINum)(nil))
+
+func (this OraOCINum) MarshalJSON() ([]byte, error) {
+	if this.IsNull {
+		return []byte("null"), nil
+	}
+	if len(this.Value) == 0 {
+		return []byte(`""`), nil
+	}
+	return json.Marshal(this.Value.String())
+}
+func (this *OraOCINum) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		this.IsNull = true
+		return nil
+	}
+	this.IsNull = false
+	var s string
+	if err := json.Unmarshal(p, &s); err != nil {
+		return err
+	}
+	return this.Value.SetString(s)
 }
 
 // Bool is a nullable bool.

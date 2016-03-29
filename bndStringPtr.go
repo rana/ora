@@ -9,9 +9,9 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
+
+const maxStringLength = 32767
 
 type bndStringPtr struct {
 	stmt   *Stmt
@@ -32,8 +32,23 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 	}
 	L, C := len(bnd.buf), cap(bnd.buf)
 	if C < stringPtrBufferSize {
-		bnd.buf = make([]byte, L, stringPtrBufferSize)
 		C = stringPtrBufferSize
+	}
+	if value != nil {
+		lv := len(*value)
+		if lv > maxStringLength {
+			lv = maxStringLength
+			*value = (*value)[:lv]
+		}
+		if lv > C {
+			L, C = lv, lv
+		}
+	}
+	if C%2 == 1 {
+		C++
+	}
+	if cap(bnd.buf) < C {
+		bnd.buf = make([]byte, L, C)
 	}
 	bnd.nullp.Set(value == nil)
 	if value == nil {
@@ -47,7 +62,7 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 			L = len(*value)
 			if L < 2 {
 				L = 2
-			} else if L%2 == 0 {
+			} else if L%2 != 0 {
 				L++
 			}
 			bnd.buf = bnd.buf[:L]
