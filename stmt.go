@@ -1216,7 +1216,7 @@ func (stmt *Stmt) setPrefetchSize() error {
 		if err := stmt.setAttr(stmt.cfg.prefetchRowCount, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
 			return errE(err)
 		}
-	} else {
+	} else if stmt.cfg.prefetchMemorySize > 0 {
 		//fmt.Println("stmt.setPrefetchSize: prefetchMemorySize ", stmt.cfg.prefetchMemorySize)
 		// Set prefetch memory size
 		if err := stmt.setAttr(stmt.cfg.prefetchMemorySize, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {

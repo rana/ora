@@ -12,7 +12,7 @@ import (
 )
 
 func BenchmarkPrepare(b *testing.B) {
-	rows, err := testDb.Query("SELECT A.object_name from all_objects, all_objects, all_objects A")
+	rows, err := testDb.Query("SELECT A.object_name from all_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -21,12 +21,13 @@ func BenchmarkPrepare(b *testing.B) {
 }
 
 func BenchmarkIter(b *testing.B) {
-	rows, err := testDb.Query("SELECT A.object_name from all_objects, all_objects, all_objects A")
+	b.StopTimer()
+	rows, err := testDb.Query("SELECT A.object_name from all_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer rows.Close()
-	b.ResetTimer()
+	b.StartTimer()
 	i := 0
 	for rows.Next() && i < b.N {
 		i++
