@@ -11,6 +11,29 @@ import (
 	"gopkg.in/rana/ora.v3"
 )
 
+func BenchmarkPrepare(b *testing.B) {
+	rows, err := testDb.Query("SELECT A.object_name from all_objects, all_objects, all_objects A")
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.StopTimer()
+	rows.Close()
+}
+
+func BenchmarkIter(b *testing.B) {
+	rows, err := testDb.Query("SELECT A.object_name from all_objects, all_objects, all_objects A")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer rows.Close()
+	b.ResetTimer()
+	i := 0
+	for rows.Next() && i < b.N {
+		i++
+	}
+	b.SetBytes(int64(i))
+}
+
 // BenchmarkMemory usage for querying rows.
 //
 // go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
