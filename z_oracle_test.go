@@ -109,6 +109,8 @@ var testSrv *ora.Srv
 var testSes *ora.Ses
 var testDb *sql.DB
 
+const tableNamePrefix = "test_"
+
 func init() {
 	testSrvCfg = ora.NewSrvCfg()
 	testSrvCfg.Dblink = os.Getenv("GO_ORA_DRV_TEST_DB")
@@ -152,7 +154,7 @@ func init() {
 	fmt.Println("Dropping previous tables...")
 	stmt, err := testSes.Prep(`
 BEGIN
-	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE 'TEST_%') LOOP
+	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE UPPER('` + tableNamePrefix + `')||'_%') LOOP
 		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
 	END LOOP;
 END;`)
@@ -780,7 +782,7 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 
 func tableName() string {
 	testTableId++
-	return "test_t" + strconv.Itoa(testTableId)
+	return tableNamePrefix + strconv.Itoa(testTableId)
 }
 
 func testErr(err error, t testing.TB, expectedErrs ...error) {
