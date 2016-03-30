@@ -44,7 +44,7 @@ type StmtCfg struct {
 // NewStmtCfg returns a StmtCfg with default values.
 func NewStmtCfg() *StmtCfg {
 	c := &StmtCfg{}
-	c.prefetchRowCount = 0
+	c.prefetchRowCount = 100
 	c.prefetchMemorySize = 1 << 27 // 134,217,728
 	c.longBufferSize = 1 << 24     // 16,777,216
 	c.longRawBufferSize = 1 << 24  // 16,777,216
