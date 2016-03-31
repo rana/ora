@@ -50,7 +50,7 @@ func main() {
 }
 
 func BenchmarkIter(b *testing.B) {
-	rows, err := DB.Query("SELECT A.object_name from all_objects A")
+	rows, err := DB.Query("SELECT A.object_name from all_objects, all_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}

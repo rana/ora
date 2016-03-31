@@ -50,7 +50,7 @@ func main() {
 }
 
 func BenchmarkIter(b *testing.B) {
-	rows, err := DB.Query("SELECT A.object_name from all_objects A")
+	rows, err := DB.Query("SELECT A.object_name from all_objects, all_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -66,5 +66,6 @@ func BenchmarkIter(b *testing.B) {
 	b.StopTimer()
 	d := time.Since(start)
 	b.SetBytes(int64(i))
-	log.Printf("Iterated %d rows in %s.", i, d)
+	log.Printf("Iterated %d rows in %s: %.3f row/s.",
+		i, d, float64(i)/(float64(d)/float64(time.Second)))
 }
