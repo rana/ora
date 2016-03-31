@@ -15,8 +15,7 @@ import "unsafe"
 type defString struct {
 	rset       *Rset
 	ocidef     *C.OCIDefine
-	buf        *C.char
-	bufLen     int
+	buf        []byte
 	isNullable bool
 	rlen       C.ACTUAL_LENGTH_TYPE
 	nullp
@@ -42,20 +41,24 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 	if n%2 != 0 {
 		n++
 	}
-	if def.buf == nil || def.bufLen < n {
-		if def.buf != nil {
-			C.free(unsafe.Pointer(def.buf))
+	if c := cap(def.buf); c < n {
+		i := 1
+		if c > 0 && c&(c-1) == 0 { // c is power of 2.
+			i = c
 		}
-		def.bufLen = n
-		def.buf = (*C.char)(C.malloc(C.size_t(n)))
+		for i < n {
+			i <<= 1 // double i
+		}
+		def.buf = make([]byte, i)
 	}
+	buf := def.buf[:n]
 	// Create oci define handle
 	r := C.OCIDEFINEBYPOS(
 		def.rset.ocistmt,                    //OCIStmt     *stmtp,
 		&def.ocidef,                         //OCIDefine   **defnpp,
 		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
 		C.ub4(position),                     //ub4         position,
-		unsafe.Pointer(def.buf),             //void        *valuep,
+		unsafe.Pointer(&buf[0]),             //void        *valuep,
 		C.LENGTH_TYPE(n),                    //sb8         value_sz,
 		C.SQLT_CHR,                          //ub2         dty,
 		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
@@ -72,14 +75,14 @@ func (def *defString) value() (value interface{}, err error) {
 	if def.isNullable {
 		oraStringValue := String{IsNull: def.nullp.IsNull()}
 		if !oraStringValue.IsNull {
-			oraStringValue.Value = C.GoStringN(def.buf, C.int(def.rlen))
+			oraStringValue.Value = string(def.buf[:int(def.rlen)])
 		}
 		return oraStringValue, nil
 	}
 	if def.nullp.IsNull() {
 		return "", nil
 	}
-	return C.GoStringN(def.buf, C.int(def.rlen)), nil
+	return string(def.buf[:int(def.rlen)]), nil
 }
 
 func (def *defString) alloc() error {
@@ -99,11 +102,8 @@ func (def *defString) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	def.buf = nil
 	def.nullp.Free()
-	if def.buf != nil {
-		C.free(unsafe.Pointer(def.buf))
-		def.buf = nil
-	}
 	rset.putDef(defIdxString, def)
 	return nil
 }
