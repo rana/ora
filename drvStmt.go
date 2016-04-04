@@ -114,14 +114,3 @@ func (ds *DrvStmt) log(enabled bool, v ...interface{}) {
 		}
 	}
 }
-
-// log writes a formatted message with an DrvStmt system name and caller info.
-func (ds *DrvStmt) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", ds.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", ds.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
-	}
-}

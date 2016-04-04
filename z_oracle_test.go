@@ -98,13 +98,10 @@ const (
 
 var testSrvCfg *ora.SrvCfg
 var testSesCfg *ora.SesCfg
-var testUsername string
-var testPassword string
 var testConStr string
 var testDbsessiontimezone *time.Location
 var testTableId int
 var testWorkloadColumnCount int
-var testEnv *ora.Env
 var testSrv *ora.Srv
 var testSes *ora.Ses
 var testDb *sql.DB
@@ -916,88 +913,6 @@ func isBytes(value interface{}) bool {
 	return false
 }
 
-func goColumnTypeFromSlice(value interface{}) ora.GoColumnType {
-	if _, ok := value.([]int64); ok {
-		return ora.I64
-	}
-	if _, ok := value.([]int32); ok {
-		return ora.I32
-	}
-	if _, ok := value.([]int16); ok {
-		return ora.I16
-	}
-	if _, ok := value.([]int8); ok {
-		return ora.I8
-	}
-	if _, ok := value.([]uint64); ok {
-		return ora.U64
-	}
-	if _, ok := value.([]uint32); ok {
-		return ora.U32
-	}
-	if _, ok := value.([]uint16); ok {
-		return ora.U16
-	}
-	if _, ok := value.([]uint8); ok {
-		return ora.U8
-	}
-	if _, ok := value.([]float64); ok {
-		return ora.F64
-	}
-	if _, ok := value.([]float32); ok {
-		return ora.F32
-	}
-	if _, ok := value.([]ora.Int64); ok {
-		return ora.OraI64
-	}
-	if _, ok := value.([]ora.Int32); ok {
-		return ora.OraI32
-	}
-	if _, ok := value.([]ora.Int16); ok {
-		return ora.OraI16
-	}
-	if _, ok := value.([]ora.Int8); ok {
-		return ora.OraI8
-	}
-	if _, ok := value.([]ora.Uint64); ok {
-		return ora.OraU64
-	}
-	if _, ok := value.([]ora.Uint32); ok {
-		return ora.OraU32
-	}
-	if _, ok := value.([]ora.Uint16); ok {
-		return ora.OraU16
-	}
-	if _, ok := value.([]ora.Uint8); ok {
-		return ora.OraU8
-	}
-	if _, ok := value.([]ora.Float64); ok {
-		return ora.OraF64
-	}
-	if _, ok := value.([]ora.Float32); ok {
-		return ora.OraF32
-	}
-	if _, ok := value.([]time.Time); ok {
-		return ora.T
-	}
-	if _, ok := value.([]ora.Time); ok {
-		return ora.OraT
-	}
-	if _, ok := value.([]string); ok {
-		return ora.S
-	}
-	if _, ok := value.([]ora.String); ok {
-		return ora.OraS
-	}
-	if _, ok := value.([]bool); ok {
-		return ora.B
-	}
-	if _, ok := value.([]ora.Bool); ok {
-		return ora.OraB
-	}
-	return ora.D
-}
-
 func castInt(v interface{}, goColumnType ora.GoColumnType) interface{} {
 	value := reflect.ValueOf(v)
 	switch goColumnType {
@@ -1045,33 +960,6 @@ func castInt(v interface{}, goColumnType ora.GoColumnType) interface{} {
 	return nil
 }
 
-func slice(goColumnType ora.GoColumnType, length int) interface{} {
-	switch goColumnType {
-	case ora.I64:
-		return make([]int64, length)
-	case ora.I32:
-		return make([]int32, length)
-	case ora.I16:
-		return make([]int16, length)
-	case ora.I8:
-		return make([]int8, length)
-	case ora.U64:
-		return make([]uint64, length)
-	case ora.U32:
-		return make([]uint32, length)
-	case ora.U16:
-		return make([]uint16, length)
-	case ora.U8:
-		return make([]uint8, length)
-	case ora.F64:
-		return make([]float64, length)
-	case ora.F32:
-		return make([]float32, length)
-	}
-
-	return nil
-}
-
 func length(v interface{}) int {
 	value := reflect.ValueOf(v)
 	if value.Kind() == reflect.Slice {
@@ -1086,16 +974,6 @@ func elemAt(v interface{}, i int) interface{} {
 		return value.Index(i).Interface()
 	}
 	return nil
-}
-
-func printValues(v interface{}) {
-	value := reflect.ValueOf(v)
-	if value.Kind() == reflect.Slice {
-		for n := 0; n < value.Len(); n++ {
-			fmt.Printf("%v, ", value.Index(n))
-		}
-		fmt.Println()
-	}
 }
 
 func compare(expected interface{}, actual interface{}, goColumnType ora.GoColumnType, t *testing.T) {
@@ -2598,6 +2476,7 @@ func gen_OraBfile(isNull bool) interface{} {
 	return ora.Bfile{IsNull: isNull, DirectoryAlias: "TEMP_DIR", Filename: "test.txt"}
 }
 
+/*
 func gen_OraBfileEmpty(isNull bool) interface{} {
 	return ora.Bfile{IsNull: isNull, DirectoryAlias: "", Filename: ""}
 }
@@ -2609,6 +2488,7 @@ func gen_OraBfileEmptyDir(isNull bool) interface{} {
 func gen_OraBfileEmptyFilename(isNull bool) interface{} {
 	return ora.Bfile{IsNull: isNull, DirectoryAlias: "TEMP_DIR", Filename: ""}
 }
+*/
 
 func getStack(stripHeadCalls int) string {
 	buf := make([]byte, 4096)

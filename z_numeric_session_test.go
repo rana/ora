@@ -204,6 +204,22 @@ func TestBindSlice_NumString_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_NumStringTruncSlice(), numberP38S0, t, nil)
 }
 
+func TestBindSlice_OraUint64_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint64Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint32_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint32Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint16_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint16Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint8_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint8Slice(false), numberP38S0, t, nil)
+}
+
 func TestBindSlice_OraInt64_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_OraInt64Slice(false), numberP38S0, t, nil)
 }

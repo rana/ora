@@ -160,14 +160,3 @@ func (con *Con) log(enabled bool, v ...interface{}) {
 		}
 	}
 }
-
-// log writes a formatted message with an Con system name and caller info.
-func (con *Con) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", con.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", con.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
-	}
-}
