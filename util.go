@@ -166,7 +166,7 @@ func callInfo(depth int) string {
 		return fmt.Sprintf("[%v.%v]", method[m+1:n], method[n+2:])
 	}
 }
-func errInfo(depth int) string {
+func errInfo(depth int) fmt.Stringer {
 	// get caller method name; remove main. prefix
 	pc, file, line, _ := runtime.Caller(depth + 1)
 	file = file[strings.LastIndex(file, "/")+1:]
@@ -177,10 +177,26 @@ func errInfo(depth int) string {
 		m = strings.LastIndex(method, "(")
 	}
 	if n > -1 { // main.(*core).open
-		return fmt.Sprintf("%v.%v", method[m+1:n], method[n+2:])
+		//return fmt.Sprintf("%v.%v", method[m+1:n], method[n+2:])
+		return methodInfo{Type: method[m+1 : n], Method: method[n+2:]}
 	}
-	return fmt.Sprintf("%v:%v:%v", file, line, method)
+	//return fmt.Sprintf("%v:%v:%v", file, line, method)
+	return posInfo{File: file, Line: line, Method: method}
 }
+
+type posInfo struct {
+	File   string
+	Line   int
+	Method string
+}
+
+func (p posInfo) String() string { return fmt.Sprintf("%v:%v:%v", p.File, p.Line, p.Method) }
+
+type methodInfo struct {
+	Type, Method string
+}
+
+func (m methodInfo) String() string { return m.Type + "." + m.Method }
 
 // log writes a message with caller info.
 func log(enabled bool, v ...interface{}) {
@@ -205,34 +221,86 @@ func logF(enabled bool, format string, v ...interface{}) {
 }
 
 // err creates an error with caller info.
-func er(v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))
+func er(v ...interface{}) error {
+	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))
+	var err error
+	if len(v) == 1 {
+		err, _ = v[0].(error)
+	}
+	if err == nil {
+		err = errors.New(fmt.Sprint(v...))
+	}
+	err = &oraErr{Caller: errInfo(1), Underlying: err}
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
 }
 
 // errF creates a formatted error with caller info.
-func errF(format string, v ...interface{}) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
+func errF(format string, v ...interface{}) error {
+	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
+	err := &oraErr{Caller: errInfo(1), Underlying: fmt.Errorf(format, v...)}
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
 }
 
 // errR creates a recovered error with caller info.
-func errR(v ...interface{}) (err error) {
+func errR(v ...interface{}) error {
 	trace := make([]byte, 4096)
 	n := runtime.Stack(trace, false)
-	err = errors.New(fmt.Sprintf("%v recovered: %v\n%s",
-		errInfo(1), fmt.Sprint(v...), trace[:n]))
+	//err := errors.New(fmt.Sprintf("%v recovered: %v\n%s", errInfo(1), fmt.Sprint(v...), trace[:n]))
+	err := &oraErr{
+		Caller:     errInfo(1),
+		Underlying: errors.New(fmt.Sprint(v...)),
+		Trace:      trace[:n],
+	}
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
 }
 
 // errE wraps an error with caller info.
-func errE(e error) (err error) {
-	err = errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
+func errE(e error) error {
+	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
+	err := &oraErr{Caller: errInfo(1), Underlying: e}
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
+}
+
+type oraErr struct {
+	Caller     fmt.Stringer
+	Underlying error
+	Trace      []byte
+}
+
+func (e *oraErr) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Caller != nil {
+		if len(e.Trace) > 0 {
+			return fmt.Sprintf("%v recovered: %v\n%s", e.Caller, e.Underlying, e.Trace)
+		}
+		return fmt.Sprintf("%v %v", e.Caller, e.Underlying)
+	}
+	return e.Underlying.Error()
+}
+
+func (e oraErr) Code() int {
+	if e.Underlying == nil {
+		return 0
+	}
+	if coder, ok := e.Underlying.(interface {
+		Code() int
+	}); ok {
+		return coder.Code()
+	}
+	errS := e.Error()
+	i := strings.Index(errS, "ORA-")
+	if i < 0 {
+		return 0
+	}
+	var code int
+	fmt.Scanf(errS[i+4:], "%d", &code)
+	return code
 }
 
 // Column type for describing a column (see DescribeQuery).

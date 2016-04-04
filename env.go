@@ -372,6 +372,7 @@ func (env *Env) setAttr(
 // getOciError gets an error returned by an Oracle server. No locking occurs.
 func (env *Env) ociError() error {
 	var errcode C.sb4
+	env.mu.Lock()
 	C.OCIErrorGet(
 		unsafe.Pointer(env.ocierr),
 		1, nil,
@@ -379,5 +380,29 @@ func (env *Env) ociError() error {
 		(*C.OraText)(unsafe.Pointer(&env.errBuf[0])),
 		C.ub4(len(env.errBuf)),
 		C.OCI_HTYPE_ERROR)
-	return er(C.GoString(&env.errBuf[0]))
+	err := &ORAError{
+		code:    int(errcode),
+		message: C.GoString(&env.errBuf[0]),
+	}
+	env.mu.Unlock()
+	return er(err)
+}
+
+type ORAError struct {
+	code    int
+	message string
+}
+
+func (e ORAError) Code() int {
+	return e.code
+}
+
+func (e *ORAError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.message != "" {
+		return e.message
+	}
+	return fmt.Sprintf("ORA-%05d", e.code)
 }
