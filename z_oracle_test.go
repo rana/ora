@@ -3581,7 +3581,7 @@ func TestSetDrvCfg(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 	t.Logf("B=%v", b)
-	if b != false {
+	if !b {
 		t.Errorf("got %q, awaited 'false'", b)
 	}
 

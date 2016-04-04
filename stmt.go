@@ -333,7 +333,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %d", len(params))
 	iterations = 1
 	// Create binds for each parameter; bind position is 1-based
-	if params != nil && len(params) > 0 {
+	if len(params) > 0 {
 		stmt.bnds = make([]bnd, len(params))
 		for n := range params {
 			//fmt.Printf("Stmt.bind: params[%v] (%v %T)\n", n, params[n], params[n])
