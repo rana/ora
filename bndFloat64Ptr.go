@@ -26,13 +26,8 @@ func (bnd *bndFloat64Ptr) bind(value *float64, position int, stmt *Stmt) error {
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		r := C.OCINumberFromReal(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(value),       //const void          *rnum,
-			8,                 //uword               rnum_length,
-			&bnd.ociNumber[0]) //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], float64(*value), 8); err != nil {
+			return err
 		}
 	}
 	r := C.OCIBINDBYPOS(
@@ -56,17 +51,12 @@ func (bnd *bndFloat64Ptr) bind(value *float64, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndFloat64Ptr) setPtr() error {
-	if !bnd.nullp.IsNull() {
-		r := C.OCINumberToReal(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
-			&bnd.ociNumber[0],           //const OCINumber     *number,
-			C.uword(8),                  //uword               rsl_length,
-			unsafe.Pointer(bnd.value))   //void                *rsl );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		}
+	if bnd.nullp.IsNull() {
+		return nil
 	}
-	return nil
+	var err error
+	*bnd.value, err = bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], 8)
+	return err
 }
 
 func (bnd *bndFloat64Ptr) close() (err error) {

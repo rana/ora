@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -25,14 +26,8 @@ func (bnd *bndInt64Ptr) bind(value *int64, position int, stmt *Stmt) error {
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		r := C.OCINumberFromInt(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(value),       //const void          *inum,
-			8,                   //uword               inum_length,
-			C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
-			&bnd.ociNumber[0])   //OCINumber           *number );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], *value, 8); err != nil {
+			return err
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 			"Int64Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
@@ -58,18 +53,12 @@ func (bnd *bndInt64Ptr) bind(value *int64, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndInt64Ptr) setPtr() error {
-	if !bnd.nullp.IsNull() {
-		r := C.OCINumberToInt(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
-			&bnd.ociNumber[0],           //const OCINumber       *number,
-			8,                           //uword                 rsl_length,
-			C.OCI_NUMBER_SIGNED,         //uword                 rsl_flag,
-			unsafe.Pointer(bnd.value))   //void                  *rsl );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		}
+	if bnd.nullp.IsNull() {
+		return nil
 	}
-	return nil
+	var err error
+	*bnd.value, err = bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], 8)
+	return err
 }
 
 func (bnd *bndInt64Ptr) close() (err error) {

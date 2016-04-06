@@ -406,3 +406,99 @@ func (e *ORAError) Error() string {
 	}
 	return fmt.Sprintf("ORA-%05d", e.code)
 }
+
+var b8Pool = sync.Pool{New: func() interface{} { return unsafe.Pointer(C.malloc(8)) }}
+
+func (env *Env) OCINumberFromInt(dest *C.OCINumber, value int64, byteLen int) error {
+	val := (*C.sb8)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.sb8(value)
+	r := C.OCINumberFromInt(
+		env.ocierr,          //OCIError            *err,
+		unsafe.Pointer(val), //const void          *inum,
+		C.uword(byteLen),    //uword               inum_length,
+		C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
+		dest)                //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToInt(src *C.OCINumber, byteLen int) (int64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToInt(
+		env.ocierr,          //OCIError              *err,
+		src,                 //const OCINumber       *number,
+		C.uword(byteLen),    //uword                 rsl_length,
+		C.OCI_NUMBER_SIGNED, //uword                 rsl_flag,
+		val)                 //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	ret := int64(*(*C.sb8)(val))
+	b8Pool.Put(val)
+	return ret, nil
+}
+
+func (env *Env) OCINumberFromUint(dest *C.OCINumber, value uint64, byteLen int) error {
+	val := (*C.ub8)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.ub8(value)
+	r := C.OCINumberFromInt(
+		env.ocierr,            //OCIError            *err,
+		unsafe.Pointer(val),   //const void          *inum,
+		C.uword(byteLen),      //uword               inum_length,
+		C.OCI_NUMBER_UNSIGNED, //uword               inum_s_flag,
+		dest) //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToUint(src *C.OCINumber, byteLen int) (uint64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToInt(
+		env.ocierr,            //OCIError              *err,
+		src,                   //const OCINumber       *number,
+		C.uword(byteLen),      //uword                 rsl_length,
+		C.OCI_NUMBER_UNSIGNED, //uword                 rsl_flag,
+		val) //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	ret := uint64(*(*C.ub8)(val))
+	b8Pool.Put(val)
+	return ret, nil
+}
+
+func (env *Env) OCINumberFromFloat(dest *C.OCINumber, value float64, byteLen int) error {
+	val := (*C.double)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.double(value)
+	r := C.OCINumberFromReal(
+		env.ocierr,          //OCIError            *err,
+		unsafe.Pointer(val), //const void          *inum,
+		C.uword(byteLen),    //uword               inum_length,
+		dest)                //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToFloat(src *C.OCINumber, byteLen int) (float64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToReal(
+		env.ocierr,       //OCIError              *err,
+		src,              //const OCINumber       *number,
+		C.uword(byteLen), //uword                 rsl_length,
+		val)              //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	ret := float64(*(*C.double)(val))
+	b8Pool.Put(val)
+	return ret, nil
+}
