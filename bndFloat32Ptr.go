@@ -9,9 +9,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndFloat32Ptr struct {
 	stmt      *Stmt

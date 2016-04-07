@@ -450,7 +450,17 @@ func (env *Env) OCINumberToInt(src *C.OCINumber, byteLen int) (int64, error) {
 	if r == C.OCI_ERROR {
 		return 0, env.ociError()
 	}
-	ret := int64(*(*C.sb8)(val))
+	var ret int64
+	switch byteLen {
+	case 1:
+		ret = int64(*((*C.sb1)(val)))
+	case 2:
+		ret = int64(*((*C.sb2)(val)))
+	case 4:
+		ret = int64(*((*C.sb4)(val)))
+	default:
+		ret = int64(*((*C.sb8)(val)))
+	}
 	b8Pool.Put(val)
 	return ret, nil
 }
@@ -482,8 +492,18 @@ func (env *Env) OCINumberToUint(src *C.OCINumber, byteLen int) (uint64, error) {
 	if r == C.OCI_ERROR {
 		return 0, env.ociError()
 	}
-	ret := uint64(*(*C.ub8)(val))
-	b8Pool.Put(val)
+	var ret uint64
+	switch byteLen {
+	case 1:
+		ret = uint64(*(*C.ub1)(val))
+	case 2:
+		ret = uint64(*(*C.ub2)(val))
+	case 4:
+		ret = uint64(*(*C.ub4)(val))
+	default:
+		ret = uint64(*(*C.ub8)(val))
+		b8Pool.Put(val)
+	}
 	return ret, nil
 }
 
@@ -512,7 +532,12 @@ func (env *Env) OCINumberToFloat(src *C.OCINumber, byteLen int) (float64, error)
 	if r == C.OCI_ERROR {
 		return 0, env.ociError()
 	}
-	ret := float64(*(*C.double)(val))
+	var ret float64
+	if byteLen == 4 {
+		ret = float64(*(*C.float)(val))
+	} else {
+		ret = float64(*(*C.double)(val))
+	}
 	b8Pool.Put(val)
 	return ret, nil
 }
