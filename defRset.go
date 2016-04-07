@@ -27,7 +27,7 @@ func (def *defRset) define(position int, rset *Rset) error {
 		result.id = _drv.rsetId.nextId()
 	}
 	result.stmt = rset.stmt
-	result.ocistmt = result.ocistmt
+	result.ocistmt = rset.ocistmt
 	def.result = result
 
 	upOciStmt, err := def.rset.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)

@@ -72,7 +72,7 @@ func Test_open_cursors(t *testing.T) {
 	}
 	after := rset.NextRow()[0].(float64)
 	if after-before >= float64(rounds) {
-		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
+		t.Errorf("before=%f after=%f, awaited less than %d increment!", before, after, rounds)
 		return
 	}
 	//t.Logf("before=%d after=%d", before, after)

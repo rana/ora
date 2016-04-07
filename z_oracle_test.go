@@ -3462,7 +3462,7 @@ func TestSetDrvCfg(t *testing.T) {
 	}
 	t.Logf("B=%v", b)
 	if !b {
-		t.Errorf("got %q, awaited 'false'", b)
+		t.Errorf("got %t, awaited 'false'", b)
 	}
 
 	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.S)
