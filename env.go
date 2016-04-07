@@ -12,6 +12,7 @@ import "C"
 import (
 	"container/list"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"unsafe"
@@ -407,7 +408,20 @@ func (e *ORAError) Error() string {
 	return fmt.Sprintf("ORA-%05d", e.code)
 }
 
-var b8Pool = sync.Pool{New: func() interface{} { return unsafe.Pointer(C.malloc(8)) }}
+var b8Pool = sync.Pool{
+	New: func() interface{} {
+		p := unsafe.Pointer(C.malloc(8))
+		runtime.SetFinalizer(&p, b8Free)
+		return p
+	},
+}
+
+func b8Free(pp *unsafe.Pointer) {
+	if pp != nil && *pp != nil {
+		C.free(*pp)
+		*pp = nil
+	}
+}
 
 func (env *Env) OCINumberFromInt(dest *C.OCINumber, value int64, byteLen int) error {
 	val := (*C.sb8)(b8Pool.Get().(unsafe.Pointer))
