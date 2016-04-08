@@ -47,7 +47,7 @@ func NewRsetCfg() RsetCfg {
 	c.timestamp = T
 	c.timestampTz = T
 	c.timestampLtz = T
-	c.char1 = B
+	c.char1 = S
 	c.char = S
 	c.varchar = S
 	c.long = S

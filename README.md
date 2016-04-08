@@ -689,7 +689,7 @@ sc.StmtCfg.Rset.SetDate(ora.OraT)
 sc.StmtCfg.Rset.SetTimestamp(ora.OraT)
 sc.StmtCfg.Rset.SetTimestampTz(ora.OraT)
 sc.StmtCfg.Rset.SetTimestampLtz(ora.OraT)
-sc.StmtCfg.Rset.SetChar1(ora.OraB)
+sc.StmtCfg.Rset.SetChar1(ora.OraS)
 sc.StmtCfg.Rset.SetVarchar(ora.OraS)
 sc.StmtCfg.Rset.SetLong(ora.OraS)
 sc.StmtCfg.Rset.SetClob(ora.OraS)
@@ -706,6 +706,8 @@ Another scenario may be to configure the runes mapped to `bool` values:
 ```go
 // update StmtCfg to change the FalseRune and TrueRune inserted into the database
 // given: CREATE TABLE T1 (C1 CHAR(1 BYTE))
+
+stmt.Cfg().Char1(ora.OraB)
 
 // insert 'false' record
 var falseValue bool = false
