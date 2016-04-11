@@ -200,13 +200,20 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
+	mode := C.ub4(C.OCI_DEFAULT)
+	switch cfg.Mode {
+	case SysDba:
+		mode |= C.OCI_SYSDBA
+	case SysOper:
+		mode |= C.OCI_SYSOPER
+	}
 	// begin session
 	r := C.OCISessionBegin(
 		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
 		srv.env.ocierr,            //OCIError      *errhp,
 		(*C.OCISession)(ocises),   //OCISession    *usrhp,
 		credentialType,            //ub4           credt,
-		C.OCI_DEFAULT)             //ub4           mode );
+		mode)                      //ub4           mode );
 	if r == C.OCI_ERROR {
 		return nil, errE(srv.env.ociError())
 	}

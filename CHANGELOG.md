@@ -2,6 +2,7 @@
 
 ## master ##
   * Modify default for CHAR(1) columns: use ora.S (string), NOT ora.B (bool).
+  * Add connect " AS SYSDBA" functionality.
 
 ## v3.4 ##
   * Implement PL/SQL TABLE support to be able to call PL/SQL blocks/stored procedures with slices of simple types.

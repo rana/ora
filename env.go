@@ -167,6 +167,8 @@ var (
 // OpenCon starts an Oracle session on a server returning a *Con and possible error.
 //
 // The connection string has the form username/password@dblink e.g., scott/tiger@orcl
+// For connecting as SYSDBA or SYSOPER, append " AS SYSDBA" to the end of the connection string: "sys/sys as sysdba".
+//
 // dblink is a connection identifier such as a net service name,
 // full connection identifier, or a simple connection identifier.
 // The dblink may be defined in the client machine's tnsnames.ora file.
@@ -177,30 +179,35 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
+	srvCfg := NewSrvCfg()
+	sesCfg := NewSesCfg()
+
 	// parse connection string
-	var username string
-	var password string
-	var dblink string
 	str = strings.TrimSpace(str)
+	if len(str) > 11 {
+		end := strings.ToUpper(str[len(str)-11:])
+		if strings.HasSuffix(end, " AS SYSDBA") {
+			sesCfg.Mode = SysDba
+			str = str[:len(str)-10]
+		} else if strings.HasSuffix(end, " AS SYSOPER") {
+			sesCfg.Mode = SysOper
+			str = str[:len(str)-11]
+		}
+	}
 	if strings.HasPrefix(str, "/@") {
-		dblink = str[2:]
+		srvCfg.Dblink = str[2:]
 	} else {
 		str = strings.Replace(str, "/", " / ", 1)
 		str = strings.Replace(str, "@", " @ ", 1)
-		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dblink)
+		_, err := fmt.Sscanf(str, "%s / %s @ %s", &sesCfg.Username, &sesCfg.Password, &srvCfg.Dblink)
 		if err != nil {
 			return nil, errE(err)
 		}
 	}
-	srvCfg := NewSrvCfg()
-	srvCfg.Dblink = dblink
 	srv, err := env.OpenSrv(srvCfg) // open Srv
 	if err != nil {
 		return nil, errE(err)
 	}
-	sesCfg := NewSesCfg()
-	sesCfg.Username = username
-	sesCfg.Password = password
 	sesCfg.StmtCfg = srv.env.cfg.StmtCfg // sqlPkg StmtCfg has been configured for database/sql package
 	ses, err := srv.OpenSes(sesCfg)      // open Ses
 	if err != nil {
@@ -215,7 +222,7 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 	}
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
-	if cs, ok := conCharset[dblink]; ok {
+	if cs, ok := conCharset[srvCfg.Dblink]; ok {
 		srv.dbIsUTF8 = cs == "AL32UTF8"
 		return con, nil
 	}
@@ -228,7 +235,7 @@ func (env *Env) OpenCon(str string) (con *Con, err error) {
 		//Log.Infof("E%vS%vS%v] Database characterset=%q",
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
-			conCharset[dblink] = cs
+			conCharset[srvCfg.Dblink] = cs
 			con.srv.dbIsUTF8 = cs == "AL32UTF8"
 		}
 	}

@@ -5,7 +5,9 @@
 package ora_test
 
 import (
+	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -302,4 +304,22 @@ func Test_blob_bytes_db(t *testing.T) {
 
 func Test_blobNull_bytes_db(t *testing.T) {
 	testBindDefineDB(gen_bytes(9), t, blobNull)
+}
+
+func TestSysdba(t *testing.T) {
+	u := os.Getenv("GO_ORA_DRV_TEST_SYSDBA_USERNAME")
+	p := os.Getenv("GO_ORA_DRV_TEST_SYSDBA_PASSWORD")
+	if u == "" {
+		u = testSesCfg.Username
+		p = testSesCfg.Password
+	}
+	dsn := fmt.Sprintf("%s/%s@%s AS SYSDBA", u, p, testSrvCfg.Dblink)
+	db, err := sql.Open("ora", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Ping(); err != nil {
+		t.Skipf("%q: %v", dsn, err)
+	}
 }

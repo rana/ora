@@ -22,7 +22,19 @@ type SesCfg struct {
 	Username string
 	Password string
 	StmtCfg  *StmtCfg
+	Mode     SessionMode
 }
+
+type SessionMode uint8
+
+const (
+	// SysDefault is the default, normal session mode.
+	SysDefault = SessionMode(iota)
+	// SysDba is for connecting as SYSDBA.
+	SysDba
+	// SysOper is for connectiong as SYSOPER.
+	SysOper
+)
 
 // NewSrvCfg creates a SrvCfg with default values.
 func NewSesCfg() *SesCfg {
