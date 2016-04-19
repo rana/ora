@@ -4,7 +4,11 @@
 
 package ora_test
 
-import "testing"
+import (
+	"testing"
+
+	"gopkg.in/rana/ora.v3"
+)
 
 //// string or bool
 //charB1     oracleColumnType = "char(1 byte) not null"
@@ -53,6 +57,8 @@ func TestMultiDefine_charB1_session(t *testing.T) {
 
 func TestWorkload_charB1_session(t *testing.T) {
 	enableLogging(t)
+	revert := setC1Bool()
+	defer revert()
 	testWorkload(charB1, t)
 }
 
@@ -96,6 +102,7 @@ func TestMultiDefine_charB1Null_session(t *testing.T) {
 }
 
 func TestWorkload_charB1Null_session(t *testing.T) {
+	defer setC1Bool()()
 	testWorkload(charB1Null, t)
 }
 
@@ -191,4 +198,11 @@ func TestWorkload_charC1Null_session(t *testing.T) {
 
 func TestBindDefine_charC1Null_nil_session(t *testing.T) {
 	testBindDefine(nil, charC1Null, t, nil)
+}
+
+func setC1Bool() func() {
+	rs := ora.Cfg().Env.StmtCfg.Rset
+	old := rs.Char1()
+	rs.SetChar1(ora.OraB)
+	return func() { rs.SetChar1(old) }
 }

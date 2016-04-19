@@ -78,14 +78,6 @@ func (def *defTime) alloc() error {
 }
 
 func (def *defTime) free() {
-	defer func() {
-		recover()
-	}()
-	if dt := def.dateTimep.Value(); dt != nil {
-		C.OCIDescriptorFree(
-			unsafe.Pointer(dt),       //void     *descp,
-			C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
-	}
 }
 
 func (def *defTime) close() (err error) {

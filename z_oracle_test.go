@@ -477,8 +477,13 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 					expected[c] = gen_string()
 					gcts[c] = ora.S
 				case charB1, charB1Null, charC1, charC1Null:
-					expected[c] = gen_boolTrue()
-					gcts[c] = ora.B
+					if gct := ora.Cfg().Env.StmtCfg.Rset.Char1(); gct == ora.B || gct == ora.OraB {
+						expected[c] = gen_boolTrue()
+						gcts[c] = ora.B
+					} else {
+						expected[c] = gen_string()[:1]
+						gcts[c] = ora.S
+					}
 				case blob, blobNull, longRaw, longRawNull:
 					expected[c] = gen_bytes(9)
 					gcts[c] = ora.Bin
@@ -3459,10 +3464,6 @@ func TestSetDrvCfg(t *testing.T) {
 	var b bool
 	if err := testDb.QueryRow(qry).Scan(&b); err != nil {
 		t.Fatalf("%s: %v", qry, err)
-	}
-	t.Logf("B=%v", b)
-	if !b {
-		t.Errorf("got %t, awaited 'false'", b)
 	}
 
 	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.S)

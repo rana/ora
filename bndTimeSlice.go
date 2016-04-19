@@ -153,12 +153,6 @@ func (bnd *bndTimeSlice) setPtr() error {
 }
 
 func (bnd *bndTimeSlice) free(n int) {
-	defer func() {
-		recover()
-	}()
-	C.OCIDescriptorFree(
-		unsafe.Pointer(bnd.ociDateTimes[n]), //void     *descp,
-		C.OCI_DTYPE_TIMESTAMP_TZ)            //ub4      type );
 }
 
 func (bnd *bndTimeSlice) close() (err error) {
@@ -169,7 +163,10 @@ func (bnd *bndTimeSlice) close() (err error) {
 	}()
 
 	for n := range bnd.ociDateTimes {
-		bnd.free(n)
+		arr := bnd.ociDateTimes[n : n+1 : 1]
+		C.OCIDescriptorFree(
+			unsafe.Pointer(&arr[0]),  //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
 	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
