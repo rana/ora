@@ -57,9 +57,7 @@ func (bnd *bndDate) close() (err error) {
 			err = errR(value)
 		}
 	}()
-	if bnd.datep.Value() != nil {
-		bnd.datep.Free()
-	}
+	bnd.datep.Free()
 
 	stmt := bnd.stmt
 	bnd.stmt = nil

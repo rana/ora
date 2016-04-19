@@ -180,57 +180,34 @@ func printTwoDigits(buf []byte, num int) []byte {
 }
 
 type datep struct {
-	p **C.OCIDate
+	p *C.OCIDate
 }
 
-func (dt *datep) Pointer() **C.OCIDate {
+func (dt *datep) Pointer() *C.OCIDate {
 	if dt.p == nil {
-		dt.p = (**C.OCIDate)(C.malloc(C.size_t(dt.Size())))
+		dt.p = (*C.OCIDate)(C.malloc(C.size_t(dt.Size())))
 	}
 	return dt.p
 }
-func (dt *datep) Value() *C.OCIDate {
+func (dt *datep) Value() C.OCIDate {
 	if dt.p == nil {
-		return nil
+		return C.OCIDate{}
 	}
 	return *dt.p
 }
 func (dt *datep) Size() int {
-	return C.sizeof_dvoid
+	return C.sizeof_OCIDate
 }
 func (dt *datep) Free() {
 	if dt.p != nil {
-		if *dt.p != nil {
-			C.OCIDescriptorFree(
-				unsafe.Pointer(*dt.p), //void     *descp,
-				C.OCI_DTYPE_DATE)      //ub4      type );
-			*dt.p = nil
-		}
-		C.free(unsafe.Pointer(dt.p))
+		C.OCIDescriptorFree(
+			unsafe.Pointer(dt.p), //void     *descp,
+			C.OCI_DTYPE_DATE)     //ub4      type );
 		dt.p = nil
 	}
 }
-func (dt *datep) Alloc(env *Env) error {
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(env.ocienv),                      //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(dt.Pointer())), //dvoid         **descpp,
-		C.OCI_DTYPE_DATE,                                //ub4           type,
-		0,                                               //size_t        xtramem_sz,
-		nil)                                             //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci timestamp handle during bind")
-	}
-	return nil
-}
 func (dt *datep) Set(env *Env, value time.Time) error {
-	if dt.Value() == nil {
-		if err := dt.Alloc(env); err != nil {
-			return err
-		}
-	}
-	ociSetDateTime(dt.Value(), value)
+	ociSetDateTime(dt.Pointer(), value)
 	return nil
 }
 
@@ -246,10 +223,7 @@ func ociSetDateTime(ociDate *C.OCIDate, value time.Time) {
 }
 
 func (dt datep) Get() time.Time {
-	if dt.Value() == nil {
-		return time.Time{}
-	}
-	return ociGetDateTime(*dt.Value())
+	return ociGetDateTime(dt.Value())
 }
 
 func ociGetDateTime(ociDate C.OCIDate) time.Time {

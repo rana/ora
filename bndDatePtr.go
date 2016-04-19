@@ -23,13 +23,11 @@ type bndDatePtr struct {
 func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	if err := bnd.datep.Alloc(bnd.stmt.ses.srv.env); err != nil {
-		return err
-	}
 	bnd.nullp.Set(value == nil)
 	if value != nil {
 		bnd.datep.Set(bnd.stmt.ses.srv.env, value.Value)
 	}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
 		&bnd.ocibnd,                         //OCIBind      **bindpp,
@@ -51,14 +49,17 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndDatePtr) setPtr() (err error) {
-	if bnd.value != nil {
-		if !bnd.nullp.IsNull() {
-			bnd.value.IsNull = false
-			bnd.value.Value = bnd.datep.Get()
-		} else {
-			bnd.value.IsNull = true
-		}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "setPtr val=%#v nullp=%#v datep=%#v (%v)\n", bnd.value, bnd.nullp, bnd.datep, bnd.datep.Get())
+
+	if bnd.value == nil {
+		return nil
 	}
+	if bnd.nullp.IsNull() {
+		bnd.value.IsNull = true
+		return nil
+	}
+	bnd.value.IsNull = false
+	bnd.value.Value = bnd.datep.Get()
 	return nil
 }
 
