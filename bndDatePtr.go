@@ -13,30 +13,32 @@ import "C"
 import "unsafe"
 
 type bndDatePtr struct {
-	stmt    *Stmt
-	ocibnd  *C.OCIBind
-	ociDate C.OCIDate
-	isNull  C.sb2
-	value   *Date
+	stmt   *Stmt
+	ocibnd *C.OCIBind
+	value  *Date
+	nullp
+	datep
 }
 
 func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	if value == nil {
-		bnd.isNull = C.sb2(-1)
-	} else {
-		ociSetDateTime(&bnd.ociDate, value.Value)
+	if err := bnd.datep.Alloc(bnd.stmt.ses.srv.env); err != nil {
+		return err
+	}
+	bnd.nullp.Set(value == nil)
+	if value != nil {
+		bnd.datep.Set(bnd.stmt.ses.srv.env, value.Value)
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,     //OCIError     *errhp,
-		C.ub4(position),                 //ub4          position,
-		unsafe.Pointer(&bnd.ociDate),    //void         *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCIDate), //sb8          value_sz,
-		C.SQLT_ODT,                      //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),     //void         *indp,
+		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
+		&bnd.ocibnd,                         //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
+		C.ub4(position),                     //ub4          position,
+		unsafe.Pointer(bnd.datep.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.datep.Size()),     //sb8          value_sz,
+		C.SQLT_ODT,                          //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
@@ -50,9 +52,9 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 
 func (bnd *bndDatePtr) setPtr() (err error) {
 	if bnd.value != nil {
-		if bnd.isNull > C.sb2(-1) {
+		if !bnd.nullp.IsNull() {
 			bnd.value.IsNull = false
-			bnd.value.Value = ociGetDateTime(bnd.ociDate)
+			bnd.value.Value = bnd.datep.Get()
 		} else {
 			bnd.value.IsNull = true
 		}
@@ -71,6 +73,7 @@ func (bnd *bndDatePtr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.datep.Free()
 	stmt.putBnd(bndIdxTimePtr, bnd)
 	return nil
 }

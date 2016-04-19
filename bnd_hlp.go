@@ -10,7 +10,10 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
+import (
+	"time"
+	"unsafe"
+)
 
 type nullp struct {
 	p *C.sb2
@@ -71,7 +74,8 @@ func (ll *lobLocatorp) Free() {
 }
 
 type dateTimep struct {
-	p **C.OCIDateTime
+	p    **C.OCIDateTime
+	zone []byte
 }
 
 func (dt *dateTimep) Pointer() **C.OCIDateTime {
@@ -91,9 +95,174 @@ func (dt *dateTimep) Size() int {
 }
 func (dt *dateTimep) Free() {
 	if dt.p != nil {
+		if *dt.p != nil {
+			C.OCIDescriptorFree(
+				unsafe.Pointer(*dt.p),    //void     *descp,
+				C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
+			*dt.p = nil
+		}
 		C.free(unsafe.Pointer(dt.p))
 		dt.p = nil
 	}
+}
+func (dt *dateTimep) Alloc(env *Env) error {
+	r := C.OCIDescriptorAlloc(
+		unsafe.Pointer(env.ocienv),                      //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(dt.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_TIMESTAMP_TZ,                        //ub4           type,
+		0,   //size_t        xtramem_sz,
+		nil) //dvoid         **usrmempp);
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	} else if r == C.OCI_INVALID_HANDLE {
+		return errNew("unable to allocate oci timestamp handle during bind")
+	}
+	return nil
+}
+func (dt *dateTimep) Set(env *Env, value time.Time) error {
+	if dt.Value() == nil {
+		if err := dt.Alloc(env); err != nil {
+			return err
+		}
+	}
+	dt.zone = zoneOffset(dt.zone[:0], value)
+	r := C.OCIDateTimeConstruct(
+		unsafe.Pointer(env.ocienv),                //dvoid         *hndl,
+		env.ocierr,                                //OCIError      *err,
+		dt.Value(),                                //OCIDateTime   *datetime,
+		C.sb2(value.Year()),                       //sb2           year,
+		C.ub1(int32(value.Month())),               //ub1           month,
+		C.ub1(value.Day()),                        //ub1           day,
+		C.ub1(value.Hour()),                       //ub1           hour,
+		C.ub1(value.Minute()),                     //ub1           min,
+		C.ub1(value.Second()),                     //ub1           sec,
+		C.ub4(value.Nanosecond()),                 //ub4           fsec,
+		(*C.OraText)(unsafe.Pointer(&dt.zone[0])), //OraText       *timezone,
+		C.size_t(len(dt.zone)))                    //size_t        timezone_length );
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func zoneOffset(buf []byte, value time.Time) []byte {
+	if cap(buf) < 6 {
+		n := len(buf)
+		buf = append(buf, make([]byte, 6)...)[:n]
+	}
+	_, zoneOffsetInSeconds := value.Zone()
+	if zoneOffsetInSeconds < 0 {
+		buf = append(buf, '-')
+		zoneOffsetInSeconds *= -1
+	} else {
+		buf = append(buf, '+')
+	}
+	hourOffset := zoneOffsetInSeconds / 3600
+	zoneOffsetInSeconds -= hourOffset * 3600
+	minuteOffset := zoneOffsetInSeconds / 60
+	buf = printTwoDigits(buf, hourOffset)
+	buf = append(buf, ':')
+	buf = printTwoDigits(buf, minuteOffset)
+	return buf
+}
+
+func printTwoDigits(buf []byte, num int) []byte {
+	if num == 0 {
+		return append(buf, '0', '0')
+	}
+	if num < 0 {
+		num *= -1
+	}
+	if num < 10 {
+		return append(buf, '0', byte('0'+num))
+	}
+	return append(buf, byte('0'+num/10), byte('0'+(num%10)))
+}
+
+type datep struct {
+	p **C.OCIDate
+}
+
+func (dt *datep) Pointer() **C.OCIDate {
+	if dt.p == nil {
+		dt.p = (**C.OCIDate)(C.malloc(C.size_t(dt.Size())))
+	}
+	return dt.p
+}
+func (dt *datep) Value() *C.OCIDate {
+	if dt.p == nil {
+		return nil
+	}
+	return *dt.p
+}
+func (dt *datep) Size() int {
+	return C.sizeof_dvoid
+}
+func (dt *datep) Free() {
+	if dt.p != nil {
+		if *dt.p != nil {
+			C.OCIDescriptorFree(
+				unsafe.Pointer(*dt.p), //void     *descp,
+				C.OCI_DTYPE_DATE)      //ub4      type );
+			*dt.p = nil
+		}
+		C.free(unsafe.Pointer(dt.p))
+		dt.p = nil
+	}
+}
+func (dt *datep) Alloc(env *Env) error {
+	r := C.OCIDescriptorAlloc(
+		unsafe.Pointer(env.ocienv),                      //CONST dvoid   *parenth,
+		(*unsafe.Pointer)(unsafe.Pointer(dt.Pointer())), //dvoid         **descpp,
+		C.OCI_DTYPE_DATE,                                //ub4           type,
+		0,                                               //size_t        xtramem_sz,
+		nil)                                             //dvoid         **usrmempp);
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	} else if r == C.OCI_INVALID_HANDLE {
+		return errNew("unable to allocate oci timestamp handle during bind")
+	}
+	return nil
+}
+func (dt *datep) Set(env *Env, value time.Time) error {
+	if dt.Value() == nil {
+		if err := dt.Alloc(env); err != nil {
+			return err
+		}
+	}
+	ociSetDateTime(dt.Value(), value)
+	return nil
+}
+
+func ociSetDateTime(ociDate *C.OCIDate, value time.Time) {
+	value = value.Local()
+	//OCIDateSetDate and OCIDateSetTime are just macros, don't play well with cgo
+	ociDate.OCIDateYYYY = C.sb2(value.Year())
+	ociDate.OCIDateMM = C.ub1(int32(value.Month()))
+	ociDate.OCIDateDD = C.ub1(value.Day())
+	ociDate.OCIDateTime.OCITimeHH = C.ub1(value.Hour())
+	ociDate.OCIDateTime.OCITimeMI = C.ub1(value.Minute())
+	ociDate.OCIDateTime.OCITimeSS = C.ub1(value.Second())
+}
+
+func (dt datep) Get() time.Time {
+	if dt.Value() == nil {
+		return time.Time{}
+	}
+	return ociGetDateTime(*dt.Value())
+}
+
+func ociGetDateTime(ociDate C.OCIDate) time.Time {
+	//OCIDateGetDate and OCIDateGetTime are just macros, don't play well with cgo
+	return time.Date(
+		int(ociDate.OCIDateYYYY),
+		time.Month(ociDate.OCIDateMM),
+		int(ociDate.OCIDateDD),
+		int(ociDate.OCIDateTime.OCITimeHH),
+		int(ociDate.OCIDateTime.OCITimeMI),
+		int(ociDate.OCIDateTime.OCITimeSS),
+		0,
+		time.Local)
 }
 
 type numberp struct {

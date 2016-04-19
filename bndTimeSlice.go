@@ -13,7 +13,6 @@ const ACTUAL_LENGTH_TYPE sof_OCIDateTime = sizeof(OCIDateTime *);
 */
 import "C"
 import (
-	"bytes"
 	"fmt"
 	"time"
 	"unsafe"
@@ -25,7 +24,6 @@ type bndTimeSlice struct {
 	stmt         *Stmt
 	ocibnd       *C.OCIBind
 	ociDateTimes []*C.OCIDateTime
-	zoneBuf      bytes.Buffer
 	values       []Time
 	times        []time.Time
 	arrHlp
@@ -68,55 +66,23 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 		bnd.ociDateTimes = bnd.ociDateTimes[:L]
 	}
 	valueSz := C.ACTUAL_LENGTH_TYPE(C.sof_OCIDateTime)
-	type tzDual struct {
-		g string
-		c *C.char
-	}
-	timezones := make(map[int]tzDual, 2)
+	timezones := make(map[int][]byte, 2)
 	for n, timeValue := range values {
 		_, off := timeValue.Zone()
 		tz, ok := timezones[off]
 		if !ok {
-			bnd.zoneBuf.Reset()
-			timezoneStr := zoneOffset(timeValue, &bnd.zoneBuf)
-			tz = tzDual{g: timezoneStr, c: C.CString(timezoneStr)}
+			tz = zoneOffset(make([]byte, 0, 6), timeValue)
 			timezones[off] = tz
-			defer func() {
-				C.free(unsafe.Pointer(tz.c))
-			}()
 		}
-		r := C.OCIDescriptorAlloc(
-			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
-			(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociDateTimes[n])), //dvoid         **descpp,
-			C.OCI_DTYPE_TIMESTAMP_TZ,                                //ub4           type,
-			0,   //size_t        xtramem_sz,
-			nil) //dvoid         **usrmempp);
-		if r == C.OCI_ERROR {
-			return iterations, bnd.stmt.ses.srv.env.ociError()
-		} else if r == C.OCI_INVALID_HANDLE {
-			return iterations, errNew("unable to allocate oci timestamp handle during bind")
-		}
-		r = C.OCIDateTimeConstruct(
-			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //dvoid         *hndl,
-			bnd.stmt.ses.srv.env.ocierr,                 //OCIError      *err,
-			bnd.ociDateTimes[n],                         //OCIDateTime   *datetime,
-			C.sb2(timeValue.Year()),                     //sb2           year,
-			C.ub1(int32(timeValue.Month())),             //ub1           month,
-			C.ub1(timeValue.Day()),                      //ub1           day,
-			C.ub1(timeValue.Hour()),                     //ub1           hour,
-			C.ub1(timeValue.Minute()),                   //ub1           min,
-			C.ub1(timeValue.Second()),                   //ub1           sec,
-			C.ub4(timeValue.Nanosecond()),               //ub4           fsec,
-			(*C.OraText)(unsafe.Pointer(tz.c)),          //OraText       *timezone,
-			C.size_t(len(tz.g)))                         //size_t        timezone_length );
-		if r == C.OCI_ERROR {
-			return iterations, bnd.stmt.ses.srv.env.ociError()
+		arr := bnd.ociDateTimes[n : n+1 : 1]
+		if err := (&dateTimep{p: &arr[0]}).Set(bnd.stmt.ses.srv.env, timeValue); err != nil {
+			return iterations, err
 		}
 		bnd.alen[n] = valueSz
 
 		if checkDateTime {
 			var valid C.ub4
-			r = C.OCIDateTimeCheck(unsafe.Pointer(bnd.stmt.ses.ocises),
+			r := C.OCIDateTimeCheck(unsafe.Pointer(bnd.stmt.ses.ocises),
 				bnd.stmt.ses.srv.env.ocierr,
 				bnd.ociDateTimes[n],
 				&valid)
@@ -208,7 +174,6 @@ func (bnd *bndTimeSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.zoneBuf.Reset()
 	bnd.values = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxTimeSlice, bnd)
