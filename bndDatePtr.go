@@ -73,6 +73,7 @@ func (bnd *bndDatePtr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.nullp.Free()
 	bnd.datep.Free()
 	stmt.putBnd(bndIdxTimePtr, bnd)
 	return nil
