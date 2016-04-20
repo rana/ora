@@ -257,6 +257,7 @@ func TestBindSlice_time_timestampLtzP9Null_session(t *testing.T) {
 }
 
 func TestBindSlice_OraTime_timestampLtzP9Null_session(t *testing.T) {
+	enableLogging(t)
 	testBindDefine(gen_OraTimeSlice(true), timestampLtzP9Null, t, nil)
 }
 

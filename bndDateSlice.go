@@ -67,7 +67,7 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 	}
 	valueSz := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCIDate)
 	for n, timeValue := range values {
-		arr := bnd.ociDates[n : n+1 : 1]
+		arr := bnd.ociDates[n : n+1 : n+1]
 		ociSetDateTime(&arr[0], timeValue)
 		bnd.alen[n] = valueSz
 	}

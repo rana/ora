@@ -74,7 +74,7 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 			tz = zoneOffset(make([]byte, 0, 6), timeValue)
 			timezones[off] = tz
 		}
-		arr := bnd.ociDateTimes[n : n+1 : 1]
+		arr := bnd.ociDateTimes[n : n+1 : n+1]
 		if err := (&dateTimep{p: &arr[0]}).Set(bnd.stmt.ses.srv.env, timeValue); err != nil {
 			return iterations, err
 		}
@@ -163,7 +163,7 @@ func (bnd *bndTimeSlice) close() (err error) {
 	}()
 
 	for n := range bnd.ociDateTimes {
-		arr := bnd.ociDateTimes[n : n+1 : 1]
+		arr := bnd.ociDateTimes[n : n+1 : n+1]
 		C.OCIDescriptorFree(
 			unsafe.Pointer(&arr[0]),  //void     *descp,
 			C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
