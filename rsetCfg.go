@@ -35,7 +35,12 @@ type RsetCfg struct {
 
 // NewRsetCfg returns a RsetCfg with default values.
 func NewRsetCfg() RsetCfg {
-	c := RsetCfg{}
+	var c RsetCfg
+	if _drv.cfg.Env != nil && _drv.cfg.Env.StmtCfg != nil {
+		if c = _drv.cfg.Env.StmtCfg.Rset; c.numberInt != 0 {
+			return c
+		}
+	}
 	c.numberInt = I64
 	c.numberBigInt = N
 	c.numberFloat = F64
@@ -391,11 +396,12 @@ func (c *RsetCfg) TimestampLtz() GoColumnType {
 //
 // Returns an error if a non-bool or non-string GoColumnType is specified.
 func (c *RsetCfg) SetChar1(gct GoColumnType) (err error) {
-	err = checkBoolOrStringColumn(gct)
-	if err == nil {
-		c.char1 = gct
+	if err = checkBoolOrStringColumn(gct); err != nil {
+		return err
 	}
-	return err
+	Cfg().Log.Logger.Infof("%p.Set Char1 to %s.", c, gct)
+	c.char1 = gct
+	return nil
 }
 
 // Char1 returns a GoColumnType associated to an Oracle select-list

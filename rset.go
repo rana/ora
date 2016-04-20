@@ -328,9 +328,6 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			return err
 		}
 		rset.ColumnNames[n] = C.GoStringN(columnName, C.int(colSize))
-		//fmt.Printf("Rset.open: ociTypeCode (%v)\n", ociTypeCode)
-		//Log.Infof("Rset.open: ociTypeCode=%d name=%s size=%d", ociTypeCode, rset.ColumnNames[n], columnSize)
-		//log(true, "ociTypeCode=", int(ociTypeCode), ", name=", rset.ColumnNames[n], ", size=", columnSize)
 		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.ColumnNames[n], ociTypeCode)
 		switch ociTypeCode {
 		case C.SQLT_NUM:
@@ -437,12 +434,14 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 				return err
 			}
 		case C.SQLT_AFC:
+			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC size=%d", n+1, columnSize)
 			//Log.Infof("rset AFC size=%d gct=%v", columnSize, gct)
 			// CHAR, NCHAR
 			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
 			if columnSize == 1 || columnSize == 4 {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 					gct = rset.stmt.cfg.Rset.char1
+					rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC no gct, char1=%s", n+1, gct)
 				} else {
 					err = checkBoolOrStringColumn(stmt.gcts[n])
 					if err != nil {
@@ -450,6 +449,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 					}
 					gct = stmt.gcts[n]
 				}
+				rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC gct=%s", n+1, gct)
 				switch gct {
 				case B, OraB:
 					// Interpret single char as bool

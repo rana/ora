@@ -201,8 +201,11 @@ func TestBindDefine_charC1Null_nil_session(t *testing.T) {
 }
 
 func setC1Bool() func() {
-	rs := ora.Cfg().Env.StmtCfg.Rset
-	old := rs.Char1()
-	rs.SetChar1(ora.OraB)
-	return func() { rs.SetChar1(old) }
+	old := ora.Cfg().Env.StmtCfg.Rset.Char1()
+	ora.Cfg().Log.Logger.Infof("setting Char1 from %s to %s.", old, ora.OraB)
+	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.OraB)
+	return func() {
+		ora.Cfg().Log.Logger.Infof("setting Char1 back from %s to %s.", ora.Cfg().Env.StmtCfg.Rset.Char1(), old)
+		ora.Cfg().Env.StmtCfg.Rset.SetChar1(old)
+	}
 }

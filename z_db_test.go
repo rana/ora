@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	"gopkg.in/rana/ora.v3"
 )
 
 func Test_open_cursors_db(t *testing.T) {
@@ -268,22 +266,19 @@ func Test_nclobNull_string_db(t *testing.T) {
 }
 
 func Test_charB1_bool_true_db(t *testing.T) {
-	gct := ora.Cfg().Env.StmtCfg.Rset.Char1()
-	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.OraB)
-	defer ora.Cfg().Env.StmtCfg.Rset.SetChar1(gct)
+	defer setC1Bool()()
 	testBindDefineDB(gen_boolTrue(), t, charB1)
 }
 
 func Test_charB1Null_bool_true_db(t *testing.T) {
+	enableLogging(t)
 	defer setC1Bool()()
 	testBindDefineDB(gen_boolTrue(), t, charB1Null)
 }
 
 func Test_charC1_bool_true_db(t *testing.T) {
 	//enableLogging(t)
-	gct := ora.Cfg().Env.StmtCfg.Rset.Char1()
-	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.OraB)
-	defer ora.Cfg().Env.StmtCfg.Rset.SetChar1(gct)
+	defer setC1Bool()()
 	testBindDefineDB(gen_boolTrue(), t, charC1)
 }
 
