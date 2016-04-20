@@ -57,8 +57,7 @@ func TestMultiDefine_charB1_session(t *testing.T) {
 
 func TestWorkload_charB1_session(t *testing.T) {
 	enableLogging(t)
-	revert := setC1Bool()
-	defer revert()
+	defer setC1Bool()()
 	testWorkload(charB1, t)
 }
 

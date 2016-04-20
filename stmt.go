@@ -1131,7 +1131,9 @@ func (stmt *Stmt) NumInput() int {
 func (stmt *Stmt) SetGcts(gcts []GoColumnType) []GoColumnType {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
-	return stmt.gcts
+	old := stmt.gcts
+	stmt.gcts = gcts
+	return old
 }
 
 // Gcts returns a slice of GoColumnType specified by Ses.Prep or Stmt.SetGcts.
