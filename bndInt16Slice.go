@@ -17,11 +17,12 @@ type bndInt16Slice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
+	length     C.ub4
 }
 
 func (bnd *bndInt16Slice) bindOra(values []Int16, position int, stmt *Stmt) error {
-	int16Values := make([]int16, len(values))
-	nullInds := make([]C.sb2, len(values))
+	int16Values := make([]int16, len(values), cap(values))
+	nullInds := make([]C.sb2, len(values), cap(values))
 	for n := range values {
 		if values[n].IsNull {
 			nullInds[n] = C.sb2(-1)
@@ -35,24 +36,27 @@ func (bnd *bndInt16Slice) bindOra(values []Int16, position int, stmt *Stmt) erro
 func (bnd *bndInt16Slice) bind(values []int16, nullInds []C.sb2, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+		nullInds = make([]C.sb2, len(values), cap(values))
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
+	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values), cap(values))
 	rcodep := make([]C.ub2, len(values))
-	bnd.ociNumbers = make([]C.OCINumber, len(values))
+	bnd.ociNumbers = make([]C.OCINumber, len(values), cap(values))
 	for n := range values {
 		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	}
-	if r := C.numberFromIntSlice(
-		bnd.stmt.ses.srv.env.ocierr,
-		unsafe.Pointer(&values[0]),
-		2,
-		C.OCI_NUMBER_SIGNED,
-		&bnd.ociNumbers[0],
-		C.ub4(len(values)),
-	); r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+	if len(values) > 0 {
+		if r := C.numberFromIntSlice(
+			bnd.stmt.ses.srv.env.ocierr,
+			unsafe.Pointer(&values[0]),
+			2,
+			C.OCI_NUMBER_SIGNED,
+			&bnd.ociNumbers[0],
+			C.ub4(len(values)),
+		); r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
 	}
+	bnd.length = C.ub4(len(alenp))
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -64,8 +68,8 @@ func (bnd *bndInt16Slice) bind(values []int16, nullInds []C.sb2, position int, s
 		unsafe.Pointer(&nullInds[0]),       //void         *indp,
 		&alenp[0],                          //ub4          *alenp,
 		&rcodep[0],                         //ub2          *rcodep,
-		0,                                  //ub4          maxarr_len,
-		nil,                                //ub4          *curelep,
+		C.ub4(cap(alenp)),                  //ub4          maxarr_len,
+		&bnd.length,                        //ub4          *curelep,
 		C.OCI_DEFAULT)                      //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
@@ -84,6 +88,7 @@ func (bnd *bndInt16Slice) bind(values []int16, nullInds []C.sb2, position int, s
 }
 
 func (bnd *bndInt16Slice) setPtr() error {
+	bnd.ociNumbers = bnd.ociNumbers[:bnd.length]
 	return nil
 }
 

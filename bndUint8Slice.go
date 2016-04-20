@@ -43,15 +43,17 @@ func (bnd *bndUint8Slice) bind(values []uint8, nullInds []C.sb2, position int, s
 	for n := range values {
 		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	}
-	if r := C.numberFromIntSlice(
-		bnd.stmt.ses.srv.env.ocierr,
-		unsafe.Pointer(&values[0]),
-		1,
-		C.OCI_NUMBER_UNSIGNED,
-		&bnd.ociNumbers[0],
-		C.ub4(len(values)),
-	); r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+	if len(values) > 0 {
+		if r := C.numberFromIntSlice(
+			bnd.stmt.ses.srv.env.ocierr,
+			unsafe.Pointer(&values[0]),
+			1,
+			C.OCI_NUMBER_UNSIGNED,
+			&bnd.ociNumbers[0],
+			C.ub4(len(values)),
+		); r == C.OCI_ERROR {
+			return bnd.stmt.ses.srv.env.ociError()
+		}
 	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,

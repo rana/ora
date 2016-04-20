@@ -61,15 +61,17 @@ func (bnd *bndInt64Slice) bind(values []int64, position int, stmt *Stmt) (iterat
 	for n := range values {
 		bnd.alen[n] = alen
 	}
-	if r := C.numberFromIntSlice(
-		bnd.stmt.ses.srv.env.ocierr,
-		unsafe.Pointer(&values[0]),
-		8,
-		C.OCI_NUMBER_SIGNED,
-		&bnd.ociNumbers[0],
-		C.ub4(len(values)),
-	); r == C.OCI_ERROR {
-		return iterations, bnd.stmt.ses.srv.env.ociError()
+	if len(values) > 0 {
+		if r := C.numberFromIntSlice(
+			bnd.stmt.ses.srv.env.ocierr,
+			unsafe.Pointer(&values[0]),
+			8,
+			C.OCI_NUMBER_SIGNED,
+			&bnd.ociNumbers[0],
+			C.ub4(len(values)),
+		); r == C.OCI_ERROR {
+			return iterations, bnd.stmt.ses.srv.env.ociError()
+		}
 	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,

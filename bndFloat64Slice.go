@@ -67,14 +67,16 @@ func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (it
 	for n := range values {
 		bnd.alen[n] = alen
 	}
-	if r := C.numberFromFloatSlice(
-		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-		unsafe.Pointer(&values[0]),  //const void          *rnum,
-		8,                  //uword               rnum_length,
-		&bnd.ociNumbers[0], //OCINumber           *number
-		C.ub4(len(values)),
-	); r == C.OCI_ERROR {
-		return iterations, bnd.stmt.ses.srv.env.ociError()
+	if len(values) > 0 {
+		if r := C.numberFromFloatSlice(
+			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+			unsafe.Pointer(&values[0]),  //const void          *rnum,
+			8,                  //uword               rnum_length,
+			&bnd.ociNumbers[0], //OCINumber           *number
+			C.ub4(len(values)),
+		); r == C.OCI_ERROR {
+			return iterations, bnd.stmt.ses.srv.env.ociError()
+		}
 	}
 	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
