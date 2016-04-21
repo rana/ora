@@ -142,6 +142,7 @@ func (bnd *bndFloat64Slice) setPtr() error {
 			(*bnd.values)[i].IsNull = true
 		}
 	}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "setPtr curlen=%d values=(%d:%d) %#v", bnd.curlen, len(*bnd.values), cap(*bnd.values), bnd.values)
 	return nil
 }
 

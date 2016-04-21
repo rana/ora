@@ -732,18 +732,21 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+				stmt.hasPtrBind = true
 			case []Int32:
 				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
 				stmt.bnds[n] = bnd
 				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+				stmt.hasPtrBind = true
 			case *[]Int32:
 				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
 				stmt.bnds[n] = bnd
 				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+				stmt.hasPtrBind = true
 			case []Int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
@@ -804,6 +807,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+				stmt.hasPtrBind = true
 			case []Float32:
 				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
 				stmt.bnds[n] = bnd
@@ -816,6 +820,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
+				stmt.hasPtrBind = true
 			case []OraNum:
 				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
 				stmt.bnds[n] = bnd
