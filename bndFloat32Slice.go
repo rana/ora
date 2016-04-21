@@ -123,11 +123,12 @@ func (bnd *bndFloat32Slice) setPtr() error {
 	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
+			arr := bnd.floats[i : i+1 : i+1]
 			r := C.OCINumberToReal(
-				bnd.stmt.ses.srv.env.ocierr,    //OCIError              *err,
-				&number,                        //const OCINumber     *number,
-				C.uword(4),                     //uword               rsl_length,
-				unsafe.Pointer(&bnd.floats[i])) //void                *rsl );
+				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
+				&number,                     //const OCINumber     *number,
+				C.uword(4),                  //uword               rsl_length,
+				unsafe.Pointer(&arr[0]))     //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
@@ -153,6 +154,7 @@ func (bnd *bndFloat32Slice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.values = nil
+	bnd.floats = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxFloat32Slice, bnd)
 	return nil
