@@ -30,13 +30,15 @@ func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 		C.ub4(position),             //ub4          position,
 		unsafe.Pointer(bnd.cString), //void         *valuep,
 		C.LENGTH_TYPE(len(value)),   //sb8          value_sz,
-		C.SQLT_CHR,                  //ub2          dty,
-		nil,                         //void         *indp,
-		nil,                         //ub2          *alenp,
-		nil,                         //ub2          *rcodep,
-		0,                           //ub4          maxarr_len,
-		nil,                         //ub4          *curelep,
-		C.OCI_DEFAULT)               //ub4          mode );
+		// http://www.devsuperpage.com/search/Articles.aspx?G=4&ArtID=560386
+		// "You may find that trailing spaces are truncated when you use SQLT_CHR or SQLT_STR."
+		C.SQLT_AFC,    //ub2          dty,
+		nil,           //void         *indp,
+		nil,           //ub2          *alenp,
+		nil,           //ub2          *rcodep,
+		0,             //ub4          maxarr_len,
+		nil,           //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

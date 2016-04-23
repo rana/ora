@@ -3476,3 +3476,27 @@ func TestSetDrvCfg(t *testing.T) {
 		t.Errorf("got %q, awaited 'S'", s)
 	}
 }
+
+func TestStringSpaces(t *testing.T) {
+	testDb.Exec("DROP TABLE test_string_space")
+	qry := "CREATE TABLE test_string_space (text VARCHAR2(1024) NOT NULL)"
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	insQry := "INSERT INTO test_string_space (text) VALUES (:1)"
+	texts := []string{"nospace", "onespace ", "twospaces  ", "   "}
+	enableLogging(t)
+	for i, text := range texts {
+		if _, err := testDb.Exec(insQry, text); err != nil {
+			t.Fatalf("%d. insert (%q): %v", i, text, err)
+		}
+		var got, dump string
+		if err := testDb.QueryRow("SELECT text, dump(text) FROM test_string_space WHERE text LIKE :1", text[0:]).Scan(&got, &dump); err != nil {
+			t.Errorf("%d. select %q: %v", i, text, err)
+			continue
+		}
+		if got != text {
+			t.Errorf("%d. got %q (%s), awaited %q.", i, got, dump, text)
+		}
+	}
+}
