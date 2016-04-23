@@ -139,6 +139,9 @@ func (srv *Srv) close() (err error) {
 
 // OpenSes opens an Oracle session returning a *Ses and possible error.
 func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
+	if srv == nil {
+		return nil, er("srv may not be nil.")
+	}
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	srv.log(_drv.cfg.Log.Srv.OpenSes)

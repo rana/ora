@@ -164,6 +164,9 @@ var spcRpl = strings.NewReplacer("\t", " ", "   ", " ", "  ", " ")
 
 // exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
 func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
+	if stmt == nil {
+		return 0, 0, er("stmt may not be nil.")
+	}
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
 	defer func() {

@@ -261,6 +261,9 @@ func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (rset *Rset, err e
 
 // Prep prepares a sql statement returning a *Stmt and possible error.
 func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
+	if ses == nil {
+		return nil, er("ses may not be nil.")
+	}
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	defer func() {
