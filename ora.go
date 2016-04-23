@@ -14,6 +14,7 @@ import "C"
 import (
 	"container/list"
 	"database/sql"
+	"fmt"
 	"time"
 	"unsafe"
 )
@@ -135,9 +136,8 @@ func init() {
 
 func init() {
 	var err error
-	_drv.sqlPkgEnv, err = OpenEnv(nil)
-	if err != nil {
-		errE(err)
+	if _drv.sqlPkgEnv, err = OpenEnv(nil); err != nil {
+		panic(fmt.Sprintf("OpenEnv: %v", err))
 	}
 	// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
 	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
