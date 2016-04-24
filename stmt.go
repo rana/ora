@@ -634,11 +634,9 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt)
-				if err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
 					return iterations, err
 				}
-				iterations = uint32(len(value))
 			case []int8:
 				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
 				stmt.bnds[n] = bnd
@@ -753,11 +751,16 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
-				if err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
 					return iterations, err
 				}
-				iterations = uint32(len(value))
+				stmt.hasPtrBind = true
+			case *[]Int16:
+				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
+				stmt.bnds[n] = bnd
+				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+					return iterations, err
+				}
 			case []Int8:
 				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
 				stmt.bnds[n] = bnd
