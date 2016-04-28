@@ -17,31 +17,50 @@ type bndInt8Slice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
+	ints       []int8
+	values     *[]Int8
+	arrHlp
 }
 
-func (bnd *bndInt8Slice) bindOra(values []Int8, position int, stmt *Stmt) error {
-	int8Values := make([]int8, len(values))
-	nullInds := make([]C.sb2, len(values))
-	for n := range values {
-		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
+func (bnd *bndInt8Slice) bindOra(values *[]Int8, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+	L, C := len(*values), cap(*values)
+	if cap(bnd.ints) < C {
+		bnd.ints = make([]int8, L, C)
+	} else {
+		bnd.ints = bnd.ints[:L]
+	}
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
+	} else {
+		bnd.nullInds = bnd.nullInds[:L]
+	}
+	for n, v := range *values {
+		if v.IsNull {
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			int8Values[n] = values[n].Value
+			bnd.ints[n] = v.Value
 		}
 	}
-	return bnd.bind(int8Values, nullInds, position, stmt)
+	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
-func (bnd *bndInt8Slice) bind(values []int8, nullInds []C.sb2, position int, stmt *Stmt) error {
+func (bnd *bndInt8Slice) bind(values []int8, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	// ensure we have at least 1 slot in the slice
+	L, C := len(values), cap(values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
+	if needAppend {
+		values = append(values, 0)
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
-	bnd.ociNumbers = make([]C.OCINumber, len(values))
+	bnd.ints = values
+	if cap(bnd.ociNumbers) < C {
+		bnd.ociNumbers = make([]C.OCINumber, L, C)
+	} else {
+		bnd.ociNumbers = bnd.ociNumbers[:L]
+	}
+	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
 	for n := range values {
-		alenp[n] = C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
+		bnd.alen[n] = alen
 	}
 	if len(values) > 0 {
 		if r := C.numberFromIntSlice(
@@ -52,7 +71,7 @@ func (bnd *bndInt8Slice) bind(values []int8, nullInds []C.sb2, position int, stm
 			&bnd.ociNumbers[0],
 			C.ub4(len(values)),
 		); r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
 	r := C.OCIBINDBYPOS(
@@ -63,14 +82,14 @@ func (bnd *bndInt8Slice) bind(values []int8, nullInds []C.sb2, position int, stm
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),       //void         *indp,
-		&alenp[0],                          //ub4          *alenp,
-		&rcodep[0],                         //ub2          *rcodep,
-		0,                                  //ub4          maxarr_len,
-		nil,                                //ub4          *curelep,
+		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
+		&bnd.alen[0],                       //ub4          *alenp,
+		&bnd.rcode[0],                      //ub2          *rcodep,
+		C.ub4(C),                           //ub4          maxarr_len,
+		curlenp,                            //ub4          *curelep,
 		C.OCI_DEFAULT)                      //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
@@ -80,12 +99,45 @@ func (bnd *bndInt8Slice) bind(values []int8, nullInds []C.sb2, position int, stm
 		C.ub4(C.sizeof_ub4),       //ub4         alskip,
 		C.ub4(C.sizeof_ub2))       //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndInt8Slice) setPtr() error {
+	if !bnd.IsAssocArr() {
+		return nil
+	}
+	n := int(bnd.curlen)
+	bnd.ints = bnd.ints[:n]
+	bnd.nullInds = bnd.nullInds[:n]
+	if bnd.values != nil {
+		if cap(*bnd.values) < n {
+			*bnd.values = make([]Int8, n)
+		} else {
+			*bnd.values = (*bnd.values)[:n]
+		}
+	}
+	for i, number := range bnd.ociNumbers[:n] {
+		if bnd.nullInds[i] > C.sb2(-1) {
+			arr := bnd.ints[i : i+1 : i+1]
+			r := C.OCINumberToInt(
+				bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
+				&number,                     //const OCINumber     *number,
+				C.uword(1),                  //uword               rsl_length,
+				C.OCI_NUMBER_SIGNED,         //uword               rsl_flag,
+				unsafe.Pointer(&arr[0]))     //void                *rsl );
+			if r == C.OCI_ERROR {
+				return bnd.stmt.ses.srv.env.ociError()
+			}
+			if bnd.values != nil {
+				(*bnd.values)[i].IsNull = false
+				(*bnd.values)[i].Value = bnd.ints[i]
+			}
+		} else if bnd.values != nil {
+			(*bnd.values)[i].IsNull = true
+		}
+	}
 	return nil
 }
 
@@ -100,6 +152,9 @@ func (bnd *bndInt8Slice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.ociNumbers = nil
+	bnd.ints = nil
+	bnd.values = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxInt8Slice, bnd)
 	return nil
 }

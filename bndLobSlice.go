@@ -19,37 +19,46 @@ type bndLobSlice struct {
 	ocibnd         *C.OCIBind
 	ociLobLocators []*C.OCILobLocator
 	buf            []byte
+	readers        []io.Reader
+	arrHlp
 }
 
-func (bnd *bndLobSlice) bindOra(values []Lob, position int, lobBufferSize int, stmt *Stmt) error {
-	binValues := make([]io.Reader, len(values))
-	nullInds := make([]C.sb2, len(values))
-	for n, _ := range values {
+func (bnd *bndLobSlice) bindOra(values []Lob, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+	L, C := len(values), cap(values)
+	if cap(bnd.readers) < C {
+		bnd.readers = make([]io.Reader, L, C)
+	} else {
+		bnd.readers = bnd.readers[:L]
+	}
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
+	} else {
+		bnd.nullInds = bnd.nullInds[:L]
+	}
+	for n := range values {
 		if values[n].Reader == nil {
-			nullInds[n] = C.sb2(-1)
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			binValues[n] = values[n].Reader
+			bnd.readers[n] = values[n].Reader
 		}
 	}
-	return bnd.bindReaders(binValues, nullInds, position, lobBufferSize, stmt)
+	return bnd.bindReaders(bnd.readers, position, lobBufferSize, stmt, isAssocArray)
 }
 
-func (bnd *bndLobSlice) bindReaders(
-	values []io.Reader,
-	nullInds []C.sb2,
-	position int,
-	lobBufferSize int,
-	stmt *Stmt,
-) (
-	err error,
-) {
+func (bnd *bndLobSlice) bindReaders(values []io.Reader, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	bnd.ociLobLocators = make([]*C.OCILobLocator, len(values))
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	// ensure we have at least 1 slot in the slice
+	L, C := len(values), cap(values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
+	if needAppend {
+		values = append(values, nil)
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
+	bnd.readers = values
+	if cap(bnd.ociLobLocators) < C {
+		bnd.ociLobLocators = make([]*C.OCILobLocator, L, C)
+	} else {
+		bnd.ociLobLocators = bnd.ociLobLocators[:L]
+	}
 	if len(bnd.buf) < lobBufferSize {
 		bnd.buf = make([]byte, lobBufferSize)
 	}
@@ -69,16 +78,16 @@ func (bnd *bndLobSlice) bindReaders(
 	for i, r := range values {
 		bnd.ociLobLocators[i], finishers[i], err = allocTempLob(bnd.stmt)
 		if err != nil {
-			return err
+			return iterations, err
 		}
 
-		alenp[i] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocators[i]))
-		if nullInds[i] <= C.sb2(-1) {
+		bnd.alen[i] = C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocators[i]))
+		if bnd.nullInds[i] <= C.sb2(-1) {
 			continue
 		}
 		if err = writeLob(bnd.ociLobLocators[i], bnd.stmt, r, lobBufferSize); err != nil {
 			bnd.stmt.ses.Break()
-			return err
+			return iterations, err
 		}
 	}
 
@@ -89,15 +98,15 @@ func (bnd *bndLobSlice) bindReaders(
 		C.ub4(position),                                     //ub4          position,
 		unsafe.Pointer(&bnd.ociLobLocators[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocators[0])), //sb8          value_sz,
-		C.SQLT_BLOB,                  //ub2          dty,
-		unsafe.Pointer(&nullInds[0]), //void         *indp,
-		&alenp[0],                    //ub4          *alenp,
-		&rcodep[0],                   //ub2          *rcodep,
-		0,                            //ub4          maxarr_len,
-		nil,                          //ub4          *curelep,
-		C.OCI_DEFAULT)                //ub4          mode );
+		C.SQLT_BLOB,                      //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
+		&bnd.alen[0],                     //ub4          *alenp,
+		&bnd.rcode[0],                    //ub2          *rcodep,
+		C.ub4(C),                         //ub4          maxarr_len,
+		curlenp,                          //ub4          *curelep,
+		C.OCI_DEFAULT)                    //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 
 	r = C.OCIBindArrayOfStruct(
@@ -108,10 +117,10 @@ func (bnd *bndLobSlice) bindReaders(
 		C.ub4(C.sizeof_ub4),                         //ub4         alskip,
 		C.ub4(C.sizeof_ub2))                         //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndLobSlice) setPtr() error {
@@ -140,6 +149,8 @@ func (bnd *bndLobSlice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.ociLobLocators = nil
+	bnd.readers = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxBinSlice, bnd)
 	return nil
 }

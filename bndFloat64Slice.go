@@ -25,7 +25,7 @@ type bndFloat64Slice struct {
 	arrHlp
 }
 
-func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt) (uint32, error) {
+func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	if cap(bnd.floats) < C {
 		bnd.floats = make([]float64, L, C)
@@ -46,14 +46,14 @@ func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt)
 			bnd.floats[n] = v.Value
 		}
 	}
-	return bnd.bind(bnd.floats, position, stmt)
+	return bnd.bind(bnd.floats, position, stmt, isAssocArray)
 }
 
-func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, 0)
 	}

@@ -9,17 +9,16 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndBinSlice struct {
 	stmt   *Stmt
 	ocibnd *C.OCIBind
 	buf    []byte
+	arrHlp
 }
 
-func (bnd *bndBinSlice) bindOra(values []Raw, position int, lobBufferSize int, stmt *Stmt) error {
+func (bnd *bndBinSlice) bindOra(values []Raw, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	binValues := make([][]byte, len(values))
 	nullInds := make([]C.sb2, len(values))
 	for i := range values {
@@ -29,23 +28,23 @@ func (bnd *bndBinSlice) bindOra(values []Raw, position int, lobBufferSize int, s
 			binValues[i] = values[i].Value
 		}
 	}
-	return bnd.bind(binValues, nullInds, position, lobBufferSize, stmt)
+	return bnd.bind(binValues, nullInds, position, lobBufferSize, stmt, isAssocArray)
 }
 
-func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lobBufferSize int, stmt *Stmt) error {
+func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	L, C := len(values), cap(values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
+	if needAppend {
+		values = append(values, []byte{})
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
 	var maxLen int
 	for _, b := range values {
 		if len(b) > maxLen {
 			maxLen = len(b)
 		}
 	}
-	n := maxLen * len(values)
+	n := maxLen * L
 	if cap(bnd.buf) < n {
 		bnd.buf = make([]byte, n)
 	} else {
@@ -57,24 +56,24 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lo
 	}
 	for i, b := range values {
 		copy(bnd.buf[i*maxLen:], b)
-		alenp[i] = C.ACTUAL_LENGTH_TYPE(len(b))
+		bnd.alen[i] = C.ACTUAL_LENGTH_TYPE(len(b))
 	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,             //OCIStmt      *stmtp,
-		&bnd.ocibnd,                  //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,  //OCIError     *errhp,
-		C.ub4(position),              //ub4          position,
-		unsafe.Pointer(&bnd.buf[0]),  //void         *valuep,
-		C.LENGTH_TYPE(maxLen),        //sb8          value_sz,
-		C.SQLT_LBI,                   //ub2          dty,
-		unsafe.Pointer(&nullInds[0]), //void         *indp,
-		&alenp[0],                    //ub4          *alenp,
-		&rcodep[0],                   //ub2          *rcodep,
-		0,                            //ub4          maxarr_len,
-		nil,                          //ub4          *curelep,
-		C.OCI_DEFAULT)                //ub4          mode );
+		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
+		&bnd.ocibnd,                      //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
+		C.ub4(position),                  //ub4          position,
+		unsafe.Pointer(&bnd.buf[0]),      //void         *valuep,
+		C.LENGTH_TYPE(maxLen),            //sb8          value_sz,
+		C.SQLT_LBI,                       //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
+		&bnd.alen[0],                     //ub4          *alenp,
+		&bnd.rcode[0],                    //ub2          *rcodep,
+		C.ub4(C),                         //ub4          maxarr_len,
+		curlenp,                          //ub4          *curelep,
+		C.OCI_DEFAULT)                    //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
@@ -84,9 +83,9 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lo
 		C.ub4(C.sizeof_ub4), //ub4         alskip,
 		C.ub4(C.sizeof_ub2)) //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndBinSlice) setPtr() error {
@@ -102,6 +101,7 @@ func (bnd *bndBinSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxBinSlice, bnd)
 	return nil
 }

@@ -21,7 +21,7 @@ type bndStringSlice struct {
 	arrHlp
 }
 
-func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt) (uint32, error) {
+func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	if cap(bnd.strings) < cap(values) {
 		bnd.strings = make([]string, len(values), cap(values))
 	} else {
@@ -40,13 +40,13 @@ func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt) (u
 			bnd.strings[n] = values[n].Value
 		}
 	}
-	return bnd.bind(bnd.strings, position, stmt)
+	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
 }
 
-func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, "")
 	}

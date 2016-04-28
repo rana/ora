@@ -24,6 +24,7 @@ type bndInt16Slice struct {
 
 func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	L, C := len(*values), cap(*values)
+	bnd.values = values
 	if cap(bnd.ints) < C {
 		bnd.ints = make([]int16, L, C)
 	} else {
