@@ -155,15 +155,26 @@ func (stmt *Stmt) close() (err error) {
 
 // Exe executes a SQL statement on an Oracle server returning the number of
 // rows affected and a possible error.
+//
+// Slice arguments should have the same length, as they'll be called in batch mode.
 func (stmt *Stmt) Exe(params ...interface{}) (rowsAffected uint64, err error) {
-	rowsAffected, _, err = stmt.exe(params)
+	rowsAffected, _, err = stmt.exe(params, false)
+	return rowsAffected, err
+}
+
+// ExeP executes an (PL/)SQL statement on an Oracle server returning the number of
+// rows affected and a possible error.
+//
+// All arguments are sent as is (esp. slices).
+func (stmt *Stmt) ExeP(params ...interface{}) (rowsAffected uint64, err error) {
+	rowsAffected, _, err = stmt.exe(params, true)
 	return rowsAffected, err
 }
 
 var spcRpl = strings.NewReplacer("\t", " ", "   ", " ", "  ", " ")
 
 // exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
-func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId int64, err error) {
+func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uint64, lastInsertId int64, err error) {
 	if stmt == nil {
 		return 0, 0, er("stmt may not be nil.")
 	}
@@ -189,7 +200,7 @@ func (stmt *Stmt) exe(params []interface{}) (rowsAffected uint64, lastInsertId i
 			params[len(params)-1] = &lastInsertId
 		}
 	}
-	iterations, err := stmt.bind(params) // bind parameters
+	iterations, err := stmt.bind(params, isAssocArray) // bind parameters
 	if err != nil {
 		return 0, 0, errE(err)
 	}
@@ -258,7 +269,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	_, err = stmt.bind(params) // bind parameters
+	_, err = stmt.bind(params, false) // bind parameters
 	if err != nil {
 		return nil, errE(err)
 	}
@@ -332,7 +343,7 @@ func (stmt *Stmt) putBnd(idx int, bnd bnd) {
 // or an array or slice of pointers to builtin value types.
 //
 // No locking occurs.
-func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
+func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint32, err error) {
 	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %d", len(params))
 	iterations = 1
 	// Create binds for each parameter; bind position is 1-based
@@ -622,25 +633,25 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []int64:
 				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []int32:
 				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []int8:
 				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt)
+				err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -648,7 +659,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []uint64:
 				bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt)
+				err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -656,7 +667,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []uint32:
 				bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt)
+				err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -664,7 +675,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []uint16:
 				bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt)
+				err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -673,7 +684,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				if stmt.cfg.byteSlice == U8 {
 					bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
 					stmt.bnds[n] = bnd
-					err = bnd.bind(value, nil, n+1, stmt)
+					err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 					if err != nil {
 						return iterations, err
 					}
@@ -704,19 +715,19 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
 				stmt.bnds[n] = bnd
 				var err error
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []float32:
 				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []Num:
 				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
 				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, nil, n+1, stmt)
+				iterations, err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -724,47 +735,47 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Int64:
 				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case *[]Int64:
 				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case []Int32:
 				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case *[]Int32:
 				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case []Int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case *[]Int16:
 				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []Int8:
 				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
+				err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -772,7 +783,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Uint64:
 				bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
+				err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -780,7 +791,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Uint32:
 				bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
+				err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -788,7 +799,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Uint16:
 				bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
+				err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -796,7 +807,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Uint8:
 				bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt)
+				err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -804,33 +815,33 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Float64:
 				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case *[]Float64:
 				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case []Float32:
 				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case *[]Float32:
 				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
 			case []OraNum:
 				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
 				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(value, n+1, stmt)
+				iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -864,13 +875,13 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []time.Time:
 				bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []Time:
 				bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case Date:
@@ -894,7 +905,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Date:
 				bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 
@@ -927,13 +938,13 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []string:
 				bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case []String:
 				bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt); err != nil {
+				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 					return iterations, err
 				}
 			case bool:
@@ -965,7 +976,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []bool:
 				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+				err = bnd.bind(value, nil, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -973,7 +984,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Bool:
 				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+				err = bnd.bindOra(value, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -1016,7 +1027,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case [][]byte:
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt.cfg.lobBufferSize, stmt)
+				err = bnd.bind(value, nil, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -1024,7 +1035,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Raw:
 				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt)
+				err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -1032,7 +1043,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []Lob:
 				bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt)
+				err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -1054,7 +1065,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []IntervalYM:
 				bnd := stmt.getBnd(bndIdxIntervalYMSlice).(*bndIntervalYMSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}
@@ -1073,7 +1084,7 @@ func (stmt *Stmt) bind(params []interface{}) (iterations uint32, err error) {
 			case []IntervalDS:
 				bnd := stmt.getBnd(bndIdxIntervalDSSlice).(*bndIntervalDSSlice)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value, n+1, stmt, isAssocArray)
 				if err != nil {
 					return iterations, err
 				}

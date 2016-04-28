@@ -20,10 +20,10 @@ type arrHlp struct {
 // Returns whether and element is needed to be appended to the value slice.
 func (a *arrHlp) ensureBindArrLength(
 	length, capacity *int,
-	stmtType C.ub2,
+	isAssocArray bool,
 ) (iterations uint32, curlenp *C.ub4, needsAppend bool) {
 	a.curlen = C.ub4(*length) // the real length, not L!
-	if stmtType == C.OCI_STMT_BEGIN || stmtType == C.OCI_STMT_DECLARE {
+	if isAssocArray {
 		// for PL/SQL associative arrays
 		curlenp = &a.curlen
 		iterations = 1
