@@ -99,7 +99,7 @@ END TST_ora_plsarr_num;`,
 			{"BEGIN :1 := TST_ora_plsarr_num.sum_slice_num(:2); END;", []interface{}{&retNum, numbers}, float64(36)},
 		} {
 
-			if _, err := testSes.PrepAndExe(tc.qry, tc.params...); err != nil {
+			if _, err := testSes.PrepAndExeP(tc.qry, tc.params...); err != nil {
 				t.Fatalf(prefix+"%d. %q (%#v): %v", i, tc.qry, tc.params, err)
 			}
 			if len(tc.params) == 0 {
@@ -179,7 +179,7 @@ END TST_ora_plsarr_dt;`,
 			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02 15:04:05") + "\n",
 		},
 	} {
-		if _, err := testSes.PrepAndExe(tc.qry, tc.params...); err != nil {
+		if _, err := testSes.PrepAndExeP(tc.qry, tc.params...); err != nil {
 			t.Fatalf("%d. %q (%#v): %v", i, tc.qry, tc.params, err)
 		}
 		if len(tc.params) == 0 {

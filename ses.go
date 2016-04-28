@@ -201,8 +201,20 @@ func (ses *Ses) close() (err error) {
 }
 
 // PrepAndExe prepares and executes a SQL statement returning the number of rows
-// affected and a possible error.
+// affected and a possible error, using Exe, calling in batch for arrays.
 func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error) {
+	return ses.prepAndExe(sql, false, params)
+}
+
+// PrepAndExeP prepares and executes a SQL statement returning the number of rows
+// affected and a possible error, using ExeP, so passing arrays as is.
+func (ses *Ses) PrepAndExeP(sql string, params ...interface{}) (rowsAffected uint64, err error) {
+	return ses.prepAndExe(sql, true, params)
+}
+
+// prepAndExe prepares and executes a SQL statement returning the number of rows
+// affected and a possible error.
+func (ses *Ses) prepAndExe(sql string, isAssocArray bool, params ...interface{}) (rowsAffected uint64, err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -225,7 +237,11 @@ func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint
 	if err != nil {
 		return 0, errE(err)
 	}
-	rowsAffected, err = stmt.Exe(params...)
+	if isAssocArray {
+		rowsAffected, err = stmt.ExeP(params...)
+	} else {
+		rowsAffected, err = stmt.Exe(params...)
+	}
 	if err != nil {
 		return rowsAffected, errE(err)
 	}
