@@ -203,13 +203,13 @@ func (ses *Ses) close() (err error) {
 // PrepAndExe prepares and executes a SQL statement returning the number of rows
 // affected and a possible error, using Exe, calling in batch for arrays.
 func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error) {
-	return ses.prepAndExe(sql, false, params)
+	return ses.prepAndExe(sql, false, params...)
 }
 
 // PrepAndExeP prepares and executes a SQL statement returning the number of rows
 // affected and a possible error, using ExeP, so passing arrays as is.
 func (ses *Ses) PrepAndExeP(sql string, params ...interface{}) (rowsAffected uint64, err error) {
-	return ses.prepAndExe(sql, true, params)
+	return ses.prepAndExe(sql, true, params...)
 }
 
 // prepAndExe prepares and executes a SQL statement returning the number of rows

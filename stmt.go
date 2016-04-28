@@ -345,766 +345,767 @@ func (stmt *Stmt) putBnd(idx int, bnd bnd) {
 // No locking occurs.
 func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint32, err error) {
 	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %d", len(params))
-	iterations = 1
 	// Create binds for each parameter; bind position is 1-based
-	if len(params) > 0 {
-		stmt.bnds = make([]bnd, len(params))
-		for n := range params {
-			//fmt.Printf("Stmt.bind: params[%v] (%v %T)\n", n, params[n], params[n])
-			switch value := params[n].(type) {
-			case int64:
+	if len(params) == 0 {
+		return 1, nil
+	}
+	iterations = 1
+	stmt.bnds = make([]bnd, len(params))
+	for n := range params {
+		//fmt.Printf("Stmt.bind: params[%v] (%v %T)\n", n, params[n], params[n])
+		switch value := params[n].(type) {
+		case int64:
+			bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case int32:
+			bnd := stmt.getBnd(bndIdxInt32).(*bndInt32)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case int16:
+			bnd := stmt.getBnd(bndIdxInt16).(*bndInt16)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case int8:
+			bnd := stmt.getBnd(bndIdxInt8).(*bndInt8)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case uint64:
+			bnd := stmt.getBnd(bndIdxUint64).(*bndUint64)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case uint32:
+			bnd := stmt.getBnd(bndIdxUint32).(*bndUint32)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case uint16:
+			bnd := stmt.getBnd(bndIdxUint16).(*bndUint16)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case uint8:
+			bnd := stmt.getBnd(bndIdxUint8).(*bndUint8)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case float64:
+			bnd := stmt.getBnd(bndIdxFloat64).(*bndFloat64)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case float32:
+			bnd := stmt.getBnd(bndIdxFloat32).(*bndFloat32)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case Int64:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INT)
+			} else {
 				bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case int32:
+			}
+		case Int32:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INT)
+			} else {
 				bnd := stmt.getBnd(bndIdxInt32).(*bndInt32)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case int16:
+			}
+		case Int16:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INT)
+			} else {
 				bnd := stmt.getBnd(bndIdxInt16).(*bndInt16)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case int8:
+			}
+		case Int8:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INT)
+			} else {
 				bnd := stmt.getBnd(bndIdxInt8).(*bndInt8)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case uint64:
+			}
+		case Uint64:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_UIN)
+			} else {
 				bnd := stmt.getBnd(bndIdxUint64).(*bndUint64)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case uint32:
+			}
+		case Uint32:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_UIN)
+			} else {
 				bnd := stmt.getBnd(bndIdxUint32).(*bndUint32)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case uint16:
+			}
+		case Uint16:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_UIN)
+			} else {
 				bnd := stmt.getBnd(bndIdxUint16).(*bndUint16)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case uint8:
+			}
+		case Uint8:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_UIN)
+			} else {
 				bnd := stmt.getBnd(bndIdxUint8).(*bndUint8)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case float64:
+			}
+		case Float64:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_BDOUBLE)
+			} else {
 				bnd := stmt.getBnd(bndIdxFloat64).(*bndFloat64)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case float32:
+			}
+		case Float32:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_BFLOAT)
+			} else {
 				bnd := stmt.getBnd(bndIdxFloat32).(*bndFloat32)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case Int64:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INT)
-				} else {
-					bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Int32:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INT)
-				} else {
-					bnd := stmt.getBnd(bndIdxInt32).(*bndInt32)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Int16:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INT)
-				} else {
-					bnd := stmt.getBnd(bndIdxInt16).(*bndInt16)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Int8:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INT)
-				} else {
-					bnd := stmt.getBnd(bndIdxInt8).(*bndInt8)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Uint64:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_UIN)
-				} else {
-					bnd := stmt.getBnd(bndIdxUint64).(*bndUint64)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Uint32:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_UIN)
-				} else {
-					bnd := stmt.getBnd(bndIdxUint32).(*bndUint32)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Uint16:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_UIN)
-				} else {
-					bnd := stmt.getBnd(bndIdxUint16).(*bndUint16)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Uint8:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_UIN)
-				} else {
-					bnd := stmt.getBnd(bndIdxUint8).(*bndUint8)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Float64:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_BDOUBLE)
-				} else {
-					bnd := stmt.getBnd(bndIdxFloat64).(*bndFloat64)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Float32:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_BFLOAT)
-				} else {
-					bnd := stmt.getBnd(bndIdxFloat32).(*bndFloat32)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Num:
+			}
+		case Num:
+			bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case OraNum:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_VNU)
+			} else {
 				bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(Num(value.Value), n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case OraNum:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_VNU)
-				} else {
-					bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
+			}
+		case *int64:
+			bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *int32:
+			bnd := stmt.getBnd(bndIdxInt32Ptr).(*bndInt32Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *int16:
+			bnd := stmt.getBnd(bndIdxInt16Ptr).(*bndInt16Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *int8:
+			bnd := stmt.getBnd(bndIdxInt8Ptr).(*bndInt8Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *uint64:
+			bnd := stmt.getBnd(bndIdxUint64Ptr).(*bndUint64Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *uint32:
+			bnd := stmt.getBnd(bndIdxUint32Ptr).(*bndUint32Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *uint16:
+			bnd := stmt.getBnd(bndIdxUint16Ptr).(*bndUint16Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *uint8:
+			bnd := stmt.getBnd(bndIdxUint8Ptr).(*bndUint8Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *float64:
+			bnd := stmt.getBnd(bndIdxFloat64Ptr).(*bndFloat64Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *float32:
+			bnd := stmt.getBnd(bndIdxFloat32Ptr).(*bndFloat32Ptr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []int64:
+			bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []int32:
+			bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []int16:
+			bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []int8:
+			bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []uint64:
+			bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []uint32:
+			bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []uint16:
+			bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []uint8: // the same as []byte !
+			if stmt.cfg.byteSlice == U8 {
+				bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
+				stmt.bnds[n] = bnd
+				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+				if err != nil {
+					return iterations, err
+				}
+			} else {
+				switch bnd := stmt.getBnd(bndIdxBin).(type) {
+				case *bndBin:
 					stmt.bnds[n] = bnd
-					err = bnd.bind(Num(value.Value), n+1, stmt)
+					err = bnd.bind(value, n+1, stmt)
 					if err != nil {
 						return iterations, err
 					}
-				}
-			case *int64:
-				bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *int32:
-				bnd := stmt.getBnd(bndIdxInt32Ptr).(*bndInt32Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *int16:
-				bnd := stmt.getBnd(bndIdxInt16Ptr).(*bndInt16Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *int8:
-				bnd := stmt.getBnd(bndIdxInt8Ptr).(*bndInt8Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *uint64:
-				bnd := stmt.getBnd(bndIdxUint64Ptr).(*bndUint64Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *uint32:
-				bnd := stmt.getBnd(bndIdxUint32Ptr).(*bndUint32Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *uint16:
-				bnd := stmt.getBnd(bndIdxUint16Ptr).(*bndUint16Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *uint8:
-				bnd := stmt.getBnd(bndIdxUint8Ptr).(*bndUint8Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *float64:
-				bnd := stmt.getBnd(bndIdxFloat64Ptr).(*bndFloat64Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *float32:
-				bnd := stmt.getBnd(bndIdxFloat32Ptr).(*bndFloat32Ptr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []int64:
-				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []int32:
-				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []int16:
-				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []int8:
-				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []uint64:
-				bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []uint32:
-				bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []uint16:
-				bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []uint8: // the same as []byte !
-				if stmt.cfg.byteSlice == U8 {
-					bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
-					stmt.bnds[n] = bnd
-					iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-					if err != nil {
-						return iterations, err
-					}
-				} else {
-					switch bnd := stmt.getBnd(bndIdxBin).(type) {
-					case *bndBin:
+				case *bndLob:
+					if value == nil {
+						stmt.setNilBind(n, C.SQLT_BLOB)
+					} else {
 						stmt.bnds[n] = bnd
-						err = bnd.bind(value, n+1, stmt)
+						err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.cfg.lobBufferSize, stmt)
 						if err != nil {
 							return iterations, err
 						}
-					case *bndLob:
-						if value == nil {
-							stmt.setNilBind(n, C.SQLT_BLOB)
-						} else {
-							stmt.bnds[n] = bnd
-							err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.cfg.lobBufferSize, stmt)
-							if err != nil {
-								return iterations, err
-							}
-						}
-					default:
-						panic(fmt.Errorf("awaited *ora.bndBin, got %T", bnd))
 					}
+				default:
+					panic(fmt.Errorf("awaited *ora.bndBin, got %T", bnd))
 				}
-			case []float64:
-				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
-				stmt.bnds[n] = bnd
-				var err error
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []float32:
-				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []Num:
-				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
+			}
+		case []float64:
+			bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
+			stmt.bnds[n] = bnd
+			var err error
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []float32:
+			bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []Num:
+			bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, nil, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
 
-			case []Int64:
-				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case *[]Int64:
-				bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []Int32:
-				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *[]Int32:
-				bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []Int16:
-				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case *[]Int16:
-				bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []Int8:
-				bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Uint64:
-				bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Uint32:
-				bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Uint16:
-				bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Uint8:
-				bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Float64:
-				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case *[]Float64:
-				bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []Float32:
-				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case *[]Float32:
-				bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []OraNum:
-				bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
+		case []Int64:
+			bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]Int64:
+			bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []Int32:
+			bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *[]Int32:
+			bnd := stmt.getBnd(bndIdxInt32Slice).(*bndInt32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []Int16:
+			bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *[]Int16:
+			bnd := stmt.getBnd(bndIdxInt16Slice).(*bndInt16Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []Int8:
+			bnd := stmt.getBnd(bndIdxInt8Slice).(*bndInt8Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Uint64:
+			bnd := stmt.getBnd(bndIdxUint64Slice).(*bndUint64Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Uint32:
+			bnd := stmt.getBnd(bndIdxUint32Slice).(*bndUint32Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Uint16:
+			bnd := stmt.getBnd(bndIdxUint16Slice).(*bndUint16Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Uint8:
+			bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Float64:
+			bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]Float64:
+			bnd := stmt.getBnd(bndIdxFloat64Slice).(*bndFloat64Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []Float32:
+			bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]Float32:
+			bnd := stmt.getBnd(bndIdxFloat32Slice).(*bndFloat32Slice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []OraNum:
+			bnd := stmt.getBnd(bndIdxNumStringSlice).(*bndNumStringSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
 
-			case time.Time:
+		case time.Time:
+			bnd := stmt.getBnd(bndIdxTime).(*bndTime)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case *time.Time:
+			bnd := stmt.getBnd(bndIdxTimePtr).(*bndTimePtr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case Time:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_TIMESTAMP_TZ)
+			} else {
 				bnd := stmt.getBnd(bndIdxTime).(*bndTime)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case *time.Time:
-				bnd := stmt.getBnd(bndIdxTimePtr).(*bndTimePtr)
+			}
+		case []time.Time:
+			bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []Time:
+			bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case Date:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_DAT)
+			} else {
+				bnd := stmt.getBnd(bndIdxDate).(*bndDate)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-				stmt.hasPtrBind = true
-			case Time:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_TIMESTAMP_TZ)
-				} else {
-					bnd := stmt.getBnd(bndIdxTime).(*bndTime)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case []time.Time:
-				bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []Time:
-				bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case Date:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_DAT)
-				} else {
-					bnd := stmt.getBnd(bndIdxDate).(*bndDate)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case *Date:
-				bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
-				stmt.bnds[n] = bnd
-				if err = bnd.bind(value, n+1, stmt); err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case []Date:
-				bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
+			}
+		case *Date:
+			bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
+			stmt.bnds[n] = bnd
+			if err = bnd.bind(value, n+1, stmt); err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case []Date:
+			bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
 
-			case string:
+		case string:
+			bnd := stmt.getBnd(bndIdxString).(*bndString)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case *string:
+			bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt.cfg.stringPtrBufferSize, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case String:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_CHR)
+			} else {
 				bnd := stmt.getBnd(bndIdxString).(*bndString)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case *string:
-				bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.cfg.stringPtrBufferSize, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				stmt.hasPtrBind = true
-			case String:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_CHR)
-				} else {
-					bnd := stmt.getBnd(bndIdxString).(*bndString)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case []string:
-				bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case []String:
-				bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
-				stmt.bnds[n] = bnd
-				if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-					return iterations, err
-				}
-			case bool:
+			}
+		case []string:
+			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case []String:
+			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case bool:
+			bnd := stmt.getBnd(bndIdxBool).(*bndBool)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt.cfg, stmt)
+			if err != nil {
+				return iterations, err
+			}
+		case *bool:
+			bnd := stmt.getBnd(bndIdxBoolPtr).(*bndBoolPtr)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt.cfg.TrueRune, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case Bool:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_CHR)
+			} else {
 				bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.cfg, stmt)
+				err = bnd.bind(value.Value, n+1, stmt.cfg, stmt)
 				if err != nil {
 					return iterations, err
 				}
-			case *bool:
-				bnd := stmt.getBnd(bndIdxBoolPtr).(*bndBoolPtr)
+			}
+		case []bool:
+			bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, nil, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			iterations = uint32(len(value))
+		case []Bool:
+			bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
+			stmt.bnds[n] = bnd
+			err = bnd.bindOra(value, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			iterations = uint32(len(value))
+		case Raw:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_BIN)
+			} else {
+				bnd := stmt.getBnd(bndIdxBin).(*bndBin)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value, n+1, stmt.cfg.TrueRune, stmt)
+				err = bnd.bind(value.Value, n+1, stmt)
+				if err != nil {
+					return iterations, err
+				}
+			}
+		case Lob:
+			if value.Reader == nil {
+				stmt.setNilBind(n, C.SQLT_BLOB)
+			} else {
+				bnd := stmt.getBnd(bndIdxLob).(*bndLob)
+				stmt.bnds[n] = bnd
+				err = bnd.bindReader(value.Reader, n+1, stmt.cfg.lobBufferSize, stmt)
+				if err != nil {
+					return iterations, err
+				}
+			}
+		case *Lob:
+			if value == nil {
+				stmt.setNilBind(n, C.SQLT_BLOB)
+			} else {
+				bnd := stmt.getBnd(bndIdxLobPtr).(*bndLobPtr)
+				stmt.bnds[n] = bnd
+				err = bnd.bindLob(value, n+1, stmt.cfg.lobBufferSize, stmt)
 				if err != nil {
 					return iterations, err
 				}
 				stmt.hasPtrBind = true
-			case Bool:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_CHR)
-				} else {
-					bnd := stmt.getBnd(bndIdxBool).(*bndBool)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt.cfg, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case []bool:
-				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value, nil, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				iterations = uint32(len(value))
-			case []Bool:
-				bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
-				stmt.bnds[n] = bnd
-				err = bnd.bindOra(value, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
-				if err != nil {
-					return iterations, err
-				}
-				iterations = uint32(len(value))
-			case Raw:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_BIN)
-				} else {
-					bnd := stmt.getBnd(bndIdxBin).(*bndBin)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value.Value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case Lob:
-				if value.Reader == nil {
-					stmt.setNilBind(n, C.SQLT_BLOB)
-				} else {
-					bnd := stmt.getBnd(bndIdxLob).(*bndLob)
-					stmt.bnds[n] = bnd
-					err = bnd.bindReader(value.Reader, n+1, stmt.cfg.lobBufferSize, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case *Lob:
-				if value == nil {
-					stmt.setNilBind(n, C.SQLT_BLOB)
-				} else {
-					bnd := stmt.getBnd(bndIdxLobPtr).(*bndLobPtr)
-					stmt.bnds[n] = bnd
-					err = bnd.bindLob(value, n+1, stmt.cfg.lobBufferSize, stmt)
-					if err != nil {
-						return iterations, err
-					}
-					stmt.hasPtrBind = true
-				}
+			}
 
-			case [][]byte:
-				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, nil, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Raw:
-				bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case []Lob:
-				bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
+		case [][]byte:
+			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, nil, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Raw:
+			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case []Lob:
+			bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
 
-				// FIXME(tgulacsi): []*Lob ?
+			// FIXME(tgulacsi): []*Lob ?
 
-			case IntervalYM:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INTERVAL_YM)
-				} else {
-					bnd := stmt.getBnd(bndIdxIntervalYM).(*bndIntervalYM)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case []IntervalYM:
-				bnd := stmt.getBnd(bndIdxIntervalYMSlice).(*bndIntervalYMSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case IntervalDS:
-				if value.IsNull {
-					stmt.setNilBind(n, C.SQLT_INTERVAL_DS)
-				} else {
-					bnd := stmt.getBnd(bndIdxIntervalDS).(*bndIntervalDS)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case []IntervalDS:
-				bnd := stmt.getBnd(bndIdxIntervalDSSlice).(*bndIntervalDSSlice)
-				stmt.bnds[n] = bnd
-				iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
-				if err != nil {
-					return iterations, err
-				}
-			case Bfile:
-				if value.IsNull {
-					err = stmt.setNilBind(n, C.SQLT_FILE)
-				} else {
-					bnd := stmt.getBnd(bndIdxBfile).(*bndBfile)
-					stmt.bnds[n] = bnd
-					err = bnd.bind(value, n+1, stmt)
-					if err != nil {
-						return iterations, err
-					}
-				}
-			case *Rset:
-				bnd := stmt.getBnd(bndIdxRset).(*bndRset)
+		case IntervalYM:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INTERVAL_YM)
+			} else {
+				bnd := stmt.getBnd(bndIdxIntervalYM).(*bndIntervalYM)
 				stmt.bnds[n] = bnd
 				err = bnd.bind(value, n+1, stmt)
 				if err != nil {
 					return iterations, err
 				}
-				stmt.hasPtrBind = true
-			default:
-				if params[n] == nil {
-					err = stmt.setNilBind(n, C.SQLT_CHR)
-				} else {
-					t := reflect.TypeOf(params[n])
-					if t.Kind() == reflect.Slice {
-						if t.Elem().Kind() == reflect.Interface {
-							return iterations, errF("Invalid bind parameter. ([]interface{}) (%v).", params[n])
-						}
-					}
-					return iterations, errF("Invalid bind parameter (%v) (%T:%v).", t.Name(), params[n], params[n])
+			}
+		case []IntervalYM:
+			bnd := stmt.getBnd(bndIdxIntervalYMSlice).(*bndIntervalYMSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case IntervalDS:
+			if value.IsNull {
+				stmt.setNilBind(n, C.SQLT_INTERVAL_DS)
+			} else {
+				bnd := stmt.getBnd(bndIdxIntervalDS).(*bndIntervalDS)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(value, n+1, stmt)
+				if err != nil {
+					return iterations, err
 				}
+			}
+		case []IntervalDS:
+			bnd := stmt.getBnd(bndIdxIntervalDSSlice).(*bndIntervalDSSlice)
+			stmt.bnds[n] = bnd
+			iterations, err = bnd.bind(value, n+1, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
+		case Bfile:
+			if value.IsNull {
+				err = stmt.setNilBind(n, C.SQLT_FILE)
+			} else {
+				bnd := stmt.getBnd(bndIdxBfile).(*bndBfile)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(value, n+1, stmt)
+				if err != nil {
+					return iterations, err
+				}
+			}
+		case *Rset:
+			bnd := stmt.getBnd(bndIdxRset).(*bndRset)
+			stmt.bnds[n] = bnd
+			err = bnd.bind(value, n+1, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		default:
+			if params[n] == nil {
+				err = stmt.setNilBind(n, C.SQLT_CHR)
+			} else {
+				t := reflect.TypeOf(params[n])
+				if t.Kind() == reflect.Slice {
+					if t.Elem().Kind() == reflect.Interface {
+						return iterations, errF("Invalid bind parameter. ([]interface{}) (%v).", params[n])
+					}
+				}
+				return iterations, errF("Invalid bind parameter (%v) (%T:%v).", t.Name(), params[n], params[n])
 			}
 		}
 	}
