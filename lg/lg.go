@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-var Log = Std{L: log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)}
+var Log = Std{L: log.New(os.Stderr, "[ora] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)}
 
 type Std struct {
 	L *log.Logger

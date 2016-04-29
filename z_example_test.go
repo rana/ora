@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/lg"
 )
 
 func dbName() string {
@@ -2216,4 +2217,58 @@ func emptyString(s string) string {
 		return "<empty>"
 	}
 	return s
+}
+
+func ExampleSes_InsertBatchDirect() {
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
+		return
+	}
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+	tableName := tableName()
+	ses.PrepAndExe("CREATE TABLE " + tableName + " (C1 NUMBER)")
+	rowsAffected, _ := ses.PrepAndExe("INSERT INTO "+tableName+" (C1) VALUES (:1)", []int64{1, 2})
+	fmt.Println(rowsAffected)
+	// Output:
+	// 2
+}
+
+func ExampleSes_InsertBatchPlsql() {
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
+		return
+	}
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+	tableName := tableName()
+	procName := tableName + "_ins"
+	ses.PrepAndExe("CREATE OR REPLACE PROCEDURE " + procName + `(p_num IN NUMBER) AS
+BEGIN
+  INSERT INTO ` + tableName + ` VALUES (p_num);
+END;`)
+	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
+	ora.Cfg().Log.Logger = lg.Log
+	rowsAffected, err := ses.PrepAndExe("BEGIN "+procName+"(:1); END;", []int64{1, 2})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	rset, err := ses.Sel(tableName, "C1", ora.U64)
+	if err != nil {
+		return
+	}
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
+	}
+	fmt.Println(rowsAffected)
+	// Output:
 }
