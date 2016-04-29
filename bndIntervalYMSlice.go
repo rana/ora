@@ -17,14 +17,22 @@ type bndIntervalYMSlice struct {
 	stmt         *Stmt
 	ocibnd       *C.OCIBind
 	ociIntervals []*C.OCIInterval
+	arrHlp
 }
 
-func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stmt) error {
+func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	bnd.ociIntervals = make([]*C.OCIInterval, len(values))
-	nullInds := make([]C.sb2, len(values))
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
+	// ensure we have at least 1 slot in the slice
+	L, C := len(values), cap(values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
+	if needAppend {
+		values = append(values, IntervalYM{})
+	}
+	if cap(bnd.ociIntervals) < C {
+		bnd.ociIntervals = make([]*C.OCIInterval, L, C)
+	} else {
+		bnd.ociIntervals = bnd.ociIntervals[:L]
+	}
 	alen := C.ACTUAL_LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[0]))
 
 	if r := C.decriptorAllocSlice(
@@ -34,18 +42,18 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 		C.OCI_DTYPE_INTERVAL_YM, //ub4           type,
 		C.size_t(len(values)),   //size_t        xtramem_sz,
 	); r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci interval handle during bind")
+		return iterations, errNew("unable to allocate oci interval handle during bind")
 	}
 
 	for n, value := range values {
 		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			nullInds[n] = C.sb2(0)
+			bnd.nullInds[n] = C.sb2(0)
 		}
-		alenp[n] = alen
+		bnd.alen[n] = alen
 		r := C.OCIIntervalSetYearMonth(
 			unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv), //void               *hndl,
 			bnd.stmt.ses.srv.env.ocierr,                 //OCIError           *err,
@@ -53,7 +61,7 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 			C.sb4(value.Month),                          //sb4                mnth,
 			bnd.ociIntervals[n])                         //OCIInterval        *result );
 		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
+			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
 	r := C.OCIBINDBYPOS(
@@ -64,14 +72,14 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 		unsafe.Pointer(&bnd.ociIntervals[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[0])), //sb8          value_sz,
 		C.SQLT_INTERVAL_YM,                                //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),                      //void         *indp,
-		&alenp[0],                                         //ub2          *alenp,
-		&rcodep[0],                                        //ub2          *rcodep,
-		0,                                                 //ub4          maxarr_len,
-		nil,                                               //ub4          *curelep,
-		C.OCI_DEFAULT)                                     //ub4          mode );
+		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
+		&bnd.alen[0],                                      //ub2          *alenp,
+		&bnd.rcode[0],                                     //ub2          *rcodep,
+		getMaxarrLen(C, isAssocArray),
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
@@ -81,9 +89,9 @@ func (bnd *bndIntervalYMSlice) bind(values []IntervalYM, position int, stmt *Stm
 		C.ub4(C.sizeof_ub4),                       //ub4         alskip,
 		C.ub4(C.sizeof_ub2))                       //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndIntervalYMSlice) setPtr() error {
@@ -113,6 +121,7 @@ func (bnd *bndIntervalYMSlice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.ociIntervals = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxIntervalYMSlice, bnd)
 	return nil
 }

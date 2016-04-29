@@ -22,8 +22,9 @@ type bndInt16Slice struct {
 	arrHlp
 }
 
-func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	L, C := len(*values), cap(*values)
+	bnd.values = values
 	if cap(bnd.ints) < C {
 		bnd.ints = make([]int16, L, C)
 	} else {
@@ -42,13 +43,13 @@ func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt) (it
 			bnd.ints[n] = v.Value
 		}
 	}
-	return bnd.bind(bnd.ints, position, stmt)
+	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
-func (bnd *bndInt16Slice) bind(values []int16, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndInt16Slice) bind(values []int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, 0)
 	}

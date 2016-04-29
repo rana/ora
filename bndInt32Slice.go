@@ -22,7 +22,7 @@ type bndInt32Slice struct {
 	arrHlp
 }
 
-func (bnd *bndInt32Slice) bindOra(values *[]Int32, position int, stmt *Stmt) (uint32, error) {
+func (bnd *bndInt32Slice) bindOra(values *[]Int32, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	if cap(bnd.ints) < C {
 		bnd.ints = make([]int32, L, C)
@@ -42,13 +42,13 @@ func (bnd *bndInt32Slice) bindOra(values *[]Int32, position int, stmt *Stmt) (ui
 			bnd.ints[n] = v.Value
 		}
 	}
-	return bnd.bind(bnd.ints, position, stmt)
+	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
-func (bnd *bndInt32Slice) bind(values []int32, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndInt32Slice) bind(values []int32, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, 0)
 	}
@@ -151,6 +151,7 @@ func (bnd *bndInt32Slice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.values = nil
+	bnd.ints = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxInt32Slice, bnd)
 	return nil

@@ -22,7 +22,7 @@ type bndFloat32Slice struct {
 	arrHlp
 }
 
-func (bnd *bndFloat32Slice) bindOra(values *[]Float32, position int, stmt *Stmt) (uint32, error) {
+func (bnd *bndFloat32Slice) bindOra(values *[]Float32, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	if cap(bnd.floats) < C {
 		bnd.floats = make([]float32, L, C)
@@ -43,13 +43,13 @@ func (bnd *bndFloat32Slice) bindOra(values *[]Float32, position int, stmt *Stmt)
 			bnd.floats[n] = v.Value
 		}
 	}
-	return bnd.bind(bnd.floats, position, stmt)
+	return bnd.bind(bnd.floats, position, stmt, isAssocArray)
 }
 
-func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, 0)
 	}
@@ -88,9 +88,9 @@ func (bnd *bndFloat32Slice) bind(values []float32, position int, stmt *Stmt) (it
 		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
 		&bnd.alen[0],                       //ub4          *alenp,
 		&bnd.rcode[0],                      //ub2          *rcodep,
-		C.ub4(cap(bnd.ociNumbers)),         //ub4          maxarr_len,
-		curlenp,                            //ub4          *curelep,
-		C.OCI_DEFAULT)                      //ub4          mode );
+		getMaxarrLen(C, isAssocArray),      //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

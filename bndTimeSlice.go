@@ -29,7 +29,7 @@ type bndTimeSlice struct {
 	arrHlp
 }
 
-func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt) (uint32, error) {
+func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	bnd.values = values
 	if cap(bnd.times) < cap(values) {
 		bnd.times = make([]time.Time, len(values), cap(values))
@@ -49,13 +49,13 @@ func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt) (uint3
 			bnd.times[n] = values[n].Value
 		}
 	}
-	return bnd.bind(bnd.times, position, stmt)
+	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
-func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, time.Time{})
 	}
@@ -110,9 +110,9 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt) (ite
 		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
 		&bnd.alen[0],                                      //ub2          *alenp,
 		&bnd.rcode[0],                                     //ub2          *rcodep,
-		C.ub4(C),                                          //ub4          maxarr_len,
-		curlenp,                                           //ub4          *curelep,
-		C.OCI_DEFAULT)                                     //ub4          mode );
+		getMaxarrLen(C, isAssocArray),                     //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

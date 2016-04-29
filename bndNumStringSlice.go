@@ -21,7 +21,7 @@ type bndNumStringSlice struct {
 	arrHlp
 }
 
-func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	stringValues := make([]Num, len(values))
 	if cap(bnd.nullInds) < len(values) {
 		bnd.nullInds = make([]C.sb2, len(values))
@@ -35,16 +35,16 @@ func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt)
 			stringValues[n] = Num(values[n].Value)
 		}
 	}
-	return bnd.bind(stringValues, bnd.nullInds, position, stmt)
+	return bnd.bind(stringValues, bnd.nullInds, position, stmt, isAssocArray)
 }
 
-func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int, stmt *Stmt) (iterations uint32, err error) {
+func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
 	if nullInds != nil {
 		bnd.nullInds = nullInds
 	}
-	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, stmt.stmtType)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		values = append(values, Num("0"))
 	}
@@ -68,9 +68,9 @@ func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int,
 		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
 		&bnd.alen[0],                       //ub4          *alenp,
 		&bnd.rcode[0],                      //ub2          *rcodep,
-		C.ub4(C),                           //ub4          maxarr_len,
-		curlenp,                            //ub4          *curelep,
-		C.OCI_DEFAULT)                      //ub4          mode );
+		getMaxarrLen(C, isAssocArray),      //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

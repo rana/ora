@@ -64,7 +64,7 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 	for n, _ := range values {
 		params[n] = values[n]
 	}
-	rowsAffected, lastInsertId, err := ds.stmt.exe(params)
+	rowsAffected, lastInsertId, err := ds.stmt.exe(params, false)
 	if err != nil {
 		return nil, errE(err)
 	}
