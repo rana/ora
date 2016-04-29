@@ -2257,8 +2257,7 @@ BEGIN
 END;`)
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
 	ora.Cfg().Log.Logger = lg.Log
-	rowsAffected, err := ses.PrepAndExe("BEGIN "+procName+"(:1); END;", []int64{1, 2})
-	if err != nil {
+	if _, err = ses.PrepAndExe("BEGIN "+procName+"(:1); END;", []int64{1, 2}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
@@ -2269,6 +2268,7 @@ END;`)
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
-	fmt.Println(rowsAffected)
 	// Output:
+	// 1
+	// 2
 }

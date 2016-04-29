@@ -78,3 +78,10 @@ func (a *arrHlp) close() error {
 	a.rcode = nil
 	return nil
 }
+
+func getMaxarrLen(C int, isAssocArray bool) C.ub4 {
+	if !isAssocArray {
+		return 0
+	}
+	return C.ub4(C)
+}

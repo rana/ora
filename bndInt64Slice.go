@@ -73,6 +73,7 @@ func (bnd *bndInt64Slice) bind(values []int64, position int, stmt *Stmt, isAssoc
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
+
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -84,9 +85,9 @@ func (bnd *bndInt64Slice) bind(values []int64, position int, stmt *Stmt, isAssoc
 		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
 		&bnd.alen[0],                       //ub4          *alenp,
 		&bnd.rcode[0],                      //ub2          *rcodep,
-		C.ub4(cap(bnd.ociNumbers)),         //ub4          maxarr_len,
-		curlenp,                            //ub4          *curelep,
-		C.OCI_DEFAULT)                      //ub4          mode );
+		getMaxarrLen(C, isAssocArray),      //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
