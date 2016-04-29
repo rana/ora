@@ -110,9 +110,9 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 		unsafe.Pointer(&bnd.nullInds[0]),                  //void         *indp,
 		&bnd.alen[0],                                      //ub2          *alenp,
 		&bnd.rcode[0],                                     //ub2          *rcodep,
-		C.ub4(C),                                          //ub4          maxarr_len,
-		curlenp,                                           //ub4          *curelep,
-		C.OCI_DEFAULT)                                     //ub4          mode );
+		getMaxarrLen(C, isAssocArray),                     //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}

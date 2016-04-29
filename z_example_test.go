@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"gopkg.in/rana/ora.v3"
-	"gopkg.in/rana/ora.v3/lg"
 )
 
 func dbName() string {
@@ -2256,7 +2255,7 @@ BEGIN
   INSERT INTO ` + tableName + ` VALUES (p_num);
 END;`)
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
-	ora.Cfg().Log.Logger = lg.Log
+	//ora.Cfg().Log.Logger = lg.Log
 	if _, err = ses.PrepAndExe("BEGIN "+procName+"(:1); END;", []int64{1, 2}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

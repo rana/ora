@@ -85,9 +85,9 @@ func (bnd *bndInt8Slice) bind(values []int8, position int, stmt *Stmt, isAssocAr
 		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
 		&bnd.alen[0],                       //ub4          *alenp,
 		&bnd.rcode[0],                      //ub2          *rcodep,
-		C.ub4(C),                           //ub4          maxarr_len,
-		curlenp,                            //ub4          *curelep,
-		C.OCI_DEFAULT)                      //ub4          mode );
+		getMaxarrLen(C, isAssocArray),
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
