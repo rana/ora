@@ -102,6 +102,15 @@ func NewLogDrvCfg() LogDrvCfg {
 	return c
 }
 
+// IsEnabled returns whether the logger is enabled (and enabled is true).
+func (c LogDrvCfg) IsEnabled(enabled bool) bool {
+	if !enabled || c.Logger == nil {
+		return false
+	}
+	_, ok := c.Logger.(EmpLgr)
+	return !ok
+}
+
 // Drv represents an Oracle database driver.
 //
 // Drv is not meant to be called by user-code.

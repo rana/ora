@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // checkNumericColumn returns nil when the column type is numeric; otherwise, an error.
@@ -427,4 +428,14 @@ func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 			})
 	}
 	return errors, nil
+}
+
+type sysNamer struct {
+	once sync.Once
+	name string
+}
+
+func (s *sysNamer) Name(calc func() string) string {
+	s.once.Do(func() { s.name = calc() })
+	return s.name
 }

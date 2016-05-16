@@ -773,22 +773,24 @@ func (rset *Rset) sysName() string {
 
 // log writes a message with an Rset system name and caller info.
 func (rset *Rset) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprint(v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Rset system name and caller info.
 func (rset *Rset) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }

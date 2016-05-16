@@ -124,6 +124,8 @@ type Ses struct {
 
 	openStmts *stmtList
 	openTxs   *txList
+
+	sysNamer
 }
 
 // Close ends a session on an Oracle server.
@@ -661,27 +663,29 @@ func (ses *Ses) sysName() string {
 	if ses == nil {
 		return "E_S_S_"
 	}
-	return ses.srv.sysName() + fmt.Sprintf("S%v", ses.id)
+	return ses.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", ses.srv.sysName(), ses.id) })
 }
 
 // log writes a message with an Ses system name and caller info.
 func (ses *Ses) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprint(v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Ses system name and caller info.
 func (ses *Ses) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }

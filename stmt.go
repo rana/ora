@@ -68,6 +68,8 @@ type Stmt struct {
 	hasPtrBind bool
 
 	openRsets *rsetList
+
+	sysNamer
 }
 
 // Close closes the SQL statement.
@@ -1193,28 +1195,30 @@ func (stmt *Stmt) sysName() string {
 	if stmt == nil {
 		return "E_S_S_S_"
 	}
-	return stmt.ses.sysName() + fmt.Sprintf("S%v", stmt.id)
+	return stmt.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", stmt.ses.sysName(), stmt.id) })
 }
 
 // log writes a message with an Stmt system name and caller info.
 func (stmt *Stmt) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprint(v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Stmt system name and caller info.
 func (stmt *Stmt) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }
 

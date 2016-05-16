@@ -70,6 +70,8 @@ type Srv struct {
 	dbIsUTF8 bool
 
 	openSess *sesList
+
+	sysNamer
 }
 
 // Close disconnects from an Oracle server.
@@ -324,27 +326,29 @@ func (srv *Srv) sysName() string {
 	if srv == nil {
 		return "E_S_"
 	}
-	return srv.env.sysName() + fmt.Sprintf("S%v", srv.id)
+	return srv.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", srv.env.sysName(), srv.id) })
 }
 
 // log writes a message with an Srv system name and caller info.
 func (srv *Srv) log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprint(v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Srv system name and caller info.
 func (srv *Srv) logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-		}
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }
