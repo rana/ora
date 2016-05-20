@@ -41,7 +41,7 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 	}
 	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
-	var maxLen int = 1
+	var maxLen = 1
 	for n, bValue := range values {
 		if bValue {
 			_, err = bnd.buf.WriteRune(trueRune)

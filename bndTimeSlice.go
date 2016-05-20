@@ -18,7 +18,7 @@ import (
 	"unsafe"
 )
 
-var checkDateTime bool = true
+var checkDateTime = true
 
 type bndTimeSlice struct {
 	stmt         *Stmt
