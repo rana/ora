@@ -61,7 +61,7 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 		return nil, errE(err)
 	}
 	params := make([]interface{}, len(values))
-	for n, _ := range values {
+	for n := range values {
 		params[n] = values[n]
 	}
 	rowsAffected, lastInsertId, err := ds.stmt.exe(params, false)
@@ -86,7 +86,7 @@ func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
 		return nil, errE(err)
 	}
 	params := make([]interface{}, len(values))
-	for n, _ := range values {
+	for n := range values {
 		params[n] = values[n]
 	}
 	rset, err := ds.stmt.qry(params)

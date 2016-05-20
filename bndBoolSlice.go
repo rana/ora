@@ -24,7 +24,7 @@ type bndBoolSlice struct {
 func (bnd *bndBoolSlice) bindOra(values []Bool, position int, falseRune rune, trueRune rune, stmt *Stmt) error {
 	boolValues := make([]bool, len(values))
 	nullInds := make([]C.sb2, len(values))
-	for n, _ := range values {
+	for n := range values {
 		if values[n].IsNull {
 			nullInds[n] = C.sb2(-1)
 		} else {
