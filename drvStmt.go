@@ -31,7 +31,7 @@ func (ds *DrvStmt) checkIsOpen() error {
 // Close is a member of the driver.Stmt interface.
 func (ds *DrvStmt) Close() (err error) {
 	ds.log(true)
-	if err := ds.checkIsOpen(); err != nil {
+	if err = ds.checkIsOpen(); err != nil {
 		return errE(err)
 	}
 	err = ds.stmt.Close()
