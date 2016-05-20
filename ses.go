@@ -556,7 +556,7 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 	// the number of seconds the transaction can be inactive
 	// before it is automatically terminated by the system.
 	// TODO: add timeout config value
-	var timeout C.uword = C.uword(60)
+	var timeout = C.uword(60)
 	r := C.OCITransStart(
 		ses.ocisvcctx,      //OCISvcCtx    *svchp,
 		ses.srv.env.ocierr, //OCIError     *errhp,

@@ -631,7 +631,7 @@ func (this *Raw) UnmarshalJSON(p []byte) error {
 	return json.Unmarshal(p, &this.Value)
 }
 
-// Lob's Reader is sent to the DB on bind, if not nil.
+// Lob Reader is sent to the DB on bind, if not nil.
 // The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
 type Lob struct {
 	io.Reader
@@ -798,9 +798,8 @@ func newMultiErr(errs ...error) *MultiErr {
 	}
 	if buf.Len() > 0 {
 		return &MultiErr{str: buf.String()}
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // newMultiErrL returns a MultiErr or nil.
@@ -818,9 +817,8 @@ func newMultiErrL(errs *list.List) *MultiErr {
 	}
 	if buf.Len() > 0 {
 		return &MultiErr{str: buf.String()}
-	} else {
-		return nil
 	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -847,9 +845,8 @@ func (p *pool) Get() interface{} {
 	defer p.mu.Unlock()
 	if p.l.Len() > 0 {
 		return p.l.Remove(p.l.Front())
-	} else {
-		return p.genItem()
 	}
+	return p.genItem()
 }
 
 func (p *pool) Put(v interface{}) {

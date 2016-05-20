@@ -18,7 +18,7 @@ import (
 	"unsafe"
 )
 
-var checkDateTime bool = true
+var checkDateTime = true
 
 type bndTimeSlice struct {
 	stmt         *Stmt
@@ -41,7 +41,7 @@ func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt, isAsso
 	} else {
 		bnd.nullInds = bnd.nullInds[:len(values)]
 	}
-	for n, _ := range values {
+	for n := range values {
 		if values[n].IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
