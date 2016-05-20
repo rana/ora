@@ -4,7 +4,7 @@
 
 package ora
 
-// ColumnGoType defines the Go type returned from a sql select column.
+// GoColumnType defines the Go type returned from a sql select column.
 type GoColumnType uint
 
 // go column types

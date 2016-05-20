@@ -631,7 +631,7 @@ func (this *Raw) UnmarshalJSON(p []byte) error {
 	return json.Unmarshal(p, &this.Value)
 }
 
-// Lob's Reader is sent to the DB on bind, if not nil.
+// Lob Reader is sent to the DB on bind, if not nil.
 // The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
 type Lob struct {
 	io.Reader
