@@ -139,7 +139,7 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 
 	// write bytes to lob locator - at once, as we already have all bytes in memory
 	var n int
-	var byte_amtp, off C.oraub8
+	var byteAmtp, off C.oraub8
 	var actPiece, nextPiece C.ub1 = C.OCI_FIRST_PIECE, C.OCI_NEXT_PIECE
 	// OCILobWrite2 doesn't support writing zero bytes
 	// nor is writing 1 byte and erasing the one byte supported
@@ -179,16 +179,16 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 		}
 
 		//Log.Infof("LobWrite2 off=%d len=%d piece=%d", off, n, actPiece)
-		byte_amtp = 0
+		byteAmtp = 0
 		if actPiece == C.OCI_ONE_PIECE {
-			byte_amtp = C.oraub8(n)
+			byteAmtp = C.oraub8(n)
 		}
 		// Write to Oracle
 		if C.OCILobWrite2(
 			stmt.ses.ocisvcctx,         //OCISvcCtx          *svchp,
 			stmt.ses.srv.env.ocierr,    //OCIError           *errhp,
 			ociLobLocator,              //OCILobLocator      *locp,
-			&byte_amtp,                 //oraub8          *byte_amtp,
+			&byteAmtp,                  //oraub8          *byteAmtp,
 			nil,                        //oraub8          *char_amtp,
 			off+1,                      //oraub8          offset, starting position is 1
 			unsafe.Pointer(&actBuf[0]), //void            *bufp,
@@ -203,7 +203,7 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 		) == C.OCI_ERROR {
 			return stmt.ses.srv.env.ociError()
 		}
-		off += byte_amtp
+		off += byteAmtp
 
 		if actPiece == C.OCI_LAST_PIECE || actPiece == C.OCI_ONE_PIECE {
 			break
