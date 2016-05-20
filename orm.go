@@ -710,59 +710,59 @@ Outer:
 			}
 			if len(tagValues) == 0 {
 				return nil, fmt.Errorf("Struct '%v' field '%v' has `db` tag but no value.", typ.Name(), f.Name)
+			}
+
+			if tagValues[0] == "" { // may be empty string in case of `db:"id"`
+				col.name = f.Name
 			} else {
-				if tagValues[0] == "" { // may be empty string in case of `db:"id"`
-					col.name = f.Name
-				} else {
-					col.name = tagValues[0]
+				col.name = tagValues[0]
+			}
+			// check for single `id`,`pk`,`fk1`,`fk2`,`fk3`,`fk4` field
+			idCount := 0
+			pkCount := 0
+			fk1Count := 0
+			fk2Count := 0
+			fk3Count := 0
+			fk4Count := 0
+			for _, tagValue := range tagValues {
+				if tagValue == "id" {
+					col.attr |= id
+					t.attr |= id
+					idCount++
+				} else if tagValue == "pk" {
+					col.attr |= pk
+					t.attr |= pk
+					pkCount++
+				} else if tagValue == "fk1" {
+					col.attr |= fk1
+					t.attr |= fk1
+					fk1Count++
+				} else if tagValue == "fk2" {
+					col.attr |= fk2
+					t.attr |= fk2
+					fk2Count++
+				} else if tagValue == "fk3" {
+					col.attr |= fk3
+					t.attr |= fk3
+					fk3Count++
+				} else if tagValue == "fk4" {
+					col.attr |= fk4
+					t.attr |= fk4
+					fk4Count++
 				}
-				// check for single `id`,`pk`,`fk1`,`fk2`,`fk3`,`fk4` field
-				idCount := 0
-				pkCount := 0
-				fk1Count := 0
-				fk2Count := 0
-				fk3Count := 0
-				fk4Count := 0
-				for _, tagValue := range tagValues {
-					if tagValue == "id" {
-						col.attr |= id
-						t.attr |= id
-						idCount++
-					} else if tagValue == "pk" {
-						col.attr |= pk
-						t.attr |= pk
-						pkCount++
-					} else if tagValue == "fk1" {
-						col.attr |= fk1
-						t.attr |= fk1
-						fk1Count++
-					} else if tagValue == "fk2" {
-						col.attr |= fk2
-						t.attr |= fk2
-						fk2Count++
-					} else if tagValue == "fk3" {
-						col.attr |= fk3
-						t.attr |= fk3
-						fk3Count++
-					} else if tagValue == "fk4" {
-						col.attr |= fk4
-						t.attr |= fk4
-						fk4Count++
-					}
-				}
-				if idCount > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"id\"` tag.", typ.Name())
-				} else if pkCount > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"pk\"` tag.", typ.Name())
-				} else if fk1Count > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk1\"` tag.", typ.Name())
-				} else if fk2Count > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk2\"` tag.", typ.Name())
-				} else if fk3Count > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk3\"` tag.", typ.Name())
-				} else if fk4Count > 1 {
-					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk4\"` tag.", typ.Name())
-				}
+			}
+			if idCount > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"id\"` tag.", typ.Name())
+			} else if pkCount > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"pk\"` tag.", typ.Name())
+			} else if fk1Count > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk1\"` tag.", typ.Name())
+			} else if fk2Count > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk2\"` tag.", typ.Name())
+			} else if fk3Count > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk3\"` tag.", typ.Name())
+			} else if fk4Count > 1 {
+				return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk4\"` tag.", typ.Name())
 			}
 		}
 		col.name = strings.ToUpper(col.name)

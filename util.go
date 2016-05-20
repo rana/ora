@@ -18,9 +18,8 @@ func checkNumericColumn(gct GoColumnType, columnName string) error {
 	}
 	if columnName == "" {
 		return errF("Invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or OraN.", GctName(gct))
-	} else {
-		return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or ORaN.", GctName(gct), columnName)
 	}
+	return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or ORaN.", GctName(gct), columnName)
 }
 
 // checkTimeColumn returns nil when the column type is time; otherwise, an error.
@@ -163,9 +162,9 @@ func callInfo(depth int) string {
 	}
 	if n < 0 { // main.func·015
 		return fmt.Sprintf("[%v]", method)
-	} else { // main.(*core).open
-		return fmt.Sprintf("[%v.%v]", method[m+1:n], method[n+2:])
 	}
+	// main.(*core).open
+	return fmt.Sprintf("[%v.%v]", method[m+1:n], method[n+2:])
 }
 func errInfo(depth int) fmt.Stringer {
 	// get caller method name; remove main. prefix

@@ -798,9 +798,8 @@ func newMultiErr(errs ...error) *MultiErr {
 	}
 	if buf.Len() > 0 {
 		return &MultiErr{str: buf.String()}
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // newMultiErrL returns a MultiErr or nil.
@@ -818,9 +817,8 @@ func newMultiErrL(errs *list.List) *MultiErr {
 	}
 	if buf.Len() > 0 {
 		return &MultiErr{str: buf.String()}
-	} else {
-		return nil
 	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -847,9 +845,8 @@ func (p *pool) Get() interface{} {
 	defer p.mu.Unlock()
 	if p.l.Len() > 0 {
 		return p.l.Remove(p.l.Front())
-	} else {
-		return p.genItem()
 	}
+	return p.genItem()
 }
 
 func (p *pool) Put(v interface{}) {
