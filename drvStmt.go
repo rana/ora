@@ -57,7 +57,7 @@ func (ds *DrvStmt) NumInput() int {
 // Exec is a member of the driver.Stmt interface.
 func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error) {
 	ds.log(true)
-	if err := ds.checkIsOpen(); err != nil {
+	if err = ds.checkIsOpen(); err != nil {
 		return nil, errE(err)
 	}
 	params := make([]interface{}, len(values))
