@@ -29,13 +29,12 @@ func (ds *DrvStmt) checkIsOpen() error {
 // Close closes the SQL statement.
 //
 // Close is a member of the driver.Stmt interface.
-func (ds *DrvStmt) Close() (err error) {
+func (ds *DrvStmt) Close() error {
 	ds.log(true)
-	if err = ds.checkIsOpen(); err != nil {
+	if err := ds.checkIsOpen(); err != nil {
 		return errE(err)
 	}
-	err = ds.stmt.Close()
-	if err != nil {
+	if err := ds.stmt.Close(); err != nil {
 		return errE(err)
 	}
 	return nil
@@ -55,9 +54,9 @@ func (ds *DrvStmt) NumInput() int {
 // and a possible error.
 //
 // Exec is a member of the driver.Stmt interface.
-func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error) {
+func (ds *DrvStmt) Exec(values []driver.Value) (driver.Result, error) {
 	ds.log(true)
-	if err = ds.checkIsOpen(); err != nil {
+	if err := ds.checkIsOpen(); err != nil {
 		return nil, errE(err)
 	}
 	params := make([]interface{}, len(values))
@@ -69,11 +68,9 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 		return nil, errE(err)
 	}
 	if rowsAffected == 0 {
-		result = driver.ResultNoRows
-	} else {
-		result = &DrvExecResult{rowsAffected: rowsAffected, lastInsertId: lastInsertId}
+		return driver.ResultNoRows, nil
 	}
-	return result, nil
+	return &DrvExecResult{rowsAffected: rowsAffected, lastInsertId: lastInsertId}, nil
 }
 
 // Query runs a SQL query on an Oracle server. Query returns driver.Rows and a
