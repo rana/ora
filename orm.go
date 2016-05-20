@@ -434,7 +434,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of pk to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, fmt.Errorf("Unable to make a map of pk to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"pk\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfPtrFk1:
 			for _, col := range tbl.cols {
@@ -444,7 +444,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk1 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, fmt.Errorf("Unable to make a map of fk1 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk1\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfPtrFk2:
 			for _, col := range tbl.cols {
@@ -454,7 +454,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk2 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, fmt.Errorf("Unable to make a map of fk2 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk2\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfPtrFk3:
 			for _, col := range tbl.cols {
@@ -464,7 +464,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk3 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, fmt.Errorf("Unable to make a map of fk3 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk3\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		case MapOfPtrFk4:
 			for _, col := range tbl.cols {
@@ -474,7 +474,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 				}
 			}
 			if keyRT == nil {
-				return nil, errors.New(fmt.Sprintf("Unable to make a map of fk4 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name()))
+				return nil, fmt.Errorf("Unable to make a map of fk4 to pointers for struct '%v'. '%v' doesn't have an exported field marked with a `db:\"fk4\"` tag.", tbl.typ.Name(), tbl.typ.Name())
 			}
 		}
 		mapT := reflect.MapOf(keyRT, reflect.New(tbl.typ).Type())
@@ -678,7 +678,7 @@ func finalValue(v interface{}) (rv reflect.Value, err error) {
 
 func tblCreate(typ reflect.Type, tblName string) (t *tbl, err error) {
 	if typ.Kind() != reflect.Struct {
-		return nil, errors.New(fmt.Sprintf("Expected type of Struct, received type of %v.", typ.Kind()))
+		return nil, fmt.Errorf("Expected type of Struct, received type of %v.", typ.Kind())
 	}
 	t = &tbl{}
 	t.typ = typ
@@ -709,7 +709,7 @@ Outer:
 				}
 			}
 			if len(tagValues) == 0 {
-				return nil, errors.New(fmt.Sprintf("Struct '%v' field '%v' has `db` tag but no value.", typ.Name(), f.Name))
+				return nil, fmt.Errorf("Struct '%v' field '%v' has `db` tag but no value.", typ.Name(), f.Name)
 			} else {
 				if tagValues[0] == "" { // may be empty string in case of `db:"id"`
 					col.name = f.Name
@@ -751,17 +751,17 @@ Outer:
 					}
 				}
 				if idCount > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"id\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"id\"` tag.", typ.Name())
 				} else if pkCount > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"pk\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"pk\"` tag.", typ.Name())
 				} else if fk1Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk1\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk1\"` tag.", typ.Name())
 				} else if fk2Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk2\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk2\"` tag.", typ.Name())
 				} else if fk3Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk3\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk3\"` tag.", typ.Name())
 				} else if fk4Count > 1 {
-					return nil, errors.New(fmt.Sprintf("Struct '%v' has more than one exported field marked with a `db:\"fk4\"` tag.", typ.Name()))
+					return nil, fmt.Errorf("Struct '%v' has more than one exported field marked with a `db:\"fk4\"` tag.", typ.Name())
 				}
 			}
 		}
@@ -782,7 +782,7 @@ Outer:
 		}
 	}
 	if len(t.cols) == 0 {
-		return nil, errors.New(fmt.Sprintf("Struct '%v' has no db columns.", typ.Name()))
+		return nil, fmt.Errorf("Struct '%v' has no db columns.", typ.Name())
 	}
 	tbls[typ.Name()] = t // store tbl for future lookup
 	return t, nil
