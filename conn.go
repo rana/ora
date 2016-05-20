@@ -83,7 +83,7 @@ func (con *Con) Close() (err error) {
 // does not remove Con from Ses.openCons
 func (con *Con) close() (err error) {
 	con.log(_drv.cfg.Log.Con.Close)
-	if err := con.checkIsOpen(); err != nil {
+	if err = con.checkIsOpen(); err != nil {
 		return err
 	}
 	defer func() {
