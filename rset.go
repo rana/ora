@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	fetchArrLen = 1 //28
+	fetchArrLen = 2 //28
 
 	byteWidth64 = 8
 	byteWidth32 = 4
@@ -161,7 +161,6 @@ func (rset *Rset) beginRow() (err error) {
 	if rset.fetched == -1 {
 		return io.EOF
 	}
-	rset.Index++
 	// check is open
 	if rset.ocistmt == nil {
 		return errF("Rset is closed")
@@ -178,9 +177,11 @@ func (rset *Rset) beginRow() (err error) {
 			return err
 		}
 	}
+	rset.logF(_drv.cfg.Log.Rset.BeginRow, "fetched=%d offset=%d fetchLen=%d", rset.fetched, rset.offset, fetchLen)
 	if rset.fetched > 0 && rset.fetched > rset.offset {
 		return nil
 	}
+	rset.logF(_drv.cfg.Log.Rset.BeginRow, "stmt=%p err=%p", rset.ocistmt, rset.stmt.ses.srv.env.ocierr)
 	// fetch one row
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
@@ -192,23 +193,31 @@ func (rset *Rset) beginRow() (err error) {
 	if r == C.OCI_ERROR {
 		err := rset.stmt.ses.srv.env.ociError()
 		return err
-	} else if r == C.OCI_NO_DATA {
-		// Adjust Index so that Len() returns correct value when all rows read
-		rset.Index--
+	} else if r == C.OCI_NO_DATA && fetchLen == 1 {
+		// If OCIStmtFetch2 returns OCI_NO_DATA this does not mean that no data fetched,
+		// this means that the number of fetched rows is less than the array size,
+		// they are all fetched by this OCIStmtFetch2 call, and you do not need to
+		// call OCIStmtFetch2 anymore.
+		//
 		// return io.EOF to conform with database/sql/driver
 		rset.fetched = -1
 		return io.EOF
 	}
-	var rowsFetched C.ub4
-	if err := rset.attr(unsafe.Pointer(&rowsFetched), 4, C.OCI_ATTR_ROWS_FETCHED); err != nil {
-		return err
-	}
-
-	rset.fetched = int(rowsFetched)
+	rset.Index++
 	rset.offset = 0
-	if rset.fetched == 0 {
-		rset.fetched = -1
-		return io.EOF
+	if fetchLen == 1 {
+		rset.fetched = 1
+	} else {
+		var rowsFetched C.ub4
+		if err := rset.attr(unsafe.Pointer(&rowsFetched), 4, C.OCI_ATTR_ROWS_FETCHED); err != nil {
+			return err
+		}
+
+		rset.fetched = int(rowsFetched)
+		if rset.fetched == 0 {
+			rset.fetched = -1
+			return io.EOF
+		}
 	}
 	return nil
 }
