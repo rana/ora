@@ -19,65 +19,62 @@ import (
 )
 
 type defTime struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
+	ociDef
 	isNullable bool
-	nullp
-	dateTimep
+	dates      []*C.OCIDateTime
 }
 
 func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                        //OCIStmt     *stmtp,
-		&def.ocidef,                             //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
-		C.ub4(position),                         //ub4         position,
-		unsafe.Pointer(def.dateTimep.Pointer()), //void        *valuep,
-		C.LENGTH_TYPE(def.dateTimep.Size()),     //sb8         value_sz,
-		C.SQLT_TIMESTAMP_TZ,                     //defineTypeCode,                               //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()),     //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.dates == nil {
+		def.dates = (*((*[fetchArrLen]*C.OCIDateTime)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
 	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), C.sizeof_dvoid, C.SQLT_TIMESTAMP_TZ)
 }
 
-func (def *defTime) value() (value interface{}, err error) {
+func (def *defTime) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
-		oraTimeValue := Time{IsNull: def.nullp.IsNull()}
+		oraTimeValue := Time{IsNull: def.nullInds[offset] < 0}
 		if !oraTimeValue.IsNull {
-			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
+			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
 		}
 		return oraTimeValue, err
 	}
-	if def.nullp.IsNull() {
+	if def.nullInds[offset] < 0 {
 		return nil, nil
 	}
-	return getTime(def.rset.stmt.ses.srv.env, def.dateTimep.Value())
+	return getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
 }
 
 func (def *defTime) alloc() error {
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),           //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(def.dateTimep.Pointer())), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                                   //ub4           type,
-		0,   //size_t        xtramem_sz,
-		nil) //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci timestamp handle during define")
+	for i := range def.dates {
+		r := C.OCIDescriptorAlloc(
+			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.dates[i])), //dvoid         **descpp,
+			C.OCI_DTYPE_TIMESTAMP_TZ,                         //ub4           type,
+			0,   //size_t        xtramem_sz,
+			nil) //dvoid         **usrmempp);
+		if r == C.OCI_ERROR {
+			return def.rset.stmt.ses.srv.env.ociError()
+		} else if r == C.OCI_INVALID_HANDLE {
+			return errNew("unable to allocate oci timestamp handle during define")
+		}
 	}
 	return nil
 
 }
 
 func (def *defTime) free() {
+	for i, d := range def.dates {
+		if d == nil {
+			continue
+		}
+		def.dates[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(d),        //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defTime) close() (err error) {
@@ -89,9 +86,12 @@ func (def *defTime) close() (err error) {
 
 	rset := def.rset
 	def.rset = nil
+	if def.dates != nil {
+		C.free(unsafe.Pointer(&def.dates[0]))
+		def.dates = nil
+	}
 	def.ocidef = nil
-	def.dateTimep.Free()
-	def.nullp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxTime, def)
 	return nil
 }

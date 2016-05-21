@@ -26,15 +26,19 @@
     #define OCIBINDBYPOS                OCIBindByPos2
     #define OCIDEFINEBYPOS              OCIDefineByPos2
     #define ACTUAL_LENGTH_TYPE          ub4
+	#define ACTUAL_LENGTH_LENGTH		4
 	#define MAX_BINARY_BYTES			32767
 	#define LENGTH_TYPE					sb8
+	#define LENGTH_LENGTH				8
 #else
     #define OCIBINDBYNAME               OCIBindByName
     #define OCIBINDBYPOS                OCIBindByPos
     #define OCIDEFINEBYPOS              OCIDefineByPos
     #define ACTUAL_LENGTH_TYPE          ub2
+	#define ACTUAL_LENGTH_LENGTH		2
 	#define MAX_BINARY_BYTES			4000
 	#define LENGTH_TYPE					sb4
+	#define LENGTH_LENGTH				4
 
 	#define OCI_ATTR_UB8_ROW_COUNT		OCI_ATTR_ROW_COUNT
 #endif

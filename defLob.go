@@ -27,13 +27,11 @@ var lobChunkPool = sync.Pool{
 }
 
 type defLob struct {
-	rset        *Rset
-	ocidef      *C.OCIDefine
+	ociDef
 	gct         GoColumnType
 	sqlt        C.ub2
 	charsetForm C.ub1
-	lobLocatorp
-	nullp
+	lobs        []*C.OCILobLocator
 }
 
 func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoColumnType, rset *Rset) error {
@@ -41,35 +39,27 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                          //OCIStmt     *stmtp,
-		&def.ocidef,                               //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,          //OCIError    *errhp,
-		C.ub4(position),                           //ub4         position,
-		unsafe.Pointer(def.lobLocatorp.Pointer()), //void        *valuep,
-		C.LENGTH_TYPE(def.lobLocatorp.Size()),     //sb8         value_sz,
-		sqlt, //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r != C.OCI_SUCCESS {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.lobs == nil {
+		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	}
+	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, int(sqlt)); err != nil {
+		return err
 	}
 	prefetchLength := C.boolean(C.TRUE)
-	return def.rset.stmt.ses.srv.env.setAttr(unsafe.Pointer(def.ocidef), C.OCI_HTYPE_DEFINE, unsafe.Pointer(&prefetchLength), 0, C.OCI_ATTR_LOBPREFETCH_LENGTH)
+	return def.rset.stmt.ses.srv.env.setAttr(unsafe.Pointer(def.ocidef), C.OCI_HTYPE_DEFINE,
+		unsafe.Pointer(&prefetchLength), 0, C.OCI_ATTR_LOBPREFETCH_LENGTH)
 }
 
-func (def *defLob) Bytes() (value []byte, err error) {
+func (def *defLob) Bytes(offset int) (value []byte, err error) {
 	// Open the lob to obtain length; round-trip to database
 	//Log.Infof("Bytes OCILobOpen %p", def.ociLobLocator)
-	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobLocatorp.Value(), C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobs[offset], C.OCI_LOB_READONLY)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		//Log.Infof("Bytes OCILobClose %p", def.ociLobLocator)
-		if closeErr := lobClose(def.rset.stmt.ses, def.lobLocatorp.Value()); closeErr != nil && err == nil {
+		if closeErr := lobClose(def.rset.stmt.ses, def.lobs[offset]); closeErr != nil && err == nil {
 			err = closeErr
 		}
 	}()
@@ -85,8 +75,8 @@ func (def *defLob) Bytes() (value []byte, err error) {
 		r := C.OCILobRead2(
 			def.rset.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
-			def.lobLocatorp.Value(),          //OCILobLocator      *locp,
-			&byteAmtp,                        //oraub8             *byteAmtp,
+			def.lobs[offset],                 //OCILobLocator      *locp,
+			&byteAmtp,                        //oraub8             *byte_amtp,
 			nil,                              //oraub8             *char_amtp,
 			C.oraub8(off+1),                  //oraub8             offset, offset is 1-based
 			unsafe.Pointer(&value[off]),      //void               *bufp,
@@ -106,26 +96,26 @@ func (def *defLob) Bytes() (value []byte, err error) {
 
 	return value, nil
 }
-func (def *defLob) String() (value string, err error) {
+func (def *defLob) String(offset int) (value string, err error) {
 	var bytes []byte
-	bytes, err = def.Bytes()
+	bytes, err = def.Bytes(offset)
 	value = string(bytes)
 	return value, err
 }
 
 // Reader returns an io.Reader for the underlying LOB.
 // Also dissociates this def from the LOB!
-func (def *defLob) Reader() (io.Reader, error) {
+func (def *defLob) Reader(offset int) (io.Reader, error) {
 	// Open the lob to obtain length; round-trip to database
 	//Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
-	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobLocatorp.Value(), C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobs[offset], C.OCI_LOB_READONLY)
 	if err != nil {
 		return nil, err
 	}
 
 	lr := &lobReader{
 		ses:           def.rset.stmt.ses,
-		ociLobLocator: def.lobLocatorp.Value(),
+		ociLobLocator: def.lobs[offset],
 		charsetForm:   def.charsetForm,
 		piece:         C.OCI_FIRST_PIECE,
 		Length:        lobLength,
@@ -133,105 +123,68 @@ func (def *defLob) Reader() (io.Reader, error) {
 	return lr, nil
 }
 
-func (def *defLob) value() (value interface{}, err error) {
+func (def *defLob) value(offset int) (interface{}, error) {
 	//lob := def.ociLobLocator
 	//Log.Infof("value %p null=%d", lob, def.null)
 	if def.gct == Bin {
-		if !def.nullp.IsNull() {
-			return def.Reader()
+		if def.nullInds[offset] <= -1 {
+			return nil, nil
 		}
-		return value, err
+		return def.Reader(offset)
 	}
-	if def.nullp.IsNull() {
+	if def.nullInds[offset] <= -1 {
 		return Lob{}, nil
 	}
-	var r io.Reader
-	r, err = def.Reader()
-	binValue := Lob{Reader: r}
-	//Log.Infof("value %p returns %#v (%v)", lob, binValue, err)
-	return binValue, err
+	r, err := def.Reader(offset)
+	return Lob{Reader: r}, err
 }
 func (def *defLob) alloc() error {
 	// Allocate lob locator handle
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(def.lobLocatorp.Pointer())), //dvoid         **descpp,
-		C.OCI_DTYPE_LOB, //ub4           type,
-		0,               //size_t        xtramem_sz,
-		nil)             //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci lob handle during define")
+	for i := range def.lobs {
+		r := C.OCIDescriptorAlloc(
+			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])),  //dvoid         **descpp,
+			C.OCI_DTYPE_LOB,                                  //ub4           type,
+			0,                                                //size_t        xtramem_sz,
+			nil)                                              //dvoid         **usrmempp);
+		if r == C.OCI_ERROR {
+			return def.rset.stmt.ses.srv.env.ociError()
+		} else if r == C.OCI_INVALID_HANDLE {
+			return errNew("unable to allocate oci lob handle during define")
+		}
 	}
 	return nil
 }
 
 func (def *defLob) free() {
-	if def.lobLocatorp.Value() != nil {
-		C.OCIDescriptorFree(
-			unsafe.Pointer(def.lobLocatorp.Pointer()), //void     *descp,
-			C.OCI_DTYPE_LOB)                           //ub4      type );
+	for i := range def.lobs {
+		def.lobs[i] = nil
 	}
 }
 
 func (def *defLob) close() (err error) {
 	//Log.Infof("defLob close %p", def.ociLobLocator)
-	lob := def.lobLocatorp.Value()
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.nullp.Free()
-	def.lobLocatorp.Free()
+	def.arrHlp.close()
+	if def.lobs != nil {
+		for i, lob := range def.lobs {
+			if lob == nil {
+				continue
+			}
+			def.lobs[i] = nil
+			lobClose(rset.stmt.ses, lob)
+			C.OCIDescriptorFree(
+				unsafe.Pointer(lob), //void     *descp,
+				C.OCI_DTYPE_LOB)     //ub4      type );
+		}
+		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
+		def.lobs = nil
+	}
 	rset.putDef(defIdxLob, def)
 
-	if lob == nil {
-		return nil
-	}
-	return lobClose(rset.stmt.ses, lob)
-}
-
-func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
-	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
-	r := C.OCILobOpen(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
-		mode)               //ub1              mode );
-	//Log.Infof("OCILobOpen %p returned %d", lob, r)
-	if r != C.OCI_SUCCESS {
-		lobClose(ses, lob)
-		return 0, ses.srv.env.ociError()
-	}
-	// get the length of the lob
-	r = C.OCILobGetLength2(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
-		&length)            //oraub8 *lenp)
-	if r == C.OCI_ERROR {
-		lobClose(ses, lob)
-		return length, ses.srv.env.ociError()
-	}
-	return length, nil
-}
-
-func lobClose(ses *Ses, lob *C.OCILobLocator) error {
-	if lob == nil {
-		return nil
-	}
-	//Log.Infof("OCILobClose %p\n%s", lob, getStack(1))
-	r := C.OCILobClose(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
-	)
-	C.OCIDescriptorFree(unsafe.Pointer(lob), //void     *descp,
-		C.OCI_DTYPE_LOB) //ub4      type );
-	if r == C.OCI_ERROR {
-		return ses.srv.env.ociError()
-	}
 	return nil
 }
 
@@ -470,4 +423,47 @@ func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 		lrw.size = C.oraub8(off) + byteAmtp
 	}
 	return int(byteAmtp), nil
+}
+
+func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
+	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
+	r := C.OCILobOpen(
+		ses.ocisvcctx,      //OCISvcCtx          *svchp,
+		ses.srv.env.ocierr, //OCIError           *errhp,
+		lob,                //OCILobLocator      *locp,
+		mode)               //ub1              mode );
+	//Log.Infof("OCILobOpen %p returned %d", lob, r)
+	if r != C.OCI_SUCCESS {
+		lobClose(ses, lob)
+		return 0, ses.srv.env.ociError()
+	}
+	// get the length of the lob
+	r = C.OCILobGetLength2(
+		ses.ocisvcctx,      //OCISvcCtx          *svchp,
+		ses.srv.env.ocierr, //OCIError           *errhp,
+		lob,                //OCILobLocator      *locp,
+		&length)            //oraub8 *lenp)
+	if r == C.OCI_ERROR {
+		lobClose(ses, lob)
+		return length, ses.srv.env.ociError()
+	}
+	return length, nil
+}
+
+func lobClose(ses *Ses, lob *C.OCILobLocator) error {
+	if lob == nil {
+		return nil
+	}
+	//Log.Infof("OCILobClose %p\n%s", lob, getStack(1))
+	r := C.OCILobClose(
+		ses.ocisvcctx,      //OCISvcCtx          *svchp,
+		ses.srv.env.ocierr, //OCIError           *errhp,
+		lob,                //OCILobLocator      *locp,
+	)
+	C.OCIDescriptorFree(unsafe.Pointer(lob), //void     *descp,
+		C.OCI_DTYPE_LOB) //ub4      type );
+	if r == C.OCI_ERROR {
+		return ses.srv.env.ociError()
+	}
+	return nil
 }

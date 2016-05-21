@@ -15,6 +15,15 @@ import (
 	"unsafe"
 )
 
+const (
+	fetchArrLen = 1 //28
+
+	byteWidth64 = 8
+	byteWidth32 = 4
+	byteWidth16 = 2
+	byteWidth8  = 1
+)
+
 // LogRsetCfg represents Rset logging configuration values.
 type LogRsetCfg struct {
 	// Close determines whether the Rset.close method is logged.
@@ -72,10 +81,11 @@ type Rset struct {
 	autoClose bool
 	genByPool bool
 
-	Row         []interface{}
-	ColumnNames []string
-	Index       int
-	Err         error
+	Row             []interface{}
+	ColumnNames     []string
+	Index           int
+	Err             error
+	fetched, offset int
 }
 
 // Len returns the number of rows retrieved.
@@ -148,14 +158,17 @@ func (rset *Rset) close() (err error) {
 // beginRow allocates a handle for each column and fetches one row.
 func (rset *Rset) beginRow() (err error) {
 	rset.log(_drv.cfg.Log.Rset.BeginRow)
+	if rset.fetched == -1 {
+		return io.EOF
+	}
 	rset.Index++
 	// check is open
 	if rset.ocistmt == nil {
 		return errF("Rset is closed")
 	}
+	fetchLen := fetchArrLen
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
-		//glog.Infof("Rset.define: ", define)
 		rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
 		if define == nil {
 			continue
@@ -165,11 +178,14 @@ func (rset *Rset) beginRow() (err error) {
 			return err
 		}
 	}
+	if rset.fetched > 0 && rset.fetched > rset.offset {
+		return nil
+	}
 	// fetch one row
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(1),                     //ub4         nrows,
+		C.ub4(fetchLen),              //ub4         nrows,
 		C.OCI_FETCH_NEXT,             //ub2         orientation,
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
@@ -180,6 +196,18 @@ func (rset *Rset) beginRow() (err error) {
 		// Adjust Index so that Len() returns correct value when all rows read
 		rset.Index--
 		// return io.EOF to conform with database/sql/driver
+		rset.fetched = -1
+		return io.EOF
+	}
+	var rowsFetched C.ub4
+	if err := rset.attr(unsafe.Pointer(&rowsFetched), 4, C.OCI_ATTR_ROWS_FETCHED); err != nil {
+		return err
+	}
+
+	rset.fetched = int(rowsFetched)
+	rset.offset = 0
+	if rset.fetched == 0 {
+		rset.fetched = -1
 		return io.EOF
 	}
 	return nil
@@ -193,6 +221,7 @@ func (rset *Rset) endRow() {
 			define.free()
 		}
 	}
+	rset.offset++
 }
 
 // Next attempts to load a row of data from an Oracle buffer. True is returned
@@ -214,6 +243,7 @@ func (rset *Rset) Next() bool {
 	}
 	err := rset.beginRow()
 	defer rset.endRow()
+	//rset.logF(_drv.cfg.Log.Rset.Next, "beginRow=%v", err)
 	if err != nil {
 		// io.EOF means no more data; return nil err
 		if err == io.EOF {
@@ -228,7 +258,8 @@ func (rset *Rset) Next() bool {
 	}
 	// populate column values
 	for n, define := range rset.defs {
-		value, err := define.value()
+		value, err := define.value(rset.offset)
+		//rset.logF(_drv.cfg.Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
 		if err != nil {
 			rset.Err = err
 			rset.Row = nil
@@ -239,6 +270,7 @@ func (rset *Rset) Next() bool {
 		}
 		rset.Row[n] = value
 	}
+	//rset.logF(_drv.cfg.Log.Rset.Next, "Row=%#v", rset.Row)
 	return true
 }
 
@@ -266,6 +298,8 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.stmt = stmt
 	rset.ocistmt = ocistmt
 	rset.Index = -1
+	rset.offset = 0
+	rset.fetched = 0
 	rset.Err = nil
 	rset.log(_drv.cfg.Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip

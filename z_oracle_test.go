@@ -583,98 +583,85 @@ func loadDbtimezone() (*time.Location, error) {
 }
 
 func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
+	row := rset.NextRow()
 	if 1 != len(rset.Row) {
 		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rset.Row))
 	}
 
 	switch expected.(type) {
 	case int64:
-		row := rset.NextRow()
 		compare_int64(expected, row[0], t)
 	case int32:
-		row := rset.NextRow()
 		compare_int32(expected, row[0], t)
 	case int16:
-		row := rset.NextRow()
 		compare_int16(expected, row[0], t)
 	case int8:
-		row := rset.NextRow()
 		compare_int8(expected, row[0], t)
 	case uint64:
-		row := rset.NextRow()
 		compare_uint64(expected, row[0], t)
 	case uint32:
-		row := rset.NextRow()
 		compare_uint32(expected, row[0], t)
 	case uint16:
-		row := rset.NextRow()
 		compare_uint16(expected, row[0], t)
 	case uint8:
-		row := rset.NextRow()
 		compare_uint8(expected, row[0], t)
 	case float64:
-		row := rset.NextRow()
 		compare_float64(expected, row[0], t)
 	case float32:
-		row := rset.NextRow()
 		compare_float32(expected, row[0], t)
 	case ora.Int64:
-		row := rset.NextRow()
 		compare_OraInt64(expected, row[0], t)
 	case ora.Int32:
-		row := rset.NextRow()
 		compare_OraInt32(expected, row[0], t)
 	case ora.Int16:
-		row := rset.NextRow()
 		compare_OraInt16(expected, row[0], t)
 	case ora.Int8:
-		row := rset.NextRow()
 		compare_OraInt8(expected, row[0], t)
 	case ora.Uint64:
-		row := rset.NextRow()
 		compare_OraUint64(expected, row[0], t)
 	case ora.Uint32:
-		row := rset.NextRow()
 		compare_OraUint32(expected, row[0], t)
 	case ora.Uint16:
-		row := rset.NextRow()
 		compare_OraUint16(expected, row[0], t)
 	case ora.Uint8:
-		row := rset.NextRow()
 		compare_OraUint8(expected, row[0], t)
 	case ora.Float64:
-		row := rset.NextRow()
 		compare_OraFloat64(expected, row[0], t)
 	case ora.Float32:
-		row := rset.NextRow()
 		compare_OraFloat32(expected, row[0], t)
 
 	case ora.IntervalYM:
-		row := rset.NextRow()
 		compare_OraIntervalYM(expected, row[0], t)
 	case ora.IntervalDS:
-		row := rset.NextRow()
 		compare_OraIntervalDS(expected, row[0], t)
 
 	case ora.Bfile:
-		row := rset.NextRow()
 		compare_OraBfile(expected, row[0], t)
 
 	case []int64:
-		for rset.Next() {
+		for {
 			expectedElem := elemAt(expected, rset.Index)
 			compare_int64(expectedElem, rset.Row[0], t)
+			if !rset.Next() {
+				break
+			}
 		}
 
 	case []ora.IntervalYM:
-		for rset.Next() {
+		for {
 			expectedElem := elemAt(expected, rset.Index)
 			compare_OraIntervalYM(expectedElem, rset.Row[0], t)
+			if !rset.Next() {
+				break
+			}
 		}
 	case []ora.IntervalDS:
-		for rset.Next() {
+		for {
 			expectedElem := elemAt(expected, rset.Index)
 			compare_OraIntervalDS(expectedElem, rset.Row[0], t)
+			if !rset.Next() {
+				break
+			}
 		}
 	}
 	testErr(rset.Err, t)
@@ -2573,7 +2560,7 @@ func TestFils(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enableLogging(t)
+	//enableLogging(t)
 
 	if _, err := testDb.Exec(`INSERT INTO test_janus (
 		leg, site, hole, core, core_type, section_number,
@@ -3336,7 +3323,7 @@ func TestUnderflow(t *testing.T) {
 	}
 	ins := `INSERT INTO ` + tbl + ` VALUES (` + strings.Repeat(",%f", colCount)[1:] + `)`
 
-	enableLogging(t)
+	//enableLogging(t)
 
 	for caseNum, test := range [][colCount]float64{
 		{0.99, 8, 4.2, 65400., 0.7, 0.6, 3.14, 2.78, 42},
@@ -3485,7 +3472,7 @@ func TestStringSpaces(t *testing.T) {
 	}
 	insQry := "INSERT INTO test_string_space (text) VALUES (:1)"
 	texts := []string{"nospace", "onespace ", "twospaces  ", "   "}
-	enableLogging(t)
+	//enableLogging(t)
 	for i, text := range texts {
 		if _, err := testDb.Exec(insQry, text); err != nil {
 			t.Fatalf("%d. insert (%q): %v", i, text, err)

@@ -57,7 +57,7 @@ type bnd interface {
 // an Oracle OCI type to a Go type.
 type def interface {
 	// value gets a Go value from an Oracle buffer.
-	value() (interface{}, error)
+	value(offset int) (interface{}, error)
 	// alloc allocates an OCI descriptor.
 	alloc() error
 	// free releases an OCI descriptor.

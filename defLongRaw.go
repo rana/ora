@@ -15,56 +15,40 @@ import (
 )
 
 type defLongRaw struct {
-	rset         *Rset
-	ocidef       *C.OCIDefine
-	isNullable   bool
-	returnLength C.ACTUAL_LENGTH_TYPE
-	buf          []byte
-	nullp
+	ociDef
+	isNullable bool
+	buf        []byte
+	bufSize    int
 }
 
 func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	def.buf = make([]byte, int(bufSize))
-	//logF(true, "position %v, def.buf %v", position, len(def.buf))
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                    //OCIStmt     *stmtp,
-		&def.ocidef,                         //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
-		C.ub4(position),                     //ub4         position,
-		unsafe.Pointer(&def.buf[0]),         //void        *valuep,
-		C.LENGTH_TYPE(len(def.buf)),         //sb8         value_sz,
-		C.SQLT_LBI,                          //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
-		&def.returnLength,                   //ub4         *rlenp,
-		nil,                                 //ub2         *rcodep,
-		C.OCI_DEFAULT)                       //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	def.buf = make([]byte, fetchArrLen*int(bufSize))
+	def.bufSize = int(bufSize)
+
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), int(bufSize), C.SQLT_LBI)
 }
 
-func (def *defLongRaw) value() (value interface{}, err error) {
+func (def *defLongRaw) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Raw{IsNull: def.nullp.IsNull()}
+		bytesValue := Raw{IsNull: def.nullInds[offset] < 0}
 		if !bytesValue.IsNull {
 			// Make a slice of length equal to the return length
-			bytesValue.Value = make([]byte, def.returnLength)
+			bytesValue.Value = make([]byte, def.alen[offset])
 			// Copy returned data
-			copyLength := copy(bytesValue.Value, def.buf)
-			if C.ACTUAL_LENGTH_TYPE(copyLength) != def.returnLength {
+			copyLength := copy(bytesValue.Value, def.buf[offset*def.bufSize:(offset+1)*def.bufSize])
+			if C.ACTUAL_LENGTH_TYPE(copyLength) != def.alen[offset] {
 				return nil, errNew("unable to copy LONG RAW result data from buffer")
 			}
 		}
 		value = bytesValue
 	} else {
 		// Make a slice of length equal to the return length
-		result := make([]byte, def.returnLength)
+		result := make([]byte, def.alen[offset])
 		// Copy returned data
-		copyLength := copy(result, def.buf)
-		if C.ACTUAL_LENGTH_TYPE(copyLength) != def.returnLength {
+		copyLength := copy(result, def.buf[offset*def.bufSize:(offset+1)*def.bufSize])
+		if C.ACTUAL_LENGTH_TYPE(copyLength) != def.alen[offset] {
 			return nil, errNew("unable to copy LONG RAW result data from buffer")
 		}
 		value = result
@@ -90,7 +74,7 @@ func (def *defLongRaw) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.buf = nil
-	def.nullp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxLongRaw, def)
 	return nil
 }

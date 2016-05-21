@@ -56,7 +56,7 @@ func TestMultiDefine_charB1_session(t *testing.T) {
 }
 
 func TestWorkload_charB1_session(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	defer setC1Bool()()
 	testWorkload(charB1, t)
 }
@@ -101,7 +101,7 @@ func TestMultiDefine_charB1Null_session(t *testing.T) {
 }
 
 func TestWorkload_charB1Null_session(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	defer setC1Bool()()
 	testWorkload(charB1Null, t)
 }
@@ -150,7 +150,7 @@ func TestMultiDefine_charC1_session(t *testing.T) {
 }
 
 func TestWorkload_charC1_session(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	testWorkload(charC1, t)
 }
 

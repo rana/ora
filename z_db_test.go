@@ -59,7 +59,7 @@ func Test_open_cursors_db(t *testing.T) {
 }
 
 func TestSelectNullString_db(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	var s string
 	rows, err := testDb.Query("SELECT '' x FROM DUAL")
 	if err != nil {
@@ -271,7 +271,7 @@ func Test_charB1_bool_true_db(t *testing.T) {
 }
 
 func Test_charB1Null_bool_true_db(t *testing.T) {
-	enableLogging(t)
+	//enableLogging(t)
 	defer setC1Bool()()
 	testBindDefineDB(gen_boolTrue(), t, charB1Null)
 }

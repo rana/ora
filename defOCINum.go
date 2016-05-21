@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -16,43 +17,30 @@ import (
 )
 
 type defOCINum struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
-	ociNumber  [1]C.OCINumber
+	ociDef
+	ociNumber  []C.OCINumber
 	isNullable bool
-	nullp
 }
 
 func (def *defOCINum) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                    //OCIStmt     *stmtp,
-		&def.ocidef,                         //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
-		C.ub4(position),                     //ub4         position,
-		unsafe.Pointer(&def.ociNumber[0]),   //void        *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8         value_sz,
-		C.SQLT_VNU,                          //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.ociNumber == nil {
+		def.ociNumber = (*((*[fetchArrLen]C.OCINumber)(C.malloc(C.sizeof_OCINumber * fetchArrLen))))[:fetchArrLen]
 	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ociNumber[0]), C.sizeof_OCINumber, C.SQLT_VNU)
 }
-func (def *defOCINum) value() (value interface{}, err error) {
-	if def.nullp.IsNull() {
+func (def *defOCINum) value(offset int) (value interface{}, err error) {
+	//if def.nullp.IsNull() {
+	if def.nullInds[offset] < 0 {
 		if def.isNullable {
 			return String{IsNull: true}, nil
 		}
 		return "0", nil
 	}
-	length := int(def.ociNumber[0].OCINumberPart[0])
+	length := int(def.ociNumber[offset].OCINumberPart[0])
 	num := num.OCINum(((*[C.OCI_NUMBER_SIZE]byte)(
-		unsafe.Pointer(&def.ociNumber[0].OCINumberPart[1]),
+		unsafe.Pointer(&def.ociNumber[offset].OCINumberPart[1]),
 	))[:length])
 	if def.isNullable {
 		return OraOCINum{Value: num}, nil
@@ -77,7 +65,11 @@ func (def *defOCINum) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.nullp.Free()
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
+		def.ociNumber = nil
+	}
+	def.arrHlp.close()
 	rset.putDef(defIdxOCINum, def)
 	return nil
 }

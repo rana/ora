@@ -5,6 +5,7 @@ package ora
 #include "version.h"
 */
 import "C"
+import "unsafe"
 
 type arrHlp struct {
 	curlen     C.ub4
@@ -12,6 +13,60 @@ type arrHlp struct {
 	alen       []C.ACTUAL_LENGTH_TYPE
 	rcode      []C.ub2
 	isAssocArr bool
+}
+
+type ociDef struct {
+	ocidef *C.OCIDefine
+	rset   *Rset
+	arrHlp
+}
+
+func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int, dty int) error {
+	d.ensureFetchLength(fetchArrLen)
+	if r := C.OCIDEFINEBYPOS(
+		d.rset.ocistmt,                 //OCIStmt     *stmtp,
+		&d.ocidef,                      //OCIDefine   **defnpp,
+		d.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
+		C.ub4(position),                //ub4         position,
+		valuep,                         //void        *valuep,
+		C.LENGTH_TYPE(valueSize),       //sb8         value_sz,
+		C.ub2(dty),                     //ub2         dty,
+		unsafe.Pointer(&d.nullInds[0]), //void        *indp,
+		&d.alen[0],                     //ub4         *rlenp,
+		&d.rcode[0],                    //ub2         *rcodep,
+		C.OCI_DEFAULT,                  //ub4         mode );
+	); r == C.OCI_ERROR {
+		return d.rset.stmt.ses.srv.env.ociError()
+	}
+	if r := C.OCIDefineArrayOfStruct(
+		d.ocidef,                       //OCIDefine *defnp
+		d.rset.stmt.ses.srv.env.ocierr, //OCIError *errhp,
+		C.ub4(valueSize),               //ub4 pvskip,
+		2,                              //ub4 indskip,
+		C.ACTUAL_LENGTH_LENGTH, //ub4 rlskip,
+		2, //ub4 rcskip
+	); r == C.OCI_ERROR {
+		return d.rset.stmt.ses.srv.env.ociError()
+	}
+	return nil
+}
+
+func (a *arrHlp) ensureFetchLength(length int) {
+	if cap(a.nullInds) < length {
+		a.nullInds = make([]C.sb2, length)
+	} else {
+		a.nullInds = a.nullInds[:length]
+	}
+	if cap(a.alen) < length {
+		a.alen = make([]C.ACTUAL_LENGTH_TYPE, length)
+	} else {
+		a.alen = a.alen[:length]
+	}
+	if cap(a.rcode) < length {
+		a.rcode = make([]C.ub2, length)
+	} else {
+		a.rcode = a.rcode[:length]
+	}
 }
 
 // ensureBindArrLength calculates the needed length and capacity,

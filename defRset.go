@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -12,52 +13,41 @@ import "C"
 import "unsafe"
 
 type defRset struct {
-	rset    *Rset
-	ocidef  *C.OCIDefine
-	ocistmt *C.OCIStmt
-	result  *Rset
+	ociDef
+	ocistmt []*C.OCIStmt
+	result  [fetchArrLen]*Rset
 }
 
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
+	if def.ocistmt == nil {
+		def.ocistmt = (*((*[fetchArrLen]*C.OCIStmt)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	}
 
 	// create result set
-	result := _drv.rsetPool.Get().(*Rset)
-	if result.id == 0 {
-		result.id = _drv.rsetId.nextId()
-	}
-	result.stmt = rset.stmt
-	result.ocistmt = rset.ocistmt
-	def.result = result
+	for i := range def.result {
+		result := _drv.rsetPool.Get().(*Rset)
+		if result.id == 0 {
+			result.id = _drv.rsetId.nextId()
+		}
+		result.stmt = rset.stmt
+		result.ocistmt = rset.ocistmt
+		def.result[i] = result
 
-	upOciStmt, err := def.rset.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
-	if err != nil {
-		return errE(err)
+		upOciStmt, err := def.rset.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
+		if err != nil {
+			return errE(err)
+		}
+		def.ocistmt[i] = (*C.OCIStmt)(upOciStmt)
 	}
-	def.ocistmt = (*C.OCIStmt)(upOciStmt)
 
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.ocistmt),     //void        *valuep,
-		C.LENGTH_TYPE(C.sizeof_dvoid),    //sb8         value_sz,
-		C.SQLT_RSET,                      //ub2         dty,
-		nil,                              //void        *indp,
-		nil,                              //ub2         *rlenp,
-		nil,                              //ub2         *rcodep,
-		C.OCI_DEFAULT)                    //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ocistmt[0]), C.sizeof_dvoid, C.SQLT_RSET)
 }
 
-func (def *defRset) value() (value interface{}, err error) {
-	rst := def.result
+func (def *defRset) value(offset int) (value interface{}, err error) {
+	rst := def.result[offset]
 
-	err = rst.open(rst.stmt, def.ocistmt)
+	err = rst.open(rst.stmt, def.ocistmt[offset])
 	rst.stmt.openRsets.add(rst)
 
 	return def.result, err
@@ -80,8 +70,14 @@ func (def *defRset) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.ocistmt = nil
-	def.result = nil
+	if def.ocistmt != nil {
+		for _, p := range def.ocistmt {
+			def.rset.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(p), C.OCI_HTYPE_STMT)
+		}
+		C.free(unsafe.Pointer(&def.ocistmt[0]))
+		def.ocistmt = nil
+	}
+	def.arrHlp.close()
 	rset.putDef(defIdxRset, def)
 	return nil
 }

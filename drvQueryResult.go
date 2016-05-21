@@ -29,7 +29,7 @@ func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
 	}
 	// Populate column values into destination slice
 	for n, define := range qr.rset.defs {
-		value, err := define.value()
+		value, err := define.value(qr.rset.offset)
 		if err != nil {
 			fmt.Printf("%d. %T (%#v): %v\n", n, define, define, err)
 			return err

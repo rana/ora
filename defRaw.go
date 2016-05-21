@@ -15,46 +15,32 @@ import (
 )
 
 type defRaw struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
+	ociDef
 	ociRaw     *C.OCIRaw
 	isNullable bool
 	buf        []byte
-	nullp
+	columnSize int
 }
 
 func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	def.buf = make([]byte, columnSize)
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                    //OCIStmt     *stmtp,
-		&def.ocidef,                         //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
-		C.ub4(position),                     //ub4         position,
-		unsafe.Pointer(&def.buf[0]),         //void        *valuep,
-		C.LENGTH_TYPE(columnSize),           //sb8         value_sz,
-		C.SQLT_BIN,                          //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	def.columnSize = columnSize
+	def.buf = make([]byte, fetchArrLen*columnSize)
+
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), columnSize, C.SQLT_BIN)
 }
 
-func (def *defRaw) value() (value interface{}, err error) {
+func (def *defRaw) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
-		bytesValue := Raw{IsNull: def.nullp.IsNull()}
+		bytesValue := Raw{IsNull: def.nullInds[offset] < 0}
 		if !bytesValue.IsNull {
-			bytesValue.Value = def.buf
+			bytesValue.Value = def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
 		}
 		value = bytesValue
 	} else {
-		if !def.nullp.IsNull() {
-			value = def.buf
+		if def.nullInds[offset] > -1 {
+			value = def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
 		}
 	}
 	return value, err
@@ -79,7 +65,7 @@ func (def *defRaw) close() (err error) {
 	def.ocidef = nil
 	def.ociRaw = nil
 	def.buf = nil
-	def.nullp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxRaw, def)
 	return nil
 }

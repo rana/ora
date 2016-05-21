@@ -5,8 +5,8 @@
 package ora
 
 /*
-#include <oci.h>
 #include <stdlib.h>
+#include <oci.h>
 #include <string.h>
 #include "version.h"
 */
@@ -16,34 +16,20 @@ import (
 )
 
 type defIntervalDS struct {
-	rset   *Rset
-	ocidef *C.OCIDefine
-	intervalp
-	nullp
+	ociDef
+	intervals []*C.OCIInterval
 }
 
 func (def *defIntervalDS) define(position int, rset *Rset) error {
 	def.rset = rset
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                        //OCIStmt     *stmtp,
-		&def.ocidef,                             //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,        //OCIError    *errhp,
-		C.ub4(position),                         //ub4         position,
-		unsafe.Pointer(def.intervalp.Pointer()), //void        *valuep,
-		C.LENGTH_TYPE(def.intervalp.Size()),     //sb8         value_sz,
-		C.SQLT_INTERVAL_DS,                      //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()),     //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.intervals == nil {
+		def.intervals = (*((*[fetchArrLen]*C.OCIInterval)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
 	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), C.sizeof_dvoid, C.SQLT_INTERVAL_DS)
 }
 
-func (def *defIntervalDS) value() (value interface{}, err error) {
-	intervalDS := IntervalDS{IsNull: def.nullp.IsNull()}
+func (def *defIntervalDS) value(offset int) (value interface{}, err error) {
+	intervalDS := IntervalDS{IsNull: def.nullInds[offset] < 0}
 	if !intervalDS.IsNull {
 		var day C.sb4
 		var hour C.sb4
@@ -58,7 +44,7 @@ func (def *defIntervalDS) value() (value interface{}, err error) {
 			&minute,               //sb4                *mm,
 			&second,               //sb4                *ss,
 			&nanosecond,           //sb4                *fsec,
-			def.intervalp.Value()) //const OCIInterval  *interval );
+			def.intervals[offset]) //const OCIInterval  *interval );
 		if r == C.OCI_ERROR {
 			err = def.rset.stmt.ses.srv.env.ociError()
 		}
@@ -72,27 +58,23 @@ func (def *defIntervalDS) value() (value interface{}, err error) {
 }
 
 func (def *defIntervalDS) alloc() error {
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),           //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(def.intervalp.Pointer())), //dvoid         **descpp,
-		C.OCI_DTYPE_INTERVAL_DS,                                    //ub4           type,
-		0,   //size_t        xtramem_sz,
-		nil) //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci interval handle during define")
+	for i := range def.intervals {
+		r := C.OCIDescriptorAlloc(
+			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),     //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.intervals[i])), //dvoid         **descpp,
+			C.OCI_DTYPE_INTERVAL_DS,                              //ub4           type,
+			0,   //size_t        xtramem_sz,
+			nil) //dvoid         **usrmempp);
+		if r == C.OCI_ERROR {
+			return def.rset.stmt.ses.srv.env.ociError()
+		} else if r == C.OCI_INVALID_HANDLE {
+			return errNew("unable to allocate oci interval handle during define")
+		}
 	}
 	return nil
 }
 
 func (def *defIntervalDS) free() {
-	defer func() {
-		recover()
-	}()
-	C.OCIDescriptorFree(
-		unsafe.Pointer(def.intervalp.Pointer()), //void     *descp,
-		C.OCI_DTYPE_INTERVAL_DS)                 //timeDefine.descTypeCode)                //ub4      type );
 }
 
 func (def *defIntervalDS) close() (err error) {
@@ -104,9 +86,21 @@ func (def *defIntervalDS) close() (err error) {
 
 	rset := def.rset
 	def.rset = nil
+	if def.intervals != nil {
+		for i, p := range def.intervals {
+			if p == nil {
+				continue
+			}
+			def.intervals[i] = nil
+			C.OCIDescriptorFree(
+				unsafe.Pointer(p),       //void     *descp,
+				C.OCI_DTYPE_INTERVAL_DS) //timeDefine.descTypeCode)                //ub4      type );
+		}
+		C.free(unsafe.Pointer(&def.intervals[0]))
+		def.intervals = nil
+	}
 	def.ocidef = nil
-	def.intervalp.Free()
-	def.nullp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxIntervalDS, def)
 	return nil
 }

@@ -15,70 +15,58 @@ import (
 )
 
 type defBfile struct {
-	rset           *Rset
-	ocidef         *C.OCIDefine
+	ociDef
 	directoryAlias [30]byte
 	filename       [255]byte
-	lobLocatorp
-	nullp
+	lobs           []*C.OCILobLocator
 }
 
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                          //OCIStmt     *stmtp,
-		&def.ocidef,                               //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,          //OCIError    *errhp,
-		C.ub4(position),                           //ub4         position,
-		unsafe.Pointer(def.lobLocatorp.Pointer()), //void        *valuep,
-		C.LENGTH_TYPE(def.lobLocatorp.Size()),     //sb8         value_sz,
-		C.SQLT_FILE,                               //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()),       //void        *indp,
-		nil,           //ub4         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.lobs == nil {
+		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
 	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, C.SQLT_FILE)
 }
-func (def *defBfile) value() (value interface{}, err error) {
+func (def *defBfile) value(offset int) (value interface{}, err error) {
 	var bfileValue Bfile
-	bfileValue.IsNull = def.nullp.IsNull()
-	if !bfileValue.IsNull {
-		// Get directory alias and filename
-		dLength := C.ub2(len(def.directoryAlias))
-		fLength := C.ub2(len(def.filename))
-		r := C.OCILobFileGetName(
-			def.rset.stmt.ses.srv.env.ocienv,                     //OCIEnv                   *envhp,
-			def.rset.stmt.ses.srv.env.ocierr,                     //OCIError                 *errhp,
-			def.lobLocatorp.Value(),                              //const OCILobLocator      *filep,
-			(*C.OraText)(unsafe.Pointer(&def.directoryAlias[0])), //OraText                  *dir_alias,
-			&dLength, //ub2                      *d_length,
-			(*C.OraText)(unsafe.Pointer(&def.filename[0])), //OraText                  *filename,
-			&fLength) //ub2                      *f_length );
-		if r == C.OCI_ERROR {
-			return value, def.rset.stmt.ses.srv.env.ociError()
-		}
-		bfileValue.DirectoryAlias = string(def.directoryAlias[:int(dLength)])
-		bfileValue.Filename = string(def.filename[:int(fLength)])
+	bfileValue.IsNull = def.nullInds[offset] < 0
+	if bfileValue.IsNull {
+		return bfileValue, nil
 	}
-	value = bfileValue
-	return value, err
+	// Get directory alias and filename
+	dLength := C.ub2(len(def.directoryAlias))
+	fLength := C.ub2(len(def.filename))
+	r := C.OCILobFileGetName(
+		def.rset.stmt.ses.srv.env.ocienv,                     //OCIEnv                   *envhp,
+		def.rset.stmt.ses.srv.env.ocierr,                     //OCIError                 *errhp,
+		def.lobs[offset],                                     //const OCILobLocator      *filep,
+		(*C.OraText)(unsafe.Pointer(&def.directoryAlias[0])), //OraText                  *dir_alias,
+		&dLength, //ub2                      *d_length,
+		(*C.OraText)(unsafe.Pointer(&def.filename[0])), //OraText                  *filename,
+		&fLength) //ub2                      *f_length );
+	if r == C.OCI_ERROR {
+		return value, def.rset.stmt.ses.srv.env.ociError()
+	}
+	bfileValue.DirectoryAlias = string(def.directoryAlias[:int(dLength)])
+	bfileValue.Filename = string(def.filename[:int(fLength)])
+	return bfileValue, err
 }
 
 func (def *defBfile) alloc() error {
 	// Allocate lob locator handle
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),             //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(def.lobLocatorp.Pointer())), //dvoid         **descpp,
-		C.OCI_DTYPE_FILE,                                             //ub4           type,
-		0,                                                            //size_t        xtramem_sz,
-		nil)                                                          //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci lob handle during define")
+	for i := range def.lobs {
+		r := C.OCIDescriptorAlloc(
+			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])),  //dvoid         **descpp,
+			C.OCI_DTYPE_FILE,                                 //ub4           type,
+			0,                                                //size_t        xtramem_sz,
+			nil)                                              //dvoid         **usrmempp);
+		if r == C.OCI_ERROR {
+			return def.rset.stmt.ses.srv.env.ociError()
+		} else if r == C.OCI_INVALID_HANDLE {
+			return errNew("unable to allocate oci lob handle during define")
+		}
 	}
 	return nil
 }
@@ -87,11 +75,6 @@ func (def *defBfile) free() {
 	defer func() {
 		recover()
 	}()
-	if lob := def.lobLocatorp.Value(); lob != nil {
-		C.OCIDescriptorFree(
-			unsafe.Pointer(lob), //void     *descp,
-			C.OCI_DTYPE_FILE)    //ub4      type );
-	}
 }
 
 func (def *defBfile) close() (err error) {
@@ -101,17 +84,29 @@ func (def *defBfile) close() (err error) {
 		}
 	}()
 	def.free()
-	for n := range def.directoryAlias {
-		def.directoryAlias[n] = 0
+	for i := range def.directoryAlias {
+		def.directoryAlias[i] = 0
 	}
-	for n := range def.filename {
-		def.filename[n] = 0
+	for i := range def.filename {
+		def.filename[i] = 0
+	}
+	if def.lobs != nil {
+		for i, lob := range def.lobs {
+			if lob == nil {
+				continue
+			}
+			def.lobs[i] = nil
+			C.OCIDescriptorFree(
+				unsafe.Pointer(lob), //void     *descp,
+				C.OCI_DTYPE_FILE)    //ub4      type );
+		}
+		C.free(unsafe.Pointer(&def.lobs[0]))
+		def.lobs = nil
 	}
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.nullp.Free()
-	def.lobLocatorp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxBfile, def)
 	return nil
 }

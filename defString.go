@@ -13,12 +13,10 @@ import "C"
 import "unsafe"
 
 type defString struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
+	ociDef
 	buf        []byte
 	isNullable bool
-	rlen       C.ACTUAL_LENGTH_TYPE
-	nullp
+	columnSize int
 }
 
 func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
@@ -41,48 +39,29 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 	if n%2 != 0 {
 		n++
 	}
+	def.columnSize = n
+	n = fetchArrLen * def.columnSize
 	if c := cap(def.buf); c < n {
-		i := 1
-		if c > 0 && c&(c-1) == 0 { // c is power of 2.
-			i = c
-		}
-		for i < n {
-			i <<= 1 // double i
-		}
-		def.buf = make([]byte, i)
+		def.buf = make([]byte, n)
+	} else {
+		def.buf = def.buf[:n]
 	}
-	buf := def.buf[:n]
-	// Create oci define handle
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                    //OCIStmt     *stmtp,
-		&def.ocidef,                         //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,    //OCIError    *errhp,
-		C.ub4(position),                     //ub4         position,
-		unsafe.Pointer(&buf[0]),             //void        *valuep,
-		C.LENGTH_TYPE(n),                    //sb8         value_sz,
-		C.SQLT_CHR,                          //ub2         dty,
-		unsafe.Pointer(def.nullp.Pointer()), //void        *indp,
-		&def.rlen,                           //ub2         *rlenp,
-		nil,                                 //ub2         *rcodep,
-		C.OCI_DEFAULT)                       //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), def.columnSize, C.SQLT_CHR)
 }
 
-func (def *defString) value() (value interface{}, err error) {
+func (def *defString) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
-		oraStringValue := String{IsNull: def.nullp.IsNull()}
+		oraStringValue := String{IsNull: def.nullInds[offset] < 0}
 		if !oraStringValue.IsNull {
-			oraStringValue.Value = string(def.buf[:int(def.rlen)])
+			oraStringValue.Value = string(def.buf[offset*def.columnSize : offset*def.columnSize+int(def.alen[offset])])
 		}
 		return oraStringValue, nil
 	}
-	if def.nullp.IsNull() {
+	if def.nullInds[offset] < 0 {
 		return "", nil
 	}
-	return string(def.buf[:int(def.rlen)]), nil
+	return string(def.buf[offset*def.columnSize : offset*def.columnSize+int(def.alen[offset])]), nil
 }
 
 func (def *defString) alloc() error {
@@ -103,7 +82,7 @@ func (def *defString) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.buf = nil
-	def.nullp.Free()
+	def.arrHlp.close()
 	rset.putDef(defIdxString, def)
 	return nil
 }

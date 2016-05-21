@@ -63,7 +63,7 @@ END TST_ora_plsarr_num;`,
 		checkCompile(t, testSes)
 	}
 
-	enableLogging(t)
+	//enableLogging(t)
 	for _, rt := range []reflect.Type{
 		reflect.TypeOf(ora.Float64{}),
 		reflect.TypeOf(ora.Float32{}),
@@ -160,7 +160,7 @@ END TST_ora_plsarr_dt;`,
 		checkCompile(t, testSes)
 	}
 
-	enableLogging(t)
+	//enableLogging(t)
 	var ret string
 	now := time.Now()
 	for i, tc := range []struct {
