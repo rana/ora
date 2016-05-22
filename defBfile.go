@@ -24,9 +24,7 @@ type defBfile struct {
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
 	if def.lobs == nil {
-		// const fetchLen = fetchArrLen
-		const fetchLen = 1 // SIGSEGVs if >1
-		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(fetchLen * C.sof_LobLocatorp))))[:fetchLen]
+		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(fetchArrLen * C.sof_LobLocatorp))))[:fetchArrLen]
 	}
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), C.SQLT_FILE)
 }
