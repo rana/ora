@@ -42,18 +42,6 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	if def.lobs == nil {
 		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
 	}
-	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
-	for i := range def.lobs {
-		if r := C.OCIDescriptorAlloc(
-			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),
-			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])),
-			C.OCI_DTYPE_LOB,
-			0,
-			nil,
-		); r == C.OCI_ERROR {
-			return def.rset.stmt.ses.srv.env.ociError()
-		}
-	}
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, int(sqlt)); err != nil {
 		return err
 	}
@@ -152,6 +140,7 @@ func (def *defLob) value(offset int) (interface{}, error) {
 }
 func (def *defLob) alloc() error {
 	// Allocate lob locator handle
+	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
 	for i := range def.lobs {
 		r := C.OCIDescriptorAlloc(

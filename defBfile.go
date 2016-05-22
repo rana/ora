@@ -55,6 +55,7 @@ func (def *defBfile) value(offset int) (value interface{}, err error) {
 
 func (def *defBfile) alloc() error {
 	// Allocate lob locator handle
+	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	for i := range def.lobs {
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
@@ -72,9 +73,9 @@ func (def *defBfile) alloc() error {
 }
 
 func (def *defBfile) free() {
-	defer func() {
-		recover()
-	}()
+	for i := range def.lobs {
+		def.lobs[i] = nil
+	}
 }
 
 func (def *defBfile) close() (err error) {
