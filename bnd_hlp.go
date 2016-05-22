@@ -64,7 +64,7 @@ func (ll *lobLocatorp) Value() *C.OCILobLocator {
 	return *ll.p
 }
 func (ll *lobLocatorp) Size() int {
-	return C.sizeof_dvoid
+	return int(C.sof_LobLocatorp)
 }
 func (ll *lobLocatorp) Free() {
 	if ll.p != nil {
@@ -90,9 +90,7 @@ func (dt *dateTimep) Value() *C.OCIDateTime {
 	}
 	return *dt.p
 }
-func (dt *dateTimep) Size() int {
-	return C.sizeof_dvoid
-}
+func (dt *dateTimep) Size() int { return int(C.sof_DateTimep) }
 func (dt *dateTimep) Free() {
 	if dt.p != nil {
 		if *dt.p != nil {
@@ -278,7 +276,7 @@ func (ip *intervalp) Value() *C.OCIInterval {
 	}
 	return *ip.p
 }
-func (ip intervalp) Size() int { return C.sizeof_dvoid }
+func (ip intervalp) Size() int { return int(C.sof_Intervalp) }
 func (ip *intervalp) Free() {
 	if ip.p != nil {
 		C.free(unsafe.Pointer(ip.p))

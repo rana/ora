@@ -42,9 +42,9 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	if def.lobs == nil {
 		// const fetchLen = fetchArrLen
 		const fetchLen = 1 // SIGSEGVs if >1
-		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchLen))))[:fetchLen]
+		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(fetchLen * C.sof_LobLocatorp))))[:fetchLen]
 	}
-	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, int(sqlt)); err != nil {
+	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
 	prefetchLength := C.boolean(C.TRUE)

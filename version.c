@@ -1,5 +1,11 @@
 #include <oci.h>
 
+static const size_t sof_DateTimep = sizeof(OCIDateTime*);
+static const size_t sof_Intervalp = sizeof(OCIInterval*);
+static const size_t sof_LobLocatorp = sizeof(OCILobLocator*);
+static const size_t sof_Stmtp = sizeof(OCIStmt*);
+
+
 sword
 numberFromIntSlice(
 	OCIError *err,

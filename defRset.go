@@ -21,7 +21,7 @@ type defRset struct {
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
 	if def.ocistmt == nil {
-		def.ocistmt = (*((*[fetchArrLen]*C.OCIStmt)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+		def.ocistmt = (*((*[fetchArrLen]*C.OCIStmt)(C.malloc(fetchArrLen * C.sof_Stmtp))))[:fetchArrLen]
 	}
 
 	// create result set
@@ -41,7 +41,7 @@ func (def *defRset) define(position int, rset *Rset) error {
 		def.ocistmt[i] = (*C.OCIStmt)(upOciStmt)
 	}
 
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ocistmt[0]), C.sizeof_dvoid, C.SQLT_RSET)
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ocistmt[0]), int(C.sof_Stmtp), C.SQLT_RSET)
 }
 
 func (def *defRset) value(offset int) (value interface{}, err error) {

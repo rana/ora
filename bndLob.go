@@ -214,7 +214,7 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 }
 
 func allocTempLob(stmt *Stmt) (ociLobLocator *C.OCILobLocator, finish func(), err error) {
-	locatorp := (**C.OCILobLocator)(C.malloc(C.sizeof_dvoid))
+	locatorp := (**C.OCILobLocator)(C.malloc(C.sof_LobLocatorp))
 	defer C.free(unsafe.Pointer(locatorp))
 	// Allocate lob locator handle
 	r := C.OCIDescriptorAlloc(
@@ -226,7 +226,6 @@ func allocTempLob(stmt *Stmt) (ociLobLocator *C.OCILobLocator, finish func(), er
 	if r == C.OCI_SUCCESS {
 		ociLobLocator = *locatorp
 	}
-	//C.free(unsafe.Pointer(locatorp))
 	if r == C.OCI_ERROR {
 		return nil, nil, stmt.ses.srv.env.ociError()
 	} else if r == C.OCI_INVALID_HANDLE {

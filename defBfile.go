@@ -26,9 +26,9 @@ func (def *defBfile) define(position int, rset *Rset) error {
 	if def.lobs == nil {
 		// const fetchLen = fetchArrLen
 		const fetchLen = 1 // SIGSEGVs if >1
-		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchLen))))[:fetchLen]
+		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(fetchLen * C.sof_LobLocatorp))))[:fetchLen]
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, C.SQLT_FILE)
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), C.SQLT_FILE)
 }
 func (def *defBfile) value(offset int) (value interface{}, err error) {
 	var bfileValue Bfile

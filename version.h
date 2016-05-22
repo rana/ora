@@ -55,6 +55,11 @@
 	#define OCILOBWRITE					OCILobWrite
 #endif
 
+const size_t sof_DateTimep;
+const size_t sof_Intervalp;
+const size_t sof_LobLocatorp;
+const size_t sof_Stmtp;
+
 sword
 numberFromIntSlice(
 	OCIError *err,

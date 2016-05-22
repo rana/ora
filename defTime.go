@@ -28,9 +28,9 @@ func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
 	if def.dates == nil {
-		def.dates = (*((*[fetchArrLen]*C.OCIDateTime)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+		def.dates = (*((*[fetchArrLen]*C.OCIDateTime)(C.malloc(fetchArrLen * C.sof_DateTimep))))[:fetchArrLen]
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), C.sizeof_dvoid, C.SQLT_TIMESTAMP_TZ)
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), int(C.sof_DateTimep), C.SQLT_TIMESTAMP_TZ)
 }
 
 func (def *defTime) value(offset int) (value interface{}, err error) {
@@ -86,10 +86,10 @@ func (def *defTime) close() (err error) {
 
 	rset := def.rset
 	def.rset = nil
-	//if def.dates != nil {
-	//	C.free(unsafe.Pointer(&def.dates[0]))
-	//	def.dates = nil
-	//}
+	if def.dates != nil {
+		C.free(unsafe.Pointer(&def.dates[0]))
+		def.dates = nil
+	}
 	def.ocidef = nil
 	def.arrHlp.close()
 	rset.putDef(defIdxTime, def)

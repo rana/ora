@@ -23,9 +23,9 @@ type defIntervalDS struct {
 func (def *defIntervalDS) define(position int, rset *Rset) error {
 	def.rset = rset
 	if def.intervals == nil {
-		def.intervals = (*((*[fetchArrLen]*C.OCIInterval)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+		def.intervals = (*((*[fetchArrLen]*C.OCIInterval)(C.malloc(fetchArrLen * C.sof_Intervalp))))[:fetchArrLen]
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), C.sizeof_dvoid, C.SQLT_INTERVAL_DS)
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), int(C.sof_Intervalp), C.SQLT_INTERVAL_DS)
 }
 
 func (def *defIntervalDS) value(offset int) (value interface{}, err error) {
