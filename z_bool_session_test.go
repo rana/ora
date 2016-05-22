@@ -182,6 +182,9 @@ func TestBindDefine_OraBool_charC1Null_true_session(t *testing.T) {
 }
 
 func TestBindSlice_bool_charC1Null_session(t *testing.T) {
+	//ora.Cfg().Log.Rset.Next = true
+	//ora.Cfg().Log.Rset.BeginRow = true
+	//enableLogging(t)
 	testBindDefine(gen_boolSlice(), charC1Null, t, nil)
 }
 

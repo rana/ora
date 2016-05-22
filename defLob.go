@@ -17,7 +17,7 @@ import (
 	"unsafe"
 )
 
-const lobChunkSize = 16 << 20 // 16Mb
+const lobChunkSize = (1 << 20) // 1Mb
 
 var lobChunkPool = sync.Pool{
 	New: func() interface{} {
@@ -40,7 +40,9 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
 	if def.lobs == nil {
-		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+		// const fetchLen = fetchArrLen
+		const fetchLen = 1 // SIGSEGVs if >1
+		def.lobs = (*((*[fetchLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchLen))))[:fetchLen]
 	}
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, int(sqlt)); err != nil {
 		return err

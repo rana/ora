@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
-	"gopkg.in/rana/ora.v3/lg"
 )
 
 //// bytes
@@ -162,7 +161,7 @@ func TestBindSlice_bytes_blob_session(t *testing.T) {
 	ora.Cfg().Log.Rset.EndRow = true
 	ora.Cfg().Log.Rset.Next = true
 	//enableLogging(t)
-	ora.Cfg().Log.Logger = lg.Log
+	//ora.Cfg().Log.Logger = lg.Log
 	testBindDefine(gen_bytesSlice(9), blob, t, nil)
 }
 

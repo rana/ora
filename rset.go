@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	fetchArrLen = 2 //28
+	fetchArrLen = 16
 
 	byteWidth64 = 8
 	byteWidth32 = 4
@@ -86,6 +86,7 @@ type Rset struct {
 	Index           int
 	Err             error
 	fetched, offset int
+	finished        bool
 }
 
 // Len returns the number of rows retrieved.
@@ -158,7 +159,12 @@ func (rset *Rset) close() (err error) {
 // beginRow allocates a handle for each column and fetches one row.
 func (rset *Rset) beginRow() (err error) {
 	rset.log(_drv.cfg.Log.Rset.BeginRow)
-	if rset.fetched == -1 {
+	rset.logF(_drv.cfg.Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", rset.fetched, rset.offset, rset.finished)
+	if rset.finished {
+		rset.log(_drv.cfg.Log.Rset.BeginRow, "finished")
+		if rset.fetched > 0 && rset.fetched > rset.offset {
+			return nil
+		}
 		return io.EOF
 	}
 	// check is open
@@ -168,7 +174,7 @@ func (rset *Rset) beginRow() (err error) {
 	fetchLen := fetchArrLen
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
-		rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
+		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
 		if define == nil {
 			continue
 		}
@@ -176,12 +182,16 @@ func (rset *Rset) beginRow() (err error) {
 		if err != nil {
 			return err
 		}
+		if fetchLen > 1 {
+			switch define.(type) {
+			case *defBfile:
+				fetchLen = 1
+			case *defLob:
+				fetchLen = 1
+			}
+		}
 	}
-	rset.logF(_drv.cfg.Log.Rset.BeginRow, "fetched=%d offset=%d fetchLen=%d", rset.fetched, rset.offset, fetchLen)
-	if rset.fetched > 0 && rset.fetched > rset.offset {
-		return nil
-	}
-	rset.logF(_drv.cfg.Log.Rset.BeginRow, "stmt=%p err=%p", rset.ocistmt, rset.stmt.ses.srv.env.ocierr)
+	rset.finished = false
 	// fetch one row
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
@@ -193,15 +203,18 @@ func (rset *Rset) beginRow() (err error) {
 	if r == C.OCI_ERROR {
 		err := rset.stmt.ses.srv.env.ociError()
 		return err
-	} else if r == C.OCI_NO_DATA && fetchLen == 1 {
+	} else if r == C.OCI_NO_DATA {
+		rset.log(_drv.cfg.Log.Rset.BeginRow, "OCI_NO_DATA")
+		rset.finished = true
+		if fetchLen == 1 {
+			// return io.EOF to conform with database/sql/driver
+			return io.EOF
+		}
 		// If OCIStmtFetch2 returns OCI_NO_DATA this does not mean that no data fetched,
 		// this means that the number of fetched rows is less than the array size,
 		// they are all fetched by this OCIStmtFetch2 call, and you do not need to
 		// call OCIStmtFetch2 anymore.
 		//
-		// return io.EOF to conform with database/sql/driver
-		rset.fetched = -1
-		return io.EOF
 	}
 	rset.Index++
 	rset.offset = 0
@@ -215,7 +228,7 @@ func (rset *Rset) beginRow() (err error) {
 
 		rset.fetched = int(rowsFetched)
 		if rset.fetched == 0 {
-			rset.fetched = -1
+			rset.finished = true
 			return io.EOF
 		}
 	}
@@ -309,6 +322,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.Index = -1
 	rset.offset = 0
 	rset.fetched = 0
+	rset.finished = false
 	rset.Err = nil
 	rset.log(_drv.cfg.Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
@@ -667,7 +681,6 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			return errF("unsupported select-list column type (ociTypeCode: %v)", ociTypeCode)
 		}
 	}
-	rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%#v", rset.defs)
 	return nil
 }
 

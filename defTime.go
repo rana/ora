@@ -86,10 +86,10 @@ func (def *defTime) close() (err error) {
 
 	rset := def.rset
 	def.rset = nil
-	if def.dates != nil {
-		C.free(unsafe.Pointer(&def.dates[0]))
-		def.dates = nil
-	}
+	//if def.dates != nil {
+	//	C.free(unsafe.Pointer(&def.dates[0]))
+	//	def.dates = nil
+	//}
 	def.ocidef = nil
 	def.arrHlp.close()
 	rset.putDef(defIdxTime, def)
