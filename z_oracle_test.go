@@ -584,7 +584,7 @@ func loadDbtimezone() (*time.Location, error) {
 
 func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 	row := rset.NextRow()
-	t.Logf("Row=%v (%v) Index=%d", rset.Row, row, rset.Index)
+	//t.Logf("Row=%v (%v) Index=%d", rset.Row, row, rset.Index)
 	if 1 != len(rset.Row) {
 		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rset.Row))
 	}
@@ -641,7 +641,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 
 	case []int64:
 		for {
-			t.Logf("Row=%v Index=%d", rset.Row, rset.Index)
+			//t.Logf("Row=%v Index=%d", rset.Row, rset.Index)
 			expectedElem := elemAt(expected, rset.Index)
 			compare_int64(expectedElem, rset.Row[0], t)
 			if !rset.Next() {
@@ -1747,7 +1747,7 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 		a = x.Value
 
 	case ora.Lob:
-		t.Logf("Lob=%v", x)
+		//t.Logf("Lob=%v", x)
 		if x.Reader != nil {
 			var err error
 			a, err = ioutil.ReadAll(x.Reader)
@@ -2629,7 +2629,7 @@ func TestFils(t *testing.T) {
 			t.Fatalf("scan %d. record: %v", i, err)
 		}
 
-		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Depth_mbsf, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
+		//t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Depth_mbsf, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
 
 	}
 	if err := rows.Err(); err != nil {
@@ -3231,7 +3231,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
 			t.Fatalf("scan %d. record: %v", iii, err)
 		}
 
-		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
+		//t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
 
 	}
 	if err := rows3.Err(); err != nil {
@@ -3262,12 +3262,12 @@ func TestLobSelect(t *testing.T) {
 		if err = rows.Scan(&v); err != nil {
 			t.Errorf("Scan: %v", err)
 		}
-		t.Logf("%#v (%T)", v, v)
-		n, err := io.Copy(&buf, v.(io.Reader))
+		//t.Logf("%#v (%T)", v, v)
+		_, err := io.Copy(&buf, v.(io.Reader))
 		if err != nil {
 			t.Errorf("Read: %v", err)
 		}
-		t.Logf("n=%d data=%v", n, buf.Bytes())
+		//t.Logf("n=%d data=%v", n, buf.Bytes())
 		buf.Reset()
 	}
 }
@@ -3425,7 +3425,7 @@ func TestIntFloat(t *testing.T) {
 			}
 			var fi, fi0 float64
 			if err := rows.Scan(&fi, &fi0); err == nil {
-				t.Logf("float64 (%v, %v)", fi, fi0)
+				//t.Logf("float64 (%v, %v)", fi, fi0)
 				continue
 			}
 			var si, si0 string
@@ -3433,10 +3433,10 @@ func TestIntFloat(t *testing.T) {
 				t.Errorf("scan: %v", err)
 				continue
 			}
-			t.Logf("string (%v, %v)", si, si0)
+			//t.Logf("string (%v, %v)", si, si0)
 			continue
 		}
-		t.Logf("int64 (%v, %v)", ni, ni0)
+		//t.Logf("int64 (%v, %v)", ni, ni0)
 	}
 	err = rows.Err()
 	if err != nil {

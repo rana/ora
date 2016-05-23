@@ -161,6 +161,7 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 	testErr(err, t)
 
 	for rset.Next() {
+		t.Logf("Row=%v", rset.Row)
 	}
 	if 0 != rset.Len() {
 		t.Fatalf("row count: expected(%v), actual(%v)", 0, rset.Len())

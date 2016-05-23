@@ -22,9 +22,10 @@ type defIntervalDS struct {
 
 func (def *defIntervalDS) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.intervals == nil {
-		def.intervals = (*((*[fetchArrLen]*C.OCIInterval)(C.malloc(fetchArrLen * C.sof_Intervalp))))[:fetchArrLen]
+	if def.intervals != nil {
+		C.free(unsafe.Pointer(&def.intervals[0]))
 	}
+	def.intervals = (*((*[MaxFetchLen]*C.OCIInterval)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Intervalp))))[:rset.fetchLen]
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), int(C.sof_Intervalp), C.SQLT_INTERVAL_DS)
 }
 
@@ -58,7 +59,11 @@ func (def *defIntervalDS) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defIntervalDS) alloc() error {
-	for i := range def.intervals {
+	for i, p := range def.intervals {
+		if p != nil {
+			def.intervals[i] = nil
+			//C.OCIDescriptorFree(unsafe.Pointer(p), C.OCI_DTYPE_INTERVAL_DS)
+		}
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),     //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.intervals[i])), //dvoid         **descpp,
@@ -84,6 +89,7 @@ func (def *defIntervalDS) close() (err error) {
 		}
 	}()
 
+	def.free()
 	rset := def.rset
 	def.rset = nil
 	if def.intervals != nil {

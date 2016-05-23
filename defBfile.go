@@ -23,9 +23,10 @@ type defBfile struct {
 
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.lobs == nil {
-		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(fetchArrLen * C.sof_LobLocatorp))))[:fetchArrLen]
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
+	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), C.SQLT_FILE)
 }
 func (def *defBfile) value(offset int) (value interface{}, err error) {
@@ -73,6 +74,7 @@ func (def *defBfile) alloc() error {
 }
 
 func (def *defBfile) free() {
+	// cannot free - they're maybe in use!
 	for i := range def.lobs {
 		def.lobs[i] = nil
 	}
@@ -85,10 +87,10 @@ func (def *defBfile) close() (err error) {
 		}
 	}()
 	def.free()
-	for i := range def.directoryAlias {
+	for i := range def.directoryAlias[:cap(def.directoryAlias)] {
 		def.directoryAlias[i] = 0
 	}
-	for i := range def.filename {
+	for i := range def.filename[:cap(def.filename)] {
 		def.filename[i] = 0
 	}
 	if def.lobs != nil {

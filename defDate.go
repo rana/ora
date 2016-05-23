@@ -13,7 +13,7 @@ import "unsafe"
 
 type defDate struct {
 	ociDef
-	ociDate    [fetchArrLen]C.OCIDate
+	ociDate    [MaxFetchLen]C.OCIDate
 	isNullable bool
 }
 

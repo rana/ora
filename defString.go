@@ -40,8 +40,7 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 		n++
 	}
 	def.columnSize = n
-	n = fetchArrLen * def.columnSize
-	if c := cap(def.buf); c < n {
+	if n := rset.fetchLen * def.columnSize; cap(def.buf) < n {
 		def.buf = make([]byte, n)
 	} else {
 		def.buf = def.buf[:n]

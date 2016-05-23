@@ -39,9 +39,10 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
-	if def.lobs == nil {
-		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(fetchArrLen * C.sof_LobLocatorp))))[:fetchArrLen]
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
+	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
@@ -159,6 +160,7 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
+	// we cannot free - they're maybe used!
 	for i := range def.lobs {
 		def.lobs[i] = nil
 	}

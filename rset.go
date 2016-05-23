@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	fetchArrLen = 32
+	MaxFetchLen = 32
+	MinFetchLen = 8
 
 	byteWidth64 = 8
 	byteWidth32 = 4
@@ -86,6 +87,7 @@ type Rset struct {
 	Index           int
 	Err             error
 	fetched, offset int
+	fetchLen        int
 	finished        bool
 }
 
@@ -173,7 +175,6 @@ func (rset *Rset) beginRow() (err error) {
 	if rset.ocistmt == nil {
 		return errF("Rset is closed")
 	}
-	fetchLen := fetchArrLen
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
 		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
@@ -184,22 +185,13 @@ func (rset *Rset) beginRow() (err error) {
 		if err != nil {
 			return err
 		}
-		if fetchLen > 8 {
-			// these eats lots of memory!
-			switch define.(type) {
-			case *defBfile:
-				fetchLen = 8
-			case *defLob:
-				fetchLen = 8
-			}
-		}
 	}
 	rset.finished = false
 	// fetch one row
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(fetchLen),              //ub4         nrows,
+		C.ub4(rset.fetchLen),         //ub4         nrows,
 		C.OCI_FETCH_NEXT,             //ub2         orientation,
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
@@ -209,7 +201,7 @@ func (rset *Rset) beginRow() (err error) {
 	} else if r == C.OCI_NO_DATA {
 		rset.log(_drv.cfg.Log.Rset.BeginRow, "OCI_NO_DATA")
 		rset.finished = true
-		if fetchLen == 1 {
+		if rset.fetchLen == 1 {
 			// return io.EOF to conform with database/sql/driver
 			return io.EOF
 		}
@@ -220,7 +212,7 @@ func (rset *Rset) beginRow() (err error) {
 		//
 	}
 	rset.offset = 0
-	if fetchLen == 1 {
+	if rset.fetchLen == 1 {
 		rset.fetched = 1
 	} else {
 		var rowsFetched C.ub4
@@ -354,29 +346,42 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	//fmt.Printf("rset.open (paramCount %v)\n", paramCount)
 
 	// create parameters for each select-list column
+	type paramS struct {
+		columnSize uint32
+		typeCode   C.ub2
+		param      *C.OCIParam
+	}
+	params := make([]paramS, len(rset.defs))
+	defer func() {
+		for _, param := range params {
+			if param.param == nil {
+				continue
+			}
+			C.OCIDescriptorFree(unsafe.Pointer(param.param), C.OCI_DTYPE_PARAM)
+		}
+	}()
+
 	var gct GoColumnType
 	for n := range rset.defs {
 		// Create oci parameter handle; may be freed by OCIDescriptorFree()
 		// parameter position is 1-based
-		var ocipar *C.OCIParam
 		r := C.OCIParamGet(
-			unsafe.Pointer(rset.ocistmt),               //const void        *hndlp,
-			C.OCI_HTYPE_STMT,                           //ub4               htype,
-			rset.stmt.ses.srv.env.ocierr,               //OCIError          *errhp,
-			(*unsafe.Pointer)(unsafe.Pointer(&ocipar)), //void              **parmdpp,
-			C.ub4(n+1))                                 //ub4               pos );
+			unsafe.Pointer(rset.ocistmt),                        //const void        *hndlp,
+			C.OCI_HTYPE_STMT,                                    //ub4               htype,
+			rset.stmt.ses.srv.env.ocierr,                        //OCIError          *errhp,
+			(*unsafe.Pointer)(unsafe.Pointer(&params[n].param)), //void              **parmdpp,
+			C.ub4(n+1)) //ub4               pos );
 		if r == C.OCI_ERROR {
 			return rset.stmt.ses.srv.env.ociError()
 		}
+		ocipar := params[n].param
 		// Get column size in bytes
-		var columnSize uint32
-		err = rset.paramAttr(ocipar, unsafe.Pointer(&columnSize), nil, C.OCI_ATTR_DATA_SIZE)
+		err = rset.paramAttr(ocipar, unsafe.Pointer(&params[n].columnSize), nil, C.OCI_ATTR_DATA_SIZE)
 		if err != nil {
 			return err
 		}
 		// Get oci data type code
-		var ociTypeCode C.ub2
-		err = rset.paramAttr(ocipar, unsafe.Pointer(&ociTypeCode), nil, C.OCI_ATTR_DATA_TYPE)
+		err = rset.paramAttr(ocipar, unsafe.Pointer(&params[n].typeCode), nil, C.OCI_ATTR_DATA_TYPE)
 		if err != nil {
 			return err
 		}
@@ -388,7 +393,24 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			return err
 		}
 		rset.ColumnNames[n] = C.GoStringN(columnName, C.int(colSize))
-		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.ColumnNames[n], ociTypeCode)
+		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.ColumnNames[n], params[n].typeCode)
+	}
+
+	rset.fetchLen = MaxFetchLen
+Loop:
+	for _, param := range params {
+		switch param.typeCode {
+		case C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI:
+			rset.fetchLen = MinFetchLen
+			break Loop
+		}
+	}
+
+	for n := range rset.defs {
+		ocipar := params[n].param
+		ociTypeCode := params[n].typeCode
+		columnSize := params[n].columnSize
+
 		switch ociTypeCode {
 		case C.SQLT_NUM:
 			// NUMBER

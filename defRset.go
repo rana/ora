@@ -15,14 +15,15 @@ import "unsafe"
 type defRset struct {
 	ociDef
 	ocistmt []*C.OCIStmt
-	result  [fetchArrLen]*Rset
+	result  []*Rset
 }
 
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.ocistmt == nil {
-		def.ocistmt = (*((*[fetchArrLen]*C.OCIStmt)(C.malloc(fetchArrLen * C.sof_Stmtp))))[:fetchArrLen]
+	if def.ocistmt != nil {
+		C.free(unsafe.Pointer(&def.ocistmt[0]))
 	}
+	def.ocistmt = (*((*[MaxFetchLen]*C.OCIStmt)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Stmtp))))[:rset.fetchLen]
 
 	// create result set
 	for i := range def.result {
