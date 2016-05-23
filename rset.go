@@ -163,6 +163,7 @@ func (rset *Rset) beginRow() (err error) {
 	if rset.finished {
 		rset.log(_drv.cfg.Log.Rset.BeginRow, "finished")
 		if rset.fetched > 0 && rset.fetched > rset.offset {
+			rset.Index++
 			return nil
 		}
 		return io.EOF

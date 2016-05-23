@@ -584,6 +584,7 @@ func loadDbtimezone() (*time.Location, error) {
 
 func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 	row := rset.NextRow()
+	t.Logf("Row=%v (%v) Index=%d", rset.Row, row, rset.Index)
 	if 1 != len(rset.Row) {
 		t.Fatalf("column count: expected(%v), actual(%v)", 1, len(rset.Row))
 	}
@@ -640,6 +641,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 
 	case []int64:
 		for {
+			t.Logf("Row=%v Index=%d", rset.Row, rset.Index)
 			expectedElem := elemAt(expected, rset.Index)
 			compare_int64(expectedElem, rset.Row[0], t)
 			if !rset.Next() {
