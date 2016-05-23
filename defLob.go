@@ -160,28 +160,29 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
+	for i, lob := range def.lobs {
+		if lob == nil {
+			continue
+		}
+		def.lobs[i] = nil
+		lobClose(def.rset.stmt.ses, lob)
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_LOB)     //ub4      type );
+	}
 }
 
 func (def *defLob) close() (err error) {
 	//Log.Infof("defLob close %p", def.ociLobLocator)
+	def.free()
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
+		def.lobs = nil
+	}
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
 	def.arrHlp.close()
-	if def.lobs != nil {
-		for i, lob := range def.lobs {
-			if lob == nil {
-				continue
-			}
-			def.lobs[i] = nil
-			lobClose(rset.stmt.ses, lob)
-			C.OCIDescriptorFree(
-				unsafe.Pointer(lob), //void     *descp,
-				C.OCI_DTYPE_LOB)     //ub4      type );
-		}
-		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
-		def.lobs = nil
-	}
 	rset.putDef(defIdxLob, def)
 
 	return nil

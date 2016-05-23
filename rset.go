@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	MaxFetchLen = 32
+	MaxFetchLen = 64
 	MinFetchLen = 8
 
 	byteWidth64 = 8
@@ -229,12 +229,16 @@ func (rset *Rset) beginRow() (err error) {
 // endRow deallocates a handle for each column.
 func (rset *Rset) endRow() {
 	rset.log(_drv.cfg.Log.Rset.EndRow)
+	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
+	rset.offset++
+	if !done {
+		return
+	}
 	for _, define := range rset.defs {
 		if define != nil {
 			define.free()
 		}
 	}
-	rset.offset++
 }
 
 // Next attempts to load a row of data from an Oracle buffer. True is returned

@@ -59,6 +59,13 @@ func (def *defRset) alloc() error {
 }
 
 func (def *defRset) free() {
+	for i, p := range def.ocistmt {
+		if p == nil {
+			continue
+		}
+		def.ocistmt[i] = nil
+		def.rset.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(p), C.OCI_HTYPE_STMT)
+	}
 }
 
 func (def *defRset) close() (err error) {
@@ -68,16 +75,14 @@ func (def *defRset) close() (err error) {
 		}
 	}()
 
-	rset := def.rset
-	def.rset = nil
-	def.ocidef = nil
+	def.free()
 	if def.ocistmt != nil {
-		for _, p := range def.ocistmt {
-			def.rset.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(p), C.OCI_HTYPE_STMT)
-		}
 		C.free(unsafe.Pointer(&def.ocistmt[0]))
 		def.ocistmt = nil
 	}
+	rset := def.rset
+	def.rset = nil
+	def.ocidef = nil
 	def.arrHlp.close()
 	rset.putDef(defIdxRset, def)
 	return nil

@@ -80,6 +80,15 @@ func (def *defIntervalDS) alloc() error {
 }
 
 func (def *defIntervalDS) free() {
+	for i, p := range def.intervals {
+		if p == nil {
+			continue
+		}
+		def.intervals[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(p),       //void     *descp,
+			C.OCI_DTYPE_INTERVAL_DS) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defIntervalDS) close() (err error) {
@@ -93,15 +102,6 @@ func (def *defIntervalDS) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	if def.intervals != nil {
-		for i, p := range def.intervals {
-			if p == nil {
-				continue
-			}
-			def.intervals[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(p),       //void     *descp,
-				C.OCI_DTYPE_INTERVAL_DS) //timeDefine.descTypeCode)                //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.intervals[0]))
 		def.intervals = nil
 	}

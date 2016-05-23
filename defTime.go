@@ -67,6 +67,15 @@ func (def *defTime) alloc() error {
 }
 
 func (def *defTime) free() {
+	for i, d := range def.dates {
+		if d == nil {
+			continue
+		}
+		def.dates[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(d),        //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defTime) close() (err error) {
@@ -80,15 +89,6 @@ func (def *defTime) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	if def.dates != nil {
-		for i, d := range def.dates {
-			if d == nil {
-				continue
-			}
-			def.dates[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(d),        //void     *descp,
-				C.OCI_DTYPE_TIMESTAMP_TZ) //timeDefine.descTypeCode)                //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.dates[0]))
 		def.dates = nil
 	}

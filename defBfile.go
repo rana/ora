@@ -74,6 +74,15 @@ func (def *defBfile) alloc() error {
 }
 
 func (def *defBfile) free() {
+	for i, lob := range def.lobs {
+		if lob == nil {
+			continue
+		}
+		def.lobs[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_FILE)    //ub4      type );
+	}
 }
 
 func (def *defBfile) close() (err error) {
@@ -90,15 +99,6 @@ func (def *defBfile) close() (err error) {
 		def.filename[i] = 0
 	}
 	if def.lobs != nil {
-		for i, lob := range def.lobs {
-			if lob == nil {
-				continue
-			}
-			def.lobs[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(lob), //void     *descp,
-				C.OCI_DTYPE_FILE)    //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.lobs[0]))
 		def.lobs = nil
 	}

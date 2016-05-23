@@ -70,6 +70,15 @@ func (def *defIntervalYM) alloc() error {
 }
 
 func (def *defIntervalYM) free() {
+	for i, p := range def.intervals {
+		if p == nil {
+			continue
+		}
+		def.intervals[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(p),       //void     *descp,
+			C.OCI_DTYPE_INTERVAL_YM) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defIntervalYM) close() (err error) {
@@ -81,15 +90,6 @@ func (def *defIntervalYM) close() (err error) {
 
 	def.free()
 	if def.intervals != nil {
-		for i, p := range def.intervals {
-			if p == nil {
-				continue
-			}
-			def.intervals[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(p),       //void     *descp,
-				C.OCI_DTYPE_INTERVAL_YM) //timeDefine.descTypeCode)                //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.intervals[0]))
 		def.intervals = nil
 	}
