@@ -74,10 +74,6 @@ func (def *defBfile) alloc() error {
 }
 
 func (def *defBfile) free() {
-	// cannot free - they're maybe in use!
-	for i := range def.lobs {
-		def.lobs[i] = nil
-	}
 }
 
 func (def *defBfile) close() (err error) {

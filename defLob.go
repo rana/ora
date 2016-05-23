@@ -160,10 +160,6 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
-	// we cannot free - they're maybe used!
-	for i := range def.lobs {
-		def.lobs[i] = nil
-	}
 }
 
 func (def *defLob) close() (err error) {

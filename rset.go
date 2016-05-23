@@ -187,7 +187,7 @@ func (rset *Rset) beginRow() (err error) {
 		}
 	}
 	rset.finished = false
-	// fetch one row
+	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
@@ -212,19 +212,15 @@ func (rset *Rset) beginRow() (err error) {
 		//
 	}
 	rset.offset = 0
-	if rset.fetchLen == 1 {
-		rset.fetched = 1
-	} else {
-		var rowsFetched C.ub4
-		if err := rset.attr(unsafe.Pointer(&rowsFetched), 4, C.OCI_ATTR_ROWS_FETCHED); err != nil {
-			return err
-		}
+	var rowsFetched C.ub4
+	if err := rset.attr(unsafe.Pointer(&rowsFetched), 4, C.OCI_ATTR_ROWS_FETCHED); err != nil {
+		return err
+	}
 
-		rset.fetched = int(rowsFetched)
-		if rset.fetched == 0 {
-			rset.finished = true
-			return io.EOF
-		}
+	rset.fetched = int(rowsFetched)
+	if rset.fetched == 0 {
+		rset.finished = true
+		return io.EOF
 	}
 	rset.Index++
 	return nil
@@ -400,6 +396,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 Loop:
 	for _, param := range params {
 		switch param.typeCode {
+		// These can consume a lot of memory.
 		case C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI:
 			rset.fetchLen = MinFetchLen
 			break Loop
