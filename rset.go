@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	fetchArrLen = 16
+	fetchArrLen = 32
 
 	byteWidth64 = 8
 	byteWidth32 = 4
@@ -142,6 +142,7 @@ func (rset *Rset) close() (err error) {
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
+	rset.Index = -1
 	rset.Row = nil
 	rset.ColumnNames = nil
 	// do not clear error in case of autoClose when error exists
@@ -172,6 +173,7 @@ func (rset *Rset) beginRow() (err error) {
 	if rset.ocistmt == nil {
 		return errF("Rset is closed")
 	}
+	fetchLen := fetchArrLen
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
 		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
@@ -182,13 +184,22 @@ func (rset *Rset) beginRow() (err error) {
 		if err != nil {
 			return err
 		}
+		if fetchLen > 8 {
+			// these eats lots of memory!
+			switch define.(type) {
+			case *defBfile:
+				fetchLen = 8
+			case *defLob:
+				fetchLen = 8
+			}
+		}
 	}
 	rset.finished = false
 	// fetch one row
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,                 //OCIStmt     *stmthp,
 		rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(fetchArrLen),           //ub4         nrows,
+		C.ub4(fetchLen),              //ub4         nrows,
 		C.OCI_FETCH_NEXT,             //ub2         orientation,
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
@@ -198,7 +209,7 @@ func (rset *Rset) beginRow() (err error) {
 	} else if r == C.OCI_NO_DATA {
 		rset.log(_drv.cfg.Log.Rset.BeginRow, "OCI_NO_DATA")
 		rset.finished = true
-		if fetchArrLen == 1 {
+		if fetchLen == 1 {
 			// return io.EOF to conform with database/sql/driver
 			return io.EOF
 		}
@@ -208,9 +219,8 @@ func (rset *Rset) beginRow() (err error) {
 		// call OCIStmtFetch2 anymore.
 		//
 	}
-	rset.Index++
 	rset.offset = 0
-	if fetchArrLen == 1 {
+	if fetchLen == 1 {
 		rset.fetched = 1
 	} else {
 		var rowsFetched C.ub4
@@ -224,6 +234,7 @@ func (rset *Rset) beginRow() (err error) {
 			return io.EOF
 		}
 	}
+	rset.Index++
 	return nil
 }
 
