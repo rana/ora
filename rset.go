@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	MaxFetchLen = 64
+	MaxFetchLen = 128
 	MinFetchLen = 8
 
 	byteWidth64 = 8
