@@ -272,9 +272,12 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 	stmt.Exe(trueValue)
 
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
-	rset, _ := stmt.Qry()
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
 	}
@@ -306,7 +309,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep("insert into "+tableName+" (c1) values (:c1)", ora.B)
 	defer stmt.Close()
 	stmtCfg.TrueRune = 'Y'
 	stmt.Exe(trueValue)
@@ -314,7 +317,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// Update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
 	stmtCfg.Rset.TrueRune = 'Y'
 	rset, _ := stmt.Qry()
