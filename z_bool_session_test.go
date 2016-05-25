@@ -210,3 +210,41 @@ func setC1Bool() func() {
 		ora.Cfg().Env.StmtCfg.Rset.SetChar1(old)
 	}
 }
+
+// Issue89
+func TestSelectChar(t *testing.T) {
+	tableName := tableName()
+	if _, err := testDb.Exec("CREATE TABLE " + tableName + "(c1 CHAR(1), c2 CHAR(4))"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testSes.PrepAndExe("INSERT INTO "+tableName+" VALUES (:1, :2)",
+		"A", "ABCD"); err != nil {
+		t.Fatal(err)
+	}
+	got := make([]interface{}, 0, 2)
+	for tN, tC := range []struct {
+		colDefs []ora.GoColumnType
+		want    []interface{}
+	}{
+		{[]ora.GoColumnType{ora.B, ora.B}, []interface{}{false, false}},
+		{[]ora.GoColumnType{ora.S, ora.S}, []interface{}{"A", "ABCD"}},
+		{nil, []interface{}{"A", "ABCD"}},
+	} {
+		stmt, err := testSes.Prep("SELECT c1, c2 FROM "+tableName, tC.colDefs...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stmt.Close()
+		rset, err := stmt.Qry()
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = got[:0]
+		rset.Next()
+		got = append(got, rset.Row[0], rset.Row[1])
+		t.Logf("%d. got %q, want %q.", tN, got, tC.want)
+		if len(got) != len(tC.want) || got[0] != tC.want[0] || got[1] != tC.want[1] {
+			t.Errorf("%d. got %q, want %q.", tN, got, tC.want)
+		}
+	}
+}
