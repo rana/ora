@@ -1,6 +1,10 @@
 # Changelog #
 
 ## master ##
+  * Refactor def* (resultset columns) to be more common, and allow multiple row fetch.
+  * Use multiple row fetch to speed SELECTs - see issue #86.
+
+## v3.5 ##
   * Modify default for CHAR(1) columns: use ora.S (string), NOT ora.B (bool).
   * Add connect " AS SYSDBA" functionality.
 
