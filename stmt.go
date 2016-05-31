@@ -226,6 +226,7 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		nil,                     //const OCISnapshot   *snap_in,
 		nil,                     //OCISnapshot         *snap_out,
 		mode)                    //ub4                 mode );
+	stmt.logF(_drv.cfg.Log.Stmt.Exe, "returned %d", r)
 	if r == C.OCI_ERROR {
 		return 0, 0, errE(stmt.ses.srv.env.ociError())
 	}
@@ -240,6 +241,9 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		C.free(ra)
 		//case C.OCI_STMT_CREATE, C.OCI_STMT_DROP, C.OCI_STMT_ALTER, C.OCI_STMT_BEGIN:
 	default:
+		if r == C.OCI_NO_DATA {
+			return 0, 0, errE(stmt.ses.srv.env.ociError())
+		}
 		//fmt.Printf("stmtType=%d\n", stmt.stmtType)
 	}
 	if stmt.hasPtrBind { // Set any bind pointers

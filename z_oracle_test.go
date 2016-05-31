@@ -3487,3 +3487,21 @@ func TestStringSpaces(t *testing.T) {
 		}
 	}
 }
+
+func TestPLSErr(t *testing.T) {
+	//enableLogging(t)
+	qry := `DECLARE v_db PLS_INTEGER; BEGIN
+	  SELECT 1 INTO v_db FROM DUAL WHERE 1 = 0;
+	END;`
+	var err error
+	if _, err = testSes.PrepAndExe(qry); err == nil {
+		t.Error("awaited error, got nothing!")
+	} else {
+		t.Log(err)
+	}
+	if _, err = testDb.Exec(qry); err == nil {
+		t.Error("awaited error, got nothing!")
+	} else {
+		t.Log(err)
+	}
+}
