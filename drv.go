@@ -144,7 +144,9 @@ type Drv struct {
 	bndPools []*pool
 	defPools []*pool
 
-	locations map[string]*time.Location
+	locationsMu sync.RWMutex
+	locations   map[string]*time.Location
+
 	sqlPkgEnv *Env // An environment for use by the database/sql package.
 	openEnvs  *envList
 }

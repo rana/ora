@@ -140,7 +140,9 @@ func getTime(env *Env, ociDateTime *C.OCIDateTime) (result time.Time, err error)
 			buffer.WriteByte(buf[n])
 		}
 		locName := buffer.String()
+		_drv.locationsMu.RLock()
 		location = _drv.locations[locName]
+		_drv.locationsMu.RUnlock()
 		if location == nil {
 			// timestamp_ltz returns numeric offset
 			// time.Time's lookup for numeric offset is unknown;
@@ -172,7 +174,9 @@ func getTime(env *Env, ociDateTime *C.OCIDateTime) (result time.Time, err error)
 			// stored location for future reference
 			// important that FixedZone is called as few times as possible
 			// to reduce significant memory allocation
+			_drv.locationsMu.Lock()
 			_drv.locations[locName] = location
+			_drv.locationsMu.Unlock()
 		}
 	} else {
 		// Date Oracle type doesn't have timezone info
