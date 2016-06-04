@@ -141,6 +141,11 @@ func (srv *Srv) close() (err error) {
 
 // OpenSes opens an Oracle session returning a *Ses and possible error.
 func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	if srv == nil {
 		return nil, er("srv may not be nil.")
 	}

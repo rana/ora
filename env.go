@@ -116,6 +116,11 @@ func (env *Env) Close() (err error) {
 
 // OpenSrv connects to an Oracle server returning a *Srv and possible error.
 func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
 	env.mu.Lock()
 	defer env.mu.Unlock()
 	env.log(_drv.cfg.Log.Env.OpenSrv)
