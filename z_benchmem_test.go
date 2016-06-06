@@ -6,7 +6,6 @@ package ora_test
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"strconv"
 	"sync"
@@ -101,7 +100,6 @@ func TestSelectOrder(t *testing.T) {
 	if err := testDb.QueryRow("SELECT count(0) FROM all_objects").Scan(&cnt); err != nil {
 		t.Fatal(err)
 	}
-	fmt.Fprintf(os.Stderr, "all_objects rowcount=%d", cnt)
 	t.Logf("all_objects rowcount=%d", cnt)
 	qry := "SELECT ROWNUM FROM all_objects"
 	for i := cnt; i < limit; i *= cnt {
@@ -114,15 +112,15 @@ func TestSelectOrder(t *testing.T) {
 	}
 	defer rows.Close()
 	i := 0
+	enableLogging(t)
 	for rows.Next() {
 		var rn int
 		if err = rows.Scan(&rn); err != nil {
 			t.Fatal(err)
 		}
 		i++
-		fmt.Fprintf(os.Stderr, "%d\n", rn)
 		if rn != i {
-			t.Errorf("got %d, wanted %d.")
+			t.Errorf("got %d, wanted %d.", rn, i)
 		}
 		if i > limit {
 			break

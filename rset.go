@@ -163,12 +163,12 @@ func (rset *Rset) close() (err error) {
 func (rset *Rset) beginRow() (err error) {
 	rset.log(_drv.cfg.Log.Rset.BeginRow)
 	rset.logF(_drv.cfg.Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", rset.fetched, rset.offset, rset.finished)
+	if rset.fetched > 0 && rset.fetched > rset.offset {
+		rset.Index++
+		return nil
+	}
 	if rset.finished {
 		rset.log(_drv.cfg.Log.Rset.BeginRow, "finished")
-		if rset.fetched > 0 && rset.fetched > rset.offset {
-			rset.Index++
-			return nil
-		}
 		return io.EOF
 	}
 	// check is open
