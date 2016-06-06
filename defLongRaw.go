@@ -24,7 +24,11 @@ type defLongRaw struct {
 func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	def.buf = make([]byte, fetchArrLen*int(bufSize))
+	if n := rset.fetchLen * int(bufSize); cap(def.buf) < n {
+		def.buf = make([]byte, n)
+	} else {
+		def.buf = def.buf[:n]
+	}
 	def.bufSize = int(bufSize)
 
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), int(bufSize), C.SQLT_LBI)

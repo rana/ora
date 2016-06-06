@@ -23,10 +23,11 @@ type defBfile struct {
 
 func (def *defBfile) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.lobs == nil {
-		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, C.SQLT_FILE)
+	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), C.SQLT_FILE)
 }
 func (def *defBfile) value(offset int) (value interface{}, err error) {
 	var bfileValue Bfile
@@ -55,6 +56,7 @@ func (def *defBfile) value(offset int) (value interface{}, err error) {
 
 func (def *defBfile) alloc() error {
 	// Allocate lob locator handle
+	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	for i := range def.lobs {
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
@@ -72,9 +74,15 @@ func (def *defBfile) alloc() error {
 }
 
 func (def *defBfile) free() {
-	defer func() {
-		recover()
-	}()
+	for i, lob := range def.lobs {
+		if lob == nil {
+			continue
+		}
+		def.lobs[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_FILE)    //ub4      type );
+	}
 }
 
 func (def *defBfile) close() (err error) {
@@ -84,22 +92,13 @@ func (def *defBfile) close() (err error) {
 		}
 	}()
 	def.free()
-	for i := range def.directoryAlias {
+	for i := range def.directoryAlias[:cap(def.directoryAlias)] {
 		def.directoryAlias[i] = 0
 	}
-	for i := range def.filename {
+	for i := range def.filename[:cap(def.filename)] {
 		def.filename[i] = 0
 	}
 	if def.lobs != nil {
-		for i, lob := range def.lobs {
-			if lob == nil {
-				continue
-			}
-			def.lobs[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(lob), //void     *descp,
-				C.OCI_DTYPE_FILE)    //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.lobs[0]))
 		def.lobs = nil
 	}

@@ -15,14 +15,15 @@ import "unsafe"
 type defRset struct {
 	ociDef
 	ocistmt []*C.OCIStmt
-	result  [fetchArrLen]*Rset
+	result  []*Rset
 }
 
 func (def *defRset) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.ocistmt == nil {
-		def.ocistmt = (*((*[fetchArrLen]*C.OCIStmt)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	if def.ocistmt != nil {
+		C.free(unsafe.Pointer(&def.ocistmt[0]))
 	}
+	def.ocistmt = (*((*[MaxFetchLen]*C.OCIStmt)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Stmtp))))[:rset.fetchLen]
 
 	// create result set
 	for i := range def.result {
@@ -41,7 +42,7 @@ func (def *defRset) define(position int, rset *Rset) error {
 		def.ocistmt[i] = (*C.OCIStmt)(upOciStmt)
 	}
 
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ocistmt[0]), C.sizeof_dvoid, C.SQLT_RSET)
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ocistmt[0]), int(C.sof_Stmtp), C.SQLT_RSET)
 }
 
 func (def *defRset) value(offset int) (value interface{}, err error) {
@@ -58,6 +59,13 @@ func (def *defRset) alloc() error {
 }
 
 func (def *defRset) free() {
+	for i, p := range def.ocistmt {
+		if p == nil {
+			continue
+		}
+		def.ocistmt[i] = nil
+		def.rset.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(p), C.OCI_HTYPE_STMT)
+	}
 }
 
 func (def *defRset) close() (err error) {
@@ -67,16 +75,14 @@ func (def *defRset) close() (err error) {
 		}
 	}()
 
-	rset := def.rset
-	def.rset = nil
-	def.ocidef = nil
+	def.free()
 	if def.ocistmt != nil {
-		for _, p := range def.ocistmt {
-			def.rset.stmt.ses.srv.env.freeOciHandle(unsafe.Pointer(p), C.OCI_HTYPE_STMT)
-		}
 		C.free(unsafe.Pointer(&def.ocistmt[0]))
 		def.ocistmt = nil
 	}
+	rset := def.rset
+	def.rset = nil
+	def.ocidef = nil
 	def.arrHlp.close()
 	rset.putDef(defIdxRset, def)
 	return nil

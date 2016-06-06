@@ -357,7 +357,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	iterations = 1
 	stmt.bnds = make([]bnd, len(params))
 	for n := range params {
-		stmt.logF(_drv.cfg.Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
+		//stmt.logF(_drv.cfg.Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := params[n].(type) {
 		case int64:
 			bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)

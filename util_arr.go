@@ -22,7 +22,7 @@ type ociDef struct {
 }
 
 func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int, dty int) error {
-	d.ensureFetchLength(fetchArrLen)
+	d.ensureFetchLength(MaxFetchLen)
 	if r := C.OCIDEFINEBYPOS(
 		d.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&d.ocidef,                      //OCIDefine   **defnpp,

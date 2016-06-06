@@ -17,7 +17,7 @@ import (
 	"unsafe"
 )
 
-const lobChunkSize = 16 << 20 // 16Mb
+const lobChunkSize = (1 << 20) // 1Mb
 
 var lobChunkPool = sync.Pool{
 	New: func() interface{} {
@@ -39,10 +39,11 @@ func (def *defLob) define(position int, charsetForm C.ub1, sqlt C.ub2, gct GoCol
 	def.gct = gct
 	def.sqlt = sqlt
 	def.charsetForm = charsetForm
-	if def.lobs == nil {
-		def.lobs = (*((*[fetchArrLen]*C.OCILobLocator)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
-	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), C.sizeof_dvoid, int(sqlt)); err != nil {
+	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
+	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
 	prefetchLength := C.boolean(C.TRUE)
@@ -140,6 +141,7 @@ func (def *defLob) value(offset int) (interface{}, error) {
 }
 func (def *defLob) alloc() error {
 	// Allocate lob locator handle
+	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
 	for i := range def.lobs {
 		r := C.OCIDescriptorAlloc(
@@ -158,31 +160,29 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
-	for i := range def.lobs {
+	for i, lob := range def.lobs {
+		if lob == nil {
+			continue
+		}
 		def.lobs[i] = nil
+		lobClose(def.rset.stmt.ses, lob)
+		C.OCIDescriptorFree(
+			unsafe.Pointer(lob), //void     *descp,
+			C.OCI_DTYPE_LOB)     //ub4      type );
 	}
 }
 
 func (def *defLob) close() (err error) {
 	//Log.Infof("defLob close %p", def.ociLobLocator)
+	def.free()
+	if def.lobs != nil {
+		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
+		def.lobs = nil
+	}
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
 	def.arrHlp.close()
-	if def.lobs != nil {
-		for i, lob := range def.lobs {
-			if lob == nil {
-				continue
-			}
-			def.lobs[i] = nil
-			lobClose(rset.stmt.ses, lob)
-			C.OCIDescriptorFree(
-				unsafe.Pointer(lob), //void     *descp,
-				C.OCI_DTYPE_LOB)     //ub4      type );
-		}
-		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
-		def.lobs = nil
-	}
 	rset.putDef(defIdxLob, def)
 
 	return nil

@@ -27,10 +27,11 @@ type defTime struct {
 func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	if def.dates == nil {
-		def.dates = (*((*[fetchArrLen]*C.OCIDateTime)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	if def.dates != nil {
+		C.free(unsafe.Pointer(&def.dates[0]))
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), C.sizeof_dvoid, C.SQLT_TIMESTAMP_TZ)
+	def.dates = (*((*[MaxFetchLen]*C.OCIDateTime)(C.malloc(C.size_t(rset.fetchLen) * C.sof_DateTimep))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), int(C.sof_DateTimep), C.SQLT_TIMESTAMP_TZ)
 }
 
 func (def *defTime) value(offset int) (value interface{}, err error) {
@@ -84,6 +85,7 @@ func (def *defTime) close() (err error) {
 		}
 	}()
 
+	def.free()
 	rset := def.rset
 	def.rset = nil
 	if def.dates != nil {

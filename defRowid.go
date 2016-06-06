@@ -26,8 +26,10 @@ func (def *defRowid) define(position int, rset *Rset) error {
 	// using a character host variable of width between 19
 	// (18 bytes plus the null-terminator) and 4001 as the
 	// host bind variable for universal ROWID.
-	if len(def.buf) < fetchArrLen*rowidLen {
-		def.buf = make([]byte, fetchArrLen*rowidLen)
+	if n := rset.fetchLen * rowidLen; cap(def.buf) < n {
+		def.buf = make([]byte, n)
+	} else {
+		def.buf = def.buf[:n]
 	}
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), rowidLen, C.SQLT_STR)
 }

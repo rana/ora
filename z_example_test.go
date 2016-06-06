@@ -272,9 +272,12 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 	stmt.Exe(trueValue)
 
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
-	rset, _ := stmt.Qry()
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
 	}
@@ -306,7 +309,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep("insert into "+tableName+" (c1) values (:c1)", ora.B)
 	defer stmt.Close()
 	stmtCfg.TrueRune = 'Y'
 	stmt.Exe(trueValue)
@@ -314,7 +317,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// Update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
 	stmtCfg.Rset.TrueRune = 'Y'
 	rset, _ := stmt.Qry()
@@ -1355,20 +1358,32 @@ func ExampleTime() {
 	stmt.Exe()
 
 	// insert ora.Time slice
-	a := make([]ora.Time, 5)
-	a[0] = ora.Time{Value: time.Date(2000, 1, 2, 3, 4, 5, 0, testDbsessiontimezone)}
-	a[1] = ora.Time{Value: time.Date(2001, 2, 3, 4, 5, 6, 0, testDbsessiontimezone)}
-	a[2] = ora.Time{IsNull: true}
-	a[3] = ora.Time{Value: time.Date(2003, 4, 5, 6, 7, 8, 0, testDbsessiontimezone)}
-	a[4] = ora.Time{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)}
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	a := []ora.Time{
+		{Value: time.Date(2000, 1, 2, 3, 4, 5, 0, testDbsessiontimezone)},
+		{Value: time.Date(2001, 2, 3, 4, 5, 6, 0, testDbsessiontimezone)},
+		{IsNull: true},
+		{Value: time.Date(2003, 4, 5, 6, 7, 8, 0, testDbsessiontimezone)},
+		{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)},
+	}
+	stmt, err := ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer stmt.Close()
-	stmt.Exe(a)
+	if _, err := stmt.Exe(a); err != nil {
+		log.Fatal(err)
+	}
+
+	//ora.Cfg().Log.Rset.BeginRow = true
+	//ora.Cfg().Log.Logger = lg.Log
 
 	// Specify ora.OraT to Prep method to return nullable ora.Time values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraT)
-	rset, _ := stmt.Qry()
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.OraT)
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rset.Next() {
 		t := rset.Row[0].(ora.Time)
 		fmt.Printf("%v %v-%v-%v %v:%v:%v\n", t.IsNull, t.Value.Year(), t.Value.Month(), t.Value.Day(), t.Value.Hour(), t.Value.Minute(), t.Value.Second())
@@ -1508,9 +1523,12 @@ func ExampleBytes() {
 	defer stmt.Close()
 	stmt.Exe(a)
 
+	//ora.Cfg().Log.Rset.BeginRow = true
+	//ora.Cfg().Log.Logger = lg.Log
+
 	// Specify OraBin to Prep method to return Binary values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraBin)
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.OraBin)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		lob := rset.Row[0].(ora.Lob)

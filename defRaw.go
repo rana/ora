@@ -26,7 +26,11 @@ func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *R
 	def.rset = rset
 	def.isNullable = isNullable
 	def.columnSize = columnSize
-	def.buf = make([]byte, fetchArrLen*columnSize)
+	if n := rset.fetchLen * columnSize; cap(def.buf) < n {
+		def.buf = make([]byte, n)
+	} else {
+		def.buf = def.buf[:n]
+	}
 
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), columnSize, C.SQLT_BIN)
 }

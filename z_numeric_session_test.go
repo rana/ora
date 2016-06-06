@@ -678,6 +678,7 @@ func TestBindPtr_NumString_numberP16S15_session(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////////////
 
 func TestBindSlice_int64_numberP16S15_session(t *testing.T) {
+	//enableLogging(t)
 	testBindDefine(gen_int64Slice(), numberP16S15, t, nil)
 }
 

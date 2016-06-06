@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"gopkg.in/rana/ora.v3"
 )
 
 func Test_open_cursors_db(t *testing.T) {
@@ -59,6 +61,7 @@ func Test_open_cursors_db(t *testing.T) {
 }
 
 func TestSelectNullString_db(t *testing.T) {
+	ora.Cfg().Log.Rset.BeginRow = true
 	//enableLogging(t)
 	var s string
 	rows, err := testDb.Query("SELECT '' x FROM DUAL")

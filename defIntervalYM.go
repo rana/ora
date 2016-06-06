@@ -21,10 +21,11 @@ type defIntervalYM struct {
 
 func (def *defIntervalYM) define(position int, rset *Rset) error {
 	def.rset = rset
-	if def.intervals == nil {
-		def.intervals = (*((*[fetchArrLen]*C.OCIInterval)(C.malloc(C.sizeof_dvoid * fetchArrLen))))[:fetchArrLen]
+	if def.intervals != nil {
+		C.free(unsafe.Pointer(&def.intervals[0]))
 	}
-	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), C.sizeof_dvoid, C.SQLT_INTERVAL_YM)
+	def.intervals = (*((*[MaxFetchLen]*C.OCIInterval)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Intervalp))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), int(C.sof_Intervalp), C.SQLT_INTERVAL_YM)
 }
 
 func (def *defIntervalYM) value(offset int) (value interface{}, err error) {
@@ -48,7 +49,11 @@ func (def *defIntervalYM) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defIntervalYM) alloc() error {
-	for i := range def.intervals {
+	for i, p := range def.intervals {
+		if p != nil {
+			def.intervals[i] = nil
+			//C.OCIDescriptorFree(unsafe.Pointer(p), C.OCI_DTYPE_INTERVAL_YM)
+		}
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),     //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.intervals[i])), //dvoid         **descpp,
@@ -65,6 +70,15 @@ func (def *defIntervalYM) alloc() error {
 }
 
 func (def *defIntervalYM) free() {
+	for i, p := range def.intervals {
+		if p == nil {
+			continue
+		}
+		def.intervals[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(p),       //void     *descp,
+			C.OCI_DTYPE_INTERVAL_YM) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defIntervalYM) close() (err error) {
@@ -74,16 +88,8 @@ func (def *defIntervalYM) close() (err error) {
 		}
 	}()
 
+	def.free()
 	if def.intervals != nil {
-		for i, p := range def.intervals {
-			if p == nil {
-				continue
-			}
-			def.intervals[i] = nil
-			C.OCIDescriptorFree(
-				unsafe.Pointer(p),       //void     *descp,
-				C.OCI_DTYPE_INTERVAL_YM) //timeDefine.descTypeCode)                //ub4      type );
-		}
 		C.free(unsafe.Pointer(&def.intervals[0]))
 		def.intervals = nil
 	}

@@ -27,7 +27,7 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	if value != nil {
 		bnd.datep.Set(bnd.stmt.ses.srv.env, value.Value)
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
+	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
 		&bnd.ocibnd,                         //OCIBind      **bindpp,

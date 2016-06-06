@@ -25,9 +25,10 @@ type defUint32 struct {
 func (def *defUint32) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	if def.ociNumber == nil {
-		def.ociNumber = (*((*[fetchArrLen]C.OCINumber)(C.malloc(C.sizeof_OCINumber * fetchArrLen))))[:fetchArrLen]
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
 	}
+	def.ociNumber = (*((*[MaxFetchLen]C.OCINumber)(C.malloc(C.size_t(rset.fetchLen) * C.sizeof_OCINumber))))[:rset.fetchLen]
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ociNumber[0]), C.sizeof_OCINumber, C.SQLT_VNU)
 }
 
@@ -38,9 +39,9 @@ func (def *defUint32) value(offset int) (value interface{}, err error) {
 			on := def.ociNumber[offset]
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                                  //const OCINumber       *number,
-				byteWidth32,                          //uword                 rsl_length,
-				C.OCI_NUMBER_UNSIGNED,                  //uword                 rsl_flag,
+				&on,                                   //const OCINumber       *number,
+				byteWidth32,                           //uword                 rsl_length,
+				C.OCI_NUMBER_UNSIGNED,                 //uword                 rsl_flag,
 				unsafe.Pointer(&oraUint32Value.Value)) //void                  *rsl );
 			if r == C.OCI_ERROR {
 				err = def.rset.stmt.ses.srv.env.ociError()
@@ -54,9 +55,9 @@ func (def *defUint32) value(offset int) (value interface{}, err error) {
 			on := def.ociNumber[offset]
 			r := C.OCINumberToInt(
 				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                         //const OCINumber       *number,
-				byteWidth32,                 //uword                 rsl_length,
-				C.OCI_NUMBER_UNSIGNED,         //uword                 rsl_flag,
+				&on,                          //const OCINumber       *number,
+				byteWidth32,                  //uword                 rsl_length,
+				C.OCI_NUMBER_UNSIGNED,        //uword                 rsl_flag,
 				unsafe.Pointer(&uint32Value)) //void                  *rsl );
 			if r == C.OCI_ERROR {
 				err = def.rset.stmt.ses.srv.env.ociError()
