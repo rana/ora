@@ -89,6 +89,8 @@ type Rset struct {
 	fetched, offset int
 	fetchLen        int
 	finished        bool
+
+	sysNamer
 }
 
 // Len returns the number of rows retrieved.
@@ -850,7 +852,10 @@ func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) er
 
 // sysName returns a string representing the Rset.
 func (rset *Rset) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vS%vR%v", rset.stmt.ses.srv.env.id, rset.stmt.ses.srv.id, rset.stmt.ses.id, rset.stmt.id, rset.id)
+	if rset == nil {
+		return "E_S_S_S_"
+	}
+	return rset.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", rset.stmt.sysName(), rset.id) })
 }
 
 // log writes a message with an Rset system name and caller info.

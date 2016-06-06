@@ -202,7 +202,7 @@ func TestMemoryNumStringI64(t *testing.T) {
 		ora.Cfg().Env.StmtCfg.Rset.SetNumberBigFloat(ora.N)
 	}()
 	n := 1000
-	benchMem(t, n, 1700, `SELECT
+	benchMem(t, n, 1800, `SELECT
 		TO_NUMBER('123456789012345678') bn01
 		, TO_NUMBER('223456789012345678') bn02
 		, TO_NUMBER('323456789012345678') bn03
