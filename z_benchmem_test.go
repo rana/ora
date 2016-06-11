@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/rana/ora.v3"
 )
@@ -125,6 +126,26 @@ func TestSelectOrder(t *testing.T) {
 		if i > limit {
 			break
 		}
+	}
+}
+
+// go test -c && ./ora.v3.test -test.run=^$ -test.bench=Date -test.cpuprofile=/tmp/cpu.prof && go tool pprof ora.v3.test /tmp/cpu.prof
+func BenchmarkSelectDate(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; {
+		rows, err := testDb.Query("SELECT TO_DATE('2006-01-02 15:04:05', 'YYYY-MM-DD HH24:MI:SS') dt FROM all_objects")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for rows.Next() && i < b.N {
+			var dt time.Time
+			if err = rows.Scan(&dt); err != nil {
+				rows.Close()
+				b.Fatal(err)
+			}
+			i++
+		}
+		rows.Close()
 	}
 }
 
