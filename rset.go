@@ -473,12 +473,31 @@ Loop:
 			if err != nil {
 				return err
 			}
-		case C.SQLT_DAT, C.SQLT_TIMESTAMP, C.SQLT_TIMESTAMP_TZ, C.SQLT_TIMESTAMP_LTZ:
-			// DATE, TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIMEZONE
+		case C.SQLT_DAT:
+			// DATE
+			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+				gct = rset.stmt.cfg.Rset.date
+			} else {
+				err = checkTimeColumn(stmt.gcts[n])
+				if err != nil {
+					return err
+				}
+				gct = stmt.gcts[n]
+			}
+			isNullable := false
+			if gct == OraT {
+				isNullable = true
+			}
+			def := rset.getDef(defIdxDate).(*defDate)
+			rset.defs[n] = def
+			err = def.define(n+1, isNullable, rset)
+			if err != nil {
+				return err
+			}
+		case C.SQLT_TIMESTAMP, C.SQLT_TIMESTAMP_TZ, C.SQLT_TIMESTAMP_LTZ:
+			// TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIMEZONE
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				switch ociTypeCode {
-				case C.SQLT_DAT:
-					gct = rset.stmt.cfg.Rset.date
 				case C.SQLT_TIMESTAMP:
 					gct = rset.stmt.cfg.Rset.timestamp
 				case C.SQLT_TIMESTAMP_TZ:
