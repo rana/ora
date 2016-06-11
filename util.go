@@ -419,9 +419,9 @@ func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error) {
 				Owner:    rset.Row[0].(string),
 				Name:     rset.Row[1].(string),
 				Type:     rset.Row[2].(string),
-				Line:     rset.Row[3].(int64),
-				Position: rset.Row[4].(int64),
-				Code:     rset.Row[5].(int64),
+				Line:     int64(rset.Row[3].(float64)),
+				Position: int64(rset.Row[4].(float64)),
+				Code:     int64(rset.Row[5].(float64)),
 				Text:     rset.Row[6].(string),
 				Warning:  warn,
 			})
