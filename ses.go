@@ -12,9 +12,12 @@ import "C"
 import (
 	"bytes"
 	"container/list"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -125,6 +128,7 @@ type Ses struct {
 	openStmts *stmtList
 	openTxs   *txList
 
+	timezone *time.Location
 	sysNamer
 }
 
@@ -664,6 +668,56 @@ func (ses *Ses) sysName() string {
 		return "E_S_S_"
 	}
 	return ses.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", ses.srv.sysName(), ses.id) })
+}
+
+// Timezone return the current session's timezone.
+func (ses *Ses) Timezone() (*time.Location, error) {
+	if ses.timezone != nil {
+		return ses.timezone, nil
+	}
+	rset, err := ses.PrepAndQry("select tz_offset(sessiontimezone) from dual")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		for rset.Next() {
+		}
+	}()
+	hasRow := rset.Next()
+	if !hasRow {
+		return nil, errors.New("no time zone returned from database")
+	}
+	value, ok := rset.Row[0].(string)
+	if !ok {
+		return nil, errors.New("unable to retrieve database timezone")
+	}
+	value = strings.Trim(value, " ")
+	var sign int
+	if strings.HasPrefix(value, "-") {
+		sign = -1
+		value = strings.Replace(value, "-", "", 1)
+	} else {
+		sign = 1
+	}
+	strs := strings.Split(value, ":")
+	if strs == nil || len(strs) != 2 {
+		return nil, errors.New("unable to parse database timezone offset")
+	}
+	hourOffset, err := strconv.ParseInt(strs[0], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	minStr := strs[1]
+	if nullIndex := strings.IndexRune(minStr, '\x00'); nullIndex > -1 {
+		minStr = minStr[:nullIndex]
+	}
+	minOffset, err := strconv.ParseInt(minStr, 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	offset := sign * ((int(hourOffset) * 3600) + (int(minOffset) * 60))
+	ses.timezone = time.FixedZone(value, offset)
+	return ses.timezone, nil
 }
 
 // log writes a message with an Ses system name and caller info.

@@ -10,16 +10,25 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
-import "gopkg.in/rana/ora.v3/date"
+import (
+	"time"
+	"unsafe"
+
+	"gopkg.in/rana/ora.v3/date"
+)
 
 type defDate struct {
 	ociDef
 	ociDate    []date.Date
 	isNullable bool
+	timezone   *time.Location
 }
 
 func (def *defDate) define(position int, isNullable bool, rset *Rset) error {
+	var err error
+	if def.timezone, err = rset.stmt.ses.Timezone(); err != nil {
+		return err
+	}
 	def.rset = rset
 	def.isNullable = isNullable
 	if def.ociDate != nil {
@@ -34,11 +43,11 @@ func (def *defDate) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
 		oraTimeValue := Date{IsNull: def.nullInds[offset] < 0}
 		if !oraTimeValue.IsNull {
-			oraTimeValue.Value = def.ociDate[offset].Get()
+			oraTimeValue.Value = def.ociDate[offset].GetIn(def.timezone)
 		}
 		return oraTimeValue, nil
 	}
-	return def.ociDate[offset].Get(), nil
+	return def.ociDate[offset].GetIn(def.timezone), nil
 }
 
 func (def *defDate) alloc() error { return nil }

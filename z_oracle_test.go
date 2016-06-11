@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -142,10 +141,9 @@ func init() {
 	// load session time zone
 	testDbsessiontimezone, err = loadDbtimezone()
 	if err != nil {
-		fmt.Println("Error loading session time zone from database: ", err)
-	} else {
-		fmt.Println("Read session time zone from database...")
+		panic("Error loading session time zone from database: " + err.Error())
 	}
+	fmt.Printf("Read session time zone from database: %s\n", testDbsessiontimezone)
 
 	// drop all tables from previous test run
 	fmt.Println("Dropping previous tables...")
@@ -536,50 +534,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 }
 
 func loadDbtimezone() (*time.Location, error) {
-	stmt, err := testSes.Prep("select tz_offset(sessiontimezone) from dual")
-	defer stmt.Close()
-	if err != nil {
-		return nil, err
-	}
-	rset, err := stmt.Qry()
-	if err != nil {
-		return nil, err
-	}
-	hasRow := rset.Next()
-	if !hasRow {
-		return nil, errors.New("no time zone returned from database")
-	}
-	if value, ok := rset.Row[0].(string); ok {
-		value = strings.Trim(value, " ")
-		var sign int
-		if strings.HasPrefix(value, "-") {
-			sign = -1
-			value = strings.Replace(value, "-", "", 1)
-		} else {
-			sign = 1
-		}
-		strs := strings.Split(value, ":")
-		if strs == nil || len(strs) != 2 {
-			return nil, errors.New("unable to parse database timezone offset")
-		}
-		hourOffset, err := strconv.ParseInt(strs[0], 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		minStr := strs[1]
-		nullIndex := strings.IndexRune(minStr, '\x00')
-		if nullIndex > -1 {
-			minStr = minStr[:nullIndex]
-		}
-		minOffset, err := strconv.ParseInt(minStr, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		offset := sign * ((int(hourOffset) * 3600) + (int(minOffset) * 60))
-		return time.FixedZone("SESSIONTIMEZONE", offset), nil
-	} else {
-		return nil, errors.New("unable to retrieve database timezone")
-	}
+	return testSes.Timezone()
 }
 
 func validate(expected interface{}, rset *ora.Rset, t *testing.T) {

@@ -40,6 +40,12 @@ func (dt *Date) Set(t time.Time) {
 }
 
 func (dt Date) Get() time.Time {
+	return dt.GetIn(nil)
+}
+func (dt Date) GetIn(zone *time.Location) time.Time {
+	if zone == nil {
+		zone = time.Local
+	}
 	return time.Date(
 		(int(dt[0])-100)*100+(int(dt[1])-100),
 		time.Month(dt[2]),
@@ -48,6 +54,6 @@ func (dt Date) Get() time.Time {
 		int(dt[5]-1),
 		int(dt[6]-1),
 		0,
-		time.Local,
+		zone,
 	)
 }
