@@ -1,6 +1,7 @@
 # Changelog #
 
 ## master ##
+  * Add "C" field to Lob to allow setting bind parameters to CLOB (default is BLOB).
 
 ## v3.6 ##
   * Refactor def* (resultset columns) to be more common, and allow multiple row fetch.

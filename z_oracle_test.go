@@ -3521,7 +3521,7 @@ func TestLOBRead(t *testing.T) {
 	}
 	enableLogging(t)
 	stmt, err := testSes.Prep("CALL test_get_json(:1)", ora.OraBin)
-	var lob ora.Lob
+	lob := ora.Lob{C: true}
 	if _, err := stmt.Exe(&lob); err != nil {
 		if strings.Contains(err.Error(), "ORA-06575:") {
 			ce, err2 := ora.GetCompileErrors(testSes, false)

@@ -704,7 +704,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 						stmt.setNilBind(n, C.SQLT_BLOB)
 					} else {
 						stmt.bnds[n] = bnd
-						err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.cfg.lobBufferSize, stmt)
+						err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.cfg.lobBufferSize, C.SQLT_BLOB, stmt)
 						if err != nil {
 							return iterations, err
 						}
@@ -998,23 +998,31 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				}
 			}
 		case Lob:
+			sqlt := C.ub2(C.SQLT_BLOB)
+			if value.C {
+				sqlt = C.SQLT_CLOB
+			}
 			if value.Reader == nil {
-				stmt.setNilBind(n, C.SQLT_BLOB)
+				stmt.setNilBind(n, sqlt)
 			} else {
 				bnd := stmt.getBnd(bndIdxLob).(*bndLob)
 				stmt.bnds[n] = bnd
-				err = bnd.bindReader(value.Reader, n+1, stmt.cfg.lobBufferSize, stmt)
+				err = bnd.bindReader(value.Reader, n+1, stmt.cfg.lobBufferSize, sqlt, stmt)
 				if err != nil {
 					return iterations, err
 				}
 			}
 		case *Lob:
+			sqlt := C.ub2(C.SQLT_BLOB)
+			if value != nil && value.C {
+				sqlt = C.SQLT_CLOB
+			}
 			if value == nil {
-				stmt.setNilBind(n, C.SQLT_BLOB)
+				stmt.setNilBind(n, sqlt)
 			} else {
 				bnd := stmt.getBnd(bndIdxLobPtr).(*bndLobPtr)
 				stmt.bnds[n] = bnd
-				err = bnd.bindLob(value, n+1, stmt.cfg.lobBufferSize, stmt)
+				err = bnd.bindLob(value, n+1, stmt.cfg.lobBufferSize, sqlt, stmt)
 				if err != nil {
 					return iterations, err
 				}

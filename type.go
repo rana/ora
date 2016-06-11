@@ -633,9 +633,11 @@ func (this *Raw) UnmarshalJSON(p []byte) error {
 
 // Lob Reader is sent to the DB on bind, if not nil.
 // The Reader can read the LOB if we bind a *Lob, Closer will close the LOB.
+// Set Lob.C = true to make this a CLOB reader!
 type Lob struct {
 	io.Reader
 	io.Closer
+	C bool
 }
 
 func (this Lob) Close() error {

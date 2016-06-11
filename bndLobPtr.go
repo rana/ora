@@ -15,12 +15,14 @@ type bndLobPtr struct {
 	stmt   *Stmt
 	ocibnd *C.OCIBind
 	value  *Lob
+	sqlt   C.ub2
 	lobLocatorp
 }
 
-func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, stmt *Stmt) (err error) {
+func (bnd *bndLobPtr) bindLob(lob *Lob, position int, lobBufferSize int, sqlt C.ub2, stmt *Stmt) (err error) {
 	bnd.stmt = stmt
 	bnd.value = lob
+	bnd.sqlt = sqlt
 	if lobBufferSize <= 0 {
 		lobBufferSize = lobChunkSize
 	}
@@ -111,13 +113,13 @@ func (bnd *bndLobPtr) bindByPos(position int) error {
 		C.ub4(position),                           //ub4          position,
 		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void         *valuep,
 		C.LENGTH_TYPE(bnd.lobLocatorp.Size()),     //sb8          value_sz,
-		C.SQLT_BLOB,                               //ub2          dty,
-		nil,                                       //void         *indp,
-		nil,                                       //ub2          *alenp,
-		nil,                                       //ub2          *rcodep,
-		0,                                         //ub4          maxarr_len,
-		nil,                                       //ub4          *curelep,
-		C.OCI_DEFAULT)                             //ub4          mode );
+		bnd.sqlt,      //ub2          dty,
+		nil,           //void         *indp,
+		nil,           //ub2          *alenp,
+		nil,           //ub2          *rcodep,
+		0,             //ub4          maxarr_len,
+		nil,           //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
