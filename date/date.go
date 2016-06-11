@@ -28,7 +28,7 @@ So in the previous example the date was 19-DEC-2007 at 22:35:10.
 */
 type Date [7]byte
 
-func (dt Date) Set(t time.Time) {
+func (dt *Date) Set(t time.Time) {
 	y := t.Year()
 	dt[0] = byte(y/100 + 100)
 	dt[1] = byte(y%100 + 100)
@@ -41,7 +41,7 @@ func (dt Date) Set(t time.Time) {
 
 func (dt Date) Get() time.Time {
 	return time.Date(
-		int((dt[0]-100)*100+(dt[1]-100)),
+		(int(dt[0])-100)*100+(int(dt[1])-100),
 		time.Month(dt[2]),
 		int(dt[3]),
 		int(dt[4]-1),
