@@ -25,7 +25,7 @@ type bndTimePtr struct {
 
 func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
-	bnd.nullp.Set(value == nil)
+	bnd.nullp.Set(value == nil || value.IsZero())
 	if err := bnd.dateTimep.Alloc(bnd.stmt.ses.srv.env); err != nil {
 		return err
 	}

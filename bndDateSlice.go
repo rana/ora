@@ -16,20 +16,23 @@ import (
 	"bytes"
 	"time"
 	"unsafe"
+
+	"gopkg.in/rana/ora.v3/date"
 )
 
 type bndDateSlice struct {
 	stmt     *Stmt
 	ocibnd   *C.OCIBind
-	ociDates []C.OCIDate
+	ociDates []date.Date
 	zoneBuf  bytes.Buffer
-	values   []Date
+	values   []Time
 	times    []time.Time
 	dtype    C.ub4
+	timezone *time.Location
 	arrHlp
 }
 
-func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndDateSlice) bindOra(values []Time, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	bnd.values = values
 	if cap(bnd.times) < cap(values) {
 		bnd.times = make([]time.Time, len(values), cap(values))
@@ -54,6 +57,9 @@ func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt, isAsso
 
 func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
+	if bnd.timezone, err = bnd.stmt.ses.Timezone(); err != nil {
+		return iterations, err
+	}
 	L, C := len(values), cap(values)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
@@ -61,14 +67,15 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 	}
 	bnd.times = values
 	if cap(bnd.ociDates) < C {
-		bnd.ociDates = make([]C.OCIDate, L, C)
+		bnd.ociDates = make([]date.Date, L, C)
 	} else {
 		bnd.ociDates = bnd.ociDates[:L]
 	}
-	valueSz := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCIDate)
+	valueSz := C.ACTUAL_LENGTH_TYPE(7)
 	for n, timeValue := range values {
-		arr := bnd.ociDates[n : n+1 : n+1]
-		ociSetDateTime(&arr[0], timeValue)
+		//arr := bnd.ociDates[n : n+1 : n+1]
+		//ociSetDateTime(&arr[0], timeValue)
+		bnd.ociDates[n].Set(timeValue)
 		bnd.alen[n] = valueSz
 	}
 
@@ -83,7 +90,7 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 		C.ub4(position),                  //ub4          position,
 		unsafe.Pointer(&bnd.ociDates[0]), //void         *valuep,
 		C.LENGTH_TYPE(valueSz),           //sb8          value_sz,
-		C.SQLT_ODT,                       //ub2          dty,
+		C.SQLT_DAT,                       //ub2          dty,
 		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
 		&bnd.alen[0],                     //ub2          *alenp,
 		&bnd.rcode[0],                    //ub2          *rcodep,
@@ -118,7 +125,8 @@ func (bnd *bndDateSlice) setPtr() error {
 	}
 	for i, dt := range bnd.ociDates[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
-			bnd.times[i] = ociGetDateTime(dt)
+			//bnd.times[i] = ociGetDateTime(dt)
+			bnd.times[i] = dt.GetIn(bnd.timezone)
 			if bnd.values != nil {
 				bnd.values[i].IsNull = false
 				bnd.values[i].Value = bnd.times[i]

@@ -175,7 +175,7 @@ END TST_ora_plsarr_dt;`,
 		},
 		{
 			"BEGIN :1 := TST_ora_plsarr_dt.date_slice_concat(:2); END;",
-			[]interface{}{&ret, []ora.Date{{Value: now}, {Value: now.Add(-24 * time.Hour)}}},
+			[]interface{}{&ret, []ora.Time{{Value: now, LowPrec: true}, {Value: now.Add(-24 * time.Hour), LowPrec: true}}},
 			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02 15:04:05") + "\n",
 		},
 	} {

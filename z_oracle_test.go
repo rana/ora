@@ -404,8 +404,8 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 				case ora.OraT:
 					if value, ok := rset.Row[n].(ora.Time); ok {
 						compare_time(expected, value.Value, t)
-					} else if value, ok := rset.Row[n].(ora.Date); ok {
-						compare_time(expected, value.Value, t)
+						//} else if value, ok := rset.Row[n].(ora.Date); ok {
+						//    compare_time(expected, value.Value, t)
 					} else {
 						t.Fatalf("Unpexected rset.Row[n] value (got %v, expected %v). (%v, %v)", rset.Row[n], expected, reflect.TypeOf(rset.Row[n]).Name(), rset.Row[n])
 					}

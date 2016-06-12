@@ -41,7 +41,7 @@ func (def *defDate) define(position int, isNullable bool, rset *Rset) error {
 
 func (def *defDate) value(offset int) (value interface{}, err error) {
 	if def.isNullable {
-		oraTimeValue := Date{IsNull: def.nullInds[offset] < 0}
+		oraTimeValue := Time{IsNull: def.nullInds[offset] < 0, LowPrec: true}
 		if !oraTimeValue.IsNull {
 			oraTimeValue.Value = def.ociDate[offset].GetIn(def.timezone)
 		}

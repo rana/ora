@@ -14,33 +14,33 @@ import "C"
 import (
 	"time"
 	"unsafe"
+
+	"gopkg.in/rana/ora.v3/date"
 )
 
 type bndDate struct {
 	stmt   *Stmt
 	ocibnd *C.OCIBind
-	datep
 }
 
 func (bnd *bndDate) bind(value time.Time, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
-	if err := bnd.datep.Set(bnd.stmt.ses.srv.env, value); err != nil {
-		return err
-	}
+	var dt date.Date
+	dt.Set(value)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
-		&bnd.ocibnd,                         //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                     //ub4          position,
-		unsafe.Pointer(bnd.datep.Pointer()), //void         *valuep,
-		C.LENGTH_TYPE(bnd.datep.Size()),     //sb8          value_sz,
-		C.SQLT_ODT,                          //ub2          dty,
-		nil,                                 //void         *indp,
-		nil,                                 //ub2          *alenp,
-		nil,                                 //ub2          *rcodep,
-		0,                                   //ub4          maxarr_len,
-		nil,                                 //ub4          *curelep,
-		C.OCI_DEFAULT)                       //ub4          mode );
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position),             //ub4          position,
+		unsafe.Pointer(&dt),         //void         *valuep,
+		C.LENGTH_TYPE(7),            //sb8          value_sz,
+		C.SQLT_DAT,                  //ub2          dty,
+		nil,                         //void         *indp,
+		nil,                         //ub2          *alenp,
+		nil,                         //ub2          *rcodep,
+		0,                           //ub4          maxarr_len,
+		nil,                         //ub4          *curelep,
+		C.OCI_DEFAULT)               //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
@@ -57,7 +57,6 @@ func (bnd *bndDate) close() (err error) {
 			err = errR(value)
 		}
 	}()
-	bnd.datep.Free()
 
 	stmt := bnd.stmt
 	bnd.stmt = nil

@@ -858,54 +858,86 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 			stmt.hasPtrBind = true
-		case Time:
-			if value.IsNull {
-				stmt.setNilBind(n, C.SQLT_TIMESTAMP_TZ)
-			} else {
-				bnd := stmt.getBnd(bndIdxTime).(*bndTime)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value.Value, n+1, stmt)
-				if err != nil {
-					return iterations, err
-				}
-			}
 		case []time.Time:
 			bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
 			stmt.bnds[n] = bnd
 			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
-		case []Time:
-			bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
-			stmt.bnds[n] = bnd
-			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
-				return iterations, err
-			}
-		case Date:
+		case Time:
 			if value.IsNull {
-				stmt.setNilBind(n, C.SQLT_DAT)
+				if value.LowPrec {
+					stmt.setNilBind(n, C.SQLT_DAT)
+				} else {
+					stmt.setNilBind(n, C.SQLT_TIMESTAMP_TZ)
+				}
 			} else {
-				bnd := stmt.getBnd(bndIdxDate).(*bndDate)
-				stmt.bnds[n] = bnd
-				err = bnd.bind(value.Value, n+1, stmt)
+				if value.LowPrec {
+					bnd := stmt.getBnd(bndIdxDate).(*bndDate)
+					stmt.bnds[n] = bnd
+					err = bnd.bind(value.Value, n+1, stmt)
+				} else {
+					bnd := stmt.getBnd(bndIdxTime).(*bndTime)
+					stmt.bnds[n] = bnd
+					err = bnd.bind(value.Value, n+1, stmt)
+				}
 				if err != nil {
 					return iterations, err
 				}
 			}
-		case *Date:
-			bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
-			stmt.bnds[n] = bnd
-			if err = bnd.bind(value, n+1, stmt); err != nil {
+		case *Time:
+			if value != nil && value.LowPrec {
+				bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(value, n+1, stmt)
+			} else {
+				bnd := stmt.getBnd(bndIdxTimePtr).(*bndTimePtr)
+				stmt.bnds[n] = bnd
+				err = bnd.bind(&value.Value, n+1, stmt)
+			}
+			if err != nil {
 				return iterations, err
 			}
 			stmt.hasPtrBind = true
-		case []Date:
-			bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
-			stmt.bnds[n] = bnd
-			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+		case []Time:
+			if cap(value) > 0 && value[:1][0].LowPrec {
+				bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
+				stmt.bnds[n] = bnd
+				iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray)
+			} else {
+				bnd := stmt.getBnd(bndIdxTimeSlice).(*bndTimeSlice)
+				stmt.bnds[n] = bnd
+				iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray)
+			}
+			if err != nil {
 				return iterations, err
 			}
-
+			/*
+				case Date:
+					if value.IsNull {
+						stmt.setNilBind(n, C.SQLT_DAT)
+					} else {
+						bnd := stmt.getBnd(bndIdxDate).(*bndDate)
+						stmt.bnds[n] = bnd
+						err = bnd.bind(value.Value, n+1, stmt)
+						if err != nil {
+							return iterations, err
+						}
+					}
+				case *Date:
+					bnd := stmt.getBnd(bndIdxDatePtr).(*bndDatePtr)
+					stmt.bnds[n] = bnd
+					if err = bnd.bind(value, n+1, stmt); err != nil {
+						return iterations, err
+					}
+					stmt.hasPtrBind = true
+				case []Date:
+					bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
+					stmt.bnds[n] = bnd
+					if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
+						return iterations, err
+					}
+			*/
 		case string:
 			bnd := stmt.getBnd(bndIdxString).(*bndString)
 			stmt.bnds[n] = bnd
