@@ -75,7 +75,7 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 			timezones[off] = tz
 		}
 		arr := bnd.ociDateTimes[n : n+1 : n+1]
-		if err := (&dateTimep{p: &arr[0]}).Set(bnd.stmt.ses.srv.env, timeValue); err != nil {
+		if err := (&dateTimep{p: arr}).Set(bnd.stmt.ses.srv.env, timeValue); err != nil {
 			return iterations, err
 		}
 		bnd.alen[n] = valueSz

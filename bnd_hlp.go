@@ -16,90 +16,87 @@ import (
 )
 
 type nullp struct {
-	p *C.sb2
+	p []C.sb2
 }
 
 func (np *nullp) Pointer() *C.sb2 {
 	if np.p == nil {
-		np.p = (*C.sb2)(C.malloc(C.sizeof_sb2))
+		np.p = (*((*[1]C.sb2)(C.malloc(2))))[:1]
 	}
-	return np.p
+	return &np.p[0]
 }
 
 func (np *nullp) IsNull() bool {
-	if np.p == nil {
-		return true
-	}
-	return *(np.p) < 0
+	return np.p[0] < 0
 }
 
 func (np *nullp) Free() {
 	if np.p != nil {
-		C.free(unsafe.Pointer(np.p))
+		C.free(unsafe.Pointer(&np.p[0]))
+	}
+}
+
+func (np *nullp) Set(isNull bool) {
+	np.p[0] = 0
+	if isNull {
+		np.p[0] = -1
 		np.p = nil
 	}
 }
-func (np *nullp) Set(isNull bool) {
-	x := C.sb2(0)
-	if isNull {
-		x = -1
-	}
-	*(np.Pointer()) = x
-}
 
 type lobLocatorp struct {
-	p **C.OCILobLocator
+	p []*C.OCILobLocator
 }
 
 func (ll *lobLocatorp) Pointer() **C.OCILobLocator {
 	if ll.p == nil {
-		ll.p = (**C.OCILobLocator)(C.malloc(C.size_t(ll.Size())))
+		ll.p = (*((*[1]*C.OCILobLocator)(C.malloc(C.size_t(ll.Size())))))[:1]
 	}
-	return ll.p
+	return &ll.p[0]
 }
 func (ll *lobLocatorp) Value() *C.OCILobLocator {
 	if ll.p == nil {
 		return nil
 	}
-	return *ll.p
+	return ll.p[0]
 }
 func (ll *lobLocatorp) Size() int {
 	return int(C.sof_LobLocatorp)
 }
 func (ll *lobLocatorp) Free() {
 	if ll.p != nil {
-		C.free(unsafe.Pointer(ll.p))
+		C.free(unsafe.Pointer(&ll.p[0]))
 		ll.p = nil
 	}
 }
 
 type dateTimep struct {
-	p    **C.OCIDateTime
+	p    []*C.OCIDateTime
 	zone []byte
 }
 
 func (dt *dateTimep) Pointer() **C.OCIDateTime {
 	if dt.p == nil {
-		dt.p = (**C.OCIDateTime)(C.malloc(C.size_t(dt.Size())))
+		dt.p = (*((*[1]*C.OCIDateTime)(C.malloc(C.size_t(dt.Size())))))[:1]
 	}
-	return dt.p
+	return &dt.p[0]
 }
 func (dt *dateTimep) Value() *C.OCIDateTime {
 	if dt.p == nil {
 		return nil
 	}
-	return *dt.p
+	return dt.p[0]
 }
 func (dt *dateTimep) Size() int { return int(C.sof_DateTimep) }
 func (dt *dateTimep) Free() {
 	if dt.p != nil {
-		if *dt.p != nil {
+		if dt.p[0] != nil {
 			C.OCIDescriptorFree(
-				unsafe.Pointer(*dt.p),    //void     *descp,
+				unsafe.Pointer(dt.p[0]),  //void     *descp,
 				C.OCI_DTYPE_TIMESTAMP_TZ) //ub4      type );
-			*dt.p = nil
+			dt.p[0] = nil
 		}
-		C.free(unsafe.Pointer(dt.p))
+		C.free(unsafe.Pointer(&dt.p[0]))
 		dt.p = nil
 	}
 }
