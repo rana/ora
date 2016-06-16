@@ -27,20 +27,21 @@ func (np *nullp) Pointer() *C.sb2 {
 }
 
 func (np *nullp) IsNull() bool {
-	return np.p[0] < 0
+	return np.p == nil || np.p[0] < 0
 }
 
 func (np *nullp) Free() {
 	if np.p != nil {
 		C.free(unsafe.Pointer(&np.p[0]))
+		np.p = nil
 	}
 }
 
 func (np *nullp) Set(isNull bool) {
-	np.p[0] = 0
+	p := np.Pointer()
+	*p = 0
 	if isNull {
-		np.p[0] = -1
-		np.p = nil
+		*p = -1
 	}
 }
 
