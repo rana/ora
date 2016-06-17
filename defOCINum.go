@@ -32,7 +32,6 @@ func (def *defOCINum) define(position int, isNullable bool, rset *Rset) error {
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ociNumber[0]), C.sizeof_OCINumber, C.SQLT_VNU)
 }
 func (def *defOCINum) value(offset int) (value interface{}, err error) {
-	//if def.nullp.IsNull() {
 	if def.nullInds[offset] < 0 {
 		if def.isNullable {
 			return OraOCINum{IsNull: true}, nil
