@@ -491,6 +491,15 @@ func (this *OraNum) UnmarshalJSON(p []byte) error {
 type OCINum struct {
 	num.OCINum
 }
+
+func (n OCINum) String() string {
+	s := n.OCINum.String()
+	if s == "" {
+		return "0" // this seems strange, but is needed for sql.Scan.
+	}
+	return s
+}
+
 type OraOCINum struct {
 	IsNull bool
 	Value  num.OCINum
