@@ -35,9 +35,9 @@ func (def *defOCINum) value(offset int) (value interface{}, err error) {
 	//if def.nullp.IsNull() {
 	if def.nullInds[offset] < 0 {
 		if def.isNullable {
-			return String{IsNull: true}, nil
+			return OraOCINum{IsNull: true}, nil
 		}
-		return "0", nil
+		return OCINum{}, nil
 	}
 	length := int(def.ociNumber[offset].OCINumberPart[0])
 	num := num.OCINum(((*[C.OCI_NUMBER_SIZE]byte)(
