@@ -101,7 +101,6 @@ var testConStr string
 var testDbsessiontimezone *time.Location
 var testTableId int
 var testWorkloadColumnCount int
-var testSrv *ora.Srv
 var testSes *ora.Ses
 var testDb *sql.DB
 
@@ -127,13 +126,8 @@ func init() {
 		fmt.Println("initError: ", err)
 	}
 
-	//testSrv, err = testEnv.OpenSrv(testSrvCfg)
-	pool := testEnv.NewSrvPool(testSrvCfg, 1)
-	testSrv, err = pool.Get()
-	if err != nil {
-		fmt.Println("initError: ", err)
-	}
-	testSes, err = testSrv.OpenSes(testSesCfg)
+	pool := testEnv.NewPool(testSrvCfg, testSesCfg, 4)
+	testSes, err = pool.Get()
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}

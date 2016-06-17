@@ -18,7 +18,127 @@ const (
 	DefaultEvictDuration = time.Minute
 )
 
-// NewSrvPool returns a connection pool, which evicts the idle sessions in every minute.
+// NewPool returns a session pool, which evicts the idle sessions in every minute,
+// and automatically manages the required new connections (Srv).
+//
+// This is done by maintaining a 1-1 pairing between the Srv and its Ses.
+func (env *Env) NewPool(srvCfg *SrvCfg, sesCfg *SesCfg, size int) *Pool {
+	p := &Pool{
+		env:    env,
+		srvCfg: srvCfg, sesCfg: sesCfg,
+		srv: newIdlePool(size),
+		ses: newIdlePool(size),
+	}
+	p.poolEvictor = &poolEvictor{
+		Evict: func(d time.Duration) {
+			p.ses.Evict(d)
+			p.srv.Evict(d)
+		}}
+	p.SetEvictDuration(DefaultEvictDuration)
+	return p
+}
+
+// NewPool returns a new session pool with default config.
+func NewPool(dsn string, size int) (*Pool, error) {
+	env, err := OpenEnv(NewEnvCfg())
+	if err != nil {
+		return nil, err
+	}
+	srvCfg := NewSrvCfg()
+	sesCfg := NewSesCfg()
+	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+	return env.NewPool(srvCfg, sesCfg, size), nil
+}
+
+type Pool struct {
+	env    *Env
+	srvCfg *SrvCfg
+	sesCfg *SesCfg
+
+	sync.Mutex
+	srv, ses *idlePool
+
+	*poolEvictor
+}
+
+// Close all idle sessions and connections.
+func (p *Pool) Close() error {
+	p.Lock()
+	err := p.ses.Close()
+	if err2 := p.srv.Close(); err2 != nil && err == nil {
+		err = err2
+	}
+	p.Unlock()
+	return err
+}
+
+// Get a session - either an idle session, or if such does not exist, then
+// a new session on an idle connection; if such does not exist, then
+// a new session on a new connection.
+func (p *Pool) Get() (*Ses, error) {
+	p.Lock()
+	defer p.Unlock()
+
+	// try get session from the ses pool
+	for {
+		x := p.ses.Get()
+		if x == nil { // the ses pool is empty
+			break
+		}
+		ses := x.(sesSrvPB).Ses
+		if err := ses.Ping(); err == nil {
+			return ses, nil
+		}
+		ses.Close()
+	}
+
+	var srv *Srv
+	// try to get srv from the srv pool
+	for {
+		x := p.srv.Get()
+		if x == nil { // the srv pool is empty
+			break
+		}
+		srv = x.(*Srv)
+		if ses, err := srv.OpenSes(p.sesCfg); err == nil {
+			return ses, nil
+		}
+		_ = srv.Close()
+	}
+
+	srv, err := p.env.OpenSrv(p.srvCfg)
+	if err != nil {
+		return nil, err
+	}
+	return srv.OpenSes(p.sesCfg)
+}
+
+// Put the session back to the session pool.
+// Ensure that on ses Close (eviction), srv is put back on the idle pool.
+func (p *Pool) Put(ses *Ses) {
+	if ses == nil || !ses.IsOpen() {
+		return
+	}
+	p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
+}
+
+type sesSrvPB struct {
+	*Ses
+	p *idlePool
+}
+
+func (s sesSrvPB) Close() error {
+	if s.Ses == nil {
+		return nil
+	}
+	err := s.Ses.Close()
+	if s.p != nil {
+		s.p.Put(s.Ses.srv)
+	}
+	return err
+}
+
+// NewSrvPool returns a connection pool, which evicts the idle connections in every minute.
 // The pool holds at most size idle Srv.
 // If size is zero, DefaultPoolSize will be used.
 func (env *Env) NewSrvPool(srvCfg *SrvCfg, size int) *SrvPool {
