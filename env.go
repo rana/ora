@@ -83,6 +83,13 @@ func (env *Env) Close() (err error) {
 	if err != nil {
 		return errE(err)
 	}
+	for k, p := range _drv.srvSesPools {
+		if p == nil || p.env != env {
+			continue
+		}
+		p.Close()
+		delete(_drv.srvSesPools, k)
+	}
 	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -179,58 +186,40 @@ var (
 // dblink is a connection identifier such as a net service name,
 // full connection identifier, or a simple connection identifier.
 // The dblink may be defined in the client machine's tnsnames.ora file.
-func (env *Env) OpenCon(str string) (con *Con, err error) {
+func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	// do not lock; calls to env.OpenSrv will lock
 	env.log(_drv.cfg.Log.Env.OpenCon)
 	err = env.checkClosed()
 	if err != nil {
 		return nil, errE(err)
 	}
-	srvCfg := NewSrvCfg()
-	sesCfg := NewSesCfg()
+	dsn = strings.TrimSpace(dsn)
+	p := _drv.srvSesPools[dsn]
+	if p == nil {
+		srvCfg := NewSrvCfg()
+		sesCfg := NewSesCfg()
 
-	// parse connection string
-	str = strings.TrimSpace(str)
-	if len(str) > 11 {
-		end := strings.ToUpper(str[len(str)-11:])
-		if strings.HasSuffix(end, " AS SYSDBA") {
-			sesCfg.Mode = SysDba
-			str = str[:len(str)-10]
-		} else if strings.HasSuffix(end, " AS SYSOPER") {
-			sesCfg.Mode = SysOper
-			str = str[:len(str)-11]
-		}
+		sesCfg.Mode = DSNMode(dsn)
+		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+		p = env.NewPool(srvCfg, sesCfg, 0)
+		_drv.srvSesPools[dsn] = p
 	}
-	if strings.HasPrefix(str, "/@") {
-		srvCfg.Dblink = str[2:]
-	} else {
-		str = strings.Replace(str, "/", " / ", 1)
-		str = strings.Replace(str, "@", " @ ", 1)
-		_, err := fmt.Sscanf(str, "%s / %s @ %s", &sesCfg.Username, &sesCfg.Password, &srvCfg.Dblink)
-		if err != nil {
-			return nil, errE(err)
-		}
-	}
-	srv, err := env.OpenSrv(srvCfg) // open Srv
+	ses, err := p.Get()
 	if err != nil {
 		return nil, errE(err)
 	}
-	sesCfg.StmtCfg = srv.env.cfg.StmtCfg // sqlPkg StmtCfg has been configured for database/sql package
-	ses, err := srv.OpenSes(sesCfg)      // open Ses
-	if err != nil {
-		return nil, errE(err)
-	}
+	srvCfg := p.srvCfg
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
-	con.srv = srv
 	con.ses = ses
+	con.srv = ses.srv
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
 	}
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
 	if cs, ok := conCharset[srvCfg.Dblink]; ok {
-		srv.dbIsUTF8 = cs == "AL32UTF8"
+		con.srv.dbIsUTF8 = cs == "AL32UTF8"
 		return con, nil
 	}
 	if rset, err := ses.PrepAndQry(
