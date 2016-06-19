@@ -705,10 +705,6 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 	if value == "" {
 		return nil, fmt.Errorf("unable to retrieve database timezone (%#v)", rset.Row[0])
 	}
-	if nullIndex := strings.IndexByte(value, 0); nullIndex > -1 {
-		value = value[:nullIndex]
-	}
-	value = strings.TrimSpace(value)
 	var sign int
 	if strings.HasPrefix(value, "-") {
 		sign = -1

@@ -211,15 +211,15 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	srvCfg := p.srvCfg
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
+	con.pool = p
 	con.ses = ses
-	con.srv = ses.srv
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
 	}
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
 	if cs, ok := conCharset[srvCfg.Dblink]; ok {
-		con.srv.dbIsUTF8 = cs == "AL32UTF8"
+		con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
 		return con, nil
 	}
 	if rset, err := ses.PrepAndQry(
@@ -232,7 +232,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
 			conCharset[srvCfg.Dblink] = cs
-			con.srv.dbIsUTF8 = cs == "AL32UTF8"
+			con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
 		}
 	}
 	env.openCons.add(con)
