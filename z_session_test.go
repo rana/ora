@@ -42,10 +42,22 @@ func Test_open_cursors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before, err := strconv.Atoi(rset.NextRow()[0].(ora.OCINum).String())
-	if err != nil {
-		t.Fatal(err)
+	toNum := func(a interface{}) int {
+		switch x := a.(type) {
+		case int64:
+			return int(x)
+		case float64:
+			return int(x)
+		default:
+			i, err := strconv.Atoi(fmt.Sprintf("%v", a))
+			if err != nil {
+				panic(err)
+			}
+			return i
+		}
 	}
+
+	before := toNum(rset.NextRow()[0])
 	rounds := 100
 	if cgocheck() != 0 {
 		rounds = 10
@@ -73,7 +85,7 @@ func Test_open_cursors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	after, _ := strconv.Atoi(rset.NextRow()[0].(ora.OCINum).String())
+	after := toNum(rset.NextRow()[0])
 	if after-before >= rounds {
 		t.Errorf("before=%f after=%f, awaited less than %d increment!", before, after, rounds)
 		return

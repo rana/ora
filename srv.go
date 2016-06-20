@@ -195,7 +195,7 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	//srv.logF(true, "CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
 	// set driver name on the session handle
 	// driver name is specified to aid diagnostics; max 9 single-byte characters
-	// driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO
+	// driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO as CLIENT_DRIVER
 	drvName := fmt.Sprintf("GO %v", Version)
 	cDrvName := C.CString(drvName)
 	defer C.free(unsafe.Pointer(cDrvName))
