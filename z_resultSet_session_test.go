@@ -23,46 +23,48 @@ func Test_cursor1_session(t *testing.T) {
 	testErr(err, t)
 
 	// insert records
-	expectedStrs := make([]string, 3)
-	expectedStrs[0] = "Go is expressive, concise, clean, and efficient."
-	expectedStrs[1] = "Its concurrency mechanisms make it easy to"
-	expectedStrs[2] = "Go compiles quickly to machine code yet has"
-	expectedInt64s := make([]int64, 3)
-	expectedInt64s[0] = 3
-	expectedInt64s[1] = 7
-	expectedInt64s[2] = 9
-	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName))
-	testErr(err, t)
-	rowsAffected, err := insertStmt.Exe(expectedStrs, expectedInt64s)
+	expectedStrs := []string{
+		"Go is expressive, concise, clean, and efficient.",
+		"Its concurrency mechanisms make it easy to",
+		"Go compiles quickly to machine code yet has",
+	}
+	expectedInt64s := []int64{3, 7, 9}
+	rowsAffected, err := testSes.PrepAndExe(
+		fmt.Sprintf("insert into %v (c1, c2) values (:1, :2)", tableName),
+		expectedStrs, expectedInt64s,
+	)
 	testErr(err, t)
 	if rowsAffected != 3 {
 		t.Fatalf("Expected 3 rows affected. (rowsAffected %v)", rowsAffected)
 	}
 
 	// create proc
-	createProcStmt, err := testSes.Prep(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c2; end proc1;", tableName))
-	defer createProcStmt.Close()
-	testErr(err, t)
-	_, err = createProcStmt.Exe()
+	_, err = testSes.PrepAndExe(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c2; end proc1;", tableName))
 	testErr(err, t)
 
+	enableLogging(t)
 	// call proc
-	callProcStmt, err := testSes.Prep("call proc1(:1)")
-	defer callProcStmt.Close()
+	stmt, err := testSes.Prep("call proc1(:1)")
 	testErr(err, t)
-	rset := &ora.Rset{}
-	_, err = callProcStmt.Exe(rset)
+	var rset ora.Rset
+	_, err = stmt.Exe(&rset)
 	testErr(err, t)
-	if rset.IsOpen() {
-		for rset.Next() {
-			if len(rset.Row) != 2 {
-				t.Fatalf("select column count: expected(%v), actual(%v)", 2, len(rset.Row))
-			} else {
-				//fmt.Println("rset.Row ", rset.Row)
-				compare(expectedStrs[rset.Index], rset.Row[0], ora.S, t)
-				compare(expectedInt64s[rset.Index], rset.Row[1], ora.I64, t)
-			}
+
+	if !rset.IsOpen() {
+		t.Fatalf("rset %#v is closed!", rset)
+	}
+	for rset.Next() {
+		if len(rset.Row) != 2 {
+			t.Fatalf("select column count: expected(%v), actual(%v)", 2, len(rset.Row))
 		}
-		testErr(rset.Err, t)
+		//fmt.Println("rset.Row ", rset.Row)
+		compare(expectedStrs[0], rset.Row[0], ora.S, t)
+		compare(expectedInt64s[0], rset.Row[1], ora.I64, t)
+		expectedStrs = expectedStrs[1:]
+		expectedInt64s = expectedInt64s[1:]
+	}
+	testErr(rset.Err, t)
+	if len(expectedStrs) > 0 {
+		t.Errorf("didn't get wanted %v", expectedStrs)
 	}
 }

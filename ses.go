@@ -208,6 +208,13 @@ func (ses *Ses) close() (err error) {
 
 // PrepAndExe prepares and executes a SQL statement returning the number of rows
 // affected and a possible error, using Exe, calling in batch for arrays.
+//
+// WARNING: just as sql.QueryRow, the prepared statement is closed right after
+// execution, with all its siblings (Lobs, Rsets...)!
+//
+// So if you want to retrieve and use such objects, you have to first Prep,
+// then Exe separately (and close the Stmt returned by Prep after finishing with
+// those objects).
 func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error) {
 	return ses.prepAndExe(sql, false, params...)
 }

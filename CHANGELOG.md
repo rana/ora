@@ -3,7 +3,7 @@
 ## master ##
   * Add "C" field to Lob to allow setting bind parameters to CLOB (default is BLOB).
   * Add date.Date, an implementation for encode/decode Oracle 7 byte DATE format, to avoid the overhead of calling C.OCIDateTime... functions. And use it in Rsets.
-  * Remove ora.Date and use ora.Time{LowPrec:true} instead.
+  * Make ora.Date use date.Date.
 
 ## v3.6 ##
   * Refactor def* (resultset columns) to be more common, and allow multiple row fetch.
