@@ -68,3 +68,27 @@ func Test_cursor1_session(t *testing.T) {
 		t.Errorf("didn't get wanted %v", expectedStrs)
 	}
 }
+
+func Test_nested_rset(t *testing.T) {
+	_, err := testSes.PrepAndExe(`CREATE OR REPLACE PROCEDURE proc2(p_cur OUT SYS_REFCURSOR) IS
+BEGIN
+  OPEN p_cur FOR
+    SELECT CURSOR(SELECT * FROM all_objects) FROM DUAL;
+END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, err := testSes.Prep("call proc2(:1)")
+	testErr(err, t)
+	var rset ora.Rset
+	enableLogging(t)
+	_, err = stmt.Exe(&rset)
+	if err != nil {
+		errs, _ := GetCompileErrors(testSes, false)
+		t.Errorf("errs: %#v", errs)
+		t.Fatal(err)
+	}
+
+	for rset.Next() {
+	}
+}
