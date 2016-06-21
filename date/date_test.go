@@ -26,3 +26,10 @@ func TestDate(t *testing.T) {
 		}
 	}
 }
+func TestNull(t *testing.T) {
+	var dt date.Date
+	t.Log(dt.String())
+	if !dt.IsNull() {
+		t.Errorf("want NULL, got %t for %#v", dt.IsNull(), dt)
+	}
+}

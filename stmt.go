@@ -888,7 +888,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 		case Date:
-			if value.IsNull {
+			if value.IsNull() {
 				stmt.setNilBind(n, C.SQLT_DAT)
 			} else {
 				bnd := stmt.getBnd(bndIdxDate).(*bndDate)

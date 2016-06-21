@@ -11,6 +11,7 @@ package ora
 */
 import "C"
 import (
+	"time"
 	"unsafe"
 
 	"gopkg.in/rana/ora.v3/date"
@@ -27,7 +28,7 @@ type bndDatePtr struct {
 func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	bnd.nullp.Set(value == nil || value.IsNull)
+	bnd.nullp.Set(value == nil || value.IsNull())
 	if value != nil {
 		bnd.ocidate[0] = value.Date
 	}
@@ -59,10 +60,9 @@ func (bnd *bndDatePtr) setPtr() (err error) {
 		return nil
 	}
 	if bnd.nullp.IsNull() {
-		bnd.value.IsNull = true
+		bnd.value.Set(time.Time{})
 		return nil
 	}
-	bnd.value.IsNull = false
 	bnd.value.Date = bnd.ocidate[0]
 	return nil
 }

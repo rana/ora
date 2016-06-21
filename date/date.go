@@ -7,6 +7,7 @@ package date
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -33,6 +34,12 @@ So in the previous example the date was 19-DEC-2007 at 22:35:10.
 type Date [7]byte
 
 func (dt *Date) Set(t time.Time) {
+	if t.IsZero() {
+		for i := range dt[:] {
+			dt[i] = 0
+		}
+		return
+	}
 	y := t.Year()
 	dt[0] = byte(y/100 + 100)
 	dt[1] = byte(y%100 + 100)
@@ -41,6 +48,35 @@ func (dt *Date) Set(t time.Time) {
 	dt[4] = byte(t.Hour() + 1)
 	dt[5] = byte(t.Minute() + 1)
 	dt[6] = byte(t.Second() + 1)
+}
+
+func (dt *Date) IsNull() bool {
+	for _, b := range dt[:] {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+func (dt Date) MarshalJSON() ([]byte, error) {
+	if dt.IsNull() {
+		return []byte("null"), nil
+	}
+	return dt.Get().MarshalJSON()
+}
+func (dt *Date) UnmarshalJSON(p []byte) error {
+	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
+		for i := range dt[:] {
+			dt[i] = 0
+		}
+		return nil
+	}
+	var t time.Time
+	if err := json.Unmarshal(p, &t); err != nil {
+		return err
+	}
+	dt.Set(t)
+	return nil
 }
 
 // FromTime returns a Date from a time.Time
@@ -56,6 +92,9 @@ func (dt Date) Equal(other Date) bool {
 }
 
 func (dt Date) String() string {
+	if dt.IsNull() {
+		return (time.Time{}).Format("2006-01-02T15:04:05")
+	}
 	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02d",
 		(int(dt[0])-100)*100+(int(dt[1])-100),
 		time.Month(dt[2]),
@@ -70,6 +109,9 @@ func (dt Date) Get() time.Time {
 	return dt.GetIn(nil)
 }
 func (dt Date) GetIn(zone *time.Location) time.Time {
+	if dt.IsNull() {
+		return time.Time{}
+	}
 	if zone == nil {
 		zone = time.Local
 	}

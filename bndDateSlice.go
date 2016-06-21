@@ -45,7 +45,7 @@ func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt, isAsso
 		bnd.nullInds = bnd.nullInds[:len(values)]
 	}
 	for n := range values {
-		if values[n].IsNull {
+		if values[n].IsNull() {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[0] = 0
@@ -128,11 +128,10 @@ func (bnd *bndDateSlice) setPtr() error {
 			//bnd.times[i] = ociGetDateTime(dt)
 			bnd.times[i] = dt.GetIn(bnd.timezone)
 			if bnd.values != nil {
-				bnd.values[i].IsNull = false
 				bnd.values[i].Date.Set(bnd.times[i])
 			}
 		} else if bnd.values != nil {
-			bnd.values[i].IsNull = true
+			bnd.values[i].Set(time.Time{})
 		}
 	}
 	return nil

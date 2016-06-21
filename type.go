@@ -412,38 +412,10 @@ func (this *Time) UnmarshalJSON(p []byte) error {
 // Date is a nullable date, for low (second) precisions (OCIDate)
 type Date struct {
 	date.Date
-	IsNull bool
-}
-
-// Equals returns true when the receiver and specified Time are both null,
-// or when the receiver and specified Time are both not null and Values are equal.
-func (this Date) Equals(other Date) bool {
-	return (this.IsNull && other.IsNull) ||
-		(this.IsNull == other.IsNull && bytes.Equal(this.Date[:], other.Date[:]))
 }
 
 var _ = (json.Marshaler)(Date{})
 var _ = (json.Unmarshaler)((*Date)(nil))
-
-func (this Date) MarshalJSON() ([]byte, error) {
-	if this.IsNull {
-		return []byte("null"), nil
-	}
-	return append(append(append(make([]byte, 0, 1+19+1), '"'), []byte(this.Date.String())...), '"'), nil
-}
-func (this *Date) UnmarshalJSON(p []byte) error {
-	if bytes.Equal(p, []byte("null")) || bytes.Equal(p, []byte(`""`)) {
-		this.IsNull = true
-		return nil
-	}
-	this.IsNull = false
-	var t time.Time
-	if err := json.Unmarshal(p, &t); err != nil {
-		return err
-	}
-	this.Set(t)
-	return nil
-}
 
 // String is a nullable string.
 type String struct {
