@@ -19,17 +19,17 @@ import (
 type bndDatePtr struct {
 	stmt    *Stmt
 	ocibnd  *C.OCIBind
-	value   *Time
+	value   *Date
 	ocidate [1]date.Date
 	nullp
 }
 
-func (bnd *bndDatePtr) bind(value *Time, position int, stmt *Stmt) error {
+func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil || value.IsNull)
-	if value != nil && !value.IsNull {
-		bnd.ocidate[0].Set(value.Value)
+	if value != nil {
+		bnd.ocidate[0] = value.Date
 	}
 	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
 	r := C.OCIBINDBYPOS(
@@ -62,8 +62,8 @@ func (bnd *bndDatePtr) setPtr() (err error) {
 		bnd.value.IsNull = true
 		return nil
 	}
-	bnd.value.IsNull, bnd.value.LowPrec = false, true
-	bnd.value.Value = bnd.ocidate[0].Get()
+	bnd.value.IsNull = false
+	bnd.value.Date = bnd.ocidate[0]
 	return nil
 }
 
@@ -79,6 +79,6 @@ func (bnd *bndDatePtr) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.value = nil
 	bnd.nullp.Free()
-	stmt.putBnd(bndIdxTimePtr, bnd)
+	stmt.putBnd(bndIdxDatePtr, bnd)
 	return nil
 }

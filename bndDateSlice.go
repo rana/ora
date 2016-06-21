@@ -25,14 +25,14 @@ type bndDateSlice struct {
 	ocibnd   *C.OCIBind
 	ociDates []date.Date
 	zoneBuf  bytes.Buffer
-	values   []Time
+	values   []Date
 	times    []time.Time
 	dtype    C.ub4
 	timezone *time.Location
 	arrHlp
 }
 
-func (bnd *bndDateSlice) bindOra(values []Time, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	bnd.values = values
 	if cap(bnd.times) < cap(values) {
 		bnd.times = make([]time.Time, len(values), cap(values))
@@ -49,7 +49,7 @@ func (bnd *bndDateSlice) bindOra(values []Time, position int, stmt *Stmt, isAsso
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[0] = 0
-			bnd.times[n] = values[n].Value
+			bnd.times[n] = values[n].Date.Get()
 		}
 	}
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
@@ -129,7 +129,7 @@ func (bnd *bndDateSlice) setPtr() error {
 			bnd.times[i] = dt.GetIn(bnd.timezone)
 			if bnd.values != nil {
 				bnd.values[i].IsNull = false
-				bnd.values[i].Value = bnd.times[i]
+				bnd.values[i].Date.Set(bnd.times[i])
 			}
 		} else if bnd.values != nil {
 			bnd.values[i].IsNull = true

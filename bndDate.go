@@ -12,7 +12,6 @@ package ora
 */
 import "C"
 import (
-	"time"
 	"unsafe"
 
 	"gopkg.in/rana/ora.v3/date"
@@ -23,10 +22,8 @@ type bndDate struct {
 	ocibnd *C.OCIBind
 }
 
-func (bnd *bndDate) bind(value time.Time, position int, stmt *Stmt) error {
+func (bnd *bndDate) bind(dt date.Date, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
-	var dt date.Date
-	dt.Set(value)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		&bnd.ocibnd,                 //OCIBind      **bindpp,

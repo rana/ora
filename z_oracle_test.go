@@ -42,7 +42,7 @@ const (
 	floatP126           oracleColumnType = "float(126) not null"
 	floatP126Null       oracleColumnType = "float(126) null"
 	// time
-	date               oracleColumnType = "date not null"
+	dateNotNull        oracleColumnType = "date not null"
 	dateNull           oracleColumnType = "date null"
 	timestampP9        oracleColumnType = "timestamp(9) not null"
 	timestampP9Null    oracleColumnType = "timestamp(9) null"
@@ -466,7 +466,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 				case binaryFloat, binaryFloatNull:
 					expected[c] = gen_float32()
 					gcts[c] = ora.F32
-				case date, dateNull:
+				case dateNotNull, dateNull:
 					expected[c] = gen_date()
 					gcts[c] = ora.T
 				case timestampP9, timestampP9Null, timestampTzP9, timestampTzP9Null, timestampLtzP9, timestampLtzP9Null:

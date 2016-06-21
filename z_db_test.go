@@ -148,7 +148,7 @@ func Test_floatP126Null_float64_db(t *testing.T) {
 }
 
 func Test_date_time_db(t *testing.T) {
-	testBindDefineDB(gen_date(), t, date)
+	testBindDefineDB(gen_date(), t, dateNotNull)
 }
 
 func Test_dateNull_time_db(t *testing.T) {

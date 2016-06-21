@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/date"
 )
 
 func Test_plsarr_num_session(t *testing.T) {
@@ -175,7 +176,7 @@ END TST_ora_plsarr_dt;`,
 		},
 		{
 			"BEGIN :1 := TST_ora_plsarr_dt.date_slice_concat(:2); END;",
-			[]interface{}{&ret, []ora.Time{{Value: now, LowPrec: true}, {Value: now.Add(-24 * time.Hour), LowPrec: true}}},
+			[]interface{}{&ret, []ora.Date{{Date: date.FromTime(now)}, {Date: date.FromTime(now.Add(-24 * time.Hour))}}},
 			now.Format("2006-01-02 15:04:05") + "\n" + now.Add(-24*time.Hour).Format("2006-01-02 15:04:05") + "\n",
 		},
 	} {

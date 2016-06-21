@@ -5,7 +5,11 @@
 // Package date implements encoding of 7 byte Oracle DATE storage formats.
 package date
 
-import "time"
+import (
+	"bytes"
+	"fmt"
+	"time"
+)
 
 // Date is an OCIDate
 //
@@ -37,6 +41,29 @@ func (dt *Date) Set(t time.Time) {
 	dt[4] = byte(t.Hour() + 1)
 	dt[5] = byte(t.Minute() + 1)
 	dt[6] = byte(t.Second() + 1)
+}
+
+// FromTime returns a Date from a time.Time
+// Does the allocation inside, so easier to use.
+func FromTime(t time.Time) Date {
+	var dt Date
+	dt.Set(t)
+	return dt
+}
+
+func (dt Date) Equal(other Date) bool {
+	return bytes.Equal(dt[:], other[:])
+}
+
+func (dt Date) String() string {
+	return fmt.Sprintf("%04d-%02d-%02dT%02d:%02d:%02d",
+		(int(dt[0])-100)*100+(int(dt[1])-100),
+		time.Month(dt[2]),
+		int(dt[3]),
+		int(dt[4]-1),
+		int(dt[5]-1),
+		int(dt[6]-1),
+	)
 }
 
 func (dt Date) Get() time.Time {
