@@ -687,11 +687,11 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 	if !hasRow {
 		return nil, errors.New("no time zone returned from database")
 	}
-	value, ok := rset.Row[0].(string)
+	oraValue, ok := rset.Row[0].(String)
 	if !ok {
 		return nil, errors.New("unable to retrieve database timezone")
 	}
-	value = strings.Trim(value, " ")
+	value := strings.Trim(oraValue.String(), " ")
 	var sign int
 	if strings.HasPrefix(value, "-") {
 		sign = -1
