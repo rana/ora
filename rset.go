@@ -179,7 +179,7 @@ func (rset *Rset) beginRow() (err error) {
 	}
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
-		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "%#v", define)
+		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
 		if define == nil {
 			continue
 		}

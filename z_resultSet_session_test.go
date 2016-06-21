@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v3/lg"
 )
 
 func Test_cursor1_session(t *testing.T) {
@@ -73,16 +74,28 @@ func Test_nested_rset(t *testing.T) {
 	_, err := testSes.PrepAndExe(`CREATE OR REPLACE PROCEDURE proc2(p_cur OUT SYS_REFCURSOR) IS
 BEGIN
   OPEN p_cur FOR
-    SELECT CURSOR(SELECT * FROM all_objects) FROM DUAL;
+    SELECT CURSOR(SELECT * FROM all_objects) cur FROM DUAL;
 END;`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	ora.Cfg().Log.Rset.BeginRow = true
+	ora.Cfg().Log.Rset.OpenDefs = true
+	ora.Cfg().Log.Rset.Open = true
+	ora.Cfg().Log.Rset.Next = true
+	ora.Cfg().Log.Logger = lg.Log
 	stmt, err := testSes.Prep("call proc2(:1)")
 	testErr(err, t)
+	//enableLogging(t)
 	var rset ora.Rset
-	enableLogging(t)
-	_, err = stmt.Exe(&rset)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatal(r)
+			}
+		}()
+		_, err = stmt.Exe(&rset)
+	}()
 	if err != nil {
 		errs, _ := GetCompileErrors(testSes, false)
 		t.Errorf("errs: %#v", errs)

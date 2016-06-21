@@ -24,6 +24,7 @@ func (def *defRset) define(position int, rset *Rset) error {
 		C.free(unsafe.Pointer(&def.ocistmt[0]))
 	}
 	def.ocistmt = (*((*[MaxFetchLen]*C.OCIStmt)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Stmtp))))[:rset.fetchLen]
+	def.result = make([]*Rset, len(def.ocistmt))
 
 	// create result set
 	for i := range def.result {
