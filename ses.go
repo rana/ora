@@ -675,7 +675,7 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 	if ses.timezone != nil {
 		return ses.timezone, nil
 	}
-	rset, err := ses.PrepAndQry("select tz_offset(sessiontimezone) from dual")
+	rset, err := ses.PrepAndQry("select CAST(tz_offset(sessiontimezone) AS VARCHAR2(7)) from dual")
 	if err != nil {
 		return nil, err
 	}
@@ -687,11 +687,17 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 	if !hasRow {
 		return nil, errors.New("no time zone returned from database")
 	}
-	value, ok := rset.Row[0].(string)
-	if !ok {
-		return nil, errors.New("unable to retrieve database timezone")
+	var value string
+	switch x := rset.Row[0].(type) {
+	case string:
+		value = x
+	case String:
+		value = x.String()
 	}
-	value = strings.Trim(value, " ")
+	value = strings.Trim(value, " \x00")
+	if value == "" {
+		return nil, fmt.Errorf("unable to retrieve database timezone (%#v)", rset.Row[0])
+	}
 	var sign int
 	if strings.HasPrefix(value, "-") {
 		sign = -1
