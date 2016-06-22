@@ -18,7 +18,140 @@ const (
 	DefaultEvictDuration = time.Minute
 )
 
-// NewSrvPool returns a connection pool, which evicts the idle sessions in every minute.
+// NewPool returns an idle session pool,
+// which evicts the idle sessions every minute,
+// and automatically manages the required new connections (Srv).
+//
+// This is done by maintaining a 1-1 pairing between the Srv and its Ses.
+//
+// This pool does NOT limit the number of active connections, just helps
+// reuse already established connections and sessions, lowering the resource
+// usage on the server.
+//
+// If size <= 0, then DefaultPoolSize is used.
+func (env *Env) NewPool(srvCfg *SrvCfg, sesCfg *SesCfg, size int) *Pool {
+	if size <= 0 {
+		size = DefaultPoolSize
+	}
+	p := &Pool{
+		env:    env,
+		srvCfg: srvCfg, sesCfg: sesCfg,
+		srv: newIdlePool(size),
+		ses: newIdlePool(size),
+	}
+	p.poolEvictor = &poolEvictor{
+		Evict: func(d time.Duration) {
+			p.ses.Evict(d)
+			p.srv.Evict(d)
+		}}
+	p.SetEvictDuration(DefaultEvictDuration)
+	return p
+}
+
+// NewPool returns a new session pool with default config.
+func NewPool(dsn string, size int) (*Pool, error) {
+	env, err := OpenEnv(NewEnvCfg())
+	if err != nil {
+		return nil, err
+	}
+	srvCfg := NewSrvCfg()
+	sesCfg := NewSesCfg()
+	sesCfg.Mode = DSNMode(dsn)
+	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+	return env.NewPool(srvCfg, sesCfg, size), nil
+}
+
+type Pool struct {
+	env    *Env
+	srvCfg *SrvCfg
+	sesCfg *SesCfg
+
+	sync.Mutex
+	srv, ses *idlePool
+
+	*poolEvictor
+}
+
+// Close all idle sessions and connections.
+func (p *Pool) Close() error {
+	p.Lock()
+	err := p.ses.Close()
+	if err2 := p.srv.Close(); err2 != nil && err == nil {
+		err = err2
+	}
+	p.Unlock()
+	return err
+}
+
+// Get a session - either an idle session, or if such does not exist, then
+// a new session on an idle connection; if such does not exist, then
+// a new session on a new connection.
+func (p *Pool) Get() (*Ses, error) {
+	p.Lock()
+	defer p.Unlock()
+
+	// try get session from the ses pool
+	for {
+		x := p.ses.Get()
+		if x == nil { // the ses pool is empty
+			break
+		}
+		ses := x.(sesSrvPB).Ses
+		if err := ses.Ping(); err == nil {
+			return ses, nil
+		}
+		ses.Close()
+	}
+
+	var srv *Srv
+	// try to get srv from the srv pool
+	for {
+		x := p.srv.Get()
+		if x == nil { // the srv pool is empty
+			break
+		}
+		srv = x.(*Srv)
+		p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
+		if ses, err := srv.OpenSes(p.sesCfg); err == nil {
+			return ses, nil
+		}
+		_ = srv.Close()
+	}
+
+	srv, err := p.env.OpenSrv(p.srvCfg)
+	if err != nil {
+		return nil, err
+	}
+	p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
+	return srv.OpenSes(p.sesCfg)
+}
+
+// Put the session back to the session pool.
+// Ensure that on ses Close (eviction), srv is put back on the idle pool.
+func (p *Pool) Put(ses *Ses) {
+	if ses == nil || !ses.IsOpen() {
+		return
+	}
+	p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
+}
+
+type sesSrvPB struct {
+	*Ses
+	p *idlePool
+}
+
+func (s sesSrvPB) Close() error {
+	if s.Ses == nil {
+		return nil
+	}
+	err := s.Ses.Close()
+	if s.p != nil {
+		s.p.Put(s.Ses.srv)
+	}
+	return err
+}
+
+// NewSrvPool returns a connection pool, which evicts the idle connections in every minute.
 // The pool holds at most size idle Srv.
 // If size is zero, DefaultPoolSize will be used.
 func (env *Env) NewSrvPool(srvCfg *SrvCfg, size int) *SrvPool {
@@ -153,6 +286,13 @@ func (p *poolEvictor) SetEvictDuration(dur time.Duration) {
 // SplitDSN splits the user/password@dblink string to username, password and dblink,
 // to be used as SesCfg.Username, SesCfg.Password, SrvCfg.Dblink.
 func SplitDSN(dsn string) (username, password, sid string) {
+	dsn = strings.TrimSpace(dsn)
+	switch DSNMode(dsn) {
+	case SysOper:
+		dsn = dsn[:len(dsn)-11]
+	case SysDba:
+		dsn = dsn[:len(dsn)-10]
+	}
 	if strings.HasPrefix(dsn, "/@") { // shortcut
 		return "", "", dsn[2:]
 	}
@@ -163,6 +303,20 @@ func SplitDSN(dsn string) (username, password, sid string) {
 		username, password = dsn[:i], dsn[i+1:]
 	}
 	return
+}
+
+// DSNMode returns the SessionMode (SysDefault/SysDba/SysOper).
+func DSNMode(str string) SessionMode {
+	if len(str) <= 11 {
+		return SysDefault
+	}
+	end := strings.ToUpper(str[len(str)-11:])
+	if strings.HasSuffix(end, " AS SYSDBA") {
+		return SysDba
+	} else if strings.HasSuffix(end, " AS SYSOPER") {
+		return SysOper
+	}
+	return SysDefault
 }
 
 // NewEnvSrvSes is a comfort function which opens the environment,

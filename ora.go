@@ -25,7 +25,7 @@ const (
 
 	// The driver version sent to an Oracle server and visible in
 	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
-	Version string = "v3.0.0"
+	Version string = "v3.6.0"
 )
 
 var _drv *Drv
@@ -34,6 +34,7 @@ var _drv *Drv
 func init() {
 	_drv = &Drv{}
 	_drv.locations = make(map[string]*time.Location)
+	_drv.srvSesPools = make(map[string]*Pool)
 	_drv.openEnvs = newEnvList()
 	_drv.cfg = *NewDrvCfg()
 

@@ -49,8 +49,9 @@ type Con struct {
 	id uint64
 
 	env *Env
-	srv *Srv
 	ses *Ses
+
+	pool *Pool
 }
 
 // checkIsOpen validates that the connection is open.
@@ -91,19 +92,13 @@ func (con *Con) close() (err error) {
 			err = errR(value)
 		}
 		con.env = nil
-		con.srv = nil
+		con.pool = nil
 		con.ses = nil
 		_drv.conPool.Put(con)
 	}()
 
-	// TODO(rana): RECONSIDER HOW SRV.CLOSE IS CALLED
-	err1 := con.ses.Close()
-	err2 := con.srv.Close()
-	m := newMultiErr(err1, err2)
-	if m != nil {
-		err = *m
-	}
-	return err
+	con.pool.Put(con.ses)
+	return nil
 }
 
 // Prepare readies a sql string for use.
