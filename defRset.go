@@ -52,7 +52,7 @@ func (def *defRset) value(offset int) (value interface{}, err error) {
 	err = rst.open(rst.stmt, def.ocistmt[offset])
 	rst.stmt.openRsets.add(rst)
 
-	return def.result, err
+	return rst, err
 }
 
 func (def *defRset) alloc() error {
