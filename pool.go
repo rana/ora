@@ -6,7 +6,6 @@ package ora
 
 import (
 	"io"
-	"math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -386,48 +385,43 @@ func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
 // The backing store is a simple []io.Closer, which is treated as random store,
 // to achive uniform reuse.
 type idlePool struct {
-	elems []io.Closer
-	times []time.Time
-
-	sync.Mutex
+	elems chan io.Closer
 }
 
 // NewidlePool returns an idlePool.
 func newIdlePool(size int) *idlePool {
 	return &idlePool{
-		elems: make([]io.Closer, size),
-		times: make([]time.Time, size),
+		elems: make(chan io.Closer, size),
 	}
 }
 
-// Evict evicts idle items idle for more than the given duration.
+// Evict halves the idle items
 func (p *idlePool) Evict(dur time.Duration) {
-	p.Lock()
-	defer p.Unlock()
-	deadline := time.Now().Add(-dur)
-	for i, t := range p.times {
-		e := p.elems[i]
-		if e == nil || t.After(deadline) {
+	n := len(p.elems)/2 + 1
+	for elem := range p.elems {
+		if n == 0 {
+			break
+		}
+		if elem == nil {
 			continue
 		}
-		e.Close()
-		p.elems[i] = nil
+		n--
+		elem.Close()
 	}
-	return
 }
 
 // Get returns a closer or nil, if no pool found.
 func (p *idlePool) Get() io.Closer {
-	p.Lock()
-	defer p.Unlock()
-	for i, c := range p.elems {
-		if c == nil {
-			continue
+	for {
+		select {
+		case elem := <-p.elems:
+			if elem != nil {
+				return elem
+			}
+		case <-time.After(100 * time.Millisecond):
+			return nil
 		}
-		p.elems[i] = nil
-		return c
 	}
-	return nil
 }
 
 // Put a new element into the store. The slot is chosen randomly.
@@ -435,44 +429,24 @@ func (p *idlePool) Get() io.Closer {
 // element is put there.
 // This way elements reused uniformly.
 func (p *idlePool) Put(c io.Closer) {
-	p.Lock()
-	defer p.Unlock()
-	n := len(p.elems)
-	if n == 0 {
-		c.Close()
+	select {
+	case p.elems <- c:
 		return
+	case <-time.After(100 * time.Millisecond):
+		c.Close()
 	}
-	now := time.Now()
-	i0 := 0
-	if n != 1 {
-		i0 = rand.Intn(n)
-	}
-	for i := 0; i < n; i++ {
-		j := (i0 + i) % n
-		if p.elems[j] == nil {
-			p.elems[j] = c
-			p.times[j] = now
-			return
-		}
-	}
-	if p.elems[i0] != nil {
-		p.elems[i0].Close()
-	}
-	p.elems[i0] = c
-	p.times[i0] = now
 }
 
 // Close all elements.
 func (p *idlePool) Close() error {
-	p.Lock()
-	defer p.Unlock()
+	elems := p.elems
+	p.elems = nil
 	var err error
-	for i, c := range p.elems {
-		p.elems[i] = nil
-		if c == nil {
+	for elem := range elems {
+		if elem == nil {
 			continue
 		}
-		if closeErr := c.Close(); closeErr != nil && err == nil {
+		if closeErr := elem.Close(); closeErr != nil && err == nil {
 			err = closeErr
 		}
 	}
