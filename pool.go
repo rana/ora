@@ -83,6 +83,14 @@ func (p *Pool) Close() error {
 	return err
 }
 
+func insteadSesClose(ses *Ses, pool *idlePool) func() error {
+	return func() error {
+		ses.insteadClose = nil
+		pool.Put(ses)
+		return nil
+	}
+}
+
 // Get a session - either an idle session, or if such does not exist, then
 // a new session on an idle connection; if such does not exist, then
 // a new session on a new connection.
@@ -90,6 +98,11 @@ func (p *Pool) Get() (*Ses, error) {
 	p.Lock()
 	defer p.Unlock()
 
+	Instead := func(ses *Ses) error {
+		ses.insteadClose = nil // one-shot
+		p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
+		return nil
+	}
 	// try get session from the ses pool
 	for {
 		x := p.ses.Get()
@@ -98,6 +111,7 @@ func (p *Pool) Get() (*Ses, error) {
 		}
 		ses := x.(sesSrvPB).Ses
 		if err := ses.Ping(); err == nil {
+			ses.insteadClose = Instead
 			return ses, nil
 		}
 		ses.Close()
@@ -113,17 +127,24 @@ func (p *Pool) Get() (*Ses, error) {
 		srv = x.(*Srv)
 		p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
 		if ses, err := srv.OpenSes(p.sesCfg); err == nil {
+			ses.insteadClose = Instead
 			return ses, nil
 		}
 		_ = srv.Close()
 	}
 
+	//fmt.Fprintf(os.Stderr, "POOL: create new srv!\n")
 	srv, err := p.env.OpenSrv(p.srvCfg)
 	if err != nil {
 		return nil, err
 	}
 	p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
-	return srv.OpenSes(p.sesCfg)
+	ses, err := srv.OpenSes(p.sesCfg)
+	if err != nil {
+		return nil, err
+	}
+	ses.insteadClose = Instead
+	return ses, nil
 }
 
 // Put the session back to the session pool.
@@ -132,6 +153,7 @@ func (p *Pool) Put(ses *Ses) {
 	if ses == nil || !ses.IsOpen() {
 		return
 	}
+	//fmt.Fprintf(os.Stderr, "POOL: put back ses\n")
 	p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
 }
 
@@ -144,9 +166,12 @@ func (s sesSrvPB) Close() error {
 	if s.Ses == nil {
 		return nil
 	}
+	srv := s.Ses.srv
+	//fmt.Fprintf(os.Stderr, "POOL: close ses\n")
 	err := s.Ses.Close()
 	if s.p != nil {
-		s.p.Put(s.Ses.srv)
+		//fmt.Fprintf(os.Stderr, "POOL: put back srv %v\n", srv)
+		s.p.Put(srv)
 	}
 	return err
 }

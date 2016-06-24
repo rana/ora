@@ -62,3 +62,23 @@ func TestServer_Version(t *testing.T) {
 		t.Fatal("Version is empty.")
 	}
 }
+
+func TestPool(t *testing.T) {
+	env, err := ora.OpenEnv(nil)
+	testErr(err, t)
+	defer env.Close()
+	pool := env.NewPool(testSrvCfg, testSesCfg, 4)
+	defer pool.Close()
+
+	for i := 0; i < 100; i++ {
+		ses, err := pool.Get()
+		testErr(err, t)
+		pool.Put(ses)
+	}
+
+	for i := 0; i < 100; i++ {
+		ses, err := pool.Get()
+		testErr(err, t)
+		ses.Close()
+	}
+}

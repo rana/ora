@@ -128,7 +128,8 @@ type Ses struct {
 	openStmts *stmtList
 	openTxs   *txList
 
-	timezone *time.Location
+	insteadClose func(ses *Ses) error
+	timezone     *time.Location
 	sysNamer
 }
 
@@ -146,6 +147,11 @@ func (ses *Ses) Close() (err error) {
 	if ses.srv == nil {
 		ses.mu.Unlock()
 		return nil
+	}
+	if ses.insteadClose != nil {
+		err = ses.insteadClose(ses)
+		ses.mu.Unlock()
+		return err
 	}
 	ses.srv.mu.Lock()
 	ses.srv.openSess.remove(ses)
