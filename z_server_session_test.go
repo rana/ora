@@ -70,15 +70,41 @@ func TestPool(t *testing.T) {
 	pool := env.NewPool(testSrvCfg, testSesCfg, 4)
 	defer pool.Close()
 
+	getProcCount := func() int {
+		ses, err := pool.Get()
+		testErr(err, t)
+		defer pool.Put(ses)
+		rset, err := ses.PrepAndQry("SELECT COUNT(0) FROM v$process")
+		if err != nil {
+			t.Log(err)
+			return -1
+		}
+		rset.Next()
+		c := int(rset.Row[0].(float64))
+		for rset.Next() {
+		}
+		return c
+	}
+
+	c1 := getProcCount()
 	for i := 0; i < 100; i++ {
 		ses, err := pool.Get()
 		testErr(err, t)
 		pool.Put(ses)
 	}
 
+	c2 := getProcCount()
 	for i := 0; i < 100; i++ {
 		ses, err := pool.Get()
 		testErr(err, t)
 		ses.Close()
+	}
+	c3 := getProcCount()
+	t.Logf("c1=%d c2=%d c3=%d", c1, c2, c3)
+	if c2-c1 > 2 {
+		t.Errorf("process count went to %d from %d!", c2, c1)
+	}
+	if c3-c2 > 1 {
+		t.Errorf("process count went to %d from %d!", c3, c2)
 	}
 }

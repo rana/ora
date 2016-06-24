@@ -75,6 +75,15 @@ type Pool struct {
 // Close all idle sessions and connections.
 func (p *Pool) Close() error {
 	p.Lock()
+	for {
+		x := p.ses.Get()
+		if x == nil {
+			break
+		}
+		ses := x.(sesSrvPB).Ses
+		ses.insteadClose = nil // this is a must!
+		ses.Close()
+	}
 	err := p.ses.Close()
 	if err2 := p.srv.Close(); err2 != nil && err == nil {
 		err = err2
