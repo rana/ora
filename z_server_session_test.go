@@ -5,6 +5,8 @@
 package ora_test
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -82,7 +84,15 @@ func TestPool(t *testing.T) {
 			return -1
 		}
 		rset.Next()
-		c := int(rset.Row[0].(float64))
+		var c int
+		switch x := rset.Row[0].(type) {
+		case float64:
+			c = int(x)
+		case ora.OCINum:
+			c, _ = strconv.Atoi(x.String())
+		default:
+			c, _ = strconv.Atoi(fmt.Sprintf("%v", x))
+		}
 		for rset.Next() {
 		}
 		return c
