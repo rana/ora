@@ -440,7 +440,11 @@ func (p *idlePool) Put(c io.Closer) {
 // Close all elements.
 func (p *idlePool) Close() error {
 	elems := p.elems
+	if elems == nil {
+		return nil
+	}
 	p.elems = nil
+	close(elems)
 	var err error
 	for elem := range elems {
 		if elem == nil {
