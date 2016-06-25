@@ -5,10 +5,10 @@
 package ora_test
 
 import (
-	"fmt"
-	"strconv"
+	"math/rand"
 	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/rana/ora.v3"
 )
@@ -74,38 +74,52 @@ func TestPool(t *testing.T) {
 	pool := env.NewPool(testSrvCfg, testSesCfg, idleSize)
 	defer pool.Close()
 
-	getProcCount := func() int {
+	getCounts := func() (p, s map[string]struct{}) {
 		ses, err := pool.Get()
 		testErr(err, t)
 		defer pool.Put(ses)
-		rset, err := ses.PrepAndQry("SELECT COUNT(0) FROM v$process")
-		if err != nil {
-			t.Log(err)
-			return -1
+		for _, tbl := range []string{"v$process", "v$session"} {
+			fld := "addr"
+			if tbl == "v$session" {
+				fld = "paddr"
+			}
+			rset, err := ses.PrepAndQry("SELECT " + fld + " FROM " + tbl)
+			if err != nil {
+				t.Log(err)
+				continue
+			}
+			addrs := make(map[string]struct{}, 128)
+			for rset.Next() {
+				addrs[string(rset.Row[0].([]uint8))] = struct{}{}
+			}
+			if tbl == "v$session" {
+				s = addrs
+			} else {
+				p = addrs
+			}
 		}
-		rset.Next()
-		var c int
-		switch x := rset.Row[0].(type) {
-		case float64:
-			c = int(x)
-		case ora.OCINum:
-			c, _ = strconv.Atoi(x.String())
-		default:
-			c, _ = strconv.Atoi(fmt.Sprintf("%v", x))
+		return
+	}
+
+	diffCounts := func(a, b map[string]struct{}) int {
+		var n int
+		for k := range b {
+			if _, ok := a[k]; !ok {
+				n++
+			}
 		}
-		for rset.Next() {
-		}
-		return c
+		return n
 	}
 
 	var wg sync.WaitGroup
-	c1 := getProcCount()
+	p1, s1 := getCounts()
 	for i := 0; i < 2*idleSize+1; i++ {
 		wg.Add(1)
 		go func(c bool) {
 			defer wg.Done()
 			ses, err := pool.Get()
 			testErr(err, t)
+			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
 			if c {
 				ses.Close()
 			} else {
@@ -115,9 +129,21 @@ func TestPool(t *testing.T) {
 	}
 	wg.Wait()
 
-	c2 := getProcCount()
-	t.Logf("c1=%d c2=%d", c1, c2)
-	if c2-c1 > 2 {
-		t.Errorf("process count went to %d from %d!", c2, c1)
+	T := func(name string, p1, s1 map[string]struct{}) (p2, s2 map[string]struct{}) {
+		p2, s2 = getCounts()
+		dp, ds := diffCounts(p1, p2), diffCounts(s1, s2)
+		t.Logf("%s: (%d,%d) -> (%d,%d)", name, len(p1), len(s1), len(p2), len(s2))
+		if dp > 2*idleSize {
+			t.Errorf("%s process count went up %d!", name, dp)
+		}
+		if ds > 2*idleSize {
+			t.Errorf("%s session count went up %d!", name, ds)
+		}
+		return p2, s2
 	}
+
+	p2, s2 := T("After work", p1, s1)
+
+	pool.Close()
+	T("Pool close", p2, s2)
 }

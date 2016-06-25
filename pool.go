@@ -83,7 +83,7 @@ func (p *Pool) Close() error {
 		ses.insteadClose = nil // this is a must!
 		ses.Close()
 	}
-	err := p.ses.Close()
+	err := p.ses.Close() // close the pool
 	if err2 := p.srv.Close(); err2 != nil && err == nil {
 		err = err2
 	}
@@ -174,14 +174,12 @@ func (s sesSrvPB) Close() error {
 	if s.Ses == nil {
 		return nil
 	}
-	srv := s.Ses.srv
-	//fmt.Fprintf(os.Stderr, "POOL: close ses\n")
-	err := s.Ses.Close()
 	if s.p != nil {
-		//fmt.Fprintf(os.Stderr, "POOL: put back srv %v\n", srv)
-		s.p.Put(srv)
+		s.Ses.mu.Lock()
+		s.p.Put(s.Ses.srv)
+		s.Ses.mu.Unlock()
 	}
-	return err
+	return s.Ses.Close()
 }
 
 // NewSrvPool returns a connection pool, which evicts the idle connections in every minute.
@@ -379,6 +377,9 @@ func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
 	return env, srv, ses, nil
 }
 
+const poolWaitGet = 10 * time.Millisecond
+const poolWaitPut = 1 * time.Second
+
 // idlePool is a pool of io.Closers.
 // Each element will be Closed on eviction.
 //
@@ -398,15 +399,18 @@ func newIdlePool(size int) *idlePool {
 // Evict halves the idle items
 func (p *idlePool) Evict(dur time.Duration) {
 	n := len(p.elems)/2 + 1
-	for elem := range p.elems {
-		if n == 0 {
-			break
+	for i := 0; i < n; i++ {
+		select {
+		case elem, ok := <-p.elems:
+			if !ok {
+				return
+			}
+			if elem != nil {
+				elem.Close()
+			}
+		default:
+			return
 		}
-		if elem == nil {
-			continue
-		}
-		n--
-		elem.Close()
 	}
 }
 
@@ -418,7 +422,7 @@ func (p *idlePool) Get() io.Closer {
 			if elem != nil {
 				return elem
 			}
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(poolWaitGet):
 			return nil
 		}
 	}
@@ -432,8 +436,15 @@ func (p *idlePool) Put(c io.Closer) {
 	select {
 	case p.elems <- c:
 		return
-	case <-time.After(100 * time.Millisecond):
-		c.Close()
+	default:
+		go func() {
+			select {
+			case p.elems <- c:
+				return
+			case <-time.After(poolWaitPut):
+				c.Close()
+			}
+		}()
 	}
 }
 
