@@ -42,7 +42,7 @@ const (
 // NewSrvCfg creates a SrvCfg with default values.
 func NewSesCfg() *SesCfg {
 	c := &SesCfg{}
-	c.StmtCfg = NewStmtCfg()
+	//c.StmtCfg = NewStmtCfg() // this will be cloned from srv
 	return c
 }
 
@@ -339,7 +339,10 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
 	stmtCfg := ses.cfg.StmtCfg
 	if stmtCfg == nil {
-		stmtCfg = NewStmtCfg()
+		stmtCfg = ses.srv.cfg.StmtCfg
+		if stmtCfg == nil {
+			stmtCfg = NewStmtCfg()
+		}
 	}
 	if !ses.srv.dbIsUTF8 && stmtCfg.stringPtrBufferSize > 1000 {
 		stmtCfg.stringPtrBufferSize = 1000

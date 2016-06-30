@@ -49,10 +49,10 @@ func NewStmtCfg() *StmtCfg {
 		return c
 	}
 	c.prefetchRowCount = 128
-	c.prefetchMemorySize = 1 << 27 // 134,217,728
-	c.longBufferSize = 1 << 24     // 16,777,216
-	c.longRawBufferSize = 1 << 24  // 16,777,216
-	c.lobBufferSize = 1 << 24      // 16,777,216
+	c.prefetchMemorySize = 128 << 20 // 134,217,728
+	c.longBufferSize = 16 << 20      // 16,777,216
+	c.longRawBufferSize = 16 << 20   // 16,777,216
+	c.lobBufferSize = 16 << 20       // 16,777,216
 	c.stringPtrBufferSize = 4000
 
 	c.IsAutoCommitting = true

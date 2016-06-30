@@ -69,3 +69,77 @@ func TestEnv_OpenCloseCon(t *testing.T) {
 	err = conn.Close()
 	testErr(err, t)
 }
+
+func TestEnv_SrvCfg(t *testing.T) {
+	env, err := ora.OpenEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ses.Close()
+
+	srvCfg := srv.Cfg()
+	old := srvCfg.StmtCfg.Rset.NumberBigFloat()
+	defer srvCfg.StmtCfg.Rset.SetNumberBigFloat(old)
+
+	x := ora.F64
+	srvCfg.StmtCfg.Rset.SetNumberBigFloat(x)
+	if y := srvCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
+		t.Errorf("srvCfg: wanted %s, got %s", x, y)
+	}
+
+	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+	if y := stmt.Cfg().Rset.NumberBigFloat(); y != x {
+		t.Errorf("stmt.Cfg: wanted %v, got %s (default: %s)", x, y, old)
+	}
+}
+
+func TestEnv_SesCfg(t *testing.T) {
+	env, err := ora.OpenEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ses.Close()
+
+	sesCfg := ses.Cfg()
+	old := sesCfg.StmtCfg.Rset.NumberBigFloat()
+	defer sesCfg.StmtCfg.Rset.SetNumberBigFloat(old)
+
+	x := ora.F64
+	sesCfg.StmtCfg.Rset.SetNumberBigFloat(x)
+	if y := sesCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
+		t.Errorf("srvCfg: wanted %s, got %s", x, y)
+	}
+
+	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+	if y := stmt.Cfg().Rset.NumberBigFloat(); y != x {
+		t.Errorf("stmt.Cfg: wanted %v, got %s (default: %s)", x, y, old)
+	}
+}
