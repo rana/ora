@@ -54,10 +54,10 @@ func NewPool(dsn string, size int) (*Pool, error) {
 		return nil, err
 	}
 	srvCfg := NewSrvCfg()
-	sesCfg := NewSesCfg()
+	var sesCfg SesCfg
 	sesCfg.Mode = DSNMode(dsn)
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	return env.NewPool(srvCfg, sesCfg, size), nil
+	return env.NewPool(srvCfg, &sesCfg, size), nil
 }
 
 type Pool struct {
@@ -361,14 +361,14 @@ func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
 		return nil, nil, nil, err
 	}
 	srvCfg := NewSrvCfg()
-	sesCfg := NewSesCfg()
+	var sesCfg SesCfg
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
 		env.Close()
 		return nil, nil, nil, err
 	}
-	ses, err := srv.OpenSes(sesCfg)
+	ses, err := srv.OpenSes(&sesCfg)
 	if err != nil {
 		srv.Close()
 		env.Close()

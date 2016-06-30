@@ -39,13 +39,6 @@ const (
 	SysOper
 )
 
-// NewSrvCfg creates a SrvCfg with default values.
-func NewSesCfg() *SesCfg {
-	c := &SesCfg{}
-	//c.StmtCfg = NewStmtCfg() // this will be cloned from srv
-	return c
-}
-
 // LogSesCfg represents Ses logging configuration values.
 type LogSesCfg struct {
 	// Close determines whether the Ses.Close method is logged.
@@ -176,6 +169,7 @@ func (ses *Ses) close() (err error) {
 			errs.PushBack(errR(value))
 		}
 
+		ses.cfg.StmtCfg = nil
 		ses.srv = nil
 		ses.ocisvcctx = nil
 		ses.ocises = nil

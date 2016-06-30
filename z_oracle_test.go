@@ -109,7 +109,7 @@ const tableNamePrefix = "test_"
 func init() {
 	testSrvCfg = ora.NewSrvCfg()
 	testSrvCfg.Dblink = os.Getenv("GO_ORA_DRV_TEST_DB")
-	testSesCfg = ora.NewSesCfg()
+	testSesCfg = &ora.SesCfg{}
 	testSesCfg.Username = os.Getenv("GO_ORA_DRV_TEST_USERNAME")
 	testSesCfg.Password = os.Getenv("GO_ORA_DRV_TEST_PASSWORD")
 	testConStr = fmt.Sprintf("%v/%v@%v", testSesCfg.Username, testSesCfg.Password, testSrvCfg.Dblink)

@@ -81,12 +81,6 @@ func TestEnv_SrvCfg(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer srv.Close()
-	ses, err := srv.OpenSes(testSesCfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ses.Close()
-
 	srvCfg := srv.Cfg()
 	old := srvCfg.StmtCfg.Rset.NumberBigFloat()
 	defer srvCfg.StmtCfg.Rset.SetNumberBigFloat(old)
@@ -95,6 +89,16 @@ func TestEnv_SrvCfg(t *testing.T) {
 	srvCfg.StmtCfg.Rset.SetNumberBigFloat(x)
 	if y := srvCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
 		t.Errorf("srvCfg: wanted %s, got %s", x, y)
+	}
+	sesCfg := &(*testSesCfg)
+	sesCfg.StmtCfg = nil // you have to use sesCfg with nil StmtCfg to inherit from SrvCfg!
+	ses, err := srv.OpenSes(sesCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ses.Close()
+	if y := ses.Cfg().StmtCfg.Rset.NumberBigFloat(); y != x {
+		t.Errorf("sesCfg: wanted %s, got %s", x, y)
 	}
 
 	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")

@@ -7,6 +7,7 @@
   * Fix nested rsets (rset with rset as field).
   * Add a new Pool implementation, which has a simple 1-1 pairing between ses and srv - easier to use,
     and "automatically" correct for parallel execution.
+  * get rid of NewSesCfg()
 
 ## v3.6 ##
   * Refactor def* (resultset columns) to be more common, and allow multiple row fetch.
