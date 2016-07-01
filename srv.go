@@ -26,13 +26,6 @@ type SrvCfg struct {
 	StmtCfg *StmtCfg
 }
 
-// NewSrvCfg creates a SrvCfg with default values.
-func NewSrvCfg() *SrvCfg {
-	c := &SrvCfg{}
-	c.StmtCfg = NewStmtCfg()
-	return c
-}
-
 // LogSrvCfg represents Srv logging configuration values.
 type LogSrvCfg struct {
 	// Close determines whether the Srv.Close method is logged.

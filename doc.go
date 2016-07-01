@@ -224,16 +224,16 @@ An example of using the ora package directly:
 		if err != nil {
 			panic(err)
 		}
-		srvCfg := ora.NewSrvCfg()
-		srvCfg.Dblink = "orcl"
-		srv, err := env.OpenSrv(srvCfg)
+		srvCfg := ora.SrvCfg{Dblink: "orcl"}
+		srv, err := env.OpenSrv(&srvCfg)
 		defer srv.Close()
 		if err != nil {
 			panic(err)
 		}
-		sesCfg := ora.NewSesCfg()
-		sesCfg.Username = "test"
-		sesCfg.Password = "test"
+		sesCfg := ora.SesCfg{
+			Username: "test",
+			Password: "test",
+		}
 		ses, err := srv.OpenSes(sesCfg)
 		defer ses.Close()
 		if err != nil {
@@ -603,7 +603,7 @@ or Stmt.Qry are not observed.
 One configuration scenario may be to set a server's select statements to return
 nullable Go types by default:
 
-	sc := ora.NewSrvCfg()
+	sc := &ora.SrvCfg{Dblink: "orcl"}
 	sc.Dblink = "orcl"
 	sc.StmtCfg.Rset.SetNumberInt(ora.OraI64)
 	sc.StmtCfg.Rset.SetNumberFloat(ora.OraF64)

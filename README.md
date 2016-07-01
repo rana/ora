@@ -288,17 +288,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	srvCfg := ora.NewSrvCfg()
-	srvCfg.Dblink = "orcl"
-	srv, err := env.OpenSrv(srvCfg)
+	srvCfg := ora.SrvCfg{Dblink: "orcl"}
+	srv, err := env.OpenSrv(&srvCfg)
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
-	sesCfg := ora.NewSesCfg()
-	sesCfg.Username = "test"
-	sesCfg.Password = "test"
-	ses, err := srv.OpenSes(sesCfg)
+	sesCfg := ora.SesCfg{
+		Username: "test",
+		Password: "test",
+		}
+	ses, err := srv.OpenSes(&sesCfg)
 	defer ses.Close()
 	if err != nil {
 		panic(err)
@@ -678,8 +678,7 @@ One configuration scenario may be to set a server's select statements to return 
 default:
 
 ```go
-sc := ora.NewSrvCfg()
-sc.Dblink = "orcl"
+sc := &ora.SrvCfg{Dblink: "orcl"}
 sc.StmtCfg.Rset.SetNumberInt(ora.OraI64)
 sc.StmtCfg.Rset.SetNumberFloat(ora.OraF64)
 sc.StmtCfg.Rset.SetBinaryDouble(ora.OraF64)
