@@ -1,6 +1,7 @@
 # Changelog #
 
 ## master ##
+  * Add Ses.SetAction to be able to set the session's Module and Action attributes.
 
 ## v3.7 ##
   * Add "C" field to Lob to allow setting bind parameters to CLOB (default is BLOB).

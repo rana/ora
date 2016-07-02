@@ -189,20 +189,23 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	// set driver name on the session handle
 	// driver name is specified to aid diagnostics; max 9 single-byte characters
 	// driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO as CLIENT_DRIVER
-	drvName := fmt.Sprintf("GO %v", Version)
+	drvName := fmt.Sprintf("GO%s", Version)
 	cDrvName := C.CString(drvName)
 	defer C.free(unsafe.Pointer(cDrvName))
-	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cDrvName), C.ub4(len(drvName)), C.OCI_ATTR_DRIVER_NAME)
-	if err != nil {
+	if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(cDrvName), C.ub4(len(drvName)), C.OCI_ATTR_DRIVER_NAME,
+	); err != nil {
 		return nil, errE(err)
 	}
 	// http://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
 	// Set LOB prefetch size to chunk size
 	lobPrefetchSize := C.ub4(lobChunkSize)
-	err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(&lobPrefetchSize), C.ub4(0), C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE)
-	if err != nil {
+	if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(&lobPrefetchSize), C.ub4(0), C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE,
+	); err != nil {
 		return nil, errE(err)
 	}
+
 	mode := C.ub4(C.OCI_DEFAULT)
 	switch cfg.Mode {
 	case SysDba:

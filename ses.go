@@ -733,6 +733,32 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 	return ses.timezone, nil
 }
 
+// SetAction sets the MODULE and ACTION attribute of the session.
+func (ses *Ses) SetAction(module, action string) error {
+	if len(module) > 48 {
+		module = module[:48]
+	}
+	cModule := C.CString(module)
+	defer C.free(unsafe.Pointer(cModule))
+	if err := ses.srv.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(cModule), C.ub4(len(module)), C.OCI_ATTR_MODULE,
+	); err != nil {
+		return errE(err)
+	}
+
+	if len(action) > 32 {
+		action = action[:32]
+	}
+	cAction := C.CString(action)
+	defer C.free(unsafe.Pointer(cAction))
+	if err := ses.srv.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(cAction), C.ub4(len(action)), C.OCI_ATTR_ACTION,
+	); err != nil {
+		return errE(err)
+	}
+	return nil
+}
+
 // log writes a message with an Ses system name and caller info.
 func (ses *Ses) log(enabled bool, v ...interface{}) {
 	if !_drv.cfg.Log.IsEnabled(enabled) {

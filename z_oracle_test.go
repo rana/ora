@@ -3488,3 +3488,19 @@ func TestLOBRead(t *testing.T) {
 		t.Errorf("got %q, wanted %q.", b, want)
 	}
 }
+func TestSetDriverName(t *testing.T) {
+	rows, err := testDb.Query("SELECT sid, program, module, action, client_info FROM V$SESSION")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var sid int64
+		var program, module, action, clientInfo string
+		if err := rows.Scan(&sid, &program, &module, &action, &clientInfo); err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasPrefix(program, "ora.v3.test") {
+			t.Logf("%d: %s/%s/%s/%s", sid, program, module, action, clientInfo)
+		}
+	}
+}
