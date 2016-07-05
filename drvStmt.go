@@ -67,9 +67,6 @@ func (ds *DrvStmt) Exec(values []driver.Value) (driver.Result, error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	if rowsAffected == 0 {
-		return driver.ResultNoRows, nil
-	}
 	return &DrvExecResult{rowsAffected: rowsAffected, lastInsertId: lastInsertId}, nil
 }
 
