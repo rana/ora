@@ -331,3 +331,23 @@ func TestSysdba(t *testing.T) {
 		t.Skipf("%q: %v", dsn, err)
 	}
 }
+
+func TestZeroRowsAffected(t *testing.T) {
+	tableName := tableName()
+	if _, err := testDb.Exec("CREATE TABLE " + tableName + " (id NUMBER(3))"); err != nil {
+		t.Fatal(err)
+	}
+	//defer testDb.Exec("DROP TABLE " + tableName)
+	res, err := testDb.Exec("UPDATE " + tableName + " SET id=1 WHERE 1=0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ra, err := res.RowsAffected(); err != nil {
+		t.Error(err)
+	} else if ra != 0 {
+		t.Errorf("got %d, wanted 0 rows affected!")
+	}
+	if _, err := res.LastInsertId(); err == nil {
+		t.Error("wanted error for LastInsertId, got nil")
+	}
+}
