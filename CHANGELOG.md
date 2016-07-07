@@ -1,9 +1,12 @@
 # Changelog #
 
 ## master ##
+
+## v3.7.1 ##
+  * Fix defDate NULL handling error resulting in reading garbage as Time.
   * Add Ses.SetAction to be able to set the session's Module and Action attributes.
 
-## v3.7 ##
+## v3.7.0 ##
   * Add "C" field to Lob to allow setting bind parameters to CLOB (default is BLOB).
   * Add date.Date, an implementation for encode/decode Oracle 7 byte DATE format, to avoid the overhead of calling C.OCIDateTime... functions. And use it in Rsets.
   * Make ora.Date use date.Date.
