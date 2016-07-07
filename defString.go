@@ -50,19 +50,21 @@ func (def *defString) define(position int, columnSize int, isNullable bool, rset
 }
 
 func (def *defString) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		oraStringValue := String{IsNull: def.nullInds[offset] < 0}
-		if !oraStringValue.IsNull && def.alen[offset] > 0 {
-			off := offset * def.columnSize
-			oraStringValue.Value = string(def.buf[off : off+int(def.alen[offset])])
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return String{IsNull: true}, nil
 		}
-		return oraStringValue, nil
-	}
-	if def.nullInds[offset] < 0 || def.alen[offset] <= 0 {
 		return "", nil
 	}
-	off := offset * def.columnSize
-	return string(def.buf[off : off+int(def.alen[offset])]), nil
+	var s string
+	if def.alen[offset] > 0 {
+		off := offset * def.columnSize
+		s = string(def.buf[off : off+int(def.alen[offset])])
+	}
+	if def.isNullable {
+		return String{Value: s}, nil
+	}
+	return s, nil
 }
 
 func (def *defString) alloc() error {

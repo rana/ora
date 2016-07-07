@@ -33,47 +33,31 @@ func (def *defInt64) define(position int, isNullable bool, rset *Rset) error {
 }
 
 func (def *defInt64) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		oraInt64Value := Int64{IsNull: def.nullInds[offset] < 0}
-		if !oraInt64Value.IsNull {
-			on := def.ociNumber[offset]
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                                  //const OCINumber       *number,
-				byteWidth64,                          //uword                 rsl_length,
-				C.OCI_NUMBER_SIGNED,                  //uword                 rsl_flag,
-				unsafe.Pointer(&oraInt64Value.Value)) //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Int64{IsNull: true}, nil
 		}
-		value = oraInt64Value
-	} else {
-		var int64Value int64
-		//if !def.nullp.IsNull() {
-		if def.nullInds[offset] >= 0 {
-			on := def.ociNumber[offset]
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                         //const OCINumber       *number,
-				byteWidth64,                 //uword                 rsl_length,
-				C.OCI_NUMBER_SIGNED,         //uword                 rsl_flag,
-				unsafe.Pointer(&int64Value)) //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-		}
-		value = int64Value
+		return int64(0), nil
 	}
-	return value, err
+	var int64Value int64
+	on := def.ociNumber[offset]
+	r := C.OCINumberToInt(
+		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
+		&on,                         //const OCINumber       *number,
+		byteWidth64,                 //uword                 rsl_length,
+		C.OCI_NUMBER_SIGNED,         //uword                 rsl_flag,
+		unsafe.Pointer(&int64Value)) //void                  *rsl );
+	if r == C.OCI_ERROR {
+		err = def.rset.stmt.ses.srv.env.ociError()
+	}
+	if def.isNullable {
+		return Int64{Value: int64Value}, err
+	}
+	return int64Value, err
 }
 
-func (def *defInt64) alloc() error {
-	return nil
-}
-
-func (def *defInt64) free() {
-}
+func (def *defInt64) alloc() error { return nil }
+func (def *defInt64) free()        {}
 
 func (def *defInt64) close() (err error) {
 	defer func() {

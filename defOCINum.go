@@ -48,12 +48,8 @@ func (def *defOCINum) value(offset int) (value interface{}, err error) {
 	return OCINum{OCINum: num}, nil
 }
 
-func (def *defOCINum) alloc() error {
-	return nil
-}
-
-func (def *defOCINum) free() {
-}
+func (def *defOCINum) alloc() error { return nil }
+func (def *defOCINum) free()        {}
 
 func (def *defOCINum) close() (err error) {
 	defer func() {

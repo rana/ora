@@ -35,22 +35,20 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 }
 
 func (def *defBool) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Bool{IsNull: true}, nil
+		}
+		return false, nil
+	}
 	//Log.Infof("%v.value", def)
 	buf := def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
 	if def.isNullable {
-		oraBoolValue := Bool{IsNull: def.nullInds[offset] < 0}
-		if !oraBoolValue.IsNull {
-			r, _ := utf8.DecodeRune(buf)
-			oraBoolValue.Value = r == def.rset.stmt.cfg.Rset.TrueRune
-		}
-		return oraBoolValue, nil
-	}
-	if def.nullInds[offset] > -1 {
 		r, _ := utf8.DecodeRune(buf)
-		return r == def.rset.stmt.cfg.Rset.TrueRune, nil
+		return Bool{Value: r == def.rset.stmt.cfg.Rset.TrueRune}, nil
 	}
-	// NULL is false, too
-	return false, nil
+	r, _ := utf8.DecodeRune(buf)
+	return r == def.rset.stmt.cfg.Rset.TrueRune, nil
 }
 
 func (def *defBool) alloc() error {

@@ -33,38 +33,26 @@ func (def *defFloat64) define(position int, isNullable bool, rset *Rset) error {
 }
 
 func (def *defFloat64) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		oraFloat64Value := Float64{IsNull: def.nullInds[offset] < 0}
-		if !oraFloat64Value.IsNull {
-			var float64Value float64
-			on := def.ociNumber[offset]
-			r := C.OCINumberToReal(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                                    //const OCINumber     *number,
-				byteWidth64,                            //uword               rsl_length,
-				unsafe.Pointer(&oraFloat64Value.Value)) //void                *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-			value = float64Value
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Float64{IsNull: true}, nil
 		}
-		value = oraFloat64Value
-	} else {
-		if def.nullInds[offset] > -1 {
-			var float64Value float64
-			on := def.ociNumber[offset]
-			r := C.OCINumberToReal(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                           //const OCINumber     *number,
-				byteWidth64,                   //uword               rsl_length,
-				unsafe.Pointer(&float64Value)) //void                *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-			value = float64Value
-		}
+		return float64(0), nil
 	}
-	return value, err
+	var float64Value float64
+	on := def.ociNumber[offset]
+	r := C.OCINumberToReal(
+		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
+		&on,                           //const OCINumber     *number,
+		byteWidth64,                   //uword               rsl_length,
+		unsafe.Pointer(&float64Value)) //void                *rsl );
+	if r == C.OCI_ERROR {
+		err = def.rset.stmt.ses.srv.env.ociError()
+	}
+	if def.isNullable {
+		return Float64{Value: float64Value}, err
+	}
+	return float64Value, err
 }
 
 func (def *defFloat64) alloc() error {

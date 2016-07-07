@@ -33,47 +33,31 @@ func (def *defInt8) define(position int, isNullable bool, rset *Rset) error {
 }
 
 func (def *defInt8) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		oraInt8Value := Int8{IsNull: def.nullInds[offset] < 0}
-		if !oraInt8Value.IsNull {
-			on := def.ociNumber[offset]
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                                 //const OCINumber       *number,
-				byteWidth8,                          //uword                 rsl_length,
-				C.OCI_NUMBER_SIGNED,                 //uword                 rsl_flag,
-				unsafe.Pointer(&oraInt8Value.Value)) //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Int8{IsNull: true}, nil
 		}
-		value = oraInt8Value
-	} else {
-		var int8Value int8
-		//if !def.nullp.IsNull() {
-		if def.nullInds[offset] >= 0 {
-			on := def.ociNumber[offset]
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&on,                        //const OCINumber       *number,
-				byteWidth8,                 //uword                 rsl_length,
-				C.OCI_NUMBER_SIGNED,        //uword                 rsl_flag,
-				unsafe.Pointer(&int8Value)) //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-		}
-		value = int8Value
+		return int8(0), nil
 	}
-	return value, err
+	var int8Value int8
+	on := def.ociNumber[offset]
+	r := C.OCINumberToInt(
+		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
+		&on,                         //const OCINumber       *number,
+		byteWidth8,                 //uword                 rsl_length,
+		C.OCI_NUMBER_SIGNED,         //uword                 rsl_flag,
+		unsafe.Pointer(&int8Value)) //void                  *rsl );
+	if r == C.OCI_ERROR {
+		err = def.rset.stmt.ses.srv.env.ociError()
+	}
+	if def.isNullable {
+		return Int8{Value: int8Value}, err
+	}
+	return int8Value, err
 }
 
-func (def *defInt8) alloc() error {
-	return nil
-}
-
-func (def *defInt8) free() {
-}
+func (def *defInt8) alloc() error { return nil }
+func (def *defInt8) free()        {}
 
 func (def *defInt8) close() (err error) {
 	defer func() {

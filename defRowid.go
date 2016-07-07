@@ -43,12 +43,8 @@ func (def *defRowid) value(offset int) (value interface{}, err error) {
 	return value, err
 }
 
-func (def *defRowid) alloc() error {
-	return nil
-}
-
-func (def *defRowid) free() {
-}
+func (def *defRowid) alloc() error { return nil }
+func (def *defRowid) free()        {}
 
 func (def *defRowid) close() (err error) {
 	defer func() {

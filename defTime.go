@@ -35,17 +35,17 @@ func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 }
 
 func (def *defTime) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		oraTimeValue := Time{IsNull: def.nullInds[offset] < 0}
-		if !oraTimeValue.IsNull {
-			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
-		}
-		return oraTimeValue, err
-	}
 	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Time{IsNull: true}, nil
+		}
 		return nil, nil
 	}
-	return getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
+	t, err := getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
+	if def.isNullable {
+		return Time{Value: t}, err
+	}
+	return t, err
 }
 
 func (def *defTime) alloc() error {

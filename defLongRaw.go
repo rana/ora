@@ -35,37 +35,28 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 }
 
 func (def *defLongRaw) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		bytesValue := Raw{IsNull: def.nullInds[offset] < 0}
-		if !bytesValue.IsNull {
-			// Make a slice of length equal to the return length
-			bytesValue.Value = make([]byte, def.alen[offset])
-			// Copy returned data
-			copyLength := copy(bytesValue.Value, def.buf[offset*def.bufSize:(offset+1)*def.bufSize])
-			if C.ACTUAL_LENGTH_TYPE(copyLength) != def.alen[offset] {
-				return nil, errNew("unable to copy LONG RAW result data from buffer")
-			}
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Raw{IsNull: true}, nil
 		}
-		value = bytesValue
-	} else {
-		// Make a slice of length equal to the return length
-		result := make([]byte, def.alen[offset])
-		// Copy returned data
-		copyLength := copy(result, def.buf[offset*def.bufSize:(offset+1)*def.bufSize])
-		if C.ACTUAL_LENGTH_TYPE(copyLength) != def.alen[offset] {
-			return nil, errNew("unable to copy LONG RAW result data from buffer")
-		}
-		value = result
+		return nil, nil
 	}
-	return value, err
+	// Make a slice of length equal to the return length
+	result := make([]byte, def.alen[offset])
+	// Copy returned data
+	copyLength := copy(result, def.buf[offset*def.bufSize:(offset+1)*def.bufSize])
+	if C.ACTUAL_LENGTH_TYPE(copyLength) != def.alen[offset] {
+		return nil, errNew("unable to copy LONG RAW result data from buffer")
+	}
+
+	if def.isNullable {
+		return Raw{Value: result}, nil
+	}
+	return result, nil
 }
 
-func (def *defLongRaw) alloc() error {
-	return nil
-}
-
-func (def *defLongRaw) free() {
-}
+func (def *defLongRaw) alloc() error { return nil }
+func (def *defLongRaw) free()        {}
 
 func (def *defLongRaw) close() (err error) {
 	defer func() {

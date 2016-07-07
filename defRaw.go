@@ -36,18 +36,16 @@ func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *R
 }
 
 func (def *defRaw) value(offset int) (value interface{}, err error) {
-	if def.isNullable {
-		bytesValue := Raw{IsNull: def.nullInds[offset] < 0}
-		if !bytesValue.IsNull {
-			bytesValue.Value = def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Raw{IsNull: true}, nil
 		}
-		value = bytesValue
-	} else {
-		if def.nullInds[offset] > -1 {
-			value = def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
-		}
+		return nil, nil
 	}
-	return value, err
+	if def.isNullable {
+		return Raw{Value: def.buf[offset*def.columnSize : (offset+1)*def.columnSize]}, nil
+	}
+	return def.buf[offset*def.columnSize : (offset+1)*def.columnSize], nil
 }
 
 func (def *defRaw) alloc() error {
