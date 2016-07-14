@@ -37,7 +37,7 @@ func (def *defFloat32) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return Float32{IsNull: true}, nil
 		}
-		return float32(0), nil
+		return nil, nil
 	}
 	var float32Value float32
 	on := def.ociNumber[offset]

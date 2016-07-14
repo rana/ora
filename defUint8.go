@@ -37,15 +37,15 @@ func (def *defUint8) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return Uint8{IsNull: true}, nil
 		}
-		return uint8(0), nil
+		return nil, nil
 	}
 	var uint8Value uint8
 	on := def.ociNumber[offset]
 	r := C.OCINumberToInt(
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
 		&on,                         //const OCINumber       *number,
-		byteWidth8,                 //uword                 rsl_length,
-		C.OCI_NUMBER_UNSIGNED,         //uword                 rsl_flag,
+		byteWidth8,                  //uword                 rsl_length,
+		C.OCI_NUMBER_UNSIGNED,       //uword                 rsl_flag,
 		unsafe.Pointer(&uint8Value)) //void                  *rsl );
 	if r == C.OCI_ERROR {
 		err = def.rset.stmt.ses.srv.env.ociError()
