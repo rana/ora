@@ -1,6 +1,7 @@
 # Changelog #
 
 ## master ##
+  * Return nil for everywhere in def*.value, if possible (string is an exception, see #105, #106).
 
 ## v3.7.1 ##
   * Fix defDate NULL handling error resulting in reading garbage as Time.

@@ -37,7 +37,7 @@ func (def *defInt64) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return Int64{IsNull: true}, nil
 		}
-		return int64(0), nil
+		return nil, nil
 	}
 	var int64Value int64
 	on := def.ociNumber[offset]

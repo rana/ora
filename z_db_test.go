@@ -60,24 +60,42 @@ func Test_open_cursors_db(t *testing.T) {
 	t.Logf("before=%d after=%d", before, after)
 }
 
-func TestSelectNullString_db(t *testing.T) {
+func TestSelectNull_db(t *testing.T) {
 	ora.Cfg().Log.Rset.BeginRow = true
 	//enableLogging(t)
-	var s string
-	rows, err := testDb.Query("SELECT '' x FROM DUAL")
-	if err != nil {
-		t.Errorf("SELECT '' FROM DUAL: %v", err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if err = rows.Scan(&s); err != nil {
-			t.Errorf("Scan: %v", err)
-			break
+	var (
+		s   string
+		oS  ora.String
+		i   int64
+		oI  ora.Int64
+		tim ora.Time
+	)
+	for tN, tC := range []struct {
+		Field string
+		Dest  interface{}
+	}{
+		{"''", &s},
+		{"''", &oS},
+		{"NULL + 0", &i},
+		{"NULL + 0", &oI},
+		{"SYSDATE + NULL", &tim},
+	} {
+		qry := "SELECT " + tC.Field + " x FROM DUAL"
+		rows, err := testDb.Query(qry)
+		if err != nil {
+			t.Errorf("%d. %s: %v", tN, qry, err)
+			return
 		}
-	}
-	if rows.Err() != nil {
-		t.Errorf("rows: %v", rows.Err())
+		for rows.Next() {
+			if err = rows.Scan(&tC.Dest); err != nil {
+				t.Errorf("%d. Scan: %v", tN, err)
+				break
+			}
+		}
+		if rows.Err() != nil {
+			t.Errorf("%d. rows: %v", tN, rows.Err())
+		}
+		rows.Close()
 	}
 }
 

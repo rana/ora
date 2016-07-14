@@ -39,7 +39,7 @@ func (def *defBool) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return Bool{IsNull: true}, nil
 		}
-		return false, nil
+		return nil, nil
 	}
 	//Log.Infof("%v.value", def)
 	buf := def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
