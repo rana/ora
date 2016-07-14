@@ -44,7 +44,7 @@ func (def *defDate) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return Time{IsNull: true}, nil
 		}
-		return time.Time{}, nil
+		return nil, nil
 	}
 	if def.isNullable {
 		return Time{Value: def.ociDate[offset].GetIn(def.timezone)}, nil
