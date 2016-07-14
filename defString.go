@@ -54,7 +54,7 @@ func (def *defString) value(offset int) (value interface{}, err error) {
 		if def.isNullable {
 			return String{IsNull: true}, nil
 		}
-		return nil, nil
+		return "", nil
 	}
 	var s string
 	if def.alen[offset] > 0 {
