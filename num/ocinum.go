@@ -88,11 +88,12 @@ func (num OCINum) Print(buf []byte) []byte {
 	if !dotWritten {
 		if exp < 0 {
 			dexp := (-exp) << 1
-			digits = append(make([]byte, dexp+1, dexp+1+len(digits)), digits...)
-			for i := 0; i < dexp; i++ {
+			digits = append(make([]byte, dexp, dexp+len(digits)), digits...)
+			digits[0] = '0'
+			digits[1] = '.'
+			for i := 2; i < dexp; i++ {
 				digits[i] = '0'
 			}
-			digits[dexp] = '.'
 		} else {
 			n := len(digits)
 			if cap(digits) < n+1 {
