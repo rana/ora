@@ -83,6 +83,7 @@ func (env *Env) Close() (err error) {
 	if err != nil {
 		return errE(err)
 	}
+	_drv.mu.Lock()
 	for k, p := range _drv.srvSesPools {
 		if p == nil || p.env != env {
 			continue
@@ -90,6 +91,7 @@ func (env *Env) Close() (err error) {
 		p.Close()
 		delete(_drv.srvSesPools, k)
 	}
+	_drv.mu.Unlock()
 	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -194,6 +196,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		return nil, errE(err)
 	}
 	dsn = strings.TrimSpace(dsn)
+	_drv.mu.Lock()
 	p := _drv.srvSesPools[dsn]
 	if p == nil {
 		var srvCfg SrvCfg
@@ -202,6 +205,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		p = env.NewPool(&srvCfg, &sesCfg, 0)
 		_drv.srvSesPools[dsn] = p
 	}
+	_drv.mu.Unlock()
 	ses, err := p.Get()
 	if err != nil {
 		return nil, errE(err)
