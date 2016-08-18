@@ -71,8 +71,14 @@ type Pool struct {
 }
 
 // Close all idle sessions and connections.
-func (p *Pool) Close() error {
+func (p *Pool) Close() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
 	p.Lock()
+	defer p.Unlock()
 	for {
 		x := p.ses.Get()
 		if x == nil {
@@ -82,11 +88,10 @@ func (p *Pool) Close() error {
 		ses.insteadClose = nil // this is a must!
 		ses.Close()
 	}
-	err := p.ses.Close() // close the pool
+	err = p.ses.Close() // close the pool
 	if err2 := p.srv.Close(); err2 != nil && err == nil {
 		err = err2
 	}
-	p.Unlock()
 	return err
 }
 
@@ -101,7 +106,12 @@ func insteadSesClose(ses *Ses, pool *idlePool) func() error {
 // Get a session - either an idle session, or if such does not exist, then
 // a new session on an idle connection; if such does not exist, then
 // a new session on a new connection.
-func (p *Pool) Get() (*Ses, error) {
+func (p *Pool) Get() (ses *Ses, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
 	p.Lock()
 	defer p.Unlock()
 
@@ -116,8 +126,8 @@ func (p *Pool) Get() (*Ses, error) {
 		if x == nil { // the ses pool is empty
 			break
 		}
-		ses := x.(sesSrvPB).Ses
-		if err := ses.Ping(); err == nil {
+		ses = x.(sesSrvPB).Ses
+		if err = ses.Ping(); err == nil {
 			ses.insteadClose = Instead
 			return ses, nil
 		}
@@ -133,7 +143,7 @@ func (p *Pool) Get() (*Ses, error) {
 		}
 		srv = x.(*Srv)
 		p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
-		if ses, err := srv.OpenSes(p.sesCfg); err == nil {
+		if ses, err = srv.OpenSes(p.sesCfg); err == nil {
 			ses.insteadClose = Instead
 			return ses, nil
 		}
@@ -141,13 +151,11 @@ func (p *Pool) Get() (*Ses, error) {
 	}
 
 	//fmt.Fprintf(os.Stderr, "POOL: create new srv!\n")
-	srv, err := p.env.OpenSrv(p.srvCfg)
-	if err != nil {
+	if srv, err = p.env.OpenSrv(p.srvCfg); err != nil {
 		return nil, err
 	}
 	p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
-	ses, err := srv.OpenSes(p.sesCfg)
-	if err != nil {
+	if ses, err = srv.OpenSes(p.sesCfg); err != nil {
 		return nil, err
 	}
 	ses.insteadClose = Instead

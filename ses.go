@@ -594,6 +594,11 @@ func (ses *Ses) Ping() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	ses.log(_drv.cfg.Log.Ses.Ping)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -765,9 +770,9 @@ func (ses *Ses) log(enabled bool, v ...interface{}) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprint(v...))
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
 	}
 }
 
@@ -777,8 +782,8 @@ func (ses *Ses) logF(enabled bool, format string, v ...interface{}) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(1))
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
 	}
 }
