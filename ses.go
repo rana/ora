@@ -305,12 +305,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	// allocate statement handle
-	upOciStmt, err := ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
-	if err != nil {
-		return nil, errE(err)
-	}
-	ocistmt := (*C.OCIStmt)(upOciStmt)
+	ocistmt := (*C.OCIStmt)(nil)
 	cSql := C.CString(sql) // prepare sql text with statement handle
 	defer C.free(unsafe.Pointer(cSql))
 	r := C.OCIStmtPrepare2(
