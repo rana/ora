@@ -127,6 +127,9 @@ func (p *Pool) Get() (ses *Ses, err error) {
 			break
 		}
 		ses = x.(sesSrvPB).Ses
+		if ses == nil {
+			continue
+		}
 		if err = ses.Ping(); err == nil {
 			ses.insteadClose = Instead
 			return ses, nil
@@ -136,12 +139,18 @@ func (p *Pool) Get() (ses *Ses, err error) {
 
 	var srv *Srv
 	// try to get srv from the srv pool
+	if p.sesCfg == nil {
+		p.sesCfg = &SesCfg{}
+	}
 	for {
 		x := p.srv.Get()
 		if x == nil { // the srv pool is empty
 			break
 		}
 		srv = x.(*Srv)
+		if srv == nil || srv.env == nil {
+			continue
+		}
 		p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
 		if ses, err = srv.OpenSes(p.sesCfg); err == nil {
 			ses.insteadClose = Instead
