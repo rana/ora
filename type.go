@@ -30,7 +30,9 @@ void writeOCINumber(OCINumber *dst, ub1 *src, ub1 src_len) {
 import (
 	"bytes"
 	"container/list"
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -654,6 +656,23 @@ func (this *Lob) Bytes() ([]byte, error) {
 	}
 	this.Reader = bytesReader{p: p, Reader: bytes.NewReader(p)}
 	return p, nil
+}
+
+// Value returns what Lob.Bytes returns.
+func (this *Lob) Value() (driver.Value, error) {
+	return this.Bytes()
+}
+func (this *Lob) Scan(src interface{}) error {
+	r, ok := src.(io.Reader)
+	if !ok {
+		return fmt.Errorf("src should be an io.Reader, not %T", src)
+	}
+	this.Reader = r
+	return nil
+}
+func (this *Lob) String() string {
+	b, _ := this.Bytes()
+	return string(b)
 }
 
 var _ = (json.Marshaler)((*Lob)(nil))

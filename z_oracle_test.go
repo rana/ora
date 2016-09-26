@@ -3222,6 +3222,32 @@ func TestLobSelect(t *testing.T) {
 	}
 }
 
+func TestLobSelectString(t *testing.T) {
+	tbl := "test_lob"
+	testDb.Exec("DROP TABLE " + tbl)
+	qry := "CREATE TABLE " + tbl + " (content BLOB)"
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	qry = "INSERT INTO " + tbl + " (content) VALUES (HEXTORAW('7f7f7f'))"
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%s: %v", qry, err)
+	}
+	rows, err := testDb.Query("SELECT * FROM " + tbl)
+	if err != nil {
+		t.Errorf("SELECT: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v ora.Lob
+		if err = rows.Scan(&v); err != nil {
+			t.Errorf("Scan: %v", err)
+		}
+		t.Logf("read %q", v.String())
+	}
+}
+
 func TestUnderflow(t *testing.T) {
 	tbl := "test_underflow"
 	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
