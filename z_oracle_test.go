@@ -3225,14 +3225,18 @@ func TestLobSelect(t *testing.T) {
 func TestLobSelectString(t *testing.T) {
 	tbl := "test_lob"
 	testDb.Exec("DROP TABLE " + tbl)
-	qry := "CREATE TABLE " + tbl + " (content BLOB)"
+	qry := "CREATE TABLE " + tbl + " (content CLOB)"
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	qry = "INSERT INTO " + tbl + " (content) VALUES (HEXTORAW('7f7f7f'))"
+	qry = "INSERT INTO " + tbl + " (content) VALUES ('<xml></xml>')"
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
+	oCfg := ora.Cfg().Env.StmtCfg.Rset
+	defer func() { ora.Cfg().Env.StmtCfg.Rset = oCfg }()
+	ora.Cfg().Env.StmtCfg.Rset.SetClob(ora.S)
+
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Errorf("SELECT: %v", err)
@@ -3240,11 +3244,11 @@ func TestLobSelectString(t *testing.T) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var v ora.Lob
+		var v string
 		if err = rows.Scan(&v); err != nil {
 			t.Errorf("Scan: %v", err)
 		}
-		t.Logf("read %q", v.String())
+		t.Logf("read %q", v)
 	}
 }
 

@@ -56,8 +56,8 @@ func NewRsetCfg() RsetCfg {
 	c.char = S
 	c.varchar = S
 	c.long = S
-	c.clob = S
-	c.blob = Bin
+	c.clob = D
+	c.blob = D
 	c.raw = Bin
 	c.longRaw = Bin
 

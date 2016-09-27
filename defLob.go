@@ -127,18 +127,43 @@ func (def *defLob) Reader(offset int) (io.Reader, error) {
 func (def *defLob) value(offset int) (interface{}, error) {
 	//lob := def.ociLobLocator
 	//Log.Infof("value %p null=%d", lob, def.null)
-	if def.gct == Bin {
-		if def.nullInds[offset] <= -1 {
+	isNull := def.nullInds[offset] <= -1
+
+	switch def.gct {
+	case Bin:
+		if isNull {
 			return nil, nil
 		}
-		return def.Reader(offset)
+		return def.Bytes(offset)
+	case OraBin:
+		if isNull {
+			return Raw{IsNull: true}, nil
+		}
+		b, err := def.Bytes(offset)
+		return Raw{Value: b}, err
+
+	case S:
+		if isNull {
+			return "", nil
+		}
+		b, err := def.Bytes(offset)
+		return string(b), err
+	case OraS:
+		if isNull {
+			return String{IsNull: true}, nil
+		}
+		b, err := def.Bytes(offset)
+		return String{Value: string(b)}, err
+
+	default:
+		if isNull {
+			return nil, nil
+		}
+		r, err := def.Reader(offset)
+		return Lob{Reader: r}, err
 	}
-	if def.nullInds[offset] <= -1 {
-		return Lob{}, nil
-	}
-	r, err := def.Reader(offset)
-	return Lob{Reader: r}, err
 }
+
 func (def *defLob) alloc() error {
 	// Allocate lob locator handle
 	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.

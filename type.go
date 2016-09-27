@@ -36,6 +36,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -663,11 +664,16 @@ func (this *Lob) Value() (driver.Value, error) {
 	return this.Bytes()
 }
 func (this *Lob) Scan(src interface{}) error {
-	r, ok := src.(io.Reader)
-	if !ok {
+	switch x := src.(type) {
+	case io.Reader:
+		this.Reader = x
+	case string:
+		this.Reader = strings.NewReader(x)
+	case []byte:
+		this.Reader = bytes.NewReader(x)
+	default:
 		return fmt.Errorf("src should be an io.Reader, not %T", src)
 	}
-	this.Reader = r
 	return nil
 }
 func (this *Lob) String() string {
