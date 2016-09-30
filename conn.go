@@ -52,6 +52,8 @@ type Con struct {
 	ses *Ses
 
 	pool *Pool
+
+	sysNamer
 }
 
 // checkIsOpen validates that the connection is open.
@@ -142,7 +144,12 @@ func (con *Con) Ping() error {
 
 // sysName returns a string representing the Con.
 func (con *Con) sysName() string {
-	return fmt.Sprintf("E%vS%vS%vC%v", con.ses.srv.env.id, con.ses.srv.id, con.ses.id, con.id)
+	if con == nil {
+		return "E_S_S_C_"
+	}
+	return con.sysNamer.Name(func() string {
+		return fmt.Sprintf("%sC%v", con.ses.sysName(), con.id)
+	})
 }
 
 // log writes a message with an Con system name and caller info.
