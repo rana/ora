@@ -1531,13 +1531,8 @@ func ExampleBytes() {
 	stmt, _ = ses.Prep("select c1 from "+tableName, ora.OraBin)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
-		lob := rset.Row[0].(ora.Lob)
-		b, err := lob.Bytes()
-		if err != nil && err != io.EOF {
-			log.Printf("ERROR: %v", err)
-		} else {
-			fmt.Println(b)
-		}
+		raw := rset.Row[0].(ora.Raw)
+		fmt.Println(raw.Value)
 	}
 	// Output:
 	// [0 1 2 3 4 5 6 7 8 9]
