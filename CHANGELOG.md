@@ -1,6 +1,10 @@
 # Changelog #
 
 ## master ##
+
+## v3.7.2 ##
+  * Fix panic in Pool.Get - #118.
+  * Make returned LOB colums obey the given GoColumnType, to be able to force the into string/[]byte - see #117.
   * Return nil for everywhere in def*.value, if possible (string is an exception, see #105, #106).
 
 ## v3.7.1 ##
