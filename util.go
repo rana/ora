@@ -243,15 +243,23 @@ func errF(format string, v ...interface{}) error {
 	return err
 }
 
+var stackMu sync.Mutex
+var stack = make([]byte, 4096)
+
+func getStack() string {
+	stackMu.Lock()
+	defer stackMu.Unlock()
+	n := runtime.Stack(stack, false)
+	return string(stack[:n])
+}
+
 // errR creates a recovered error with caller info.
 func errR(v ...interface{}) error {
-	trace := make([]byte, 4096)
-	n := runtime.Stack(trace, false)
 	//err := errors.New(fmt.Sprintf("%v recovered: %v\n%s", errInfo(1), fmt.Sprint(v...), trace[:n]))
 	err := &oraErr{
 		Caller:     errInfo(1),
 		Underlying: errors.New(fmt.Sprint(v...)),
-		Trace:      trace[:n],
+		Trace:      getStack(),
 	}
 	_drv.cfg.Log.Logger.Errorln(err)
 	return err
@@ -268,7 +276,7 @@ func errE(e error) error {
 type oraErr struct {
 	Caller     fmt.Stringer
 	Underlying error
-	Trace      []byte
+	Trace      string
 }
 
 func (e *oraErr) Error() string {
