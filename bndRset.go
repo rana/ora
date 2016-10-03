@@ -52,15 +52,23 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndRset) setPtr() error {
-	err := bnd.value.open(bnd.stmt, bnd.ocistmt[0])
-	bnd.stmt.openRsets.add(bnd.value)
-	if err == nil {
-		err = bnd.stmt.setPrefetchSize()
-		// open result set is successful; will be freed by Rset
-		bnd.ocistmt[0] = nil
+	if bnd.IsNull() || bnd.ocistmt[0] == nil {
+		return nil
 	}
-
-	return err
+	err := bnd.value.open(bnd.stmt, bnd.ocistmt[0])
+	bnd.ocistmt[0] = nil
+	if err != nil {
+		if cerr, ok := err.(interface {
+			Code() int
+		}); ok && cerr.Code() == 24337 { // statement is not prepared
+			bnd.value = nil
+			return nil
+		}
+		return err
+	}
+	// open result set is successful; will be freed by Rset
+	bnd.stmt.openRsets.add(bnd.value)
+	return bnd.stmt.setPrefetchSize()
 }
 
 func (bnd *bndRset) close() (err error) {
