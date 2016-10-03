@@ -1,6 +1,9 @@
 # Changelog #
 
 ## master ##
+  * Fix a panic with Con.sysName.
+  * Be more forgiving for empty/non-open/NULL result sets returned by Oracle.
+  * Treat SQLT_INT columns returned by TimesTen just as SQLT_NUM.
 
 ## v3.7.2 ##
   * Fix panic in Pool.Get - #118.

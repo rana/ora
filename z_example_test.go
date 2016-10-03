@@ -1580,7 +1580,7 @@ func ExampleWriteLOB() {
 	// Specify OraBin to Prep method to return Binary values
 	// fetch records
 	qry = fmt.Sprintf("select c1 from %v", tableName)
-	if stmt, err = ses.Prep(qry, ora.Bin); err != nil {
+	if stmt, err = ses.Prep(qry, ora.D); err != nil {
 		log.Fatalf("%q: %v", qry, err)
 	}
 	defer stmt.Close()

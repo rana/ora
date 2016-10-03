@@ -415,7 +415,7 @@ Loop:
 		columnSize := params[n].columnSize
 
 		switch ociTypeCode {
-		case C.SQLT_NUM:
+		case C.SQLT_NUM, C.SQLT_INT: // TimesTen may return an SQLT_INT
 			// NUMBER
 			// Get precision
 			var precision C.sb2
