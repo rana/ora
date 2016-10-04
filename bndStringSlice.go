@@ -16,28 +16,30 @@ type bndStringSlice struct {
 	ocibnd  *C.OCIBind
 	bytes   []byte
 	strings []string
-	values  []String
+	values  *[]String
 	maxLen  int
 	arrHlp
 }
 
-func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
-	if cap(bnd.strings) < cap(values) {
-		bnd.strings = make([]string, len(values), cap(values))
+func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+	L, C := len(*values), cap(*values)
+	if cap(bnd.strings) < C {
+		bnd.strings = make([]string, L, C)
 	} else {
-		bnd.strings = bnd.strings[:len(values)]
+		bnd.strings = bnd.strings[:L]
 	}
-	if cap(bnd.nullInds) < cap(values) {
-		bnd.nullInds = make([]C.sb2, len(values), cap(values))
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
 	} else {
-		bnd.nullInds = bnd.nullInds[:len(values)]
+		bnd.nullInds = bnd.nullInds[:L]
 	}
-	for n := range values {
-		if values[n].IsNull {
+	bnd.values = values
+	for n, v := range *values {
+		if v.IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.strings[n] = values[n].Value
+			bnd.strings[n] = v.Value
 		}
 	}
 	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
@@ -108,17 +110,23 @@ func (bnd *bndStringSlice) setPtr() error {
 	bnd.strings = bnd.strings[:n]
 	bnd.nullInds = bnd.nullInds[:n]
 	if bnd.values != nil {
-		bnd.values = bnd.values[:n]
+		*bnd.values = (*bnd.values)[:n]
 	}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"StringSlice.setPtr n=%d alen=%v nulls=%v bytes=%s", n, bnd.alen, bnd.nullInds, bnd.bytes)
 	for i, length := range bnd.alen[:n] {
-		if bnd.nullInds[i] > C.sb2(-1) {
-			bnd.strings[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
+		if bnd.nullInds[i] <= C.sb2(-1) {
 			if bnd.values != nil {
-				bnd.values[i].IsNull = false
-				bnd.values[i].Value = bnd.strings[i]
+				(*bnd.values)[i].IsNull = true
 			}
-		} else if bnd.values != nil {
-			bnd.values[i].IsNull = true
+			continue
+		}
+		bnd.strings[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"StringSlice.setPtr[%d]=%s", i, bnd.strings[i])
+		if bnd.values != nil {
+			(*bnd.values)[i].IsNull = false
+			(*bnd.values)[i].Value = bnd.strings[i]
 		}
 	}
 	return nil
@@ -135,6 +143,8 @@ func (bnd *bndStringSlice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.values = nil
+	bnd.bytes = nil
+	bnd.strings = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxStringSlice, bnd)
 	return nil

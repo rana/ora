@@ -354,9 +354,15 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	if len(params) == 0 {
 		return 1, nil
 	}
+	var n int
+	defer func() {
+		if err != nil {
+			stmt.logF(true, "bind %d. (%T:%#v): %+v", n, params[n], params[n], err)
+		}
+	}()
 	iterations = 1
 	stmt.bnds = make([]bnd, len(params))
-	for n := range params {
+	for n = range params {
 		//stmt.logF(_drv.cfg.Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := params[n].(type) {
 		case int64:
@@ -946,9 +952,16 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case []String:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]String:
+			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
+			stmt.bnds[n] = bnd
 			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
+
 		case bool:
 			bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 			stmt.bnds[n] = bnd
