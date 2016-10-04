@@ -9,9 +9,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndUint32 struct {
 	stmt      *Stmt
@@ -24,9 +22,9 @@ func (bnd *bndUint32) bind(value uint32, position int, stmt *Stmt) error {
 	r := C.OCINumberFromInt(
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 		unsafe.Pointer(&value),      //const void          *inum,
-		4, //uword               inum_length,
-		C.OCI_NUMBER_UNSIGNED, //uword               inum_s_flag,
-		&bnd.ociNumber[0])     //OCINumber           *number );
+		byteWidth32,                 //uword               inum_length,
+		C.OCI_NUMBER_UNSIGNED,         //uword               inum_s_flag,
+		&bnd.ociNumber[0])           //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

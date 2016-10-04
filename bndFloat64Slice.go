@@ -21,16 +21,22 @@ type bndFloat64Slice struct {
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
 	values     *[]Float64
-	floats     []float64
+	floats     *[]float64
 	arrHlp
 }
 
 func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
-	if cap(bnd.floats) < C {
-		bnd.floats = make([]float64, L, C)
+	var V []float64
+	if bnd.floats == nil {
+		bnd.floats = &V
 	} else {
-		bnd.floats = bnd.floats[:L]
+		V = *bnd.floats
+	}
+	if cap(V) < C {
+		V = make([]float64, L, C)
+	} else {
+		V = V[:L]
 	}
 	if cap(bnd.nullInds) < C {
 		bnd.nullInds = make([]C.sb2, L, C)
@@ -43,20 +49,28 @@ func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt,
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.floats[n] = v.Value
+			V[n] = v.Value
 		}
 	}
+	*bnd.floats = V
 	return bnd.bind(bnd.floats, position, stmt, isAssocArray)
 }
 
-func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndFloat64Slice) bind(values *[]float64, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
-	L, C := len(values), cap(values)
+	var V []float64
+	if values == nil {
+		values = &V
+	} else {
+		V = *values
+	}
+	L, C := len(V), cap(V)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
-		values = append(values, 0)
+		V = append(V, 0)
 	}
+	*values = V
 	bnd.floats = values
 	if cap(bnd.ociNumbers) < C {
 		bnd.ociNumbers = make([]C.OCINumber, L, C)
@@ -64,16 +78,16 @@ func (bnd *bndFloat64Slice) bind(values []float64, position int, stmt *Stmt, isA
 		bnd.ociNumbers = bnd.ociNumbers[:L]
 	}
 	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-	for n := range values {
+	for n := range V {
 		bnd.alen[n] = alen
 	}
-	if len(values) > 0 {
+	if len(V) > 0 {
 		if r := C.numberFromFloatSlice(
 			bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
-			unsafe.Pointer(&values[0]),  //const void          *rnum,
-			8,                  //uword               rnum_length,
-			&bnd.ociNumbers[0], //OCINumber           *number
-			C.ub4(len(values)),
+			unsafe.Pointer(&V[0]),       //const void          *rnum,
+			byteWidth64,                 //uword               rnum_length,
+			&bnd.ociNumbers[0],          //OCINumber           *number
+			C.ub4(len(V)),
 		); r == C.OCI_ERROR {
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
@@ -115,32 +129,42 @@ func (bnd *bndFloat64Slice) setPtr() error {
 		return nil
 	}
 	n := int(bnd.curlen)
-	bnd.floats = bnd.floats[:n]
+	var F []float64
+	if bnd.floats == nil {
+		bnd.floats = &F
+	} else {
+		F = *bnd.floats
+	}
+	F = F[:n]
+	*bnd.floats = F
 	bnd.nullInds = bnd.nullInds[:n]
+	var V []Float64
 	if bnd.values != nil {
-		if cap(*bnd.values) < n {
-			*bnd.values = make([]Float64, n)
+		V = *bnd.values
+		if cap(V) < n {
+			V = make([]Float64, n)
 		} else {
-			*bnd.values = (*bnd.values)[:n]
+			V = V[:n]
 		}
+		*bnd.values = V
 	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
-			arr := bnd.floats[i : i+1 : i+1]
+			arr := F[i : i+1 : i+1]
 			r := C.OCINumberToReal(
 				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 				&number,                     //const OCINumber     *number,
-				C.uword(8),                  //uword               rsl_length,
+				byteWidth64,                 //uword               rsl_length,
 				unsafe.Pointer(&arr[0]))     //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
 			if bnd.values != nil {
-				(*bnd.values)[i].IsNull = false
-				(*bnd.values)[i].Value = bnd.floats[i]
+				V[i].IsNull = false
+				V[i].Value = F[i]
 			}
 		} else if bnd.values != nil {
-			(*bnd.values)[i].IsNull = true
+			V[i].IsNull = true
 		}
 	}
 	return nil

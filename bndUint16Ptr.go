@@ -5,13 +5,12 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndUint16Ptr struct {
 	stmt      *Stmt
@@ -22,13 +21,16 @@ type bndUint16Ptr struct {
 }
 
 func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
+	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		if err := bnd.stmt.ses.srv.env.OCINumberFromUint(&bnd.ociNumber[0], uint64(*value), 2); err != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), byteWidth16); err != nil {
 			return err
 		}
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
@@ -54,8 +56,8 @@ func (bnd *bndUint16Ptr) setPtr() error {
 	if bnd.nullp.IsNull() {
 		return nil
 	}
-	val, err := bnd.stmt.ses.srv.env.OCINumberToUint(&bnd.ociNumber[0], 2)
-	*bnd.value = uint16(val)
+	i, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], byteWidth16)
+	*bnd.value = uint16(i)
 	return err
 }
 

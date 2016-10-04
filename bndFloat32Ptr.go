@@ -9,7 +9,9 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type bndFloat32Ptr struct {
 	stmt      *Stmt
@@ -24,7 +26,7 @@ func (bnd *bndFloat32Ptr) bind(value *float32, position int, stmt *Stmt) error {
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], float64(*value), 4); err != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], float64(*value), byteWidth32); err != nil {
 			return err
 		}
 	}
@@ -52,8 +54,8 @@ func (bnd *bndFloat32Ptr) setPtr() error {
 	if bnd.nullp.IsNull() {
 		return nil
 	}
-	val, err := bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], 4)
-	*bnd.value = float32(val)
+	f, err := bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], byteWidth32)
+	*bnd.value = float32(f)
 	return err
 }
 

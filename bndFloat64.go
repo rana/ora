@@ -24,8 +24,8 @@ func (bnd *bndFloat64) bind(value float64, position int, stmt *Stmt) error {
 	r := C.OCINumberFromReal(
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 		unsafe.Pointer(&value),      //const void          *rnum,
-		8,                 //uword               rnum_length,
-		&bnd.ociNumber[0]) //OCINumber           *number );
+		byteWidth64,                 //uword               rnum_length,
+		&bnd.ociNumber[0])           //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}

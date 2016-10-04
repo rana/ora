@@ -5,13 +5,12 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndInt32Ptr struct {
 	stmt      *Stmt
@@ -22,17 +21,17 @@ type bndInt32Ptr struct {
 }
 
 func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
+	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Int32Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), 4); err != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), byteWidth32); err != nil {
 			return err
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-			"Int32Ptr.bind(%d) value=%d => number=%#v", position, *value, bnd.ociNumber[0])
+			"Int32Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
-	alen := C.ACTUAL_LENGTH_TYPE(4)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -42,7 +41,7 @@ func (bnd *bndInt32Ptr) bind(value *int32, position int, stmt *Stmt) error {
 		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8          value_sz,
 		C.SQLT_VNU,                          //ub2          dty,
 		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
-		&alen,         //ub2          *alenp,
+		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
 		nil,           //ub4          *curelep,
@@ -57,8 +56,8 @@ func (bnd *bndInt32Ptr) setPtr() error {
 	if bnd.nullp.IsNull() {
 		return nil
 	}
-	val, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], 4)
-	*bnd.value = int32(val)
+	i, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], byteWidth32)
+	*bnd.value = int32(i)
 	return err
 }
 
@@ -68,12 +67,12 @@ func (bnd *bndInt32Ptr) close() (err error) {
 			err = errR(value)
 		}
 	}()
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Int32Ptr.close value=%p", bnd.value)
 
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.nullp.Free()
 	stmt.putBnd(bndIdxInt32Ptr, bnd)
 	return nil
 }

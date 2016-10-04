@@ -11,6 +11,7 @@ package ora
 */
 import "C"
 import (
+	"fmt"
 	"time"
 	"unsafe"
 )
@@ -280,4 +281,35 @@ func (ip *intervalp) Free() {
 		C.free(unsafe.Pointer(ip.p))
 		ip.p = nil
 	}
+}
+
+func intSixtyFour(v interface{}) int64 {
+	switch i := v.(type) {
+	case int64:
+		return i
+	case int8:
+		return int64(i)
+	case int16:
+		return int64(i)
+	case int32:
+		return int64(i)
+	case uint8:
+		return int64(i)
+	case uint16:
+		return int64(i)
+	case uint32:
+		return int64(i)
+	case uint64:
+		return int64(i)
+	}
+	panic(fmt.Sprintf("want int, got %T", v))
+}
+func floatSixtyFour(v interface{}) float64 {
+	switch f := v.(type) {
+	case float64:
+		return f
+	case float32:
+		return float64(f)
+	}
+	panic(fmt.Sprintf("wanted float, got %T", v))
 }

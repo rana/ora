@@ -26,7 +26,7 @@ func (bnd *bndFloat64Ptr) bind(value *float64, position int, stmt *Stmt) error {
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], float64(*value), 8); err != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], floatSixtyFour(*value), byteWidth64); err != nil {
 			return err
 		}
 	}
@@ -54,8 +54,8 @@ func (bnd *bndFloat64Ptr) setPtr() error {
 	if bnd.nullp.IsNull() {
 		return nil
 	}
-	var err error
-	*bnd.value, err = bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], 8)
+	f, err := bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], byteWidth64)
+	*bnd.value = float64(f)
 	return err
 }
 

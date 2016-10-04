@@ -26,7 +26,7 @@ func (bnd *bndInt64Ptr) bind(value *int64, position int, stmt *Stmt) error {
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
 	if value != nil {
-		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], *value, 8); err != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], intSixtyFour(*value), byteWidth64); err != nil {
 			return err
 		}
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
@@ -56,8 +56,8 @@ func (bnd *bndInt64Ptr) setPtr() error {
 	if bnd.nullp.IsNull() {
 		return nil
 	}
-	var err error
-	*bnd.value, err = bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], 8)
+	i, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], byteWidth64)
+	*bnd.value = int64(i)
 	return err
 }
 

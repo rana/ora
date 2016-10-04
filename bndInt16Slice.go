@@ -9,72 +9,81 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndInt16Slice struct {
 	stmt       *Stmt
 	ocibnd     *C.OCIBind
 	ociNumbers []C.OCINumber
 	values     *[]Int16
-	ints       []int16
+	ints       *[]int16
 	arrHlp
 }
 
-func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndInt16Slice) bindOra(values *[]Int16, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
-	bnd.values = values
-	if cap(bnd.ints) < C {
-		bnd.ints = make([]int16, L, C)
+	var ints []int16
+	if bnd.ints == nil {
+		bnd.ints = &ints
 	} else {
-		bnd.ints = bnd.ints[:L]
+		ints = *bnd.ints
+	}
+	if cap(ints) < C {
+		ints = make([]int16, L, C)
+	} else {
+		ints = ints[:L]
 	}
 	if cap(bnd.nullInds) < C {
 		bnd.nullInds = make([]C.sb2, L, C)
 	} else {
 		bnd.nullInds = bnd.nullInds[:L]
 	}
+	bnd.values = values
 	for n, v := range *values {
 		if v.IsNull {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.ints[n] = v.Value
+			ints[n] = v.Value
 		}
 	}
+	*bnd.ints = ints
+
 	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
-func (bnd *bndInt16Slice) bind(values []int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndInt16Slice) bind(values *[]int16, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	L, C := len(values), cap(values)
+	V := *values
+	L, C := len(V), cap(V)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
-		values = append(values, 0)
+		V = append(V, 0)
 	}
-	bnd.ints = values
 	if cap(bnd.ociNumbers) < C {
 		bnd.ociNumbers = make([]C.OCINumber, L, C)
 	} else {
 		bnd.ociNumbers = bnd.ociNumbers[:L]
 	}
 	alen := C.ACTUAL_LENGTH_TYPE(C.sizeof_OCINumber)
-	for n := range values {
+	for n := range V {
 		bnd.alen[n] = alen
 	}
-	if len(values) > 0 {
+	*values = V
+	bnd.ints = values
+	if len(V) > 0 {
 		if r := C.numberFromIntSlice(
 			bnd.stmt.ses.srv.env.ocierr,
-			unsafe.Pointer(&values[0]),
-			2,
+			unsafe.Pointer(&V[0]),
+			byteWidth16,
 			C.OCI_NUMBER_SIGNED,
 			&bnd.ociNumbers[0],
-			C.ub4(len(values)),
+			C.ub4(len(V)),
 		); r == C.OCI_ERROR {
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
+
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
@@ -86,9 +95,9 @@ func (bnd *bndInt16Slice) bind(values []int16, position int, stmt *Stmt, isAssoc
 		unsafe.Pointer(&bnd.nullInds[0]),   //void         *indp,
 		&bnd.alen[0],                       //ub4          *alenp,
 		&bnd.rcode[0],                      //ub2          *rcodep,
-		C.ub4(cap(bnd.ociNumbers)),         //ub4          maxarr_len,
-		curlenp,                            //ub4          *curelep,
-		C.OCI_DEFAULT)                      //ub4          mode );
+		getMaxarrLen(C, isAssocArray),      //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
 		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
@@ -110,32 +119,36 @@ func (bnd *bndInt16Slice) setPtr() error {
 		return nil
 	}
 	n := int(bnd.curlen)
-	bnd.ints = bnd.ints[:n]
+	ints := (*bnd.ints)[:n]
 	bnd.nullInds = bnd.nullInds[:n]
+	*bnd.ints = ints
+	var V []Int16
 	if bnd.values != nil {
-		if cap(*bnd.values) < n {
-			*bnd.values = make([]Int16, n)
+		V := *bnd.values
+		if cap(V) < n {
+			V = make([]Int16, n)
 		} else {
-			*bnd.values = (*bnd.values)[:n]
+			V = V[:n]
 		}
+		*bnd.values = V
 	}
 	for i, number := range bnd.ociNumbers[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
 			r := C.OCINumberToInt(
-				bnd.stmt.ses.srv.env.ocierr,  //OCIError            *err,
-				&number,                      //const OCINumber     *number,
-				C.uword(4),                   //uword               rsl_length,
-				C.OCI_NUMBER_SIGNED,          //uword               rsl_flag,
-				unsafe.Pointer(&bnd.ints[i])) //void                *rsl );
+				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
+				&number,                     //const OCINumber     *number,
+				byteWidth16,                 //uword               rsl_length,
+				C.OCI_NUMBER_SIGNED,         //uword               rsl_flag,
+				unsafe.Pointer(&ints[i]))    //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()
 			}
-			if bnd.values != nil {
-				(*bnd.values)[i].IsNull = false
-				(*bnd.values)[i].Value = bnd.ints[i]
+			if V != nil {
+				V[i].IsNull = false
+				V[i].Value = ints[i]
 			}
-		} else if bnd.values != nil {
-			(*bnd.values)[i].IsNull = true
+		} else if V != nil {
+			V[i].IsNull = true
 		}
 	}
 	return nil
@@ -151,7 +164,8 @@ func (bnd *bndInt16Slice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociNumbers = nil
+	bnd.values = nil
+	bnd.ints = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxInt16Slice, bnd)
 	return nil
