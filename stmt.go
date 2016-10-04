@@ -946,13 +946,19 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case []string:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			stmt.bnds[n] = bnd
-			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
+			if iterations, err = bnd.bind(&value, n+1, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
 		case []String:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			stmt.bnds[n] = bnd
 			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]string:
+			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
+			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bind(value, n+1, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
 		case *[]String:

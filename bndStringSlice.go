@@ -15,7 +15,7 @@ type bndStringSlice struct {
 	stmt    *Stmt
 	ocibnd  *C.OCIBind
 	bytes   []byte
-	strings []string
+	strings *[]string
 	values  *[]String
 	maxLen  int
 	arrHlp
@@ -23,10 +23,14 @@ type bndStringSlice struct {
 
 func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
-	if cap(bnd.strings) < C {
-		bnd.strings = make([]string, L, C)
+	if bnd.strings == nil {
+		s := make([]string, L, C)
+		bnd.strings = &s
+	}
+	if cap(*bnd.strings) < C {
+		*bnd.strings = make([]string, L, C)
 	} else {
-		bnd.strings = bnd.strings[:L]
+		*bnd.strings = (*bnd.strings)[:L]
 	}
 	if cap(bnd.nullInds) < C {
 		bnd.nullInds = make([]C.sb2, L, C)
@@ -39,22 +43,25 @@ func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, i
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[n] = 0
-			bnd.strings[n] = v.Value
+			(*bnd.strings)[n] = v.Value
 		}
 	}
 	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
 }
 
-func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	L, C := len(values), cap(values)
+	if values == nil {
+		values = &[]string{}
+	}
+	L, C := len(*values), cap(*values)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
-		values = append(values, "")
+		*values = append(*values, "")
 	}
 	bnd.strings = values
 	bnd.maxLen = stmt.cfg.stringPtrBufferSize
-	for _, str := range values {
+	for _, str := range *values {
 		strLen := len(str)
 		if strLen > bnd.maxLen {
 			bnd.maxLen = strLen
@@ -65,7 +72,7 @@ func (bnd *bndStringSlice) bind(values []string, position int, stmt *Stmt, isAss
 	} else {
 		bnd.bytes = bnd.bytes[:bnd.maxLen*L]
 	}
-	for m, str := range values {
+	for m, str := range *values {
 		copy(bnd.bytes[m*bnd.maxLen:], []byte(str))
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
@@ -107,7 +114,11 @@ func (bnd *bndStringSlice) setPtr() error {
 		return nil
 	}
 	n := int(bnd.curlen)
-	bnd.strings = bnd.strings[:n]
+	if bnd.strings == nil {
+		s := make([]string, n)
+		bnd.strings = &s
+	}
+	*bnd.strings = (*bnd.strings)[:n]
 	bnd.nullInds = bnd.nullInds[:n]
 	if bnd.values != nil {
 		*bnd.values = (*bnd.values)[:n]
@@ -121,12 +132,12 @@ func (bnd *bndStringSlice) setPtr() error {
 			}
 			continue
 		}
-		bnd.strings[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
+		(*bnd.strings)[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
 		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
-			"StringSlice.setPtr[%d]=%s", i, bnd.strings[i])
+			"StringSlice.setPtr[%d]=%s", i, (*bnd.strings)[i])
 		if bnd.values != nil {
 			(*bnd.values)[i].IsNull = false
-			(*bnd.values)[i].Value = bnd.strings[i]
+			(*bnd.values)[i].Value = (*bnd.strings)[i]
 		}
 	}
 	return nil
