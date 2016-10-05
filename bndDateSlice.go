@@ -25,45 +25,63 @@ type bndDateSlice struct {
 	ocibnd   *C.OCIBind
 	ociDates []date.Date
 	zoneBuf  bytes.Buffer
-	values   []Date
-	times    []time.Time
+	values   *[]Date
+	times    *[]time.Time
 	dtype    C.ub4
 	timezone *time.Location
 	arrHlp
 }
 
-func (bnd *bndDateSlice) bindOra(values []Date, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndDateSlice) bindOra(values *[]Date, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+	if values == nil {
+		values = &[]Date{}
+	}
 	bnd.values = values
-	if cap(bnd.times) < cap(values) {
-		bnd.times = make([]time.Time, len(values), cap(values))
+	V := *values
+	var T []time.Time
+	if bnd.times == nil {
+		bnd.times = &T
 	} else {
-		bnd.times = bnd.times[:len(values)]
+		T = *bnd.times
 	}
-	if cap(bnd.nullInds) < cap(values) {
-		bnd.nullInds = make([]C.sb2, len(values), cap(values))
+	if cap(T) < cap(V) {
+		T = make([]time.Time, len(V), cap(V))
 	} else {
-		bnd.nullInds = bnd.nullInds[:len(values)]
+		T = T[:len(V)]
 	}
-	for n := range values {
-		if values[n].IsNull() {
+	if cap(bnd.nullInds) < cap(V) {
+		bnd.nullInds = make([]C.sb2, len(V), cap(V))
+	} else {
+		bnd.nullInds = bnd.nullInds[:len(V)]
+	}
+	for n := range V {
+		if V[n].IsNull() {
 			bnd.nullInds[n] = C.sb2(-1)
 		} else {
 			bnd.nullInds[0] = 0
-			bnd.times[n] = values[n].Date.Get()
+			T[n] = V[n].Date.Get()
 		}
 	}
+	*bnd.values = V
+	*bnd.times = T
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
-func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndDateSlice) bind(values *[]time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	if bnd.timezone, err = bnd.stmt.ses.Timezone(); err != nil {
 		return iterations, err
 	}
-	L, C := len(values), cap(values)
+	var V []time.Time
+	if values == nil {
+		values = &V
+	} else {
+		V = *values
+	}
+	L, C := len(V), cap(V)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
-		values = append(values, time.Time{})
+		V = append(V, time.Time{})
 	}
 	bnd.times = values
 	if cap(bnd.ociDates) < C {
@@ -72,7 +90,7 @@ func (bnd *bndDateSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 		bnd.ociDates = bnd.ociDates[:L]
 	}
 	valueSz := C.ACTUAL_LENGTH_TYPE(7)
-	for n, timeValue := range values {
+	for n, timeValue := range V {
 		//arr := bnd.ociDates[n : n+1 : n+1]
 		//ociSetDateTime(&arr[0], timeValue)
 		bnd.ociDates[n].Set(timeValue)
@@ -118,22 +136,31 @@ func (bnd *bndDateSlice) setPtr() error {
 		return nil
 	}
 	n := int(bnd.curlen)
-	bnd.times = bnd.times[:n]
+	var T []time.Time
+	if bnd.times == nil {
+		bnd.times = &T
+	} else {
+		T = *bnd.times
+	}
+	T = T[:n]
 	bnd.nullInds = bnd.nullInds[:n]
+	var V []Date
 	if bnd.values != nil {
-		bnd.values = bnd.values[:n]
+		V = (*bnd.values)[:n]
 	}
 	for i, dt := range bnd.ociDates[:n] {
 		if bnd.nullInds[i] > C.sb2(-1) {
 			//bnd.times[i] = ociGetDateTime(dt)
-			bnd.times[i] = dt.GetIn(bnd.timezone)
-			if bnd.values != nil {
-				bnd.values[i].Date.Set(bnd.times[i])
+			T[i] = dt.GetIn(bnd.timezone)
+			if V != nil {
+				V[i].Date.Set(T[i])
 			}
-		} else if bnd.values != nil {
-			bnd.values[i].Set(time.Time{})
+		} else if V != nil {
+			V[i].Set(time.Time{})
 		}
 	}
+	*bnd.times = T
+	*bnd.values = V
 	return nil
 }
 
@@ -147,6 +174,7 @@ func (bnd *bndDateSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
+	bnd.times = nil
 	bnd.values = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxDateSlice, bnd)

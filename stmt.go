@@ -976,6 +976,12 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case []Date:
 			bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
 			stmt.bnds[n] = bnd
+			if iterations, err = bnd.bindOra(&value, n+1, stmt, isAssocArray); err != nil {
+				return iterations, err
+			}
+		case *[]Date:
+			bnd := stmt.getBnd(bndIdxDateSlice).(*bndDateSlice)
+			stmt.bnds[n] = bnd
 			if iterations, err = bnd.bindOra(value, n+1, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}

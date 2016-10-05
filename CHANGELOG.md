@@ -4,6 +4,7 @@
   * Fix a panic with Con.sysName.
   * Be more forgiving for empty/non-open/NULL result sets returned by Oracle.
   * Treat SQLT_INT columns returned by TimesTen just as SQLT_NUM.
+  * Make *[]string, *[]{,u}int{16,32,64} and *[]{Ui,I}nt{16,32,64}, *[]Date bindable.
 
 ## v3.7.2 ##
   * Fix panic in Pool.Get - #118.
