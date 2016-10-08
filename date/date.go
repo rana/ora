@@ -55,7 +55,11 @@ func (dt *Date) Set(t time.Time) {
 	dt[6] = byte(t.Second() + 1)
 }
 
-func (dt *Date) IsNull() bool {
+func (dt Date) Bytes() []byte {
+	return dt[:]
+}
+
+func (dt Date) IsNull() bool {
 	for _, b := range dt[:] {
 		if b != 0 {
 			return false
