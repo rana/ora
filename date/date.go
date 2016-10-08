@@ -41,6 +41,11 @@ func (dt *Date) Set(t time.Time) {
 		return
 	}
 	y := t.Year()
+	if y < -4711 {
+		y = -4711
+	} else if y > 9999 {
+		y = 9999
+	}
 	dt[0] = byte(y/100 + 100)
 	dt[1] = byte(y%100 + 100)
 	dt[2] = byte(t.Month())
