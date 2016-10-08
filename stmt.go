@@ -139,14 +139,14 @@ func (stmt *Stmt) close() (err error) {
 		errs.Init()
 		_drv.listPool.Put(errs)
 	}()
-	if len(stmt.bnds) > 0 { // close binds
-		for _, bind := range stmt.bnds {
-			if bind != nil {
-				err = bind.close()
-				if err != nil {
-					errs.PushBack(errE(err))
-				}
-			}
+	// close binds
+	for _, bind := range stmt.bnds {
+		if bind == nil {
+			continue
+		}
+		err = bind.close()
+		if err != nil {
+			errs.PushBack(errE(err))
 		}
 	}
 	stmt.openRsets.closeAll(errs)

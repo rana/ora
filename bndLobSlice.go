@@ -60,7 +60,8 @@ func (bnd *bndLobSlice) bindReaders(values []io.Reader, position int, lobBufferS
 		bnd.ociLobLocators = bnd.ociLobLocators[:L]
 	}
 	if len(bnd.buf) < lobBufferSize {
-		bnd.buf = make([]byte, lobBufferSize)
+		//bnd.buf = make([]byte, lobBufferSize)
+		bnd.buf = bytesPool.Get(lobBufferSize)
 	}
 	finishers := make([]func(), len(values))
 	defer func() {
@@ -149,6 +150,8 @@ func (bnd *bndLobSlice) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.ociLobLocators = nil
+	bytesPool.Put(bnd.buf)
+	bnd.buf = nil
 	bnd.readers = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxBinSlice, bnd)

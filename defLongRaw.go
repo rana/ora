@@ -25,7 +25,8 @@ func (def *defLongRaw) define(position int, bufSize uint32, isNullable bool, rse
 	def.rset = rset
 	def.isNullable = isNullable
 	if n := rset.fetchLen * int(bufSize); cap(def.buf) < n {
-		def.buf = make([]byte, n)
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
 	} else {
 		def.buf = def.buf[:n]
 	}
@@ -68,6 +69,7 @@ func (def *defLongRaw) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	bytesPool.Put(def.buf)
 	def.buf = nil
 	def.arrHlp.close()
 	rset.putDef(defIdxLongRaw, def)

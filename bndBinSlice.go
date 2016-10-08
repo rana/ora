@@ -46,7 +46,8 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lo
 	}
 	n := maxLen * L
 	if cap(bnd.buf) < n {
-		bnd.buf = make([]byte, n)
+		//bnd.buf = make([]byte, n)
+		bnd.buf = bytesPool.Get(n)[:n]
 	} else {
 		bnd.buf = bnd.buf[:n]
 		// reset buffer
@@ -101,6 +102,8 @@ func (bnd *bndBinSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
+	bytesPool.Put(bnd.buf)
+	bnd.buf = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxBinSlice, bnd)
 	return nil

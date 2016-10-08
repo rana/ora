@@ -68,7 +68,8 @@ func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAs
 		}
 	}
 	if cap(bnd.bytes) < bnd.maxLen*C {
-		bnd.bytes = make([]byte, bnd.maxLen*L, bnd.maxLen*C)
+		//bnd.bytes = make([]byte, bnd.maxLen*L, bnd.maxLen*C)
+		bnd.bytes = bytesPool.Get(bnd.maxLen * C)[:bnd.maxLen*L]
 	} else {
 		bnd.bytes = bnd.bytes[:bnd.maxLen*L]
 	}
@@ -153,9 +154,10 @@ func (bnd *bndStringSlice) close() (err error) {
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.values = nil
+	bytesPool.Put(bnd.bytes)
 	bnd.bytes = nil
 	bnd.strings = nil
+	bnd.values = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxStringSlice, bnd)
 	return nil

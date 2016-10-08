@@ -27,7 +27,8 @@ func (def *defBool) define(position int, columnSize int, isNullable bool, rset *
 	def.isNullable = isNullable
 	def.columnSize = columnSize
 	if n := rset.fetchLen * columnSize; cap(def.buf) < n {
-		def.buf = make([]byte, n)
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
 	} else {
 		def.buf = def.buf[:n]
 	}
@@ -68,8 +69,9 @@ func (def *defBool) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	bytesPool.Put(def.buf)
+	def.buf = nil
 	def.arrHlp.close()
-	clear(def.buf, 0)
 	rset.putDef(defIdxBool, def)
 	return nil
 }

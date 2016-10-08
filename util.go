@@ -322,8 +322,12 @@ type Column struct {
 // DescribeQuery parses the query and returns the column types, as
 // DBMS_SQL.describe_column does.
 func DescribeQuery(db *sql.DB, qry string) ([]Column, error) {
-	//res := strings.Repeat("\x00", 32767)
-	res := make([]byte, 32766)
+	res := bytesPool.Get(32766)
+	defer bytesPool.Put(res)
+	for i := range res {
+		res[i] = 0
+	}
+	res = make([]byte, 32766)
 	if _, err := db.Exec(`DECLARE
   c INTEGER;
   col_cnt INTEGER;
@@ -445,4 +449,57 @@ type sysNamer struct {
 func (s *sysNamer) Name(calc func() string) string {
 	s.once.Do(func() { s.name = calc() })
 	return s.name
+}
+
+var bytesPool bytesArena
+
+const bytesArenaOffset = 10
+
+type bytesArena struct {
+	sync.Mutex
+	pools []*sync.Pool
+}
+
+func (bp *bytesArena) Get(n int) []byte {
+	return bp.poolOf(boundingPower(n)).Get().([]byte)[:n]
+}
+
+func (bp *bytesArena) Put(p []byte) {
+	if cap(p) < 1<<bytesArenaOffset {
+		return
+	}
+	i := boundingPower(cap(p))
+	if 1<<uint(i) > cap(p) {
+		i--
+	}
+	if i < bytesArenaOffset {
+		return
+	}
+	bp.poolOf(i).Put(p)
+}
+func (bp *bytesArena) poolOf(j int) *sync.Pool {
+	j -= bytesArenaOffset
+	if j < 0 {
+		j = 0
+	}
+	bp.Lock()
+	defer bp.Unlock()
+	if len(bp.pools) <= j {
+		bp.pools = append(bp.pools, make([]*sync.Pool, j-len(bp.pools)+1)...)
+	}
+	p := bp.pools[j]
+	if p != nil {
+		return p
+	}
+	p = &sync.Pool{New: func() interface{} { return make([]byte, 1<<(uint(j)+bytesArenaOffset)) }}
+	bp.pools[j] = p
+	return p
+}
+
+func boundingPower(n int) int {
+	var i int
+	for j := 1; j < n; j <<= 1 {
+		i++
+	}
+	return i
 }

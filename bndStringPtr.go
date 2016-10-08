@@ -48,7 +48,8 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 		C++
 	}
 	if cap(bnd.buf) < C {
-		bnd.buf = make([]byte, L, C)
+		//bnd.buf = make([]byte, L, C)
+		bnd.buf = bytesPool.Get(C)[:L]
 	}
 	bnd.nullp.Set(value == nil)
 	if value == nil {
@@ -121,7 +122,8 @@ func (bnd *bndStringPtr) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.value = nil
 	bnd.alen[0] = 0
-	bnd.buf = bnd.buf[:0]
+	bytesPool.Put(bnd.buf)
+	bnd.buf = nil
 	bnd.nullp.Free()
 	stmt.putBnd(bndIdxStringPtr, bnd)
 	return nil

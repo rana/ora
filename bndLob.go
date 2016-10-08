@@ -135,8 +135,12 @@ func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBuffer
 		defer lobChunkPool.Put(arr)
 		nextBuf = arr[:lobBufferSize]
 	} else {
-		actBuf = make([]byte, lobBufferSize)
-		nextBuf = make([]byte, lobBufferSize)
+		//actBuf = make([]byte, lobBufferSize)
+		//nextBuf = make([]byte, lobBufferSize)
+		actBuf = bytesPool.Get(lobBufferSize)
+		defer bytesPool.Put(actBuf)
+		nextBuf = bytesPool.Get(lobBufferSize)
+		defer bytesPool.Put(nextBuf)
 	}
 
 	// write bytes to lob locator - at once, as we already have all bytes in memory

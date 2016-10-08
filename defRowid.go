@@ -27,7 +27,8 @@ func (def *defRowid) define(position int, rset *Rset) error {
 	// (18 bytes plus the null-terminator) and 4001 as the
 	// host bind variable for universal ROWID.
 	if n := rset.fetchLen * rowidLen; cap(def.buf) < n {
-		def.buf = make([]byte, n)
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
 	} else {
 		def.buf = def.buf[:n]
 	}
@@ -57,6 +58,7 @@ func (def *defRowid) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.arrHlp.close()
+	bytesPool.Put(def.buf)
 	def.buf = nil
 	rset.putDef(defIdxRowid, def)
 	return nil

@@ -5,6 +5,7 @@
   * Be more forgiving for empty/non-open/NULL result sets returned by Oracle.
   * Treat SQLT_INT columns returned by TimesTen just as SQLT_NUM.
   * Make *[]string, *[]{,u}int{16,32,64} and *[]{Ui,I}nt{16,32,64}, *[]Date bindable.
+  * Use a bytesArena (sync.Pool-based []byte arena) for []byte allocations.
 
 ## v3.7.2 ##
   * Fix panic in Pool.Get - #118.
