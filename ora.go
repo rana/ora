@@ -133,9 +133,7 @@ func init() {
 	_drv.defPools[defIdxIntervalDS] = newPool(func() interface{} { return &defIntervalDS{} })
 	_drv.defPools[defIdxRowid] = newPool(func() interface{} { return &defRowid{} })
 	_drv.defPools[defIdxRset] = newPool(func() interface{} { return &defRset{} })
-}
 
-func init() {
 	var err error
 	if _drv.sqlPkgEnv, err = OpenEnv(nil); err != nil {
 		panic(fmt.Sprintf("OpenEnv: %v", err))

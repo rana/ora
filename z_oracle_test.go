@@ -3220,6 +3220,27 @@ func TestLobSelect(t *testing.T) {
 		//t.Logf("n=%d data=%v", n, buf.Bytes())
 		buf.Reset()
 	}
+
+	// SELECT into []byte
+	oCfg := ora.Cfg().Env.StmtCfg.Rset
+	defer func() { ora.Cfg().Env.StmtCfg.Rset = oCfg }()
+	ora.Cfg().Env.StmtCfg.Rset.SetBlob(ora.Bin)
+
+	rows, err = testDb.Query("SELECT * FROM " + tbl)
+	if err != nil {
+		t.Errorf("SELECT: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v []byte
+		if err = rows.Scan(&v); err != nil {
+			t.Errorf("Scan: %v", err)
+		}
+		if len(v) != 3 {
+			t.Errorf("got %v, wanted %v.", v, []byte{'\x7f', '\x7f', '\x7f'})
+		}
+	}
 }
 
 func TestLobSelectString(t *testing.T) {
@@ -3229,15 +3250,39 @@ func TestLobSelectString(t *testing.T) {
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	qry = "INSERT INTO " + tbl + " (content) VALUES ('<xml></xml>')"
+	const want = "<xml></xml>"
+	qry = "INSERT INTO " + tbl + " (content) VALUES ('" + want + "')"
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
+
+	rows, err := testDb.Query("SELECT * FROM " + tbl)
+	if err != nil {
+		t.Errorf("SELECT: %v", err)
+		return
+	}
+	defer rows.Close()
+	var buf bytes.Buffer
+	for rows.Next() {
+		var v interface{}
+		if err = rows.Scan(&v); err != nil {
+			t.Errorf("Scan: %v", err)
+		}
+		//t.Logf("%#v (%T)", v, v)
+		_, err := io.Copy(&buf, v.(io.Reader))
+		if err != nil {
+			t.Errorf("Read: %v", err)
+		}
+		//t.Logf("n=%d data=%v", n, buf.Bytes())
+		buf.Reset()
+	}
+
+	// SELECT into string
 	oCfg := ora.Cfg().Env.StmtCfg.Rset
 	defer func() { ora.Cfg().Env.StmtCfg.Rset = oCfg }()
 	ora.Cfg().Env.StmtCfg.Rset.SetClob(ora.S)
 
-	rows, err := testDb.Query("SELECT * FROM " + tbl)
+	rows, err = testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Errorf("SELECT: %v", err)
 		return
@@ -3249,6 +3294,9 @@ func TestLobSelectString(t *testing.T) {
 			t.Errorf("Scan: %v", err)
 		}
 		t.Logf("read %q", v)
+		if v != want {
+			t.Errorf("got %q, want %q.", v, want)
+		}
 	}
 }
 

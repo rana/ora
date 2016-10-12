@@ -636,8 +636,11 @@ GoColumnTypes defined by the ora package are:
 
 	default¹	D
 
-	° Lob will return binary data if the Oracle column is a BLOB; otherwise, Lob
-	  will return a string if the Oracle column is a CLOB.
+	° Lob will return an io.Reader by default;
+	  if you want a string (for CLOB) or []byte (for BLOB), you have to
+	  set the wanted column type: ora.Cfg().S:
+	  `ora.Cfg().Env.StmtCfg.Rset.SetBlob(ora.Bin)`
+	  `ora.Cfg().Env.StmtCfg.Rset.SetClob(ora.S)`
 
 	¹ D represents a default mapping between a select-list column and a Go type.
 	The default mapping is defined in RsetCfg.
