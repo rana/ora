@@ -6,5 +6,5 @@
 
 package ora
 
-// #cgo LDFLAGS: -lclntsh
+// #cgo pkgk-config: oci8
 import "C"
