@@ -1,6 +1,8 @@
 # Changelog #
 
 ## master ##
+
+## v3.7.3 ##
   * Fix a panic with Con.sysName.
   * Be more forgiving for empty/non-open/NULL result sets returned by Oracle.
   * Treat SQLT_INT columns returned by TimesTen just as SQLT_NUM.
