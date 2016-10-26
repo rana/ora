@@ -132,6 +132,8 @@ func init() {
 		fmt.Println("initError: ", err)
 	}
 
+	//ora.Cfg().Env.StmtCfg.RTrimChar = false
+
 	// load session time zone
 	testDbsessiontimezone, err = loadDbtimezone()
 	if err != nil {
@@ -2288,12 +2290,15 @@ func gen_OraTimeSlice(isNull bool) []ora.Time {
 }
 
 func gen_string() string {
-	return "Sentence with one space at the end! "
+	return "Sentence with no space at the end."
 }
 func gen_string48() string {
 	return rpad48(gen_string())
 }
 func rpad48(s string) string {
+	if ora.Cfg().Env.StmtCfg.RTrimChar {
+		return s
+	}
 	return rpad(s, 48, " ")
 }
 func rpad(s string, length int, padding string) string {

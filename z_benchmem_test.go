@@ -239,7 +239,7 @@ func TestMemoryNumStringI64(t *testing.T) {
 
 func TestMemoryString(t *testing.T) {
 	n := 1000
-	benchMem(t, n, 1693, `SELECT
+	benchMem(t, n, 1893, `SELECT
 		'123456789012345678' bs01
 		, '223456789012345678' bs02
 		, '323456789012345678' bs03

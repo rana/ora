@@ -2,6 +2,9 @@
 
 ## master ##
 
+## v3.7.4 ##
+  * Add RTrimChar to StmtCfg, default true. This makes the strip of right padding of CHAR columns configurable.
+
 ## v3.7.3 ##
   * Fix a panic with Con.sysName.
   * Be more forgiving for empty/non-open/NULL result sets returned by Oracle.

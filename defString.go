@@ -10,18 +10,21 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
+import (
+	"strings"
+	"unsafe"
+)
 
 type defString struct {
 	ociDef
-	buf        []byte
-	isNullable bool
-	columnSize int
+	buf               []byte
+	isNullable, rTrim bool
+	columnSize        int
 }
 
-func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
+func (def *defString) define(position int, columnSize int, isNullable, rTrim bool, rset *Rset) error {
 	def.rset = rset
-	def.isNullable = isNullable
+	def.isNullable, def.rTrim = isNullable, rTrim
 	//Log.Infof("defString position=%d columnSize=%d", position, columnSize)
 	n := columnSize
 	// AL32UTF8: one db "char" can be 4 bytes on wire, esp. if the database's
@@ -64,6 +67,9 @@ func (def *defString) value(offset int) (value interface{}, err error) {
 	if def.alen[offset] > 0 {
 		off := offset * def.columnSize
 		s = string(def.buf[off : off+int(def.alen[offset])])
+		if def.rTrim {
+			s = strings.TrimRight(s, " ")
+		}
 	}
 	if def.isNullable {
 		return String{Value: s}, nil

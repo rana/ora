@@ -533,14 +533,14 @@ Loop:
 				}
 				gct = stmt.gcts[n]
 			}
-			err = rset.defineString(n, columnSize, gct)
+			err = rset.defineString(n, columnSize, gct, false)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_AFC:
+			// CHAR, NCHAR
 			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC size=%d", n+1, columnSize)
 			//Log.Infof("rset AFC size=%d gct=%v", columnSize, gct)
-			// CHAR, NCHAR
 			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
 			if columnSize == 1 || columnSize == 4 {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
@@ -569,7 +569,7 @@ Loop:
 					}
 				case S, OraS:
 					// Interpret single char as string
-					rset.defineString(n, columnSize, gct)
+					rset.defineString(n, columnSize, gct, true)
 				}
 			} else {
 				// Interpret as string
@@ -582,7 +582,7 @@ Loop:
 					}
 					gct = stmt.gcts[n]
 				}
-				err = rset.defineString(n, columnSize, gct)
+				err = rset.defineString(n, columnSize, gct, true)
 				if err != nil {
 					return err
 				}
@@ -600,7 +600,7 @@ Loop:
 			}
 
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
-			err = rset.defineString(n, stmt.cfg.longBufferSize, gct)
+			err = rset.defineString(n, stmt.cfg.longBufferSize, gct, false)
 			if err != nil {
 				return err
 			}
@@ -731,14 +731,15 @@ Loop:
 	return nil
 }
 
-func (rset *Rset) defineString(n int, columnSize uint32, gct GoColumnType) (err error) {
+func (rset *Rset) defineString(n int, columnSize uint32, gct GoColumnType, rTrim bool) (err error) {
 	isNullable := false
 	if gct == OraS {
 		isNullable = true
 	}
+	rTrim = rTrim && rset.stmt.cfg.RTrimChar
 	def := rset.getDef(defIdxString).(*defString)
 	rset.defs[n] = def
-	err = def.define(n+1, int(columnSize), isNullable, rset)
+	err = def.define(n+1, int(columnSize), isNullable, rTrim, rset)
 	return err
 }
 

@@ -25,6 +25,12 @@ type StmtCfg struct {
 	// IsAutoCommitting is not observed during a transaction.
 	IsAutoCommitting bool
 
+	// RTrimChar makes returning from CHAR colums trim the blanks (spaces)
+	// from the end of the string, added by Oracle.
+	//
+	// The default is true.
+	RTrimChar bool
+
 	// FalseRune represents the false Go bool value sent to an Oracle server
 	// during a parameter bind.
 	//
@@ -56,6 +62,7 @@ func NewStmtCfg() *StmtCfg {
 	c.stringPtrBufferSize = 4000
 
 	c.IsAutoCommitting = true
+	c.RTrimChar = true
 	c.FalseRune = '0'
 	c.TrueRune = '1'
 	c.Rset = NewRsetCfg()
