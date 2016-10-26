@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
@@ -197,28 +198,37 @@ func Test_timestampLtzP9Null_time_db(t *testing.T) {
 	testBindDefineDB(gen_time(), t, timestampLtzP9Null)
 }
 
+func rpad48(s string) string { return rpad(s, 48, " ") }
+func rpad(s string, length int, padding string) string {
+	if len(s) >= length {
+		return s
+	}
+	return s + strings.Repeat(padding, ((length-len(s))/len(padding))+1)[:length-len(s)]
+}
+
 func Test_charB48_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, charB48)
+	enableLogging(t)
+	testBindDefineDB(rpad48(gen_string()), t, charB48)
 }
 
 func Test_charB48Null_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, charB48Null)
+	testBindDefineDB(rpad48(gen_string()), t, charB48Null)
 }
 
 func Test_charC48_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, charC48)
+	testBindDefineDB(rpad48(gen_string()), t, charC48)
 }
 
 func Test_charC48Null_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, charC48Null)
+	testBindDefineDB(rpad48(gen_string()), t, charC48Null)
 }
 
 func Test_nchar48_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, nchar48)
+	testBindDefineDB(rpad48(gen_string()), t, nchar48)
 }
 
 func Test_nchar48Null_string_db(t *testing.T) {
-	testBindDefineDB(gen_string(), t, nchar48Null)
+	testBindDefineDB(rpad48(gen_string()), t, nchar48Null)
 }
 
 func Test_varcharB48_string_db(t *testing.T) {
@@ -355,7 +365,7 @@ func TestZeroRowsAffected(t *testing.T) {
 	if _, err := testDb.Exec("CREATE TABLE " + tableName + " (id NUMBER(3))"); err != nil {
 		t.Fatal(err)
 	}
-	//defer testDb.Exec("DROP TABLE " + tableName)
+	defer testDb.Exec("DROP TABLE " + tableName)
 	res, err := testDb.Exec("UPDATE " + tableName + " SET id=1 WHERE 1=0")
 	if err != nil {
 		t.Fatal(err)

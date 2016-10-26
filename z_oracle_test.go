@@ -194,7 +194,7 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 
 	tableName, err := createTable(1, oct, testSes)
 	testErr(err, t)
-	//defer dropTable(tableName, testSes, t)
+	defer dropTable(tableName, testSes, t)
 
 	// insert
 	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
@@ -225,45 +225,47 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 
 func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) {
 	for n := 0; n < testIterations(); n++ {
-		tableName := createTableDB(testDb, t, oct)
-		defer dropTableDB(testDb, t, tableName)
+		func() {
+			tableName := createTableDB(testDb, t, oct)
+			defer dropTableDB(testDb, t, tableName)
 
-		// insert
-		stmt, err := testDb.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
-		defer stmt.Close()
-		execResult, err := stmt.Exec(expected)
-		testErr(err, t)
-		rowsAffected, err := execResult.RowsAffected()
-		testErr(err, t)
-		if 1 != rowsAffected {
-			t.Fatalf("insert rowsAffected: expected(%v), actual(%v)", 1, rowsAffected)
-		}
+			// insert
+			stmt, err := testDb.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+			defer stmt.Close()
+			execResult, err := stmt.Exec(expected)
+			testErr(err, t)
+			rowsAffected, err := execResult.RowsAffected()
+			testErr(err, t)
+			if 1 != rowsAffected {
+				t.Fatalf("insert rowsAffected: expected(%v), actual(%v)", 1, rowsAffected)
+			}
 
-		// query
-		rows, err := testDb.Query(fmt.Sprintf("select c1 from %v", tableName))
-		defer rows.Close()
-		testErr(err, t)
-		if rows == nil {
-			t.Fatalf("no rows returned")
-		} else {
-			var rowCount int
-			var goColumnType ora.GoColumnType
-			if oct == longRaw || oct == longRawNull || oct == raw2000 || oct == raw2000Null || oct == blob || oct == blobNull {
-				goColumnType = ora.Bin
+			// query
+			rows, err := testDb.Query(fmt.Sprintf("select c1 from %v", tableName))
+			defer rows.Close()
+			testErr(err, t)
+			if rows == nil {
+				t.Fatalf("no rows returned")
 			} else {
-				goColumnType = goColumnTypeFromValue(expected)
+				var rowCount int
+				var goColumnType ora.GoColumnType
+				if oct == longRaw || oct == longRawNull || oct == raw2000 || oct == raw2000Null || oct == blob || oct == blobNull {
+					goColumnType = ora.Bin
+				} else {
+					goColumnType = goColumnTypeFromValue(expected)
+				}
+				for rows.Next() {
+					var actual interface{}
+					err := rows.Scan(&actual)
+					testErr(err, t)
+					compare(expected, actual, goColumnType, t)
+					rowCount++
+				}
+				if 1 != rowCount {
+					t.Fatalf("query row count: expected(%v), actual(%v)", 1, rowCount)
+				}
 			}
-			for rows.Next() {
-				var actual interface{}
-				err := rows.Scan(&actual)
-				testErr(err, t)
-				compare(expected, actual, goColumnType, t)
-				rowCount++
-			}
-			if 1 != rowCount {
-				t.Fatalf("query row count: expected(%v), actual(%v)", 1, rowCount)
-			}
-		}
+		}()
 	}
 }
 
@@ -1593,7 +1595,7 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 		t.Fatalf("Unable to cast actual value to string, *string, ora.String. (%T, %v)", actual, actual)
 	}
 	if e != a {
-		t.Fatalf("expected(%v), actual(%v)\n%s", e, a, getStack(2))
+		t.Fatalf("expected(%q), actual(%q)\n%s", e, a, getStack(2))
 	}
 }
 
@@ -2283,7 +2285,7 @@ func gen_OraTimeSlice(isNull bool) []ora.Time {
 }
 
 func gen_string() string {
-	return "Go is expressive, concise, clean, and efficient."
+	return "Sentence with one space at the end! "
 }
 
 func gen_OraString(isNull bool) ora.String {

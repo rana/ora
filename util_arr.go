@@ -23,6 +23,7 @@ type ociDef struct {
 
 func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int, dty int) error {
 	d.ensureFetchLength(MaxFetchLen)
+	// If you omit the rlenp parameter of OCIDefineByPos(), returned values are blank-padded to the buffer length, and NULLs are returned as a string of blank characters. If rlenp is included, returned values are not blank-padded. Instead, their actual lengths are returned in the rlenp parameter.
 	if r := C.OCIDEFINEBYPOS(
 		d.rset.ocistmt,                 //OCIStmt     *stmtp,
 		&d.ocidef,                      //OCIDefine   **defnpp,

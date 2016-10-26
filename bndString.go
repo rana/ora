@@ -18,11 +18,21 @@ type bndString struct {
 	stmt    *Stmt
 	ocibnd  *C.OCIBind
 	cString *C.char
+	alen    [1]C.ACTUAL_LENGTH_TYPE
+	nullp
 }
+
+// https://ellebaek.wordpress.com/2011/02/25/oracle-type-code-mappings/
 
 func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.cString = C.CString(value)
+	bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(value))
+	bnd.nullp.Set(value == "")
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"%p pos=%d alen=%v",
+		bnd, position, bnd.alen)
+
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		&bnd.ocibnd,                 //OCIBind      **bindpp,
@@ -32,13 +42,13 @@ func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 		C.LENGTH_TYPE(len(value)),   //sb8          value_sz,
 		// http://www.devsuperpage.com/search/Articles.aspx?G=4&ArtID=560386
 		// "You may find that trailing spaces are truncated when you use SQLT_CHR or SQLT_STR."
-		C.SQLT_AFC,    //ub2          dty,
-		nil,           //void         *indp,
-		nil,           //ub2          *alenp,
-		nil,           //ub2          *rcodep,
-		0,             //ub4          maxarr_len,
-		nil,           //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
+		C.SQLT_CHR,                          //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
+		&bnd.alen[0],                        //ub2          *alenp,
+		nil,                                 //ub2          *rcodep,
+		0,                                   //ub4          maxarr_len,
+		nil,                                 //ub4          *curelep,
+		C.OCI_DEFAULT)                       //ub4          mode );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
