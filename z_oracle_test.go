@@ -468,7 +468,10 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 				case timestampP9, timestampP9Null, timestampTzP9, timestampTzP9Null, timestampLtzP9, timestampLtzP9Null:
 					expected[c] = gen_time()
 					gcts[c] = ora.T
-				case charB48, charB48Null, charC48, charC48Null, nchar48, nchar48Null, varcharB48, varcharB48Null, varcharC48, varcharC48Null, varchar2B48, varchar2B48Null, varchar2C48, varchar2C48Null, nvarchar248, nvarchar248Null, long, longNull, clob, clobNull, nclob, nclobNull:
+				case charB48, charB48Null, charC48, charC48Null, nchar48, nchar48Null:
+					expected[c] = gen_string48()
+					gcts[c] = ora.S
+				case varcharB48, varcharB48Null, varcharC48, varcharC48Null, varchar2B48, varchar2B48Null, varchar2C48, varchar2C48Null, nvarchar248, nvarchar248Null, long, longNull, clob, clobNull, nclob, nclobNull:
 					expected[c] = gen_string()
 					gcts[c] = ora.S
 				case charB1, charB1Null, charC1, charC1Null:
@@ -2287,9 +2290,25 @@ func gen_OraTimeSlice(isNull bool) []ora.Time {
 func gen_string() string {
 	return "Sentence with one space at the end! "
 }
+func gen_string48() string {
+	return rpad48(gen_string())
+}
+func rpad48(s string) string {
+	return rpad(s, 48, " ")
+}
+func rpad(s string, length int, padding string) string {
+	n := length - len(s)
+	if n <= 0 {
+		return s
+	}
+	return s + strings.Repeat(padding, n/len(padding)+1)[:n]
+}
 
 func gen_OraString(isNull bool) ora.String {
 	return ora.String{Value: gen_string(), IsNull: isNull}
+}
+func gen_OraString48(isNull bool) ora.String {
+	return ora.String{Value: gen_string48(), IsNull: isNull}
 }
 
 // important to test strings of non-equal length
@@ -2302,6 +2321,13 @@ func gen_stringSlice() interface{} {
 	expected[4] = "One of Go's key design goals is code"
 	return expected
 }
+func gen_stringSlice48() interface{} {
+	expected := gen_stringSlice().([]string)
+	for i, s := range expected {
+		expected[i] = rpad48(s)
+	}
+	return expected
+}
 
 func gen_OraStringSlice(isNull bool) interface{} {
 	expected := make([]ora.String, 5)
@@ -2310,6 +2336,14 @@ func gen_OraStringSlice(isNull bool) interface{} {
 	expected[2] = ora.String{Value: "Go compiles quickly to machine code yet has", IsNull: isNull}
 	expected[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
 	expected[4] = ora.String{Value: "One of Go's key design goals is code"}
+	return expected
+}
+
+func gen_OraStringSlice48(isNull bool) interface{} {
+	expected := gen_OraStringSlice(isNull).([]ora.String)
+	for i, s := range expected {
+		expected[i].Value = rpad48(s.Value)
+	}
 	return expected
 }
 
@@ -3568,10 +3602,11 @@ func TestLOBRead(t *testing.T) {
 		t.Errorf("got %q, wanted %q.", b, want)
 	}
 }
-func TestSetDriverName(t *testing.T) {
-	rows, err := testDb.Query("SELECT sid, program, module, action, client_info FROM V$SESSION")
+func TestGetDriverName(t *testing.T) {
+	qry := "SELECT sid, program, module, action, client_info FROM V$SESSION"
+	rows, err := testDb.Query(qry)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("%q: %v", qry, err)
 	}
 	for rows.Next() {
 		var sid int64

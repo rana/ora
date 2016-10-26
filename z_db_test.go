@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
@@ -198,37 +197,29 @@ func Test_timestampLtzP9Null_time_db(t *testing.T) {
 	testBindDefineDB(gen_time(), t, timestampLtzP9Null)
 }
 
-func rpad48(s string) string { return rpad(s, 48, " ") }
-func rpad(s string, length int, padding string) string {
-	if len(s) >= length {
-		return s
-	}
-	return s + strings.Repeat(padding, ((length-len(s))/len(padding))+1)[:length-len(s)]
-}
-
 func Test_charB48_string_db(t *testing.T) {
 	enableLogging(t)
-	testBindDefineDB(rpad48(gen_string()), t, charB48)
+	testBindDefineDB(gen_string48(), t, charB48)
 }
 
 func Test_charB48Null_string_db(t *testing.T) {
-	testBindDefineDB(rpad48(gen_string()), t, charB48Null)
+	testBindDefineDB(gen_string48(), t, charB48Null)
 }
 
 func Test_charC48_string_db(t *testing.T) {
-	testBindDefineDB(rpad48(gen_string()), t, charC48)
+	testBindDefineDB(gen_string48(), t, charC48)
 }
 
 func Test_charC48Null_string_db(t *testing.T) {
-	testBindDefineDB(rpad48(gen_string()), t, charC48Null)
+	testBindDefineDB(gen_string48(), t, charC48Null)
 }
 
 func Test_nchar48_string_db(t *testing.T) {
-	testBindDefineDB(rpad48(gen_string()), t, nchar48)
+	testBindDefineDB(gen_string48(), t, nchar48)
 }
 
 func Test_nchar48Null_string_db(t *testing.T) {
-	testBindDefineDB(rpad48(gen_string()), t, nchar48Null)
+	testBindDefineDB(gen_string48(), t, nchar48Null)
 }
 
 func Test_varcharB48_string_db(t *testing.T) {
