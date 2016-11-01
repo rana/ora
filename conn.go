@@ -5,9 +5,17 @@
 package ora
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
+
+	"golang.org/x/sync/errgroup"
 )
+
+/*
+#include <oci.h>
+*/
+import "C"
 
 // LogConCfg represents Con logging configuration values.
 type LogConCfg struct {
@@ -106,12 +114,15 @@ func (con *Con) close() (err error) {
 // Prepare readies a sql string for use.
 //
 // Prepare is a member of the driver.Conn interface.
-func (con *Con) Prepare(sql string) (driver.Stmt, error) {
+func (con *Con) Prepare(query string) (driver.Stmt, error) {
+	// TODO(tgulacsi): use
+	// return con.PrepareContext(context.Background(), query)
+
 	con.log(_drv.cfg.Log.Con.Prepare)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	stmt, err := con.ses.Prep(sql)
+	stmt, err := con.ses.Prep(query)
 	if err != nil {
 		return nil, err
 	}
@@ -134,12 +145,26 @@ func (con *Con) Begin() (driver.Tx, error) {
 }
 
 // Ping makes a round-trip call to an Oracle server to confirm that the connection is active.
-func (con *Con) Ping() error {
+func (con *Con) Ping(ctx context.Context) error {
 	con.log(_drv.cfg.Log.Con.Ping)
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	return con.ses.Ping()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	grp, ctx := errgroup.WithContext(ctx)
+	grp.Go(func() error {
+		return con.ses.Ping()
+	})
+	<-ctx.Done()
+	err := ctx.Err()
+	if isCanceled(err) {
+		con.ses.Break()
+	}
+	return err
 }
 
 // sysName returns a string representing the Con.
@@ -161,4 +186,8 @@ func (con *Con) log(enabled bool, v ...interface{}) {
 			_drv.cfg.Log.Logger.Infof("%v %v %v", con.sysName(), callInfo(1), fmt.Sprint(v...))
 		}
 	}
+}
+
+func isCanceled(err error) bool {
+	return err == context.Canceled || err == context.DeadlineExceeded
 }

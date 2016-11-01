@@ -83,7 +83,7 @@ type Rset struct {
 	genByPool bool
 
 	Row             []interface{}
-	ColumnNames     []string
+	Columns         []Column
 	Index           int
 	Err             error
 	fetched, offset int
@@ -91,6 +91,14 @@ type Rset struct {
 	finished        bool
 
 	sysNamer
+}
+
+type Column struct {
+	Name      string
+	Type      C.ub2
+	Length    uint32
+	Precision C.sb2
+	Scale     C.sb1
 }
 
 // Len returns the number of rows retrieved.
@@ -148,7 +156,7 @@ func (rset *Rset) close() (err error) {
 	rset.defs = nil
 	rset.Index = -1
 	rset.Row = nil
-	rset.ColumnNames = nil
+	rset.Columns = nil
 	// do not clear error in case of autoClose when error exists
 	// clear error when rset in initialized
 	//rset.Err = nil
@@ -342,9 +350,21 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		return err
 	}
 	// make defines slice
-	rset.defs = make([]def, int(paramCount))
-	rset.ColumnNames = make([]string, int(paramCount))
-	rset.Row = make([]interface{}, int(paramCount))
+	if cap(rset.defs) < int(paramCount) {
+		rset.defs = make([]def, int(paramCount))
+	} else {
+		rset.defs = rset.defs[:int(paramCount)]
+	}
+	if cap(rset.Columns) < len(rset.defs) {
+		rset.Columns = make([]Column, len(rset.defs))
+	} else {
+		rset.Columns = rset.Columns[:len(rset.defs)]
+	}
+	if cap(rset.Row) < len(rset.defs) {
+		rset.Row = make([]interface{}, len(rset.defs))
+	} else {
+		rset.Row = rset.Row[:len(rset.Row)]
+	}
 	//fmt.Printf("rset.open (paramCount %v)\n", paramCount)
 
 	// create parameters for each select-list column
@@ -394,8 +414,12 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		if err != nil {
 			return err
 		}
-		rset.ColumnNames[n] = C.GoStringN(columnName, C.int(colSize))
-		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.ColumnNames[n], params[n].typeCode)
+		rset.Columns[n] = Column{
+			Name:   C.GoStringN(columnName, C.int(colSize)),
+			Type:   params[n].typeCode,
+			Length: params[n].columnSize,
+		}
+		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.Columns[n].Name, params[n].typeCode)
 	}
 
 	rset.fetchLen = MaxFetchLen
@@ -429,10 +453,12 @@ Loop:
 			if err != nil {
 				return err
 			}
+			rset.Columns[n].Precision = precision
+			rset.Columns[n].Scale = scale
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				gct = rset.stmt.cfg.Rset.numericColumnType(int(precision), int(scale))
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
+				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}
@@ -448,7 +474,7 @@ Loop:
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				gct = rset.stmt.cfg.Rset.binaryDouble
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
+				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}
@@ -463,7 +489,7 @@ Loop:
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				gct = rset.stmt.cfg.Rset.binaryFloat
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.ColumnNames[n])
+				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}

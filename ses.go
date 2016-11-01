@@ -554,6 +554,10 @@ func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (rset *Rset, err
 
 // StartTx starts an Oracle transaction returning a *Tx and possible error.
 func (ses *Ses) StartTx() (tx *Tx, err error) {
+	return ses.StartTxWithFlags(0)
+}
+
+func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	ses.log(_drv.cfg.Log.Ses.StartTx)
@@ -567,10 +571,10 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 	// TODO: add timeout config value
 	var timeout = C.uword(60)
 	r := C.OCITransStart(
-		ses.ocisvcctx,      //OCISvcCtx    *svchp,
-		ses.srv.env.ocierr, //OCIError     *errhp,
-		timeout,            //uword        timeout,
-		C.OCI_TRANS_NEW)    //ub4          flags );
+		ses.ocisvcctx,         //OCISvcCtx    *svchp,
+		ses.srv.env.ocierr,    //OCIError     *errhp,
+		timeout,               //uword        timeout,
+		C.OCI_TRANS_NEW|flags) //ub4          flags );
 	if r == C.OCI_ERROR {
 		return nil, errE(ses.srv.env.ociError())
 	}

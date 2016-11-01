@@ -311,17 +311,18 @@ func (e oraErr) Code() int {
 	return code
 }
 
-// Column type for describing a column (see DescribeQuery).
-type Column struct {
-	Schema, Name                   string
-	Type, Length, Precision, Scale int
-	Nullable                       bool
-	CharsetID, CharsetForm         int
+// DescribedColumn type for describing a column (see DescribeQuery).
+type DescribedColumn struct {
+	Column
+
+	Schema                 string
+	Nullable               bool
+	CharsetID, CharsetForm int
 }
 
 // DescribeQuery parses the query and returns the column types, as
 // DBMS_SQL.describe_column does.
-func DescribeQuery(db *sql.DB, qry string) ([]Column, error) {
+func DescribeQuery(db *sql.DB, qry string) ([]DescribedColumn, error) {
 	res := bytesPool.Get(32766)
 	defer bytesPool.Put(res)
 	for i := range res {
@@ -363,13 +364,13 @@ END;`, qry, &res,
 		res = res[:i]
 	}
 	lines := bytes.Split(res, []byte{'\n'})
-	cols := make([]Column, 0, len(lines))
+	cols := make([]DescribedColumn, 0, len(lines))
 	var nullable int
 	for _, line := range lines {
 		if len(line) == 0 {
 			continue
 		}
-		var col Column
+		var col DescribedColumn
 		switch j := bytes.IndexByte(line, ' '); j {
 		case -1:
 			continue
