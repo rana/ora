@@ -2,10 +2,12 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"testing"
+
+	"gopkg.in/rana/ora.v3"
 )
 
 //// numeric
@@ -62,6 +64,9 @@ func TestBindDefine_float64_numberP38S0_session(t *testing.T) {
 
 func TestBindDefine_float32_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_float32Trunc(), numberP38S0, t, nil)
+}
+func TestBindDefine_NumString_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_NumStringTrunc(), numberP38S0, t, nil)
 }
 
 func TestBindDefine_OraInt64_numberP38S0_session(t *testing.T) {
@@ -146,6 +151,9 @@ func TestBindPtr_float64_numberP38S0_session(t *testing.T) {
 func TestBindPtr_float32_numberP38S0_session(t *testing.T) {
 	testBindPtr(gen_float32Trunc(), numberP38S0, t)
 }
+func TestBindPtr_NumString_numberP38S0_session(t *testing.T) {
+	testBindPtr(gen_NumStringTrunc(), numberP38S0, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP38S0
@@ -180,9 +188,9 @@ func TestBindSlice_uint16_numberP38S0_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP38S0_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), numberP38S0, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), numberP38S0, t, sc)
 }
 
 func TestBindSlice_float64_numberP38S0_session(t *testing.T) {
@@ -191,6 +199,25 @@ func TestBindSlice_float64_numberP38S0_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP38S0_session(t *testing.T) {
 	testBindDefine(gen_float32TruncSlice(), numberP38S0, t, nil)
+}
+func TestBindSlice_NumString_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_NumStringTruncSlice(), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint64_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint64Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint32_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint32Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint16_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint16Slice(false), numberP38S0, t, nil)
+}
+
+func TestBindSlice_OraUint8_numberP38S0_session(t *testing.T) {
+	testBindDefine(gen_OraUint8Slice(false), numberP38S0, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP38S0_session(t *testing.T) {
@@ -270,6 +297,9 @@ func TestBindDefine_float64_numberP38S0Null_session(t *testing.T) {
 
 func TestBindDefine_float32_numberP38S0Null_session(t *testing.T) {
 	testBindDefine(gen_float32Trunc(), numberP38S0Null, t, nil)
+}
+func TestBindDefine_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringTrunc(), numberP38S0Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_numberP38S0Null_session(t *testing.T) {
@@ -394,6 +424,9 @@ func TestBindPtr_float64_numberP38S0Null_session(t *testing.T) {
 func TestBindPtr_float32_numberP38S0Null_session(t *testing.T) {
 	testBindPtr(gen_float32Trunc(), numberP38S0Null, t)
 }
+func TestBindPtr_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindPtr(gen_NumStringTrunc(), numberP38S0Null, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP38S0Null
@@ -428,9 +461,9 @@ func TestBindSlice_uint16_numberP38S0Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP38S0Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), numberP38S0Null, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), numberP38S0Null, t, sc)
 }
 
 func TestBindSlice_float64_numberP38S0Null_session(t *testing.T) {
@@ -439,6 +472,9 @@ func TestBindSlice_float64_numberP38S0Null_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP38S0Null_session(t *testing.T) {
 	testBindDefine(gen_float32TruncSlice(), numberP38S0Null, t, nil)
+}
+func TestBindSlice_NumString_numberP38S0Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringTruncSlice(), numberP38S0Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP38S0Null_session(t *testing.T) {
@@ -547,6 +583,9 @@ func TestBindDefine_float64_numberP16S15_session(t *testing.T) {
 func TestBindDefine_float32_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_float32(), numberP16S15, t, nil)
 }
+func TestBindDefine_NumString_numberP16S15_session(t *testing.T) {
+	testBindDefine(gen_NumString(), numberP16S15, t, nil)
+}
 
 func TestBindDefine_OraInt64_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), numberP16S15, t, nil)
@@ -630,12 +669,16 @@ func TestBindPtr_float64_numberP16S15_session(t *testing.T) {
 func TestBindPtr_float32_numberP16S15_session(t *testing.T) {
 	testBindPtr(gen_float32(), numberP16S15, t)
 }
+func TestBindPtr_NumString_numberP16S15_session(t *testing.T) {
+	testBindPtr(gen_NumString(), numberP16S15, t)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP16S15
 ////////////////////////////////////////////////////////////////////////////////
 
 func TestBindSlice_int64_numberP16S15_session(t *testing.T) {
+	//enableLogging(t)
 	testBindDefine(gen_int64Slice(), numberP16S15, t, nil)
 }
 
@@ -664,9 +707,9 @@ func TestBindSlice_uint16_numberP16S15_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP16S15_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), numberP16S15, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), numberP16S15, t, sc)
 }
 
 func TestBindSlice_float64_numberP16S15_session(t *testing.T) {
@@ -675,6 +718,9 @@ func TestBindSlice_float64_numberP16S15_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP16S15_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), numberP16S15, t, nil)
+}
+func TestBindSlice_NumString_numberP16S15_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), numberP16S15, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP16S15_session(t *testing.T) {
@@ -754,6 +800,10 @@ func TestBindDefine_float64_numberP16S15Null_session(t *testing.T) {
 
 func TestBindDefine_float32_numberP16S15Null_session(t *testing.T) {
 	testBindDefine(gen_float32(), numberP16S15Null, t, nil)
+}
+
+func TestBindDefine_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindDefine(gen_NumString(), numberP16S15Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_numberP16S15Null_session(t *testing.T) {
@@ -879,6 +929,10 @@ func TestBindPtr_float32_numberP16S15Null_session(t *testing.T) {
 	testBindPtr(gen_float32(), numberP16S15Null, t)
 }
 
+func TestBindPtr_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindPtr(gen_NumString(), numberP16S15Null, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE numberP16S15Null
 ////////////////////////////////////////////////////////////////////////////////
@@ -912,9 +966,9 @@ func TestBindSlice_uint16_numberP16S15Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_numberP16S15Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), numberP16S15Null, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), numberP16S15Null, t, sc)
 }
 
 func TestBindSlice_float64_numberP16S15Null_session(t *testing.T) {
@@ -923,6 +977,10 @@ func TestBindSlice_float64_numberP16S15Null_session(t *testing.T) {
 
 func TestBindSlice_float32_numberP16S15Null_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), numberP16S15Null, t, nil)
+}
+
+func TestBindSlice_NumString_numberP16S15Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), numberP16S15Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_numberP16S15Null_session(t *testing.T) {
@@ -1030,6 +1088,10 @@ func TestBindDefine_float64_binaryDouble_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryDouble_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryDouble, t, nil)
+}
+
+func TestBindDefine_NumString_binaryDouble_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryDouble, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryDouble_session(t *testing.T) {
@@ -1148,9 +1210,9 @@ func TestBindSlice_uint16_binaryDouble_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryDouble_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), binaryDouble, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), binaryDouble, t, sc)
 }
 
 func TestBindSlice_float64_binaryDouble_session(t *testing.T) {
@@ -1159,6 +1221,10 @@ func TestBindSlice_float64_binaryDouble_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryDouble_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryDouble, t, nil)
+}
+
+func TestBindSlice_NumString_binaryDouble_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryDouble, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryDouble_session(t *testing.T) {
@@ -1238,6 +1304,10 @@ func TestBindDefine_float64_binaryDoubleNull_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryDoubleNull, t, nil)
+}
+
+func TestBindDefine_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryDoubleNull, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryDoubleNull_session(t *testing.T) {
@@ -1363,6 +1433,10 @@ func TestBindPtr_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryDoubleNull, t)
 }
 
+func TestBindPtr_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryDoubleNull, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryDoubleNull
 ////////////////////////////////////////////////////////////////////////////////
@@ -1396,9 +1470,9 @@ func TestBindSlice_uint16_binaryDoubleNull_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryDoubleNull_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), binaryDoubleNull, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), binaryDoubleNull, t, sc)
 }
 
 func TestBindSlice_float64_binaryDoubleNull_session(t *testing.T) {
@@ -1407,6 +1481,10 @@ func TestBindSlice_float64_binaryDoubleNull_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryDoubleNull_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryDoubleNull, t, nil)
+}
+
+func TestBindSlice_NumString_binaryDoubleNull_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryDoubleNull, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryDoubleNull_session(t *testing.T) {
@@ -1516,6 +1594,10 @@ func TestBindDefine_float32_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryFloat, t, nil)
 }
 
+func TestBindDefine_NumString_binaryFloat_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryFloat, t, nil)
+}
+
 func TestBindDefine_OraInt64_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), binaryFloat, t, nil)
 }
@@ -1599,6 +1681,10 @@ func TestBindPtr_float32_binaryFloat_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryFloat, t)
 }
 
+func TestBindPtr_NumString_binaryFloat_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryFloat, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryFloat
 ////////////////////////////////////////////////////////////////////////////////
@@ -1632,9 +1718,9 @@ func TestBindSlice_uint16_binaryFloat_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryFloat_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), binaryFloat, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), binaryFloat, t, sc)
 }
 
 func TestBindSlice_float64_binaryFloat_session(t *testing.T) {
@@ -1643,6 +1729,10 @@ func TestBindSlice_float64_binaryFloat_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryFloat_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryFloat, t, nil)
+}
+
+func TestBindSlice_NumString_binaryFloat_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryFloat, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryFloat_session(t *testing.T) {
@@ -1722,6 +1812,10 @@ func TestBindDefine_float64_binaryFloatNull_session(t *testing.T) {
 
 func TestBindDefine_float32_binaryFloatNull_session(t *testing.T) {
 	testBindDefine(gen_float32(), binaryFloatNull, t, nil)
+}
+
+func TestBindDefine_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindDefine(gen_NumString(), binaryFloatNull, t, nil)
 }
 
 func TestBindDefine_OraInt64_binaryFloatNull_session(t *testing.T) {
@@ -1847,6 +1941,10 @@ func TestBindPtr_float32_binaryFloatNull_session(t *testing.T) {
 	testBindPtr(gen_float32(), binaryFloatNull, t)
 }
 
+func TestBindPtr_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindPtr(gen_NumString(), binaryFloatNull, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE binaryFloatNull
 ////////////////////////////////////////////////////////////////////////////////
@@ -1880,9 +1978,9 @@ func TestBindSlice_uint16_binaryFloatNull_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_binaryFloatNull_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), binaryFloatNull, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), binaryFloatNull, t, sc)
 }
 
 func TestBindSlice_float64_binaryFloatNull_session(t *testing.T) {
@@ -1891,6 +1989,10 @@ func TestBindSlice_float64_binaryFloatNull_session(t *testing.T) {
 
 func TestBindSlice_float32_binaryFloatNull_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), binaryFloatNull, t, nil)
+}
+
+func TestBindSlice_NumString_binaryFloatNull_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), binaryFloatNull, t, nil)
 }
 
 func TestBindSlice_OraInt64_binaryFloatNull_session(t *testing.T) {
@@ -2000,6 +2102,10 @@ func TestBindDefine_float32_floatP126_session(t *testing.T) {
 	testBindDefine(gen_float32(), floatP126, t, nil)
 }
 
+func TestBindDefine_NumString_floatP126_session(t *testing.T) {
+	testBindDefine(gen_NumString(), floatP126, t, nil)
+}
+
 func TestBindDefine_OraInt64_floatP126_session(t *testing.T) {
 	testBindDefine(gen_OraInt64(false), floatP126, t, nil)
 }
@@ -2083,6 +2189,10 @@ func TestBindPtr_float32_floatP126_session(t *testing.T) {
 	testBindPtr(gen_float32(), floatP126, t)
 }
 
+func TestBindPtr_NumString_floatP126_session(t *testing.T) {
+	testBindPtr(gen_NumString(), floatP126, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE floatP126
 ////////////////////////////////////////////////////////////////////////////////
@@ -2116,9 +2226,9 @@ func TestBindSlice_uint16_floatP126_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_floatP126_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), floatP126, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), floatP126, t, sc)
 }
 
 func TestBindSlice_float64_floatP126_session(t *testing.T) {
@@ -2127,6 +2237,10 @@ func TestBindSlice_float64_floatP126_session(t *testing.T) {
 
 func TestBindSlice_float32_floatP126_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), floatP126, t, nil)
+}
+
+func TestBindSlice_NumString_floatP126_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), floatP126, t, nil)
 }
 
 func TestBindSlice_OraInt64_floatP126_session(t *testing.T) {
@@ -2206,6 +2320,10 @@ func TestBindDefine_float64_floatP126Null_session(t *testing.T) {
 
 func TestBindDefine_float32_floatP126Null_session(t *testing.T) {
 	testBindDefine(gen_float32(), floatP126Null, t, nil)
+}
+
+func TestBindDefine_NumString_floatP126Null_session(t *testing.T) {
+	testBindDefine(gen_NumString(), floatP126Null, t, nil)
 }
 
 func TestBindDefine_OraInt64_floatP126Null_session(t *testing.T) {
@@ -2331,6 +2449,10 @@ func TestBindPtr_float32_floatP126Null_session(t *testing.T) {
 	testBindPtr(gen_float32(), floatP126Null, t)
 }
 
+func TestBindPtr_NumString_floatP126Null_session(t *testing.T) {
+	testBindPtr(gen_NumString(), floatP126Null, t)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BIND SLICE floatP126Null
 ////////////////////////////////////////////////////////////////////////////////
@@ -2364,9 +2486,9 @@ func TestBindSlice_uint16_floatP126Null_session(t *testing.T) {
 }
 
 func TestBindSlice_uint8_floatP126Null_session(t *testing.T) {
-	sc := NewStmtCfg()
-	sc.SetByteSlice(U8)
-	testBindDefine(gen_uint8Slice(), floatP126Null, t, &sc)
+	sc := ora.NewStmtCfg()
+	sc.SetByteSlice(ora.U8)
+	testBindDefine(gen_uint8Slice(), floatP126Null, t, sc)
 }
 
 func TestBindSlice_float64_floatP126Null_session(t *testing.T) {
@@ -2375,6 +2497,10 @@ func TestBindSlice_float64_floatP126Null_session(t *testing.T) {
 
 func TestBindSlice_float32_floatP126Null_session(t *testing.T) {
 	testBindDefine(gen_float32Slice(), floatP126Null, t, nil)
+}
+
+func TestBindSlice_NumString_floatP126Null_session(t *testing.T) {
+	testBindDefine(gen_NumStringSlice(), floatP126Null, t, nil)
 }
 
 func TestBindSlice_OraInt64_floatP126Null_session(t *testing.T) {

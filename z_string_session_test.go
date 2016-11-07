@@ -2,7 +2,7 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"testing"
@@ -12,27 +12,27 @@ import (
 // charB48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charB48_session(t *testing.T) {
-	testBindDefine(gen_string(), charB48, t, nil)
+	testBindDefine(gen_string48(), charB48, t, nil)
 }
 
 func TestBindPtr_string_charB48_session(t *testing.T) {
-	testBindPtr(gen_string(), charB48, t)
+	testBindPtr(gen_string48(), charB48, t)
 }
 
 func TestBindDefine_OraString_charB48_session(t *testing.T) {
-	testBindDefine(gen_OraString(false), charB48, t, nil)
+	testBindDefine(gen_OraString48(false), charB48, t, nil)
 }
 
 func TestBindSlice_string_charB48_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), charB48, t, nil)
+	testBindDefine(gen_stringSlice48(), charB48, t, nil)
 }
 
 func TestBindSlice_OraString_charB48_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(false), charB48, t, nil)
+	testBindDefine(gen_OraStringSlice48(false), charB48, t, nil)
 }
 
 func TestMultiDefine_charB48_session(t *testing.T) {
-	testMultiDefine(gen_string(), charB48, t)
+	testMultiDefine(gen_string48(), charB48, t)
 }
 
 func TestWorkload_charB48_session(t *testing.T) {
@@ -43,27 +43,27 @@ func TestWorkload_charB48_session(t *testing.T) {
 //// charB48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charB48Null_session(t *testing.T) {
-	testBindDefine(gen_string(), charB48Null, t, nil)
+	testBindDefine(gen_string48(), charB48Null, t, nil)
 }
 
 func TestBindPtr_string_charB48Null_session(t *testing.T) {
-	testBindPtr(gen_string(), charB48Null, t)
+	testBindPtr(gen_string48(), charB48Null, t)
 }
 
 func TestBindDefine_OraString_charB48Null_session(t *testing.T) {
-	testBindDefine(gen_OraString(true), charB48Null, t, nil)
+	testBindDefine(gen_OraString48(true), charB48Null, t, nil)
 }
 
 func TestBindSlice_string_charB48Null_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), charB48Null, t, nil)
+	testBindDefine(gen_stringSlice48(), charB48Null, t, nil)
 }
 
 func TestBindSlice_OraString_charB48Null_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(true), charB48Null, t, nil)
+	testBindDefine(gen_OraStringSlice48(true), charB48Null, t, nil)
 }
 
 func TestMultiDefine_charB48Null_session(t *testing.T) {
-	testMultiDefine(gen_string(), charB48Null, t)
+	testMultiDefine(gen_string48(), charB48Null, t)
 }
 
 func TestWorkload_charB48Null_session(t *testing.T) {
@@ -78,27 +78,27 @@ func TestBindDefine_charB48Null_nil_session(t *testing.T) {
 // charC48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charC48_session(t *testing.T) {
-	testBindDefine(gen_string(), charC48, t, nil)
+	testBindDefine(gen_string48(), charC48, t, nil)
 }
 
 func TestBindPtr_string_charC48_session(t *testing.T) {
-	testBindPtr(gen_string(), charC48, t)
+	testBindPtr(gen_string48(), charC48, t)
 }
 
 func TestBindDefine_OraString_charC48_session(t *testing.T) {
-	testBindDefine(gen_OraString(false), charC48, t, nil)
+	testBindDefine(gen_OraString48(false), charC48, t, nil)
 }
 
 func TestBindSlice_string_charC48_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), charC48, t, nil)
+	testBindDefine(gen_stringSlice48(), charC48, t, nil)
 }
 
 func TestBindSlice_OraString_charC48_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(false), charC48, t, nil)
+	testBindDefine(gen_OraStringSlice48(false), charC48, t, nil)
 }
 
 func TestMultiDefine_charC48_session(t *testing.T) {
-	testMultiDefine(gen_string(), charC48, t)
+	testMultiDefine(gen_string48(), charC48, t)
 }
 
 func TestWorkload_charC48_session(t *testing.T) {
@@ -109,27 +109,27 @@ func TestWorkload_charC48_session(t *testing.T) {
 //// charC48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charC48Null_session(t *testing.T) {
-	testBindDefine(gen_string(), charC48Null, t, nil)
+	testBindDefine(gen_string48(), charC48Null, t, nil)
 }
 
 func TestBindPtr_string_charC48Null_session(t *testing.T) {
-	testBindPtr(gen_string(), charC48Null, t)
+	testBindPtr(gen_string48(), charC48Null, t)
 }
 
 func TestBindDefine_OraString_charC48Null_session(t *testing.T) {
-	testBindDefine(gen_OraString(true), charC48Null, t, nil)
+	testBindDefine(gen_OraString48(true), charC48Null, t, nil)
 }
 
 func TestBindSlice_string_charC48Null_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), charC48Null, t, nil)
+	testBindDefine(gen_stringSlice48(), charC48Null, t, nil)
 }
 
 func TestBindSlice_OraString_charC48Null_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(true), charC48Null, t, nil)
+	testBindDefine(gen_OraStringSlice48(true), charC48Null, t, nil)
 }
 
 func TestMultiDefine_charC48Null_session(t *testing.T) {
-	testMultiDefine(gen_string(), charC48Null, t)
+	testMultiDefine(gen_string48(), charC48Null, t)
 }
 
 func TestWorkload_charC48Null_session(t *testing.T) {
@@ -144,27 +144,27 @@ func TestBindDefine_charC48Null_nil_session(t *testing.T) {
 // nchar48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nchar48_session(t *testing.T) {
-	testBindDefine(gen_string(), nchar48, t, nil)
+	testBindDefine(gen_string48(), nchar48, t, nil)
 }
 
 func TestBindPtr_string_nchar48_session(t *testing.T) {
-	testBindPtr(gen_string(), nchar48, t)
+	testBindPtr(gen_string48(), nchar48, t)
 }
 
 func TestBindDefine_OraString_nchar48_session(t *testing.T) {
-	testBindDefine(gen_OraString(false), nchar48, t, nil)
+	testBindDefine(gen_OraString48(false), nchar48, t, nil)
 }
 
 func TestBindSlice_string_nchar48_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), nchar48, t, nil)
+	testBindDefine(gen_stringSlice48(), nchar48, t, nil)
 }
 
 func TestBindSlice_OraString_nchar48_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(false), nchar48, t, nil)
+	testBindDefine(gen_OraStringSlice48(false), nchar48, t, nil)
 }
 
 func TestMultiDefine_nchar48_session(t *testing.T) {
-	testMultiDefine(gen_string(), nchar48, t)
+	testMultiDefine(gen_string48(), nchar48, t)
 }
 
 func TestWorkload_nchar48_session(t *testing.T) {
@@ -175,27 +175,27 @@ func TestWorkload_nchar48_session(t *testing.T) {
 //// nchar48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nchar48Null_session(t *testing.T) {
-	testBindDefine(gen_string(), nchar48Null, t, nil)
+	testBindDefine(gen_string48(), nchar48Null, t, nil)
 }
 
 func TestBindPtr_string_nchar48Null_session(t *testing.T) {
-	testBindPtr(gen_string(), nchar48Null, t)
+	testBindPtr(gen_string48(), nchar48Null, t)
 }
 
 func TestBindDefine_OraString_nchar48Null_session(t *testing.T) {
-	testBindDefine(gen_OraString(true), nchar48Null, t, nil)
+	testBindDefine(gen_OraString48(true), nchar48Null, t, nil)
 }
 
 func TestBindSlice_string_nchar48Null_session(t *testing.T) {
-	testBindDefine(gen_stringSlice(), nchar48Null, t, nil)
+	testBindDefine(gen_stringSlice48(), nchar48Null, t, nil)
 }
 
 func TestBindSlice_OraString_nchar48Null_session(t *testing.T) {
-	testBindDefine(gen_OraStringSlice(true), nchar48Null, t, nil)
+	testBindDefine(gen_OraStringSlice48(true), nchar48Null, t, nil)
 }
 
 func TestMultiDefine_nchar48Null_session(t *testing.T) {
-	testMultiDefine(gen_string(), nchar48Null, t)
+	testMultiDefine(gen_string48(), nchar48Null, t)
 }
 
 func TestWorkload_nchar48Null_session(t *testing.T) {

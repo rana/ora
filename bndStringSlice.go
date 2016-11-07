@@ -9,107 +9,156 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"bytes"
-	"unsafe"
-)
+import "unsafe"
 
 type bndStringSlice struct {
-	stmt   *Stmt
-	ocibnd *C.OCIBind
-	bytes  []byte
-	buf    bytes.Buffer
+	stmt    *Stmt
+	ocibnd  *C.OCIBind
+	bytes   []byte
+	strings *[]string
+	values  *[]String
+	maxLen  int
+	arrHlp
 }
 
-func (bnd *bndStringSlice) bindOra(values []String, position int, stmt *Stmt) error {
-	stringValues := make([]string, len(values))
-	nullInds := make([]C.sb2, len(values))
-	for n, _ := range values {
-		if values[n].IsNull {
-			nullInds[n] = C.sb2(-1)
+func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+	L, C := len(*values), cap(*values)
+	if bnd.strings == nil {
+		s := make([]string, L, C)
+		bnd.strings = &s
+	}
+	if cap(*bnd.strings) < C {
+		*bnd.strings = make([]string, L, C)
+	} else {
+		*bnd.strings = (*bnd.strings)[:L]
+	}
+	if cap(bnd.nullInds) < C {
+		bnd.nullInds = make([]C.sb2, L, C)
+	} else {
+		bnd.nullInds = bnd.nullInds[:L]
+	}
+	bnd.values = values
+	for n, v := range *values {
+		if v.IsNull {
+			bnd.nullInds[n] = C.sb2(-1)
 		} else {
-			stringValues[n] = values[n].Value
+			bnd.nullInds[n] = 0
+			(*bnd.strings)[n] = v.Value
 		}
 	}
-	return bnd.bind(stringValues, nullInds, position, stmt)
+	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
 }
 
-func (bnd *bndStringSlice) bind(values []string, nullInds []C.sb2, position int, stmt *Stmt) (err error) {
+func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
-	if nullInds == nil {
-		nullInds = make([]C.sb2, len(values))
+	if values == nil {
+		values = &[]string{}
 	}
-	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
-	rcodep := make([]C.ub2, len(values))
-	var maxLen int
-	for _, str := range values {
+	L, C := len(*values), cap(*values)
+	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
+	if needAppend {
+		*values = append(*values, "")
+	}
+	bnd.strings = values
+	bnd.maxLen = stmt.cfg.stringPtrBufferSize
+	for _, str := range *values {
 		strLen := len(str)
-		if strLen > maxLen {
-			maxLen = strLen
+		if strLen > bnd.maxLen {
+			bnd.maxLen = strLen
 		}
 	}
-	for n, str := range values {
-		_, err = bnd.buf.WriteString(str)
-		if err != nil {
-			return err
-		}
-		// pad to make equal to max len if necessary
-		padLen := maxLen - len(str)
-		for n := 0; n < padLen; n++ {
-			_, err = bnd.buf.WriteRune('0')
-			if err != nil {
-				return err
-			}
-		}
-		alenp[n] = C.ACTUAL_LENGTH_TYPE(len(str))
+	if cap(bnd.bytes) < bnd.maxLen*C {
+		//bnd.bytes = make([]byte, bnd.maxLen*L, bnd.maxLen*C)
+		bnd.bytes = bytesPool.Get(bnd.maxLen * C)[:bnd.maxLen*L]
+	} else {
+		bnd.bytes = bnd.bytes[:bnd.maxLen*L]
 	}
-	bnd.bytes = bnd.buf.Bytes()
+	for m, str := range *values {
+		copy(bnd.bytes[m*bnd.maxLen:], []byte(str))
+		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
+	}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
+		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,              //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),    //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,   //OCIError     *errhp,
-		C.ub4(position),               //ub4          position,
-		unsafe.Pointer(&bnd.bytes[0]), //void         *valuep,
-		C.LENGTH_TYPE(maxLen),         //sb8          value_sz,
-		C.SQLT_CHR,                    //ub2          dty,
-		unsafe.Pointer(&nullInds[0]),  //void         *indp,
-		&alenp[0],                     //ub4          *alenp,
-		&rcodep[0],                    //ub2          *rcodep,
-		0,                             //ub4          maxarr_len,
-		nil,                           //ub4          *curelep,
-		C.OCI_DEFAULT)                 //ub4          mode );
+		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
+		&bnd.ocibnd,                      //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
+		C.ub4(position),                  //ub4          position,
+		unsafe.Pointer(&bnd.bytes[0]),    //void         *valuep,
+		C.LENGTH_TYPE(bnd.maxLen),        //sb8          value_sz,
+		C.SQLT_CHR,                       //ub2          dty,
+		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
+		&bnd.alen[0],                     //ub4          *alenp,
+		&bnd.rcode[0],                    //ub2          *rcodep,
+		getMaxarrLen(C, isAssocArray),    //ub4          maxarr_len,
+		curlenp,       //ub4          *curelep,
+		C.OCI_DEFAULT) //ub4          mode );
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
-		C.ub4(maxLen),       //ub4         pvskip,
-		C.ub4(C.sizeof_sb2), //ub4         indskip,
-		C.ub4(C.sizeof_ub4), //ub4         alskip,
-		C.ub4(C.sizeof_ub2)) //ub4         rcskip
+		C.ub4(bnd.maxLen),                  //ub4         pvskip,
+		C.ub4(C.sizeof_sb2),                //ub4         indskip,
+		C.ub4(C.sizeof_ACTUAL_LENGTH_TYPE), //ub4         alskip,
+		C.ub4(C.sizeof_ub2))                //ub4         rcskip
 	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
+		return iterations, bnd.stmt.ses.srv.env.ociError()
 	}
-	return nil
+	return iterations, nil
 }
 
 func (bnd *bndStringSlice) setPtr() error {
+	if !bnd.IsAssocArr() {
+		return nil
+	}
+	n := int(bnd.curlen)
+	if bnd.strings == nil {
+		s := make([]string, n)
+		bnd.strings = &s
+	}
+	*bnd.strings = (*bnd.strings)[:n]
+	bnd.nullInds = bnd.nullInds[:n]
+	if bnd.values != nil {
+		*bnd.values = (*bnd.values)[:n]
+	}
+	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		"StringSlice.setPtr n=%d alen=%v nulls=%v bytes=%s", n, bnd.alen, bnd.nullInds, bnd.bytes)
+	for i, length := range bnd.alen[:n] {
+		if bnd.nullInds[i] <= C.sb2(-1) {
+			if bnd.values != nil {
+				(*bnd.values)[i].IsNull = true
+			}
+			continue
+		}
+		(*bnd.strings)[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"StringSlice.setPtr[%d]=%s", i, (*bnd.strings)[i])
+		if bnd.values != nil {
+			(*bnd.values)[i].IsNull = false
+			(*bnd.values)[i].Value = (*bnd.strings)[i]
+		}
+	}
 	return nil
 }
 
 func (bnd *bndStringSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
+	bytesPool.Put(bnd.bytes)
 	bnd.bytes = nil
-	bnd.buf.Reset()
+	bnd.strings = nil
+	bnd.values = nil
+	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxStringSlice, bnd)
 	return nil
 }

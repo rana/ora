@@ -5,63 +5,76 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
 import "C"
 import (
+	"strings"
 	"unsafe"
 )
 
 type defString struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
-	null       C.sb2
-	isNullable bool
-	buf        []byte
+	ociDef
+	buf               []byte
+	isNullable, rTrim bool
+	columnSize        int
 }
 
-func (def *defString) define(position int, columnSize int, isNullable bool, rset *Rset) error {
+func (def *defString) define(position int, columnSize int, isNullable, rTrim bool, rset *Rset) error {
 	def.rset = rset
-	def.isNullable = isNullable
-	if cap(def.buf) < columnSize {
-		def.buf = make([]byte, columnSize)
+	def.isNullable, def.rTrim = isNullable, rTrim
+	//Log.Infof("defString position=%d columnSize=%d", position, columnSize)
+	n := columnSize
+	// AL32UTF8: one db "char" can be 4 bytes on wire, esp. if the database's
+	// character set is not AL32UTF8 (e.g. some 8bit fixed width charset), and
+	// the column is VARCHAR2 with byte semantics.
+	//
+	// For example when the db's charset is EE8ISO8859P2, then a VARCHAR2(1) can
+	// contain an "ű", which is 2 bytes AL32UTF8.
+	if !rset.stmt.ses.srv.dbIsUTF8 {
+		n *= 2
 	}
-	// Create oci define handle
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
-		C.SQLT_CHR,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if n == 0 {
+		n = 2
 	}
-	return nil
+	if n%2 != 0 {
+		n++
+	}
+	def.columnSize = n
+	if n := rset.fetchLen * def.columnSize; cap(def.buf) < n {
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
+	} else {
+		def.buf = def.buf[:n]
+	}
+
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), def.columnSize, C.SQLT_CHR)
 }
 
-func (def *defString) value() (value interface{}, err error) {
-	// Buffer is padded with Space char (32)
-	if def.isNullable {
-		oraStringValue := String{IsNull: def.null < 0}
-		if !oraStringValue.IsNull {
-			oraStringValue.Value = stringTrimmed(def.buf, 32)
+func (def *defString) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return String{IsNull: true}, nil
 		}
-		value = oraStringValue
-	} else {
-		if def.null < 0 {
-			value = ""
-		} else {
-			value = stringTrimmed(def.buf, 32)
+		return "", nil
+	}
+	var s string
+	//def.rset.logF(_drv.cfg.Log.Stmt.Bind,
+	//	"%p offset=%d alen=%v, colSize=%d, buf=%v",
+	//	def, offset, def.alen, def.columnSize, def.buf[offset*def.columnSize:offset*def.columnSize+int(def.alen[offset])])
+	if def.alen[offset] > 0 {
+		off := offset * def.columnSize
+		s = string(def.buf[off : off+int(def.alen[offset])])
+		if def.rTrim {
+			s = strings.TrimRight(s, " ")
 		}
 	}
-	return value, err
+	if def.isNullable {
+		return String{Value: s}, nil
+	}
+	return s, nil
 }
 
 func (def *defString) alloc() error {
@@ -69,20 +82,21 @@ func (def *defString) alloc() error {
 }
 
 func (def *defString) free() {
-
 }
 
 func (def *defString) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	clear(def.buf, 32)
+	bytesPool.Put(def.buf)
+	def.buf = nil
+	def.arrHlp.close()
 	rset.putDef(defIdxString, def)
 	return nil
 }

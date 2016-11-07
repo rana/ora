@@ -5,34 +5,42 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndUint8Ptr struct {
 	stmt      *Stmt
 	ocibnd    *C.OCIBind
-	ociNumber C.OCINumber
-	isNull    C.sb2
+	ociNumber [1]C.OCINumber
 	value     *uint8
+	nullp
 }
 
 func (bnd *bndUint8Ptr) bind(value *uint8, position int, stmt *Stmt) error {
+	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Uint8Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
+	bnd.nullp.Set(value == nil)
+	if value != nil {
+		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), byteWidth8); err != nil {
+			return err
+		}
+		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+			"Uint8Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
+	}
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,       //OCIError     *errhp,
-		C.ub4(position),                   //ub4          position,
-		unsafe.Pointer(&bnd.ociNumber),    //void         *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
-		C.SQLT_VNU,                        //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),       //void         *indp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
+		C.ub4(position),                     //ub4          position,
+		unsafe.Pointer(&bnd.ociNumber[0]),   //void         *valuep,
+		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8          value_sz,
+		C.SQLT_VNU,                          //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
@@ -45,24 +53,18 @@ func (bnd *bndUint8Ptr) bind(value *uint8, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndUint8Ptr) setPtr() error {
-	if bnd.isNull > -1 {
-		r := C.OCINumberToInt(
-			bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
-			&bnd.ociNumber,              //const OCINumber       *number,
-			C.uword(1),                  //uword                 rsl_length,
-			C.OCI_NUMBER_UNSIGNED,       //uword                 rsl_flag,
-			unsafe.Pointer(bnd.value))   //void                  *rsl );
-		if r == C.OCI_ERROR {
-			return bnd.stmt.ses.srv.env.ociError()
-		}
+	if bnd.nullp.IsNull() {
+		return nil
 	}
-	return nil
+	i, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], byteWidth8)
+	*bnd.value = uint8(i)
+	return err
 }
 
 func (bnd *bndUint8Ptr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
@@ -70,6 +72,7 @@ func (bnd *bndUint8Ptr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.nullp.Free()
 	stmt.putBnd(bndIdxUint8Ptr, bnd)
 	return nil
 }

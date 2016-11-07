@@ -24,7 +24,7 @@ type bndBoolSlice struct {
 func (bnd *bndBoolSlice) bindOra(values []Bool, position int, falseRune rune, trueRune rune, stmt *Stmt) error {
 	boolValues := make([]bool, len(values))
 	nullInds := make([]C.sb2, len(values))
-	for n, _ := range values {
+	for n := range values {
 		if values[n].IsNull {
 			nullInds[n] = C.sb2(-1)
 		} else {
@@ -41,7 +41,7 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 	}
 	alenp := make([]C.ACTUAL_LENGTH_TYPE, len(values))
 	rcodep := make([]C.ub2, len(values))
-	var maxLen int = 1
+	var maxLen = 1
 	for n, bValue := range values {
 		if bValue {
 			_, err = bnd.buf.WriteRune(trueRune)
@@ -59,8 +59,8 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 	bnd.bytes = bnd.buf.Bytes()
 
 	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,              //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),    //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,   //OCIError     *errhp,
 		C.ub4(position),               //ub4          position,
 		unsafe.Pointer(&bnd.bytes[0]), //void         *valuep,
@@ -97,7 +97,7 @@ func (bnd *bndBoolSlice) setPtr() error {
 func (bnd *bndBoolSlice) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

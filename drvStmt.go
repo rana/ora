@@ -4,7 +4,10 @@
 
 package ora
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+	"fmt"
+)
 
 // DrvStmt is an Oracle statement associated with a session.
 //
@@ -18,7 +21,7 @@ type DrvStmt struct {
 // checkIsOpen validates that the server is open.
 func (ds *DrvStmt) checkIsOpen() error {
 	if ds.stmt == nil {
-		return errNewF("DrvStmt is closed")
+		return er("DrvStmt is closed.")
 	}
 	return nil
 }
@@ -27,11 +30,14 @@ func (ds *DrvStmt) checkIsOpen() error {
 //
 // Close is a member of the driver.Stmt interface.
 func (ds *DrvStmt) Close() error {
+	ds.log(true)
 	if err := ds.checkIsOpen(); err != nil {
-		return err
+		return errE(err)
 	}
-	Log.Infof("E%vS%vS%vS%v] Close", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
-	return ds.stmt.Close()
+	if err := ds.stmt.Close(); err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // NumInput returns the number of placeholders in a sql statement.
@@ -48,22 +54,23 @@ func (ds *DrvStmt) NumInput() int {
 // and a possible error.
 //
 // Exec is a member of the driver.Stmt interface.
-func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error) {
+func (ds *DrvStmt) Exec(values []driver.Value) (driver.Result, error) {
+	ds.log(true)
 	if err := ds.checkIsOpen(); err != nil {
-		return nil, err
+		return nil, errE(err)
 	}
-	Log.Infof("E%vS%vS%vS%v] Exec", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
-	for n, _ := range values {
+	for n := range values {
 		params[n] = values[n]
 	}
-	rowsAffected, lastInsertId, err := ds.stmt.exe(params)
-	if rowsAffected == 0 {
-		result = driver.ResultNoRows
-	} else {
-		result = &DrvExecResult{rowsAffected: rowsAffected, lastInsertId: lastInsertId}
+	rowsAffected, lastInsertId, err := ds.stmt.exe(params, false)
+	if err != nil {
+		return nil, errE(err)
 	}
-	return result, err
+	if rowsAffected == 0 {
+		return driver.RowsAffected(0), nil
+	}
+	return &DrvExecResult{rowsAffected: rowsAffected, lastInsertId: lastInsertId}, nil
 }
 
 // Query runs a SQL query on an Oracle server. Query returns driver.Rows and a
@@ -71,14 +78,37 @@ func (ds *DrvStmt) Exec(values []driver.Value) (result driver.Result, err error)
 //
 // Query is a member of the driver.Stmt interface.
 func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
+	ds.log(true)
 	if err := ds.checkIsOpen(); err != nil {
-		return nil, err
+		return nil, errE(err)
 	}
-	Log.Infof("E%vS%vS%vS%v] Query", ds.stmt.ses.srv.env.id, ds.stmt.ses.srv.id, ds.stmt.ses.id, ds.stmt.id)
 	params := make([]interface{}, len(values))
-	for n, _ := range values {
+	for n := range values {
 		params[n] = values[n]
 	}
 	rset, err := ds.stmt.qry(params)
-	return &DrvQueryResult{rset: rset}, err
+	if err != nil {
+		return nil, errE(err)
+	}
+	return &DrvQueryResult{rset: rset}, nil
+}
+
+// sysName returns a string representing the DrvStmt.
+func (ds *DrvStmt) sysName() string {
+	if ds == nil {
+		return "E_S_S_S_S_"
+	}
+	return ds.stmt.sysName() + fmt.Sprintf("S%v", ds.stmt.id)
+}
+
+// log writes a message with an DrvStmt system name and caller info.
+func (ds *DrvStmt) log(enabled bool, v ...interface{}) {
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", ds.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ds.sysName(), callInfo(1), fmt.Sprint(v...))
+	}
 }

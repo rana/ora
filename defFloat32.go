@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -13,65 +14,45 @@ import (
 	"unsafe"
 )
 
+// defFloat32.go is generated from defFloat32.go!
+
 type defFloat32 struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
-	ociNumber  C.OCINumber
-	null       C.sb2
+	ociDef
+	ociNumber  []C.OCINumber
 	isNullable bool
 }
 
 func (def *defFloat32) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                  //OCIStmt     *stmtp,
-		&def.ocidef,                       //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,  //OCIError    *errhp,
-		C.ub4(position),                   //ub4         position,
-		unsafe.Pointer(&def.ociNumber),    //void        *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8         value_sz,
-		C.SQLT_VNU,                        //ub2         dty,
-		unsafe.Pointer(&def.null),         //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
 	}
-	return nil
+	def.ociNumber = (*((*[MaxFetchLen]C.OCINumber)(C.malloc(C.size_t(rset.fetchLen) * C.sizeof_OCINumber))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ociNumber[0]), C.sizeof_OCINumber, C.SQLT_VNU)
 }
-func (def *defFloat32) value() (value interface{}, err error) {
-	if def.isNullable {
-		oraFloat32Value := Float32{IsNull: def.null < 0}
-		if !oraFloat32Value.IsNull {
-			var float32Value float32
-			r := C.OCINumberToReal(
-				def.rset.stmt.ses.srv.env.ocierr,       //OCIError              *err,
-				&def.ociNumber,                         //const OCINumber     *number,
-				C.uword(4),                             //uword               rsl_length,
-				unsafe.Pointer(&oraFloat32Value.Value)) //void                *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-			value = float32Value
+
+func (def *defFloat32) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Float32{IsNull: true}, nil
 		}
-		value = oraFloat32Value
-	} else {
-		if def.null > -1 {
-			var float32Value float32
-			r := C.OCINumberToReal(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&def.ociNumber,                   //const OCINumber     *number,
-				C.uword(4),                       //uword               rsl_length,
-				unsafe.Pointer(&float32Value))    //void                *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-			value = float32Value
-		}
+		return nil, nil
 	}
-	return value, err
+	var float32Value float32
+	on := def.ociNumber[offset]
+	r := C.OCINumberToReal(
+		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
+		&on,                           //const OCINumber     *number,
+		byteWidth32,                   //uword               rsl_length,
+		unsafe.Pointer(&float32Value)) //void                *rsl );
+	if r == C.OCI_ERROR {
+		err = def.rset.stmt.ses.srv.env.ociError()
+	}
+	if def.isNullable {
+		return Float32{Value: float32Value}, err
+	}
+	return float32Value, err
 }
 
 func (def *defFloat32) alloc() error {
@@ -79,19 +60,23 @@ func (def *defFloat32) alloc() error {
 }
 
 func (def *defFloat32) free() {
-
 }
 
 func (def *defFloat32) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
+		def.ociNumber = nil
+	}
+	def.arrHlp.close()
 	rset.putDef(defIdxFloat32, def)
 	return nil
 }

@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -14,49 +15,38 @@ import (
 )
 
 type defRaw struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
+	ociDef
 	ociRaw     *C.OCIRaw
-	null       C.sb2
 	isNullable bool
 	buf        []byte
+	columnSize int
 }
 
 func (def *defRaw) define(position int, columnSize int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	def.buf = make([]byte, columnSize)
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
-		C.SQLT_BIN,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	def.columnSize = columnSize
+	if n := rset.fetchLen * columnSize; cap(def.buf) < n {
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
+	} else {
+		def.buf = def.buf[:n]
 	}
-	return nil
+
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), columnSize, C.SQLT_BIN)
 }
 
-func (def *defRaw) value() (value interface{}, err error) {
-	if def.isNullable {
-		bytesValue := Binary{IsNull: def.null < 0}
-		if !bytesValue.IsNull {
-			bytesValue.Value = def.buf
+func (def *defRaw) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Raw{IsNull: true}, nil
 		}
-		value = bytesValue
-	} else {
-		if def.null > -1 {
-			value = def.buf
-		}
+		return nil, nil
 	}
-	return value, err
+	if def.isNullable {
+		return Raw{Value: def.buf[offset*def.columnSize : (offset+1)*def.columnSize]}, nil
+	}
+	return def.buf[offset*def.columnSize : (offset+1)*def.columnSize], nil
 }
 
 func (def *defRaw) alloc() error {
@@ -64,13 +54,12 @@ func (def *defRaw) alloc() error {
 }
 
 func (def *defRaw) free() {
-
 }
 
 func (def *defRaw) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
@@ -78,7 +67,9 @@ func (def *defRaw) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.ociRaw = nil
+	bytesPool.Put(def.buf)
 	def.buf = nil
+	def.arrHlp.close()
 	rset.putDef(defIdxRaw, def)
 	return nil
 }

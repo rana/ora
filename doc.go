@@ -14,8 +14,8 @@ application communication and driver communication with Oracle databases.
 
 The ora package has been verified to work with:
 
-	Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
 	Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
+	Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
 
 Installation
 
@@ -24,21 +24,16 @@ Oracle 11g (11.2.0.4.0) or Oracle Instant Client (11.2.0.4.0).
 
 Install Oracle or Oracle Instant Client.
 
-Set the CGO_CFLAGS and CGO_LDFLAGS environment variables to locate the OCI headers
-and library. For example:
+Copy the [oci8.pc](contrib/oci8.pc) from the `contrib` folder
+(or the one for your system, maybe tailored to your specific locations) to a folder
+in `$PKG_CONFIG_PATH` or a system folder, such as
 
-	// example OS environment variables for Oracle 12c on Windows
-	CGO_CFLAGS=-Ic:/oracle/home/OCI/include/
-	CGO_LDFLAGS=c:/oracle/home/BIN/oci.dll
+	cp -aL contrib/oci8.pc /usr/local/lib/pkgconfig/oci8.pc
 
-CGO_CFLAGS identifies the location of the OCI header file. CGO_LDFLAGS identifies
-the location of the OCI library. These locations will vary based on whether an Oracle
-database is locally installed or whether the Oracle instant client libraries are
-locally installed.
+The ora package has no external Go dependencies and is available on GitHub and
+gopkg.in:
 
-The ora package has no external Go dependencies and is available on GitHub:
-
-	go get github.com/rana/ora
+	go get gopkg.in/rana/ora.v3
 
 Data Types
 
@@ -83,8 +78,9 @@ The ora package implements interfaces in the database/sql/driver package enablin
 database/sql to communicate with an Oracle database. Using database/sql
 ensures you never have to call the ora package directly.
 
-When using database/sql, the mapping between Go types and Oracle types may not
-be changed. The Go-to-Oracle type mapping for database/sql is:
+When using database/sql, the mapping between Go types and Oracle types may be
+changed slightly. The database/sql package has strict expectations on Go return
+types. The Go-to-Oracle type mapping for database/sql is:
 
 	Go type		Oracle type
 
@@ -116,6 +112,21 @@ be changed. The Go-to-Oracle type mapping for database/sql is:
 
 	³ The Go bool value false is mapped to the zero rune '0'. The Go bool value
 	true is mapped to the one rune '1'.
+
+The "ora" driver is automatically registered for use with sql.Open, but you can
+call ora.SetDrvCfg to set the used configuration options including
+statement configuration and Rset configuration.
+
+    func init() {
+		drvCfg := ora.NewDrvCfg()
+		drvCfg.Env.StmtCfg.FalseRune = 'N'
+		drvCfg.Env.StmtCfg.TrueRune = 'Y'
+		drvCfg.Env.StmtCfg.Rset.TrueRune = 'Y'
+		ora.SetDrvCfg(drvCfg)
+	}
+
+When configuring the driver for use with database/sql, keep in mind that
+database/sql has strict Go type-to-Oracle type mapping expectations.
 
 Working With The Oracle Package Directly
 
@@ -165,10 +176,11 @@ may be changed. The Go-to-Oracle type mapping for the ora package is:
 	[]bool
 	[]Bool
 
-	[]byte				BLOB, LONG RAW, RAW
-	[][]byte
-	Binary
-	[]Binary
+	[]byte, [][]byte	BLOB
+
+	Lob, []Lob, *Lob	BLOB, CLOB
+
+	Raw, []Raw			RAW, LONG RAW
 
 	IntervalYM			INTERVAL MONTH TO YEAR
 	[]IntervalYM
@@ -201,23 +213,28 @@ An example of using the ora package directly:
 
 	import (
 		"fmt"
-		"github.com/rana/ora"
+		"gopkg.in/rana/ora.v3"
 	)
 
 	func main() {
 		// example usage of the ora package driver
 		// connect to a server and open a session
-		env, err := ora.GetDrv().OpenEnv()
+		env, err := ora.OpenEnv(nil)
 		defer env.Close()
 		if err != nil {
 			panic(err)
 		}
-		srv, err := env.OpenSrv("orcl")
+		srvCfg := ora.SrvCfg{Dblink: "orcl"}
+		srv, err := env.OpenSrv(&srvCfg)
 		defer srv.Close()
 		if err != nil {
 			panic(err)
 		}
-		ses, err := srv.OpenSes("test", "test")
+		sesCfg := ora.SesCfg{
+			Username: "test",
+			Password: "test",
+		}
+		ses, err := srv.OpenSes(sesCfg)
 		defer ses.Close()
 		if err != nil {
 			panic(err)
@@ -381,12 +398,12 @@ An example of using the ora package directly:
 		// 4
 		// 1 Go is expressive, concise, clean, and efficient.
 		// 2 Its concurrency mechanisms make it easy to
-		// 3 <empty>
+		// 3
 		// 4 It's a fast, statically typed, compiled
 		// 5 One of Go's key design goals is code
 		// 1
 		// 1
-		// 3 <empty>
+		// 3
 		// 4 It's a fast, statically typed, compiled
 		// 5 One of Go's key design goals is code
 		// 3
@@ -537,28 +554,46 @@ GoColumnTypes defined by the ora package are:
 
 	[]byte		Bin
 
-	Binary		OraBin
+	Raw			Bin
 
-	default°	D
+	Lob°		Bin or S
 
-	° D represents a default mapping between a select-list column and a Go type.
+	default¹	D
+
+	° Lob will return binary data if the Oracle column is a BLOB; otherwise, Lob
+	  will return a string if the Oracle column is a CLOB.
+
+	¹ D represents a default mapping between a select-list column and a Go type.
 	The default mapping is defined in RsetCfg.
 
 When Stmt.Prep doesn't receive a GoColumnType, or receives an incorrect GoColumnType,
 the default value defined in RsetCfg is used.
 
-There are two configuration structs, StmtCfg and RsetCfg.
-StmtCfg configures various aspects of a Stmt. RsetCfg configures
-various aspects of Rset, including the default mapping between an Oracle select-list
-column and a Go type. StmtCfg may be set in an Env, Srv, Ses
-and Stmt. RsetCfg may be set in a StmtCfg.
+EnvCfg, SrvCfg, SesCfg, StmtCfg and RsetCfg are the main configuration structs.
+EnvCfg configures aspects of an Env. SrvCfg configures aspects of a Srv. SesCfg
+configures aspects of a Ses. StmtCfg configures aspects of a Stmt. RsetCfg
+configures aspects of Rset. StmtCfg and RsetCfg have the most options to
+configure. RsetCfg defines the default mapping between an Oracle select-list
+column and a Go type. StmtCfg may be set in an EnvCfg, SrvCfg, SesCfg and StmtCfg.
+RsetCfg may be set in a Stmt.
 
-Setting StmtCfg on Env, Srv, Ses or Stmt cascades the StmtCfg to all current
-and future descendent structs. An Env may contain multiple Srvs. A Srv may contain
-multiple Ses. A Ses may contain multiple Stmt. A Stmt may contain multiple Rset.
+EnvCfg.StmtCfg, SrvCfg.StmtCfg, SesCfg.StmtCfg may optionally be specified to
+configure a statement. If StmtCfg isn't specified default values are applied.
+EnvCfg.StmtCfg, SrvCfg.StmtCfg, SesCfg.StmtCfg cascade to new descendent structs.
+When ora.OpenEnv() is called a specified EnvCfg is used or a default EnvCfg is
+created. Creating a Srv with env.OpenSrv() will use SrvCfg.StmtCfg if
+it is specified; otherwise, EnvCfg.StmtCfg is copied by value to SrvCfg.StmtCfg.
+Creating a Ses with srv.OpenSes() will use SesCfg.StmtCfg if it is specified;
+otherwise, SrvCfg.StmtCfg is copied by value to SesCfg.StmtCfg. Creating a Stmt
+with ses.Prep() will use SesCfg.StmtCfg if it is specified; otherwise, a new
+StmtCfg with default values is set on the Stmt. Call Stmt.Cfg() to change a Stmt's
+configuration.
 
-	// setting StmtCfg cascades to descendent structs
-	// Env -> Srv -> Ses -> Stmt -> Rset
+An Env may contain multiple Srv. A Srv may contain multiple Ses. A Ses may
+contain multiple Stmt. A Stmt may contain multiple Rset.
+
+	// StmtCfg cascades to descendent structs
+	// EnvCfg -> SrvCfg -> SesCfg -> StmtCfg -> RsetCfg
 
 Setting a RsetCfg on a StmtCfg does not cascade through descendent structs.
 Configuration of Stmt.Cfg takes effect prior to calls to Stmt.Exe and
@@ -568,62 +603,64 @@ or Stmt.Qry are not observed.
 One configuration scenario may be to set a server's select statements to return
 nullable Go types by default:
 
-	sc := NewStmtCfg()
-	sc.Rset.SetNumberScaless(ora.OraI64)
-	sc.Rset.SetNumberScaled(ora.OraF64)
-	sc.Rset.SetBinaryDouble(ora.OraF64)
-	sc.Rset.SetBinaryFloat(ora.OraF64)
-	sc.Rset.SetFloat(ora.OraF64)
-	sc.Rset.SetDate(ora.OraT)
-	sc.Rset.SetTimestamp(ora.OraT)
-	sc.Rset.SetTimestampTz(ora.OraT)
-	sc.Rset.SetTimestampLtz(ora.OraT)
-	sc.Rset.SetChar1(ora.OraB)
-	sc.Rset.SetVarchar(ora.OraS)
-	sc.Rset.SetLong(ora.OraS)
-	sc.Rset.SetClob(ora.OraS)
-	sc.Rset.SetBlob(ora.OraBin)
-	sc.Rset.SetRaw(ora.OraBin)
-	sc.Rset.SetLongRaw(ora.OraBin)
-	srv, err := env.OpenSrv("orcl")
-	// setting the server StmtCfg will cascade to any open Sess, Stmts
-	// any new Ses, Stmt will receive this StmtCfg
+	sc := &ora.SrvCfg{Dblink: "orcl"}
+	sc.Dblink = "orcl"
+	sc.StmtCfg.Rset.SetNumberInt(ora.OraI64)
+	sc.StmtCfg.Rset.SetNumberFloat(ora.OraF64)
+	sc.StmtCfg.Rset.SetBinaryDouble(ora.OraF64)
+	sc.StmtCfg.Rset.SetBinaryFloat(ora.OraF64)
+	sc.StmtCfg.Rset.SetFloat(ora.OraF64)
+	sc.StmtCfg.Rset.SetDate(ora.OraT)
+	sc.StmtCfg.Rset.SetTimestamp(ora.OraT)
+	sc.StmtCfg.Rset.SetTimestampTz(ora.OraT)
+	sc.StmtCfg.Rset.SetTimestampLtz(ora.OraT)
+	sc.StmtCfg.Rset.SetChar1(ora.OraS)
+	sc.StmtCfg.Rset.SetVarchar(ora.OraS)
+	sc.StmtCfg.Rset.SetLong(ora.OraS)
+	sc.StmtCfg.Rset.SetClob(ora.OraS)
+	sc.StmtCfg.Rset.SetBlob(ora.OraBin)
+	sc.StmtCfg.Rset.SetRaw(ora.OraBin)
+	sc.StmtCfg.Rset.SetLongRaw(ora.OraBin)
+	srv, err := env.OpenSrv(sc)
+	// any new SesCfg.StmtCfg, StmtCfg.Cfg will receive this StmtCfg
 	// any new Rset will receive the StmtCfg.Rset configuration
-	srv.SetStmtCfg(sc)
 
 Another scenario may be to configure the runes mapped to bool values:
 
 	// update StmtCfg to change the FalseRune and TrueRune inserted into the database
 	// given: CREATE TABLE T1 (C1 CHAR(1 BYTE))
 
+	stmt.Cfg().Char1(ora.OraB)
+
 	// insert 'false' record
 	var falseValue bool = false
 	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Cfg.FalseRune = 'N'
+	stmt.Cfg().FalseRune = 'N'
 	stmt.Exe(falseValue)
 
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, err = ses.Prep("INSERT INTO T1 (C1) VALUES (:C1)")
-	stmt.Cfg.TrueRune = 'Y'
+	stmt.Cfg().TrueRune = 'Y'
 	stmt.Exe(trueValue)
 
 	// update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
 	stmt, err = ses.Prep("SELECT C1 FROM T1")
-	stmt.Cfg.Rset.TrueRune = 'Y'
+	stmt.Cfg().Rset.TrueRune = 'Y'
 	rset, err := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
 
-Oracle-specific types offered by the ora package are Rset, IntervalYM, IntervalDS,
-Binary and Bfile.
-Rset represents an Oracle SYS_REFCURSOR. IntervalYM represents an Oracle INTERVAL YEAR TO MONTH.
-IntervalDS represents an Oracle INTERVAL DAY TO SECOND. Binary represents an Oracle
-BLOB. And Bfile represents an Oracle BFILE. ROWID columns are returned as strings
-and don't have a unique Go type.
+Oracle-specific types offered by the ora package are ora.Rset, ora.IntervalYM,
+ora.IntervalDS, ora.Raw, ora.Lob and ora.Bfile. ora.Rset represents an Oracle
+SYS_REFCURSOR. ora.IntervalYM represents an Oracle INTERVAL YEAR TO MONTH.
+ora.IntervalDS represents an Oracle INTERVAL DAY TO SECOND. ora.Raw represents
+an Oracle RAW or LONG RAW. ora.Lob may represent an Oracle BLOB or Oracle CLOB.
+And ora.Bfile represents an Oracle BFILE. ROWID columns are returned as strings and
+don't have a unique Go type.
 
 Rset is used to obtain Go values from a SQL select statement. Methods Rset.Next,
 Rset.NextRow, and Rset.Len are available. Fields Rset.Row, Rset.Err,
@@ -860,13 +897,13 @@ and dropped over the lifetime of a table Ses.Sel is easy to read and revise.
 		"C20", ora.U64,
 		"C21", ora.F32)
 
-The Srv.Ping method checks whether the client's connection to an
+The Ses.Ping method checks whether the client's connection to an
 Oracle server is valid. A call to Ping requires an open Ses. Ping
 will return a nil error when the connection is fine:
 
 	// open a session before calling Ping
 	ses, _ := srv.OpenSes("username", "password")
-	err := srv.Ping()
+	err := ses.Ping()
 	if err == nil {
 		fmt.Println("Ping successful")
 	}
@@ -890,16 +927,22 @@ The ora package provides a simple ora.Logger interface for logging. Logging is
 disabled by default. Specify one of three optional built-in logging packages to
 enable logging; or, use your own logging package.
 
+ora.Cfg().Log offers various options to enable or disable logging of specific
+ora driver methods. For example:
+
+	// enable logging of the Rset.Next method
+	ora.Cfg().Log.Rset.Next = true
+
 To use the standard Go log package:
 
 	import (
-		"github.com/rana/ora"
-		"github.com/rana/ora/lg"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/lg"
 	)
 
 	func main() {
-		// use the optional log package for ora logging
-		ora.Log = lg.Log
+		// use an optional log package for ora logging
+		ora.Cfg().Log.Logger = lg.Log
 	}
 
 which produces a sample log of:
@@ -925,8 +968,8 @@ To use the glog package:
 
 	import (
 		"flag"
-		"github.com/rana/ora"
-		"github.com/rana/ora/glg"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/glg"
 	)
 
 	func main() {
@@ -936,7 +979,7 @@ To use the glog package:
 		flag.Parse()
 
 		// use the optional glog package for ora logging
-		ora.Log = glg.Log
+		ora.Cfg().Log.Logger = glg.Log
 	}
 
 which produces a sample log of:
@@ -957,12 +1000,12 @@ which produces a sample log of:
 To use the log15 package:
 
 	import (
-		"github.com/rana/ora"
-		"github.com/rana/ora/lg15"
+		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v3/lg15"
 	)
 	func main() {
 		// use the optional log15 package for ora logging
-		ora.Log = lg15.Log
+		ora.Cfg().Log.Logger = lg15.Log
 	}
 
 which produces a sample log of:
@@ -1006,7 +1049,7 @@ Non-container test database setup steps:
 	CREATE PROCEDURE, UNLIMITED TABLESPACE TO test;
 
 	// 5. increase the number allowable open cursors
-	ALTER SYSTEM SET OPEN_CURSORS = 4000 SCOPE=BOTH;
+	ALTER SYSTEM SET OPEN_CURSORS = 400 SCOPE=BOTH;
 
 	// 6. create OS environment variables
 	// specify your_database_name; varies based on installation; may be 'orcl'
@@ -1068,9 +1111,9 @@ database/sql method Stmt.QueryRow is not supported.
 
 License
 
-Copyright 2014 Rana Ian. All rights reserved.
+Copyright 2015 Rana Ian. All rights reserved.
 Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 
 */
-package ora
+package ora // import "gopkg.in/rana/ora.v3"

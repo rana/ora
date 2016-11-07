@@ -16,37 +16,34 @@ import (
 )
 
 type bndTimePtr struct {
-	stmt        *Stmt
-	ocibnd      *C.OCIBind
-	ociDateTime *C.OCIDateTime
-	isNull      C.sb2
-	value       *time.Time
-	cZone       *C.char
+	stmt   *Stmt
+	ocibnd *C.OCIBind
+	value  *time.Time
+	dateTimep
+	nullp
 }
 
 func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 	bnd.stmt = stmt
-	bnd.value = value
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),         //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&bnd.ociDateTime)), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                            //ub4           type,
-		0,   //size_t        xtramem_sz,
-		nil) //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return bnd.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci timestamp handle during bind")
+	bnd.nullp.Set(value == nil || value.IsZero())
+	if err := bnd.dateTimep.Alloc(bnd.stmt.ses.srv.env); err != nil {
+		return err
 	}
-	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                              //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),                    //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                   //OCIError     *errhp,
-		C.ub4(position),                               //ub4          position,
-		unsafe.Pointer(&bnd.ociDateTime),              //void         *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTime)), //sb8          value_sz,
-		C.SQLT_TIMESTAMP_TZ,                           //ub2          dty,
-		unsafe.Pointer(&bnd.isNull),                   //void         *indp,
+	bnd.value = value
+	if value != nil {
+		if err := bnd.dateTimep.Set(bnd.stmt.ses.srv.env, *value); err != nil {
+			return err
+		}
+	}
+	r := C.OCIBINDBYPOS(
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
+		bnd.stmt.ses.srv.env.ocierr,             //OCIError     *errhp,
+		C.ub4(position),                         //ub4          position,
+		unsafe.Pointer(bnd.dateTimep.Pointer()), //void         *valuep,
+		C.LENGTH_TYPE(bnd.dateTimep.Size()),     //sb8          value_sz,
+		C.SQLT_TIMESTAMP_TZ,                     //ub2          dty,
+		unsafe.Pointer(bnd.nullp.Pointer()),     //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,
 		0,             //ub4          maxarr_len,
@@ -59,31 +56,30 @@ func (bnd *bndTimePtr) bind(value *time.Time, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndTimePtr) setPtr() (err error) {
-	if bnd.value != nil && bnd.isNull > -1 {
-		*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.ociDateTime)
+	if bnd.value == nil { // cannot set on a nil pointer
+		return nil
 	}
+	if bnd.nullp.IsNull() {
+		*bnd.value = time.Time{} // zero time
+		return nil
+	}
+	*bnd.value, err = getTime(bnd.stmt.ses.srv.env, bnd.dateTimep.Value())
 	return err
 }
 
 func (bnd *bndTimePtr) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
-	if bnd.cZone != nil {
-		C.free(unsafe.Pointer(bnd.cZone))
-		bnd.cZone = nil
-		C.OCIDescriptorFree(
-			unsafe.Pointer(bnd.ociDateTime), //void     *descp,
-			C.OCI_DTYPE_TIMESTAMP_TZ)        //ub4      type );
-	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil
-	bnd.ociDateTime = nil
 	bnd.value = nil
+	bnd.dateTimep.Free()
+	bnd.nullp.Free()
 	stmt.putBnd(bndIdxTimePtr, bnd)
 	return nil
 }

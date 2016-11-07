@@ -14,10 +14,11 @@ import (
 	"unsafe"
 )
 
+const rowidLen = 19
+
 type defRowid struct {
-	rset   *Rset
-	ocidef *C.OCIDefine
-	buf    []byte
+	ociDef
+	buf []byte
 }
 
 func (def *defRowid) define(position int, rset *Rset) error {
@@ -25,54 +26,40 @@ func (def *defRowid) define(position int, rset *Rset) error {
 	// using a character host variable of width between 19
 	// (18 bytes plus the null-terminator) and 4001 as the
 	// host bind variable for universal ROWID.
-	if len(def.buf) < 4001 {
-		def.buf = make([]byte, 4001)
+	if n := rset.fetchLen * rowidLen; cap(def.buf) < n {
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
+	} else {
+		def.buf = def.buf[:n]
 	}
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(len(def.buf)),      //sb8         value_sz,
-		C.SQLT_STR,                       //ub2         dty,
-		nil,                              //void        *indp,
-		nil,                              //ub2         *rlenp,
-		nil,                              //ub2         *rcodep,
-		C.OCI_DEFAULT)                    //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), rowidLen, C.SQLT_STR)
 }
 
-func (def *defRowid) value() (value interface{}, err error) {
-	n := bytes.Index(def.buf, []byte{0})
+func (def *defRowid) value(offset int) (value interface{}, err error) {
+	n := bytes.Index(def.buf[offset*rowidLen:(offset+1)*rowidLen], []byte{0})
 	if n == -1 {
-		n = len(def.buf)
+		n = rowidLen
 	}
-	value = string(def.buf[:n])
+	value = string(def.buf[offset*rowidLen : offset*rowidLen+n])
 	return value, err
 }
 
-func (def *defRowid) alloc() error {
-	return nil
-}
-
-func (def *defRowid) free() {
-}
+func (def *defRowid) alloc() error { return nil }
+func (def *defRowid) free()        {}
 
 func (def *defRowid) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	clear(def.buf, 32)
+	def.arrHlp.close()
+	bytesPool.Put(def.buf)
+	def.buf = nil
 	rset.putDef(defIdxRowid, def)
 	return nil
 }

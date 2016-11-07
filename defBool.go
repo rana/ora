@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -15,55 +16,40 @@ import (
 )
 
 type defBool struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
-	null       C.sb2
+	ociDef
 	isNullable bool
+	columnSize int
 	buf        []byte
 }
 
 func (def *defBool) define(position int, columnSize int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	if cap(def.buf) < columnSize {
-		def.buf = make([]byte, columnSize)
+	def.columnSize = columnSize
+	if n := rset.fetchLen * columnSize; cap(def.buf) < n {
+		//def.buf = make([]byte, n)
+		def.buf = bytesPool.Get(n)
+	} else {
+		def.buf = def.buf[:n]
 	}
-	Log.Infof("defBool.define(position=%d, columnSize=%d)", position, columnSize)
-	// Create oci define handle
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                 //OCIStmt     *stmtp,
-		&def.ocidef,                      //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),                  //ub4         position,
-		unsafe.Pointer(&def.buf[0]),      //void        *valuep,
-		C.LENGTH_TYPE(columnSize),        //sb8         value_sz,
-		C.SQLT_AFC,                       //ub2         dty,
-		unsafe.Pointer(&def.null),        //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	}
-	return nil
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.buf[0]), columnSize, C.SQLT_AFC)
 }
 
-func (def *defBool) value() (value interface{}, err error) {
-	Log.Infof("%v.value", def)
-	if def.isNullable {
-		oraBoolValue := Bool{IsNull: def.null < 0}
-		if !oraBoolValue.IsNull {
-			r, _ := utf8.DecodeRune(def.buf)
-			oraBoolValue.Value = r == def.rset.stmt.Cfg.Rset.TrueRune
+func (def *defBool) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Bool{IsNull: true}, nil
 		}
-		return oraBoolValue, nil
+		return nil, nil
 	}
-	if def.null > -1 {
-		r, _ := utf8.DecodeRune(def.buf)
-		return r == def.rset.stmt.Cfg.Rset.TrueRune, nil
+	//Log.Infof("%v.value", def)
+	buf := def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
+	if def.isNullable {
+		r, _ := utf8.DecodeRune(buf)
+		return Bool{Value: r == def.rset.stmt.cfg.Rset.TrueRune}, nil
 	}
-	// NULL is false, too
-	return false, nil
+	r, _ := utf8.DecodeRune(buf)
+	return r == def.rset.stmt.cfg.Rset.TrueRune, nil
 }
 
 func (def *defBool) alloc() error {
@@ -71,20 +57,21 @@ func (def *defBool) alloc() error {
 }
 
 func (def *defBool) free() {
-
 }
 
 func (def *defBool) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	clear(def.buf, 0)
+	bytesPool.Put(def.buf)
+	def.buf = nil
+	def.arrHlp.close()
 	rset.putDef(defIdxBool, def)
 	return nil
 }

@@ -23,7 +23,7 @@ func (bnd *bndNil) bind(position int, sqlt C.ub2, stmt *Stmt) error {
 	indp := C.sb2(-1)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),  //OCIBind      **bindpp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.ub4(position),             //ub4          position,
 		nil,                         //void         *valuep,
@@ -49,7 +49,7 @@ func (bnd *bndNil) setPtr() error {
 func (bnd *bndNil) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

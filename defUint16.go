@@ -5,94 +5,74 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
+
+// Generate all the def[IU]int{8,16,32,16}.go from defUint16.go
+//
+// Generated from defUint16.go by go run gen.go
 
 type defUint16 struct {
-	rset       *Rset
-	ocidef     *C.OCIDefine
-	ociNumber  C.OCINumber
-	null       C.sb2
+	ociDef
+	ociNumber  []C.OCINumber
 	isNullable bool
 }
 
 func (def *defUint16) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                  //OCIStmt     *stmtp,
-		&def.ocidef,                       //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,  //OCIError    *errhp,
-		C.ub4(position),                   //ub4         position,
-		unsafe.Pointer(&def.ociNumber),    //void        *valuep,
-		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8         value_sz,
-		C.SQLT_VNU,                        //ub2         dty,
-		unsafe.Pointer(&def.null),         //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
+	}
+	def.ociNumber = (*((*[MaxFetchLen]C.OCINumber)(C.malloc(C.size_t(rset.fetchLen) * C.sizeof_OCINumber))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.ociNumber[0]), C.sizeof_OCINumber, C.SQLT_VNU)
+}
+
+func (def *defUint16) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Uint16{IsNull: true}, nil
+		}
+		return nil, nil
+	}
+	var uint16Value uint16
+	on := def.ociNumber[offset]
+	r := C.OCINumberToInt(
+		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
+		&on,                         //const OCINumber       *number,
+		byteWidth16,                 //uword                 rsl_length,
+		C.OCI_NUMBER_UNSIGNED,         //uword                 rsl_flag,
+		unsafe.Pointer(&uint16Value)) //void                  *rsl );
 	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+		err = def.rset.stmt.ses.srv.env.ociError()
 	}
-	return nil
-}
-
-func (def *defUint16) value() (value interface{}, err error) {
 	if def.isNullable {
-		oraUint16Value := Uint16{IsNull: def.null < 0}
-		if !oraUint16Value.IsNull {
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr,      //OCIError              *err,
-				&def.ociNumber,                        //const OCINumber       *number,
-				C.uword(2),                            //uword                 rsl_length,
-				C.OCI_NUMBER_UNSIGNED,                 //uword                 rsl_flag,
-				unsafe.Pointer(&oraUint16Value.Value)) //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-		}
-		value = oraUint16Value
-	} else {
-		if def.null > -1 {
-			var uint16Value uint16
-			r := C.OCINumberToInt(
-				def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-				&def.ociNumber,                   //const OCINumber       *number,
-				C.uword(2),                       //uword                 rsl_length,
-				C.OCI_NUMBER_UNSIGNED,            //uword                 rsl_flag,
-				unsafe.Pointer(&uint16Value))     //void                  *rsl );
-			if r == C.OCI_ERROR {
-				err = def.rset.stmt.ses.srv.env.ociError()
-			}
-			value = uint16Value
-		}
+		return Uint16{Value: uint16Value}, err
 	}
-	return value, err
+	return uint16Value, err
 }
 
-func (def *defUint16) alloc() error {
-	return nil
-}
-
-func (def *defUint16) free() {
-
-}
+func (def *defUint16) alloc() error { return nil }
+func (def *defUint16) free()        {}
 
 func (def *defUint16) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
-
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
+	if def.ociNumber != nil {
+		C.free(unsafe.Pointer(&def.ociNumber[0]))
+		def.ociNumber = nil
+	}
+	def.arrHlp.close()
 	rset.putDef(defIdxUint16, def)
 	return nil
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"fmt"
@@ -141,4 +141,53 @@ func TestStmt_Exe_select(t *testing.T) {
 	if 2 != rset.Len() {
 		t.Fatalf("rows affected: expected(%v), actual(%v)", 2, rset.Len())
 	}
+}
+
+func Benchmark_SimpleInsert(b *testing.B) {
+	tableName := tableName()
+	testSes.PrepAndExe("CREATE TABLE " + tableName + " (F_id NUMBER, F_text VARCHAR2(30))")
+	defer testSes.PrepAndExe("DROP TABLE " + tableName)
+
+	ids, names := mkBenchArrays()
+	stmt, err := testSes.Prep("INSERT INTO " + tableName + " (F_id, F_text) VALUES (:1, :2)")
+	testErr(err, b)
+
+	b.SetBytes(int64(len(ids)) * 1024)
+	b.ResetTimer()
+	for j := 0; j < b.N; j++ {
+		for i := range ids {
+			_, err = stmt.Exe(ids[i], names[i])
+		}
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func Benchmark_MultiInsert(b *testing.B) {
+	tableName := tableName()
+	testSes.PrepAndExe("CREATE TABLE " + tableName + " (F_id NUMBER, F_text VARCHAR2(30))")
+	defer testSes.PrepAndExe("DROP TABLE " + tableName)
+
+	ids, names := mkBenchArrays()
+	stmt, err := testSes.Prep("INSERT INTO " + tableName + " (F_id, F_text) VALUES (:1, :2)")
+	testErr(err, b)
+
+	b.SetBytes(int64(len(ids)) * 1024)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err = stmt.Exe(ids, names); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func mkBenchArrays() ([]int64, []string) {
+	ids := make([]int64, 1000)
+	names := make([]string, len(ids))
+	for i := range ids {
+		ids[i] = int64(i)
+		names[i] = fmt.Sprintf("col%02d/%02d", i, len(ids))
+	}
+	return ids, names
 }

@@ -12,53 +12,118 @@ import "C"
 import (
 	"bytes"
 	"container/list"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unsafe"
 )
 
+type SesCfg struct {
+	Username string
+	Password string
+	StmtCfg  *StmtCfg
+	Mode     SessionMode
+}
+
+type SessionMode uint8
+
+const (
+	// SysDefault is the default, normal session mode.
+	SysDefault = SessionMode(iota)
+	// SysDba is for connecting as SYSDBA.
+	SysDba
+	// SysOper is for connectiong as SYSOPER.
+	SysOper
+)
+
+// LogSesCfg represents Ses logging configuration values.
+type LogSesCfg struct {
+	// Close determines whether the Ses.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// PrepAndExe determines whether the Ses.PrepAndExe method is logged.
+	//
+	// The default is true.
+	PrepAndExe bool
+
+	// PrepAndQry determines whether the Ses.PrepAndQry method is logged.
+	//
+	// The default is true.
+	PrepAndQry bool
+
+	// Prep determines whether the Ses.Prep method is logged.
+	//
+	// The default is true.
+	Prep bool
+
+	// Ins determines whether the Ses.Ins method is logged.
+	//
+	// The default is true.
+	Ins bool
+
+	// Upd determines whether the Ses.Upd method is logged.
+	//
+	// The default is true.
+	Upd bool
+
+	// Sel determines whether the Ses.Sel method is logged.
+	//
+	// The default is true.
+	Sel bool
+
+	// StartTx determines whether the Ses.StartTx method is logged.
+	//
+	// The default is true.
+	StartTx bool
+
+	// Ping determines whether the Ses.Ping method is logged.
+	//
+	// The default is true.
+	Ping bool
+
+	// Break determines whether the Ses.Break method is logged.
+	//
+	// The default is true.
+	Break bool
+}
+
+// NewLogSesCfg creates a LogSesCfg with default values.
+func NewLogSesCfg() LogSesCfg {
+	c := LogSesCfg{}
+	c.Close = true
+	c.PrepAndExe = true
+	c.PrepAndQry = true
+	c.Prep = true
+	c.Ins = true
+	c.Upd = true
+	c.Sel = true
+	c.StartTx = true
+	c.Ping = true
+	c.Break = true
+	return c
+}
+
 // Ses is an Oracle session associated with a server.
 type Ses struct {
-	id     uint64
-	srv    *Srv
-	ocises *C.OCISession
+	id        uint64
+	cfg       SesCfg
+	mu        sync.Mutex
+	srv       *Srv
+	ocisvcctx *C.OCISvcCtx
+	ocises    *C.OCISession
+	isLocked  bool
 
-	txId     uint64
-	stmtId   uint64
-	txs      *list.List
-	stmts    *list.List
-	elem     *list.Element
-	stmtCfg  StmtCfg
-	username string
-}
+	openStmts *stmtList
+	openTxs   *txList
 
-// NumStmt returns the number of open Oracle statements.
-func (ses *Ses) NumStmt() int {
-	return ses.stmts.Len()
-}
-
-// NumTx returns the number of open Oracle transactions.
-func (ses *Ses) NumTx() int {
-	return ses.txs.Len()
-}
-
-// checkIsOpen validates that the session is open.
-func (ses *Ses) checkIsOpen() error {
-	if ses == nil {
-		return errNew("Ses is not initialized")
-	}
-	if !ses.IsOpen() {
-		return errNewF("Ses is closed (id %v)", ses.id)
-	}
-	return nil
-}
-
-// IsOpen returns true when a session is open; otherwise, false.
-//
-// Calling Close will cause Ses.IsOpen to return false. Once closed, a session
-// cannot be re-opened. Call Srv.OpenSes to open a new session.
-func (ses *Ses) IsOpen() bool {
-	return ses.srv != nil
+	insteadClose func(ses *Ses) error
+	timezone     *time.Location
+	sysNamer
 }
 
 // Close ends a session on an Oracle server.
@@ -68,69 +133,132 @@ func (ses *Ses) IsOpen() bool {
 // Calling Close will cause Ses.IsOpen to return false. Once closed, a session
 // cannot be re-opened. Call Srv.OpenSes to open a new session.
 func (ses *Ses) Close() (err error) {
-	if err := ses.checkIsOpen(); err != nil {
+	if ses == nil {
+		return nil
+	}
+	ses.mu.Lock()
+	if ses.srv == nil {
+		ses.mu.Unlock()
+		return nil
+	}
+	if ses.insteadClose != nil {
+		err = ses.insteadClose(ses)
+		ses.mu.Unlock()
 		return err
 	}
-	Log.Infof("E%vS%vS%v] Close", ses.srv.env.id, ses.srv.id, ses.id)
-	errs := ses.srv.env.drv.listPool.Get().(*list.List)
+	ses.srv.mu.Lock()
+	ses.srv.openSess.remove(ses)
+	ses.srv.mu.Unlock()
+	ses.mu.Unlock()
+	return ses.close()
+}
+
+// close ends a session on an Oracle server.
+// does not remove Ses from Srv.openSess
+func (ses *Ses) close() (err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Ses.Close)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			Log.Errorln(recoverMsg(value))
-			errs.PushBack(errRecover(value))
+			errs.PushBack(errR(value))
 		}
 
-		srv := ses.srv
-		srv.sess.Remove(ses.elem)
-		ses.txs.Init()
-		ses.stmts.Init()
+		ses.cfg.StmtCfg = nil
 		ses.srv = nil
+		ses.ocisvcctx = nil
 		ses.ocises = nil
-		ses.elem = nil
-		ses.username = ""
-		srv.env.drv.sesPool.Put(ses)
+		ses.openStmts.clear()
+		ses.openTxs.clear()
+		_drv.sesPool.Put(ses)
 
-		m := newMultiErrL(errs)
-		if m != nil {
-			err = *m
+		multiErr := newMultiErrL(errs)
+		if multiErr != nil {
+			err = errE(*multiErr)
 		}
 		errs.Init()
-		srv.env.drv.listPool.Put(errs)
+		_drv.listPool.Put(errs)
 	}()
 
 	// close transactions
-	// this does not rollback or commit any transactions
-	// any open transactions will be timedout by the server
-	for e := ses.txs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Tx).close()
-	}
-	// close statements
-	for e := ses.stmts.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Stmt).Close()
-		errs.PushBack(err0)
-	}
+	// close does not rollback or commit any transactions
+	// Expect user to make explicit Commit or Rollback.
+	// Any open transactions will be timedout by the server
+	// if not explicitly committed or rolledback.
+	ses.openTxs.closeAll(errs)
+	ses.openStmts.closeAll(errs) // close statements
+
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	r := C.OCISessionEnd(
-		ses.srv.ocisvcctx,  //OCISvcCtx       *svchp,
+		ses.ocisvcctx,      //OCISvcCtx       *svchp,
 		ses.srv.env.ocierr, //OCIError        *errhp,
 		ses.ocises,         //OCISession      *usrhp,
 		C.OCI_DEFAULT)      //ub4             mode );
 	if r == C.OCI_ERROR {
-		errs.PushBack(ses.srv.env.ociError())
+		errs.PushBack(errE(ses.srv.env.ociError()))
 	}
-
-	return err
+	return nil
 }
 
 // PrepAndExe prepares and executes a SQL statement returning the number of rows
+// affected and a possible error, using Exe, calling in batch for arrays.
+//
+// WARNING: just as sql.QueryRow, the prepared statement is closed right after
+// execution, with all its siblings (Lobs, Rsets...)!
+//
+// So if you want to retrieve and use such objects, you have to first Prep,
+// then Exe separately (and close the Stmt returned by Prep after finishing with
+// those objects).
+func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error) {
+	return ses.prepAndExe(sql, false, params...)
+}
+
+// PrepAndExeP prepares and executes a SQL statement returning the number of rows
+// affected and a possible error, using ExeP, so passing arrays as is.
+func (ses *Ses) PrepAndExeP(sql string, params ...interface{}) (rowsAffected uint64, err error) {
+	return ses.prepAndExe(sql, true, params...)
+}
+
+// prepAndExe prepares and executes a SQL statement returning the number of rows
 // affected and a possible error.
-func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (uint64, error) {
-	stmt, err := ses.Prep(sql)
-	defer stmt.Close()
+func (ses *Ses) prepAndExe(sql string, isAssocArray bool, params ...interface{}) (rowsAffected uint64, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
+	ses.log(_drv.cfg.Log.Ses.PrepAndExe)
+	err = ses.checkClosed()
 	if err != nil {
-		return 0, err
+		return 0, errE(err)
 	}
-	return stmt.Exe(params...)
+	stmt, err := ses.Prep(sql)
+	defer func() {
+		if stmt != nil {
+			err0 := stmt.Close()
+			if err == nil { // don't overwrite original err
+				err = err0
+			}
+		}
+	}()
+	if err != nil {
+		return 0, errE(err)
+	}
+	if isAssocArray {
+		rowsAffected, err = stmt.ExeP(params...)
+	} else {
+		rowsAffected, err = stmt.Exe(params...)
+	}
+	if err != nil {
+		return rowsAffected, errE(err)
+	}
+	return rowsAffected, nil
 }
 
 // PrepAndQry prepares a SQL statement and queries an Oracle server returning
@@ -140,129 +268,91 @@ func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (uint64, error) {
 //
 // The *Stmt internal to this method is automatically closed when the *Rset
 // retrieves all rows or returns an error.
-func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (*Rset, error) {
+func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (rset *Rset, err error) {
+	ses.log(_drv.cfg.Log.Ses.PrepAndQry)
+	err = ses.checkClosed()
+	if err != nil {
+		return nil, errE(err)
+	}
 	stmt, err := ses.Prep(sql)
 	if err != nil {
 		defer stmt.Close()
-		return nil, err
+		return nil, errE(err)
 	}
-	rset, err := stmt.Qry(params...)
+	rset, err = stmt.Qry(params...)
 	if err != nil {
 		defer stmt.Close()
-		return nil, err
+		return nil, errE(err)
 	}
 	rset.autoClose = true
 	return rset, nil
 }
 
 // Prep prepares a sql statement returning a *Stmt and possible error.
-func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (*Stmt, error) {
-	if err := ses.checkIsOpen(); err != nil {
-		return nil, err
+func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
+	if ses == nil {
+		return nil, er("ses may not be nil.")
 	}
-	Log.Infof("E%vS%vS%v] Prep: %v", ses.srv.env.id, ses.srv.id, ses.id, sql)
-	// allocate statement handle
-	ocistmt, err := ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
+	ses.log(_drv.cfg.Log.Ses.Prep, sql)
+	err = ses.checkClosed()
 	if err != nil {
-		return nil, err
+		return nil, errE(err)
 	}
-	// prepare sql text with statement handle
-	cSql := C.CString(sql)
+	ocistmt := (*C.OCIStmt)(nil)
+	cSql := C.CString(sql) // prepare sql text with statement handle
 	defer C.free(unsafe.Pointer(cSql))
-	r := C.OCIStmtPrepare(
-		(*C.OCIStmt)(ocistmt),              // OCIStmt       *stmtp,
+	r := C.OCIStmtPrepare2(
+		ses.ocisvcctx,                      // OCISvcCtx     *svchp,
+		&ocistmt,                           // OCIStmt       *stmtp,
 		ses.srv.env.ocierr,                 // OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(cSql)), // const OraText *stmt,
 		C.ub4(len(sql)),                    // ub4           stmt_len,
+		nil,                                // const OraText *key,
+		C.ub4(0),                           // ub4           keylen,
 		C.OCI_NTV_SYNTAX,                   // ub4           language,
 		C.OCI_DEFAULT)                      // ub4           mode );
 	if r == C.OCI_ERROR {
-		return nil, ses.srv.env.ociError()
+		return nil, errE(ses.srv.env.ociError())
 	}
-
 	// set stmt struct
-	stmt := ses.srv.env.drv.stmtPool.Get().(*Stmt)
-	if stmt.id == 0 {
-		ses.stmtId++
-		stmt.id = ses.stmtId
-	}
+	stmt = _drv.stmtPool.Get().(*Stmt)
+	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
-	// determine statement type
-	var stmtType C.ub4
-	err = stmt.attr(unsafe.Pointer(&stmtType), 4, C.OCI_ATTR_STMT_TYPE)
-	if err != nil {
-		err2 := stmt.Close()
-		if err2 != nil {
-			return nil, err2
+	stmtCfg := ses.cfg.StmtCfg
+	if stmtCfg == nil {
+		stmtCfg = ses.srv.cfg.StmtCfg
+		if stmtCfg == nil {
+			stmtCfg = NewStmtCfg()
 		}
-		return nil, err
 	}
-	stmt.gcts = gcts
+	if !ses.srv.dbIsUTF8 && stmtCfg.stringPtrBufferSize > 1000 {
+		stmtCfg.stringPtrBufferSize = 1000
+	}
+	stmt.cfg = *stmtCfg
 	stmt.sql = sql
-	stmt.stmtType = stmtType
-	stmt.Cfg = ses.stmtCfg
-	stmt.elem = ses.stmts.PushBack(stmt)
+	stmt.gcts = gcts
+	if stmt.id == 0 {
+		stmt.id = _drv.stmtId.nextId()
+	}
+	st, err := stmt.attr(2, C.OCI_ATTR_STMT_TYPE) // determine statement type
+	if err != nil {
+		stmt.mu.Unlock()
+		return nil, errE(err)
+	}
+	stmt.stmtType = *((*C.ub2)(st))
+	C.free(unsafe.Pointer(st))
+	ses.openStmts.add(stmt)
+	stmt.mu.Unlock()
 
 	return stmt, nil
-}
-
-// Sel composes, prepares and queries a sql SELECT statement returning an *ora.Rset
-// and possible error.
-//
-// Sel offers convenience when specifying a long list of sql columns with
-// non-default GoColumnTypes.
-//
-// Specify a sql FROM clause with one or more pairs of sql column
-// name-GoColumnType pairs. The FROM clause may have additional SQL clauses
-// such as WHERE, HAVING, etc.
-func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (*Rset, error) {
-	if len(columnPairs) == 0 {
-		return nil, errNew("no column name-type pairs specified")
-	}
-	if len(columnPairs)%2 != 0 {
-		return nil, errNew("variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements")
-	}
-	// build select statement, gcts
-	gcts := make([]GoColumnType, len(columnPairs)/2)
-	buf := new(bytes.Buffer)
-	buf.WriteString("SELECT ")
-	for n := 0; n < len(columnPairs); n += 2 {
-		columnName, ok := columnPairs[n].(string)
-		if !ok {
-			return nil, errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
-		}
-		gct, ok := columnPairs[n+1].(GoColumnType)
-		if !ok {
-			return nil, errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type ora.GoColumnType", n+1)
-		}
-		buf.WriteString(columnName)
-		if n != len(columnPairs)-2 {
-			buf.WriteRune(',')
-		}
-		buf.WriteRune(' ')
-		gcts[n/2] = gct
-	}
-	// add FROM keyword?
-	fromIndex := strings.Index(strings.ToUpper(sqlFrom), "FROM")
-	if fromIndex < 0 {
-		buf.WriteString("FROM ")
-	}
-	buf.WriteString(sqlFrom)
-	// prep
-	stmt, err := ses.Prep(buf.String(), gcts...)
-	if err != nil {
-		defer stmt.Close()
-		return nil, err
-	}
-	// qry
-	rset, err := stmt.Qry() // TODO: add params for query?
-	if err != nil {
-		defer stmt.Close()
-		return nil, err
-	}
-	rset.autoClose = true
-	return rset, nil
 }
 
 // Ins composes, prepares and executes a sql INSERT statement returning a
@@ -276,14 +366,19 @@ func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (*Rset, error) {
 // to the variadic parameter 'columnPairs' is expected to be a pointer capable
 // of receiving the identity value.
 func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
+	ses.log(_drv.cfg.Log.Ses.Ins)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
 	if tbl == "" {
-		return errNew("tbl is empty")
+		return errF("tbl is empty.")
 	}
 	if len(columnPairs) < 2 {
-		return errNew("'columnPairs' expects at least 2 column name-value pairs")
+		return errF("Parameter 'columnPairs' expects at least 2 column name-value pairs.")
 	}
 	if len(columnPairs)%2 != 0 {
-		return errNew("variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements")
+		return errF("Variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements.")
 	}
 	// build INSERT statement, params slice
 	params := make([]interface{}, len(columnPairs)/2)
@@ -296,7 +391,7 @@ func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 		n := p * 2
 		columnName, ok := columnPairs[n].(string)
 		if !ok {
-			return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
+			return errF("Variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
 		}
 		if p == len(params)-1 {
 			lastColName = columnName
@@ -319,15 +414,16 @@ func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 	buf.WriteString(" RETURNING ")
 	buf.WriteString(lastColName)
 	buf.WriteString(" INTO :RET_VAL")
-	// prep
-	stmt, err := ses.Prep(buf.String())
-	defer stmt.Close()
+	stmt, err := ses.Prep(buf.String()) // prep
 	if err != nil {
-		return err
+		return errE(err)
 	}
-	// exe
-	_, err = stmt.Exe(params...)
-	return err
+	defer stmt.Close()
+	_, err = stmt.Exe(params...) // exe
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // Upd composes, prepares and executes a sql UPDATE statement returning a
@@ -335,14 +431,19 @@ func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 //
 // Upd offers convenience when specifying a long list of sql columns.
 func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
+	ses.log(_drv.cfg.Log.Ses.Upd)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
 	if tbl == "" {
-		return errNew("tbl is empty")
+		return errF("tbl is empty.")
 	}
 	if len(columnPairs) < 2 {
-		return errNew("'columnPairs' expects at least 2 column name-value pairs")
+		return errF("Parameter 'columnPairs' expects at least 2 column name-value pairs.")
 	}
 	if len(columnPairs)%2 != 0 {
-		return errNew("variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements")
+		return errF("Variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements.")
 	}
 	// build UPDATE statement, params slice
 	params := make([]interface{}, len(columnPairs)/2)
@@ -355,7 +456,7 @@ func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
 		n := p * 2
 		columnName, ok := columnPairs[n].(string)
 		if !ok {
-			return errNewF("variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
+			return errF("Variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
 		}
 		if p == len(params)-1 {
 			lastColName = columnName
@@ -371,58 +472,313 @@ func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
 	buf.WriteString(" WHERE ")
 	buf.WriteString(lastColName)
 	buf.WriteString(" = :WHERE_VAL")
-	// prep
-	stmt, err := ses.Prep(buf.String())
-	defer stmt.Close()
+	stmt, err := ses.Prep(buf.String()) // prep
+	defer func() {
+		err = stmt.Close()
+		if err != nil {
+			err = errE(err)
+		}
+	}()
 	if err != nil {
-		return err
+		return errE(err)
 	}
-	// exe
-	_, err = stmt.Exe(params...)
-	return err
+	_, err = stmt.Exe(params...) // exe
+	if err != nil {
+		return errE(err)
+	}
+	return nil
+}
+
+// Sel composes, prepares and queries a sql SELECT statement returning an *ora.Rset
+// and possible error.
+//
+// Sel offers convenience when specifying a long list of sql columns with
+// non-default GoColumnTypes.
+//
+// Specify a sql FROM clause with one or more pairs of sql column
+// name-GoColumnType pairs. The FROM clause may have additional SQL clauses
+// such as WHERE, HAVING, etc.
+func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (rset *Rset, err error) {
+	ses.log(_drv.cfg.Log.Ses.Sel)
+	err = ses.checkClosed()
+	if err != nil {
+		return nil, errE(err)
+	}
+	if len(columnPairs) == 0 {
+		return nil, errF("No column name-type pairs specified.")
+	}
+	if len(columnPairs)%2 != 0 {
+		return nil, errF("Variadic parameter 'columnPairs' received an odd number of elements. Parameter 'columnPairs' expects an even number of elements.")
+	}
+	// build select statement, gcts
+	gcts := make([]GoColumnType, len(columnPairs)/2)
+	buf := new(bytes.Buffer)
+	buf.WriteString("SELECT ")
+	for n := 0; n < len(columnPairs); n += 2 {
+		columnName, ok := columnPairs[n].(string)
+		if !ok {
+			return nil, errF("Variadic parameter 'columnPairs' expected an element at index %v to be of type string", n)
+		}
+		gct, ok := columnPairs[n+1].(GoColumnType)
+		if !ok {
+			return nil, errF("Variadic parameter 'columnPairs' expected an element at index %v to be of type ora.GoColumnType", n+1)
+		}
+		buf.WriteString(columnName)
+		if n != len(columnPairs)-2 {
+			buf.WriteRune(',')
+		}
+		buf.WriteRune(' ')
+		gcts[n/2] = gct
+	}
+	// add FROM keyword?
+	fromIndex := strings.Index(strings.ToUpper(sqlFrom), "FROM")
+	if fromIndex < 0 {
+		buf.WriteString("FROM ")
+	}
+	buf.WriteString(sqlFrom)
+	// prep
+	stmt, err := ses.Prep(buf.String(), gcts...)
+	if err != nil {
+		defer stmt.Close()
+		return nil, errE(err)
+	}
+	// qry
+	rset, err = stmt.Qry()
+	if err != nil {
+		defer stmt.Close()
+		return nil, errE(err)
+	}
+	rset.autoClose = true
+	return rset, nil
 }
 
 // StartTx starts an Oracle transaction returning a *Tx and possible error.
-func (ses *Ses) StartTx() (*Tx, error) {
-	if err := ses.checkIsOpen(); err != nil {
-		return nil, err
+func (ses *Ses) StartTx() (tx *Tx, err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Ses.StartTx)
+	err = ses.checkClosed()
+	if err != nil {
+		return nil, errE(err)
 	}
-	Log.Infof("E%vS%vS%v] StartTx", ses.srv.env.id, ses.srv.id, ses.id)
 	// start transaction
 	// the number of seconds the transaction can be inactive
 	// before it is automatically terminated by the system.
 	// TODO: add timeout config value
-	var timeout C.uword = C.uword(60)
+	var timeout = C.uword(60)
 	r := C.OCITransStart(
-		ses.srv.ocisvcctx,  //OCISvcCtx    *svchp,
+		ses.ocisvcctx,      //OCISvcCtx    *svchp,
 		ses.srv.env.ocierr, //OCIError     *errhp,
 		timeout,            //uword        timeout,
 		C.OCI_TRANS_NEW)    //ub4          flags );
 	if r == C.OCI_ERROR {
-		return nil, ses.srv.env.ociError()
+		return nil, errE(ses.srv.env.ociError())
 	}
-
-	// set tx struct
-	tx := ses.srv.env.drv.txPool.Get().(*Tx)
-	if tx.id == 0 {
-		ses.txId++
-		tx.id = ses.txId
-	}
+	tx = _drv.txPool.Get().(*Tx) // set *Tx
 	tx.ses = ses
-	tx.elem = ses.txs.PushFront(tx)
+	if tx.id == 0 {
+		tx.id = _drv.txId.nextId()
+	}
+	ses.openTxs.add(tx)
 
 	return tx, nil
 }
 
-// Sets the StmtCfg on the Session and all open Session Statements.
-func (ses *Ses) SetStmtCfg(c StmtCfg) {
-	ses.stmtCfg = c
-	for e := ses.stmts.Front(); e != nil; e = e.Next() {
-		e.Value.(*Stmt).Cfg = c
+// Ping returns nil when an Oracle server is contacted; otherwise, an error.
+func (ses *Ses) Ping() (err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Ses.Ping)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	r := C.OCIPing(
+		ses.ocisvcctx,      //OCISvcCtx     *svchp,
+		ses.srv.env.ocierr, //OCIError      *errhp,
+		C.OCI_DEFAULT)      //ub4           mode );
+	if r == C.OCI_ERROR {
+		return errE(ses.srv.env.ociError())
+	}
+	return nil
+}
+
+// Break stops the currently running OCI function.
+func (ses *Ses) Break() (err error) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.cfg.Log.Ses.Break)
+	err = ses.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr)
+	if r == C.OCI_ERROR {
+		return errE(ses.srv.env.ociError())
+	}
+	return nil
+}
+
+// NumStmt returns the number of open Oracle statements.
+func (ses *Ses) NumStmt() int {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	return ses.openStmts.len()
+}
+
+// NumTx returns the number of open Oracle transactions.
+func (ses *Ses) NumTx() int {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	return ses.openTxs.len()
+}
+
+// SetCfg applies the specified cfg to the Ses.
+//
+// Open Stmts do not observe the specified cfg.
+func (ses *Ses) SetCfg(cfg SesCfg) {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.cfg = cfg
+}
+
+// Cfg returns the Ses's cfg.
+func (ses *Ses) Cfg() *SesCfg {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	return &ses.cfg
+}
+
+// IsOpen returns true when a session is open; otherwise, false.
+//
+// Calling Close will cause Ses.IsOpen to return false. Once closed, a session
+// cannot be re-opened. Call Srv.OpenSes to open a new session.
+func (ses *Ses) IsOpen() bool {
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	return ses.checkClosed() == nil
+}
+
+// checkClosed returns an error if Ses is closed. No locking occurs.
+func (ses *Ses) checkClosed() error {
+	if ses == nil || ses.ocises == nil {
+		return er("Ses is closed.")
+	}
+	return ses.srv.checkClosed()
+}
+
+// sysName returns a string representing the Ses.
+func (ses *Ses) sysName() string {
+	if ses == nil {
+		return "E_S_S_"
+	}
+	return ses.sysNamer.Name(func() string { return fmt.Sprintf("%sS%v", ses.srv.sysName(), ses.id) })
+}
+
+// Timezone return the current session's timezone.
+func (ses *Ses) Timezone() (*time.Location, error) {
+	if ses.timezone != nil {
+		return ses.timezone, nil
+	}
+	rset, err := ses.PrepAndQry("select CAST(tz_offset(sessiontimezone) AS VARCHAR2(7)) from dual")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		for rset.Next() {
+		}
+	}()
+	hasRow := rset.Next()
+	if !hasRow {
+		return nil, errors.New("no time zone returned from database")
+	}
+	var value string
+	switch x := rset.Row[0].(type) {
+	case string:
+		value = x
+	case String:
+		value = x.String()
+	}
+	value = strings.Trim(value, " \x00")
+	if value == "" {
+		return nil, fmt.Errorf("unable to retrieve database timezone (%#v)", rset.Row[0])
+	}
+	var sign int
+	if strings.HasPrefix(value, "-") {
+		sign = -1
+		value = strings.Replace(value, "-", "", 1)
+	} else {
+		sign = 1
+	}
+	strs := strings.Split(value, ":")
+	if strs == nil || len(strs) != 2 {
+		return nil, errors.New("unable to parse database timezone offset")
+	}
+	hourOffset, err := strconv.ParseInt(strs[0], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	minStr := strs[1]
+	minOffset, err := strconv.ParseInt(minStr, 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	offset := sign * ((int(hourOffset) * 3600) + (int(minOffset) * 60))
+	ses.timezone = time.FixedZone(value, offset)
+	return ses.timezone, nil
+}
+
+// SetAction sets the MODULE and ACTION attribute of the session.
+func (ses *Ses) SetAction(module, action string) error {
+	if len(module) > 48 {
+		module = module[:48]
+	}
+	cModule := C.CString(module)
+	defer C.free(unsafe.Pointer(cModule))
+	if err := ses.srv.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(cModule), C.ub4(len(module)), C.OCI_ATTR_MODULE,
+	); err != nil {
+		return errE(err)
+	}
+
+	if len(action) > 32 {
+		action = action[:32]
+	}
+	cAction := C.CString(action)
+	defer C.free(unsafe.Pointer(cAction))
+	if err := ses.srv.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+		unsafe.Pointer(cAction), C.ub4(len(action)), C.OCI_ATTR_ACTION,
+	); err != nil {
+		return errE(err)
+	}
+	return nil
+}
+
+// log writes a message with an Ses system name and caller info.
+func (ses *Ses) log(enabled bool, v ...interface{}) {
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
 	}
 }
 
-// StmtCfg returns a *StmtCfg.
-func (ses *Ses) StmtCfg() *StmtCfg {
-	return &ses.stmtCfg
+// log writes a formatted message with an Ses system name and caller info.
+func (ses *Ses) logF(enabled bool, format string, v ...interface{}) {
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
+	}
 }

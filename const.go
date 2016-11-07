@@ -4,16 +4,7 @@
 
 package ora
 
-const (
-	// The driver name registered with the database/sql package.
-	Name string = "ora"
-
-	// The driver version sent to an Oracle server and visible in
-	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
-	Version string = "v1.01"
-)
-
-// ColumnGoType defines the Go type returned from a sql select column.
+// GoColumnType defines the Go type returned from a sql select column.
 type GoColumnType uint
 
 // go column types
@@ -76,6 +67,10 @@ const (
 	Bin
 	// OraBin defines a sql select column as a nullable Go ora.Binary.
 	OraBin
+	// N defines a sql select column as a Go string for number.
+	N
+	// OraN defines a sql select column as a nullable Go string for number.
+	OraN
 )
 
 // bind pool indexes
@@ -90,6 +85,7 @@ const (
 	bndIdxUint8
 	bndIdxFloat64
 	bndIdxFloat32
+	bndIdxNumString
 
 	bndIdxInt64Ptr
 	bndIdxInt32Ptr
@@ -101,6 +97,7 @@ const (
 	bndIdxUint8Ptr
 	bndIdxFloat64Ptr
 	bndIdxFloat32Ptr
+	bndIdxNumStringPtr
 
 	bndIdxInt64Slice
 	bndIdxInt32Slice
@@ -112,10 +109,15 @@ const (
 	bndIdxUint8Slice
 	bndIdxFloat64Slice
 	bndIdxFloat32Slice
+	bndIdxNumStringSlice
 
 	bndIdxTime
 	bndIdxTimePtr
 	bndIdxTimeSlice
+
+	bndIdxDate
+	bndIdxDatePtr
+	bndIdxDateSlice
 
 	bndIdxString
 	bndIdxStringPtr
@@ -127,6 +129,9 @@ const (
 
 	bndIdxBin
 	bndIdxBinSlice
+	bndIdxLob
+	bndIdxLobPtr
+	bndIdxLobSlice
 
 	bndIdxIntervalYM
 	bndIdxIntervalYMSlice
@@ -150,8 +155,10 @@ const (
 	defIdxUint8
 	defIdxFloat64
 	defIdxFloat32
+	defIdxOCINum
 
 	defIdxTime
+	defIdxDate
 	defIdxString
 	defIdxBool
 
@@ -163,4 +170,5 @@ const (
 	defIdxIntervalDS
 	defIdxBfile
 	defIdxRowid
+	defIdxRset
 )

@@ -2,7 +2,7 @@
 //Use of this source code is governed by The MIT License
 //found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
 	"testing"
@@ -12,31 +12,31 @@ import (
 // date
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_time_d_date_session(t *testing.T) {
-	testBindDefine(gen_date(), date, t, nil)
+	testBindDefine(gen_date(), dateNotNull, t, nil)
 }
 
 func TestBindPtr_time_d_date_session(t *testing.T) {
-	testBindPtr(gen_date(), date, t)
+	testBindPtr(gen_date(), dateNotNull, t)
 }
 
 func TestBindDefine_OraTime_d_date_session(t *testing.T) {
-	testBindDefine(gen_OraDate(false), date, t, nil)
+	testBindDefine(gen_OraDate(false), dateNotNull, t, nil)
 }
 
 func TestBindSlice_time_d_date_session(t *testing.T) {
-	testBindDefine(gen_dateSlice(), date, t, nil)
+	testBindDefine(gen_dateSlice(), dateNotNull, t, nil)
 }
 
 func TestBindSlice_OraTime_d_date_session(t *testing.T) {
-	testBindDefine(gen_OraDateSlice(false), date, t, nil)
+	testBindDefine(gen_OraDateSlice(false), dateNotNull, t, nil)
 }
 
 func TestMultiDefine_date_session(t *testing.T) {
-	testMultiDefine(gen_date(), date, t)
+	testMultiDefine(gen_date(), dateNotNull, t)
 }
 
 func TestWorkload_date_session(t *testing.T) {
-	testWorkload(date, t)
+	testWorkload(dateNotNull, t)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -257,6 +257,7 @@ func TestBindSlice_time_timestampLtzP9Null_session(t *testing.T) {
 }
 
 func TestBindSlice_OraTime_timestampLtzP9Null_session(t *testing.T) {
+	//enableLogging(t)
 	testBindDefine(gen_OraTimeSlice(true), timestampLtzP9Null, t, nil)
 }
 

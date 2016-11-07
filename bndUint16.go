@@ -9,14 +9,12 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 type bndUint16 struct {
 	stmt      *Stmt
 	ocibnd    *C.OCIBind
-	ociNumber C.OCINumber
+	ociNumber [1]C.OCINumber
 }
 
 func (bnd *bndUint16) bind(value uint16, position int, stmt *Stmt) error {
@@ -24,18 +22,18 @@ func (bnd *bndUint16) bind(value uint16, position int, stmt *Stmt) error {
 	r := C.OCINumberFromInt(
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 		unsafe.Pointer(&value),      //const void          *inum,
-		2, //uword               inum_length,
-		C.OCI_NUMBER_UNSIGNED, //uword               inum_s_flag,
-		&bnd.ociNumber)        //OCINumber           *number );
+		byteWidth16,                 //uword               inum_length,
+		C.OCI_NUMBER_UNSIGNED,         //uword               inum_s_flag,
+		&bnd.ociNumber[0])           //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
 	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                  //OCIStmt      *stmtp,
-		(**C.OCIBind)(&bnd.ocibnd),        //OCIBind      **bindpp,
+		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
+		&bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,       //OCIError     *errhp,
 		C.ub4(position),                   //ub4          position,
-		unsafe.Pointer(&bnd.ociNumber),    //void         *valuep,
+		unsafe.Pointer(&bnd.ociNumber[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
 		C.SQLT_VNU,                        //ub2          dty,
 		nil,                               //void         *indp,
@@ -57,7 +55,7 @@ func (bnd *bndUint16) setPtr() error {
 func (bnd *bndUint16) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 

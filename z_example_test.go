@@ -2,15 +2,21 @@
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
-package ora
+package ora_test
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"gopkg.in/rana/ora.v3"
 )
 
 func dbName() string {
@@ -30,7 +36,10 @@ func ExampleDrvStmt_Exec_insert() {
 
 	// placeholder ':c1' is bound by position; ':c1' may be any name
 	var value int64 = 9
-	result, _ := db.Exec(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName), value)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName), value)
+	if err != nil {
+		panic(err)
+	}
 	rowsAffected, _ := result.RowsAffected()
 	fmt.Println(rowsAffected)
 	// Output: 1
@@ -52,7 +61,7 @@ func ExampleDrvStmt_Exec_insert_return_identity() {
 
 	// use a 'returning into' SQL clause and specify a nil parameter to Exec
 	// placeholder ':c1' is bound by position; ':c1' may be any name
-	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 into :c1", tableName), nil)
+	result, err := db.Exec(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 /*lastinsertid*/ into :c1", tableName), nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error inserting 'go' with returning: %v", err)
 		return
@@ -155,11 +164,11 @@ func ExampleDrvStmt_Exec_Query() {
 
 func ExampleStmt_Exe_insert() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -179,11 +188,11 @@ func ExampleStmt_Exe_insert() {
 
 func ExampleStmt_Exe_insert_return_identity() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -211,11 +220,11 @@ func ExampleStmt_Exe_insert_return_identity() {
 
 func ExampleStmt_Exe_insert_return_rowid() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -238,11 +247,11 @@ func ExampleStmt_Exe_insert_return_rowid() {
 
 func ExampleStmt_Exe_insert_fetch_bool() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -263,9 +272,12 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 	stmt.Exe(trueValue)
 
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
-	rset, _ := stmt.Qry()
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
 	}
@@ -274,11 +286,11 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 
 func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -292,21 +304,22 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	var falseValue bool = false
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Cfg.FalseRune = 'N'
+	stmtCfg := stmt.Cfg()
+	stmtCfg.FalseRune = 'N'
 	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	stmt, _ = ses.Prep("insert into "+tableName+" (c1) values (:c1)", ora.B)
 	defer stmt.Close()
-	stmt.Cfg.TrueRune = 'Y'
+	stmtCfg.TrueRune = 'Y'
 	stmt.Exe(trueValue)
 
 	// Update RsetCfg to change the TrueRune
 	// used to translate an Oracle char to a Go bool
 	// fetch inserted records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
-	stmt.Cfg.Rset.TrueRune = 'Y'
+	stmtCfg.Rset.TrueRune = 'Y'
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
@@ -316,11 +329,11 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 
 func ExampleStmt_Exe_update() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -345,11 +358,11 @@ func ExampleStmt_Exe_update() {
 
 func ExampleStmt_Exe_delete() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -373,11 +386,11 @@ func ExampleStmt_Exe_delete() {
 
 func ExampleStmt_Exe_insert_slice() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -387,7 +400,7 @@ func ExampleStmt_Exe_insert_slice() {
 	stmt.Exe()
 
 	// insert one million rows with single round-trip to server
-	values := make([]int64, 1000000)
+	values := make([]int64, 1000)
 	for n, _ := range values {
 		values[n] = int64(n)
 	}
@@ -395,16 +408,16 @@ func ExampleStmt_Exe_insert_slice() {
 	defer stmt.Close()
 	rowsAffected, _ := stmt.Exe(values)
 	fmt.Println(rowsAffected)
-	// Output: 1000000
+	// Output: 1000
 }
 
 func ExampleStmt_Exe_insert_nullable() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -415,9 +428,9 @@ func ExampleStmt_Exe_insert_nullable() {
 
 	// create nullable Go types for inserting null
 	// insert record
-	a := Int64{IsNull: true}
-	b := String{IsNull: true}
-	c := Bool{IsNull: true}
+	a := ora.Int64{IsNull: true}
+	b := ora.String{IsNull: true}
+	c := ora.Bool{IsNull: true}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1, c2, c3) values (:c1, :c2, :c3)", tableName))
 	defer stmt.Close()
 	rowsAffected, _ := stmt.Exe(a, b, c)
@@ -427,11 +440,11 @@ func ExampleStmt_Exe_insert_nullable() {
 
 func ExampleStmt_Exe_insert_fetch_blob() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -457,7 +470,12 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
-	fmt.Println(row[0])
+	b, err := ioutil.ReadAll(row[0].(io.Reader))
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+	} else {
+		fmt.Println(b)
+	}
 
 	// Output:
 	// 1
@@ -466,11 +484,11 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 
 func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// note the NUMBER column
@@ -489,7 +507,8 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
-	stmt.Cfg.SetByteSlice(U8)
+	stmtCfg := stmt.Cfg()
+	stmtCfg.SetByteSlice(ora.U8)
 	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
@@ -508,11 +527,11 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 
 func ExampleStmt_Qry() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -545,11 +564,11 @@ func ExampleStmt_Qry() {
 
 func ExampleStmt_Qry_nullable() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -572,22 +591,22 @@ func ExampleStmt_Qry_nullable() {
 
 	// Specify nullable return types to the Prep method
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName), OraI64, OraS, OraB)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c2, c3 from %v", tableName), ora.OraI64, ora.OraS, ora.OraB)
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v %v %v, ", rset.Row[0], rset.Row[1], rset.Row[2])
 	}
-	// Output: {true 0} {false slice} {false false}, {false 7} {true } {false true}, {false 9} {false channel} {true false},
+	// Output: {true 0} slice {false false}, {false 7}  {false true}, {false 9} channel {true false},
 }
 
 func ExampleStmt_Qry_numerics() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -602,7 +621,7 @@ func ExampleStmt_Qry_numerics() {
 
 	// Specify various numeric return types to the Prep method
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), I64, I32, I16, I8, U64, U32, U16, U8, F64, F32)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, ora.F64, ora.F32)
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
@@ -622,11 +641,11 @@ func ExampleStmt_Qry_numerics() {
 
 func ExampleRset_Next() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -646,7 +665,7 @@ func ExampleRset_Next() {
 	fmt.Println(rowsAffected)
 
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), U16)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.U16)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
@@ -658,11 +677,11 @@ func ExampleRset_Next() {
 
 func ExampleRset_NextRow() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -686,11 +705,11 @@ func ExampleRset_NextRow() {
 
 func ExampleRset_cursor_single() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -716,11 +735,11 @@ func ExampleRset_cursor_single() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// pass *Rset to Exec for an out sys_refcursor
+	// pass *ora.Rset to Exec for an out sys_refcursor
 	// call proc
 	stmt, _ = ses.Prep("call proc1(:1)")
 	defer stmt.Close()
-	rset := &Rset{}
+	rset := &ora.Rset{}
 	stmt.Exe(rset)
 	if rset.IsOpen() {
 		for rset.Next() {
@@ -735,11 +754,11 @@ func ExampleRset_cursor_single() {
 
 func ExampleRset_cursor_multiple() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -765,12 +784,12 @@ func ExampleRset_cursor_multiple() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// pass *Rset to Exec for an out sys_refcursor
+	// pass *ora.Rset to Exec for an out sys_refcursor
 	// call proc
 	stmt, _ = ses.Prep("call proc1(:1, :2)")
 	defer stmt.Close()
-	rsetC1 := &Rset{}
-	rsetC2 := &Rset{}
+	rsetC1 := &ora.Rset{}
+	rsetC2 := &ora.Rset{}
 	stmt.Exe(rsetC1, rsetC2)
 	fmt.Println("--- first result set ---")
 	if rsetC1.IsOpen() {
@@ -797,16 +816,16 @@ func ExampleRset_cursor_multiple() {
 
 func ExampleSrv_Ping() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 
 	// open a session before calling Ping
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
-	err := srv.Ping()
+	err := ses.Ping()
 	if err == nil {
 		fmt.Println("Ping successful")
 	}
@@ -815,13 +834,13 @@ func ExampleSrv_Ping() {
 
 func ExampleSrv_Version() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 
 	// open a session before calling Version
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	version, err := srv.Version()
@@ -833,11 +852,11 @@ func ExampleSrv_Version() {
 
 func ExampleInt64() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -846,20 +865,20 @@ func ExampleInt64() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Int64 slice
-	a := make([]Int64, 5)
-	a[0] = Int64{Value: -9}
-	a[1] = Int64{Value: -1}
-	a[2] = Int64{IsNull: true}
-	a[3] = Int64{Value: 1}
-	a[4] = Int64{Value: 9}
+	// insert ora.Int64 slice
+	a := make([]ora.Int64, 5)
+	a[0] = ora.Int64{Value: -9}
+	a[1] = ora.Int64{Value: -1}
+	a[2] = ora.Int64{IsNull: true}
+	a[3] = ora.Int64{Value: 1}
+	a[4] = ora.Int64{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraI64 to Prep method to return Int64 values
+	// Specify ora.OraI64 to Prep method to return nullable ora.Int64 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI64)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI64)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -874,11 +893,11 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -887,20 +906,20 @@ func ExampleInt32() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Int32 slice
-	a := make([]Int32, 5)
-	a[0] = Int32{Value: -9}
-	a[1] = Int32{Value: -1}
-	a[2] = Int32{IsNull: true}
-	a[3] = Int32{Value: 1}
-	a[4] = Int32{Value: 9}
+	// insert ora.Int32 slice
+	a := make([]ora.Int32, 5)
+	a[0] = ora.Int32{Value: -9}
+	a[1] = ora.Int32{Value: -1}
+	a[2] = ora.Int32{IsNull: true}
+	a[3] = ora.Int32{Value: 1}
+	a[4] = ora.Int32{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraI32 to Prep method to return Int32 values
+	// Specify ora.OraI32 to Prep method to return nullable ora.Int32 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI32)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI32)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -915,11 +934,11 @@ func ExampleInt32() {
 
 func ExampleInt16() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -928,20 +947,20 @@ func ExampleInt16() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Int16 slice
-	a := make([]Int16, 5)
-	a[0] = Int16{Value: -9}
-	a[1] = Int16{Value: -1}
-	a[2] = Int16{IsNull: true}
-	a[3] = Int16{Value: 1}
-	a[4] = Int16{Value: 9}
+	// insert ora.Int16 slice
+	a := make([]ora.Int16, 5)
+	a[0] = ora.Int16{Value: -9}
+	a[1] = ora.Int16{Value: -1}
+	a[2] = ora.Int16{IsNull: true}
+	a[3] = ora.Int16{Value: 1}
+	a[4] = ora.Int16{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraI16 to Prep method to return Int16 values
+	// Specify ora.OraI16 to Prep method to return nullable ora.Int16 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI16)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI16)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -956,11 +975,11 @@ func ExampleInt16() {
 
 func ExampleInt8() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -969,20 +988,20 @@ func ExampleInt8() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Int8 slice
-	a := make([]Int8, 5)
-	a[0] = Int8{Value: -9}
-	a[1] = Int8{Value: -1}
-	a[2] = Int8{IsNull: true}
-	a[3] = Int8{Value: 1}
-	a[4] = Int8{Value: 9}
+	// insert ora.Int8 slice
+	a := make([]ora.Int8, 5)
+	a[0] = ora.Int8{Value: -9}
+	a[1] = ora.Int8{Value: -1}
+	a[2] = ora.Int8{IsNull: true}
+	a[3] = ora.Int8{Value: 1}
+	a[4] = ora.Int8{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraI8 to Prep method to return Int8 values
+	// Specify ora.OraI8 to Prep method to return nullable ora.Int8 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraI8)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI8)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -997,11 +1016,11 @@ func ExampleInt8() {
 
 func ExampleUint64() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1010,20 +1029,20 @@ func ExampleUint64() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Uint64 slice
-	a := make([]Uint64, 5)
-	a[0] = Uint64{Value: 0}
-	a[1] = Uint64{Value: 3}
-	a[2] = Uint64{IsNull: true}
-	a[3] = Uint64{Value: 7}
-	a[4] = Uint64{Value: 9}
+	// insert ora.Uint64 slice
+	a := make([]ora.Uint64, 5)
+	a[0] = ora.Uint64{Value: 0}
+	a[1] = ora.Uint64{Value: 3}
+	a[2] = ora.Uint64{IsNull: true}
+	a[3] = ora.Uint64{Value: 7}
+	a[4] = ora.Uint64{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraU64 to Prep method to return Uint64 values
+	// Specify ora.OraU64 to Prep method to return nullable ora.Uint64 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU64)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraU64)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1038,11 +1057,11 @@ func ExampleUint64() {
 
 func ExampleUint32() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1051,20 +1070,20 @@ func ExampleUint32() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Uint32 slice
-	a := make([]Uint32, 5)
-	a[0] = Uint32{Value: 0}
-	a[1] = Uint32{Value: 3}
-	a[2] = Uint32{IsNull: true}
-	a[3] = Uint32{Value: 7}
-	a[4] = Uint32{Value: 9}
+	// insert ora.Uint32 slice
+	a := make([]ora.Uint32, 5)
+	a[0] = ora.Uint32{Value: 0}
+	a[1] = ora.Uint32{Value: 3}
+	a[2] = ora.Uint32{IsNull: true}
+	a[3] = ora.Uint32{Value: 7}
+	a[4] = ora.Uint32{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraU32 to Prep method to return Uint32 values
+	// Specify ora.OraU32 to Prep method to return nullable ora.Uint32 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU32)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraU32)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1079,11 +1098,11 @@ func ExampleUint32() {
 
 func ExampleUint16() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1092,20 +1111,20 @@ func ExampleUint16() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Uint16 slice
-	a := make([]Uint16, 5)
-	a[0] = Uint16{Value: 0}
-	a[1] = Uint16{Value: 3}
-	a[2] = Uint16{IsNull: true}
-	a[3] = Uint16{Value: 7}
-	a[4] = Uint16{Value: 9}
+	// insert ora.Uint16 slice
+	a := make([]ora.Uint16, 5)
+	a[0] = ora.Uint16{Value: 0}
+	a[1] = ora.Uint16{Value: 3}
+	a[2] = ora.Uint16{IsNull: true}
+	a[3] = ora.Uint16{Value: 7}
+	a[4] = ora.Uint16{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraU16 to Prep method to return Uint16 values
+	// Specify ora.OraU16 to Prep method to return nullable ora.Uint16 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU16)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraU16)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1120,11 +1139,11 @@ func ExampleUint16() {
 
 func ExampleUint8() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1133,20 +1152,20 @@ func ExampleUint8() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Uint8 slice
-	a := make([]Uint8, 5)
-	a[0] = Uint8{Value: 0}
-	a[1] = Uint8{Value: 3}
-	a[2] = Uint8{IsNull: true}
-	a[3] = Uint8{Value: 7}
-	a[4] = Uint8{Value: 9}
+	// insert ora.Uint8 slice
+	a := make([]ora.Uint8, 5)
+	a[0] = ora.Uint8{Value: 0}
+	a[1] = ora.Uint8{Value: 3}
+	a[2] = ora.Uint8{IsNull: true}
+	a[3] = ora.Uint8{Value: 7}
+	a[4] = ora.Uint8{Value: 9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraU8 to Prep method to return Uint8 values
+	// Specify ora.OraU8 to Prep method to return nullable ora.Uint8 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraU8)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraU8)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1161,11 +1180,11 @@ func ExampleUint8() {
 
 func ExampleFloat64() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1174,20 +1193,20 @@ func ExampleFloat64() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Float64 slice
-	a := make([]Float64, 5)
-	a[0] = Float64{Value: -float64(6.28318)}
-	a[1] = Float64{Value: -float64(3.14159)}
-	a[2] = Float64{IsNull: true}
-	a[3] = Float64{Value: float64(3.14159)}
-	a[4] = Float64{Value: float64(6.28318)}
+	// insert ora.Float64 slice
+	a := make([]ora.Float64, 5)
+	a[0] = ora.Float64{Value: -float64(6.28318)}
+	a[1] = ora.Float64{Value: -float64(3.14159)}
+	a[2] = ora.Float64{IsNull: true}
+	a[3] = ora.Float64{Value: float64(3.14159)}
+	a[4] = ora.Float64{Value: float64(6.28318)}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraF64 to Prep method to return Float64 values
+	// Specify ora.OraF64 to Prep method to return nullable ora.Float64 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF64)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraF64)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1202,11 +1221,11 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1215,20 +1234,20 @@ func ExampleFloat32() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Float32 slice
-	a := make([]Float32, 5)
-	a[0] = Float32{Value: -float32(6.28318)}
-	a[1] = Float32{Value: -float32(3.14159)}
-	a[2] = Float32{IsNull: true}
-	a[3] = Float32{Value: float32(3.14159)}
-	a[4] = Float32{Value: float32(6.28318)}
+	// insert ora.Float32 slice
+	a := make([]ora.Float32, 5)
+	a[0] = ora.Float32{Value: -float32(6.28318)}
+	a[1] = ora.Float32{Value: -float32(3.14159)}
+	a[2] = ora.Float32{IsNull: true}
+	a[3] = ora.Float32{Value: float32(3.14159)}
+	a[4] = ora.Float32{Value: float32(6.28318)}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraF32 to Prep method to return Float32 values
+	// Specify ora.OraF32 to Prep method to return nullable ora.Float32 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraF32)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraF32)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1243,11 +1262,11 @@ func ExampleFloat32() {
 
 func ExampleString() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1256,39 +1275,39 @@ func ExampleString() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert String slice
-	a := make([]String, 5)
-	a[0] = String{Value: "Go is expressive, concise, clean, and efficient."}
-	a[1] = String{Value: "Its concurrency mechanisms make it easy to"}
-	a[2] = String{IsNull: true}
-	a[3] = String{Value: "It's a fast, statically typed, compiled"}
-	a[4] = String{Value: "One of Go's key design goals is code"}
+	// insert ora.String slice
+	a := make([]ora.String, 5)
+	a[0] = ora.String{Value: "Go is expressive, concise, clean, and efficient."}
+	a[1] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
+	a[2] = ora.String{IsNull: true}
+	a[3] = ora.String{Value: "It's a fast, statically typed, compiled"}
+	a[4] = ora.String{Value: "One of Go's key design goals is code"}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraS to Prep method to return String values
+	// Specify ora.OraS to Prep method to return nullable ora.String values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraS)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraS)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
 	}
 	// Output:
-	// {false Go is expressive, concise, clean, and efficient.}
-	// {false Its concurrency mechanisms make it easy to}
-	// {true }
-	// {false It's a fast, statically typed, compiled}
-	// {false One of Go's key design goals is code}
+	// Go is expressive, concise, clean, and efficient.
+	// Its concurrency mechanisms make it easy to
+	//
+	// It's a fast, statically typed, compiled
+	// One of Go's key design goals is code
 }
 
 func ExampleBool() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1297,20 +1316,20 @@ func ExampleBool() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Bool slice
-	a := make([]Bool, 5)
-	a[0] = Bool{Value: true}
-	a[1] = Bool{Value: false}
-	a[2] = Bool{IsNull: true}
-	a[3] = Bool{Value: false}
-	a[4] = Bool{Value: true}
+	// insert ora.Bool slice
+	a := make([]ora.Bool, 5)
+	a[0] = ora.Bool{Value: true}
+	a[1] = ora.Bool{Value: false}
+	a[2] = ora.Bool{IsNull: true}
+	a[3] = ora.Bool{Value: false}
+	a[4] = ora.Bool{Value: true}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// Specify OraB to Prep method to return Bool values
+	// Specify ora.OraB to Prep method to return nullable ora.Bool values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraB)
+	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraB)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
@@ -1325,11 +1344,11 @@ func ExampleBool() {
 
 func ExampleTime() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1338,23 +1357,35 @@ func ExampleTime() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Time slice
-	a := make([]Time, 5)
-	a[0] = Time{Value: time.Date(2000, 1, 2, 3, 4, 5, 0, testDbsessiontimezone)}
-	a[1] = Time{Value: time.Date(2001, 2, 3, 4, 5, 6, 0, testDbsessiontimezone)}
-	a[2] = Time{IsNull: true}
-	a[3] = Time{Value: time.Date(2003, 4, 5, 6, 7, 8, 0, testDbsessiontimezone)}
-	a[4] = Time{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)}
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	// insert ora.Time slice
+	a := []ora.Time{
+		{Value: time.Date(2000, 1, 2, 3, 4, 5, 0, testDbsessiontimezone)},
+		{Value: time.Date(2001, 2, 3, 4, 5, 6, 0, testDbsessiontimezone)},
+		{IsNull: true},
+		{Value: time.Date(2003, 4, 5, 6, 7, 8, 0, testDbsessiontimezone)},
+		{Value: time.Date(2004, 5, 6, 7, 8, 9, 0, testDbsessiontimezone)},
+	}
+	stmt, err := ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer stmt.Close()
-	stmt.Exe(a)
+	if _, err := stmt.Exe(a); err != nil {
+		log.Fatal(err)
+	}
 
-	// Specify OraT to Prep method to return Time values
+	//ora.Cfg().Log.Rset.BeginRow = true
+	//ora.Cfg().Log.Logger = lg.Log
+
+	// Specify ora.OraT to Prep method to return nullable ora.Time values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraT)
-	rset, _ := stmt.Qry()
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.OraT)
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatal(err)
+	}
 	for rset.Next() {
-		t := rset.Row[0].(Time)
+		t := rset.Row[0].(ora.Time)
 		fmt.Printf("%v %v-%v-%v %v:%v:%v\n", t.IsNull, t.Value.Year(), t.Value.Month(), t.Value.Day(), t.Value.Hour(), t.Value.Minute(), t.Value.Second())
 	}
 	// Output:
@@ -1367,11 +1398,11 @@ func ExampleTime() {
 
 func ExampleIntervalYM() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1380,18 +1411,18 @@ func ExampleIntervalYM() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert IntervalYM slice
-	a := make([]IntervalYM, 5)
-	a[0] = IntervalYM{Year: 1, Month: 1}
-	a[1] = IntervalYM{Year: 99, Month: 9}
-	a[2] = IntervalYM{IsNull: true}
-	a[3] = IntervalYM{Year: -1, Month: -1}
-	a[4] = IntervalYM{Year: -99, Month: -9}
+	// insert ora.IntervalYM slice
+	a := make([]ora.IntervalYM, 5)
+	a[0] = ora.IntervalYM{Year: 1, Month: 1}
+	a[1] = ora.IntervalYM{Year: 99, Month: 9}
+	a[2] = ora.IntervalYM{IsNull: true}
+	a[3] = ora.IntervalYM{Year: -1, Month: -1}
+	a[4] = ora.IntervalYM{Year: -99, Month: -9}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// fetch IntervalYM
+	// fetch ora.IntervalYM
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	rset, _ := stmt.Qry()
 	for rset.Next() {
@@ -1401,7 +1432,7 @@ func ExampleIntervalYM() {
 }
 
 func ExampleIntervalYM_ShiftTime() {
-	interval := IntervalYM{Year: 1, Month: 1}
+	interval := ora.IntervalYM{Year: 1, Month: 1}
 	actual := interval.ShiftTime(time.Date(2000, time.January, 0, 0, 0, 0, 0, time.Local))
 	fmt.Println(actual.Year(), actual.Month(), actual.Day())
 	// returns normalized date per time.AddDate
@@ -1410,11 +1441,11 @@ func ExampleIntervalYM_ShiftTime() {
 
 func ExampleIntervalDS() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1423,18 +1454,18 @@ func ExampleIntervalDS() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert IntervalDS slice
-	a := make([]IntervalDS, 5)
-	a[0] = IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
-	a[1] = IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
-	a[2] = IntervalDS{IsNull: true}
-	a[3] = IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
-	a[4] = IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
+	// insert ora.IntervalDS slice
+	a := make([]ora.IntervalDS, 5)
+	a[0] = ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
+	a[1] = ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}
+	a[2] = ora.IntervalDS{IsNull: true}
+	a[3] = ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}
+	a[4] = ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// fetch IntervalDS
+	// fetch ora.IntervalDS
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	rset, _ := stmt.Qry()
 	for rset.Next() {
@@ -1444,7 +1475,7 @@ func ExampleIntervalDS() {
 }
 
 func ExampleIntervalDS_ShiftTime() {
-	interval := IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
+	interval := ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}
 	actual := interval.ShiftTime(time.Date(2000, time.Month(1), 1, 0, 0, 0, 0, time.Local))
 	fmt.Println(actual.Day(), actual.Hour(), actual.Minute(), actual.Second(), actual.Nanosecond())
 	// Output: 2 1 1 1 123456789
@@ -1452,11 +1483,11 @@ func ExampleIntervalDS_ShiftTime() {
 
 func ExampleBytes() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1466,54 +1497,118 @@ func ExampleBytes() {
 	stmt.Exe()
 
 	// insert Binary slice
-	a := make([]Binary, 5)
+	a := make([]ora.Raw, 5)
 	b := make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n)
 	}
-	a[0] = Binary{Value: b}
+	a[0] = ora.Raw{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 2)
 	}
-	a[1] = Binary{Value: b}
-	a[2] = Binary{IsNull: true}
+	a[1] = ora.Raw{Value: b}
+	a[2] = ora.Raw{IsNull: true}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 3)
 	}
-	a[3] = Binary{Value: b}
+	a[3] = ora.Raw{Value: b}
 	b = make([]byte, 10)
 	for n, _ := range b {
 		b[n] = byte(n * 4)
 	}
-	a[4] = Binary{Value: b}
+	a[4] = ora.Raw{Value: b}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
+	//ora.Cfg().Log.Rset.BeginRow = true
+	//ora.Cfg().Log.Logger = lg.Log
+
 	// Specify OraBin to Prep method to return Binary values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), OraBin)
+	stmt, _ = ses.Prep("select c1 from "+tableName, ora.OraBin)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
-		fmt.Println(rset.Row[0])
+		raw := rset.Row[0].(ora.Raw)
+		fmt.Println(raw.Value)
 	}
 	// Output:
-	// {false [0 1 2 3 4 5 6 7 8 9]}
-	// {false [0 2 4 6 8 10 12 14 16 18]}
-	// {true []}
-	// {false [0 3 6 9 12 15 18 21 24 27]}
-	// {false [0 4 8 12 16 20 24 28 32 36]}
+	// [0 1 2 3 4 5 6 7 8 9]
+	// [0 2 4 6 8 10 12 14 16 18]
+	// []
+	// [0 3 6 9 12 15 18 21 24 27]
+	// [0 4 8 12 16 20 24 28 32 36]
+}
+
+func ExampleWriteLOB() {
+	// setup
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, _ := env.OpenSrv(testSrvCfg)
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+
+	// create table
+	tableName := tableName()
+	qry := fmt.Sprintf("create table %v (c1 blob)", tableName)
+	stmt, err := ses.Prep(qry)
+	if err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exe(); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	n := 32767 + 1
+
+	// insert Binary slice
+	qry = fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)
+	blob := &ora.Lob{Reader: bytes.NewReader(make([]byte, n))}
+	if stmt, err = ses.Prep(qry); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	if _, err = stmt.Exe(blob); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+
+	fmt.Println(n)
+
+	// Specify OraBin to Prep method to return Binary values
+	// fetch records
+	qry = fmt.Sprintf("select c1 from %v", tableName)
+	if stmt, err = ses.Prep(qry, ora.D); err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	defer stmt.Close()
+	rset, err := stmt.Qry()
+	if err != nil {
+		log.Fatalf("%q: %v", qry, err)
+	}
+	for rset.Next() {
+		lob := rset.Row[0].(io.Reader)
+		b, err := ioutil.ReadAll(lob)
+		if err != nil {
+			log.Printf("ERROR: %v", err)
+		} else {
+			fmt.Println(len(b))
+		}
+	}
+	// Output:
+	// 32768
+	// 32768
 }
 
 func ExampleBfile() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1522,13 +1617,13 @@ func ExampleBfile() {
 	defer stmt.Close()
 	stmt.Exe()
 
-	// insert Bfile
-	a := Bfile{IsNull: false, DirectoryAlias: "TEMP_DIR", Filename: "test.txt"}
+	// insert ora.Bfile
+	a := ora.Bfile{IsNull: false, DirectoryAlias: "TEMP_DIR", Filename: "test.txt"}
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmt.Exe(a)
 
-	// fetch Bfile
+	// fetch ora.Bfile
 	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	rset, _ := stmt.Qry()
 	for rset.Next() {
@@ -1539,11 +1634,11 @@ func ExampleBfile() {
 
 func ExampleTx() {
 	// setup
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(testServerName)
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testUsername, testPassword)
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
 	// create table
@@ -1587,14 +1682,14 @@ func ExampleTx() {
 func Example() {
 	// example usage of the ora package driver
 	// connect to a server and open a session
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, err := env.OpenSrv(os.Getenv("GO_ORA_DRV_TEST_DB"))
+	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	if err != nil {
 		panic(err)
 	}
-	ses, err := srv.OpenSes("test", "test")
+	ses, err := srv.OpenSes(testSesCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -1605,7 +1700,6 @@ func Example() {
 	ses.PrepAndExe("DROP TABLE " + tableName)
 	qry := "CREATE TABLE " + tableName + "(C1 NUMBER(19,0)"
 	ver, _ := srv.Version()
-	fmt.Fprintf(os.Stderr, "server version: %q", ver)
 	var autoC1 int
 	if strings.Contains(ver, " 12.") {
 		qry += " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
@@ -1647,12 +1741,12 @@ func Example() {
 	}
 	fmt.Println(rowsAffected)
 
-	// insert nullable String slice
-	a := make([]String, 4)
-	a[0] = String{Value: "Its concurrency mechanisms make it easy to"}
-	a[1] = String{IsNull: true}
-	a[2] = String{Value: "It's a fast, statically typed, compiled"}
-	a[3] = String{Value: "One of Go's key design goals is code"}
+	// insert nullable ora.String slice
+	a := make([]ora.String, 4)
+	a[0] = ora.String{Value: "Its concurrency mechanisms make it easy to"}
+	a[1] = ora.String{IsNull: true}
+	a[2] = ora.String{Value: "It's a fast, statically typed, compiled"}
+	a[3] = ora.String{Value: "One of Go's key design goals is code"}
 	if autoC1 > 0 {
 		qry = "(C1,C2) VALUES (:C1,:C2)"
 	}
@@ -1665,9 +1759,9 @@ func Example() {
 	if autoC1 == 0 {
 		rowsAffected, err = stmtSliceIns.Exe(a)
 	} else {
-		b := make([]Int32, len(a))
+		b := make([]ora.Int32, len(a))
 		for i := range b {
-			b[i] = Int32{Value: int32(autoC1)}
+			b[i] = ora.Int32{Value: int32(autoC1)}
 			autoC1++
 		}
 		rowsAffected, err = stmtSliceIns.Exe(b, a)
@@ -1706,8 +1800,8 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
-	// insert null String
-	nullableStr := String{IsNull: true}
+	// insert null ora.String
+	nullableStr := ora.String{IsNull: true}
 	stmtTrans, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v (C2) VALUES (:C2)", tableName))
 	if err != nil {
@@ -1727,7 +1821,7 @@ func Example() {
 
 	// fetch and specify return type
 	stmtCount, err := ses.Prep(fmt.Sprintf(
-		"SELECT COUNT(C1) FROM %v WHERE C2 IS NULL", tableName), U8)
+		"SELECT COUNT(C1) FROM %v WHERE C2 IS NULL", tableName), ora.U8)
 	defer stmtCount.Close()
 	if err != nil {
 		panic(err)
@@ -1757,13 +1851,13 @@ func Example() {
 	}
 
 	// call stored procedure
-	// pass *Rset to Exec to receive the results of a sys_refcursor
+	// pass *ora.Rset to Exec to receive the results of a sys_refcursor
 	stmtProcCall, err := ses.Prep("CALL PROC1(:1)")
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
 	}
-	procRset := &Rset{}
+	procRset := &ora.Rset{}
 	rowsAffected, err = stmtProcCall.Exe(procRset)
 	if err != nil {
 		panic(err)
@@ -1796,15 +1890,15 @@ func Example() {
 }
 
 func ExampleSes_PrepAndExe() {
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, err := env.OpenSrv(dbName())
+	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
 		return
 	}
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
@@ -1815,11 +1909,11 @@ func ExampleSes_PrepAndExe() {
 }
 
 func ExampleSes_PrepAndQry() {
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
@@ -1832,11 +1926,11 @@ func ExampleSes_PrepAndQry() {
 }
 
 func ExampleSes_Ins() {
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ident := "DEFAULT 1"
@@ -1900,11 +1994,11 @@ func ExampleSes_Ins() {
 }
 
 func ExampleSes_Upd() {
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ident := "DEFAULT 1"
@@ -1992,15 +2086,15 @@ func ExampleSes_Upd() {
 }
 
 func ExampleSes_Sel() {
-	env, _ := GetDrv().OpenEnv()
+	env, _ := ora.OpenEnv(nil)
 	defer env.Close()
-	srv, _ := env.OpenSrv(dbName())
+	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
 	ident := "DEFAULT 1"
 	if ver, _ := srv.Version(); strings.Contains(ver, " 12.") {
 		ident = " GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1)"
 	}
-	ses, _ := srv.OpenSes("test", "test")
+	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 	tableName := tableName()
 	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v "+
@@ -2056,27 +2150,27 @@ func ExampleSes_Sel() {
 		"C21", e.C21,
 		"C1", &e.C1)
 	rset, _ := ses.Sel(tableName,
-		"C1", U64,
-		"C2", F64,
-		"C3", I8,
-		"C4", I16,
-		"C5", I32,
-		"C6", I64,
-		"C7", U8,
-		"C8", U16,
-		"C9", U32,
-		"C10", U64,
-		"C11", F32,
-		"C12", F64,
-		"C13", I8,
-		"C14", I16,
-		"C15", I32,
-		"C16", I64,
-		"C17", U8,
-		"C18", U16,
-		"C19", U32,
-		"C20", U64,
-		"C21", F32)
+		"C1", ora.U64,
+		"C2", ora.F64,
+		"C3", ora.I8,
+		"C4", ora.I16,
+		"C5", ora.I32,
+		"C6", ora.I64,
+		"C7", ora.U8,
+		"C8", ora.U16,
+		"C9", ora.U32,
+		"C10", ora.U64,
+		"C11", ora.F32,
+		"C12", ora.F64,
+		"C13", ora.I8,
+		"C14", ora.I16,
+		"C15", ora.I32,
+		"C16", ora.I64,
+		"C17", ora.U8,
+		"C18", ora.U16,
+		"C19", ora.U32,
+		"C20", ora.U64,
+		"C21", ora.F32)
 	for rset.Next() {
 		for n := 0; n < len(rset.Row); n++ {
 			fmt.Printf("R%v %v\n", n, rset.Row[n])
@@ -2135,4 +2229,58 @@ func emptyString(s string) string {
 		return "<empty>"
 	}
 	return s
+}
+
+func ExampleSes_InsertBatchDirect() {
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
+		return
+	}
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+	tableName := tableName()
+	ses.PrepAndExe("CREATE TABLE " + tableName + " (C1 NUMBER)")
+	rowsAffected, _ := ses.PrepAndExe("INSERT INTO "+tableName+" (C1) VALUES (:1)", []int64{1, 2})
+	fmt.Println(rowsAffected)
+	// Output:
+	// 2
+}
+
+func ExampleSes_InsertBatchPlsql() {
+	env, _ := ora.OpenEnv(nil)
+	defer env.Close()
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot connect to %q: %v", dbName(), err)
+		return
+	}
+	defer srv.Close()
+	ses, _ := srv.OpenSes(testSesCfg)
+	defer ses.Close()
+	tableName := tableName()
+	procName := tableName + "_ins"
+	ses.PrepAndExe("CREATE OR REPLACE PROCEDURE " + procName + `(p_num IN NUMBER) AS
+BEGIN
+  INSERT INTO ` + tableName + ` VALUES (p_num);
+END;`)
+	ses.PrepAndExe(fmt.Sprintf("CREATE TABLE %v (C1 NUMBER)", tableName))
+	//ora.Cfg().Log.Logger = lg.Log
+	if _, err = ses.PrepAndExe("BEGIN "+procName+"(:1); END;", []int64{1, 2}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	rset, err := ses.Sel(tableName, "C1", ora.U64)
+	if err != nil {
+		return
+	}
+	for rset.Next() {
+		fmt.Println(rset.Row[0])
+	}
+	// Output:
+	// 1
+	// 2
 }

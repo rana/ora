@@ -1,0 +1,14 @@
+prefix=/Users/dfils/src/oracle/instantclient_12_1
+
+version=12.1
+build=client64
+
+libdir=${prefix}
+includedir=${prefix}/sdk/include
+
+Name: oci8
+Description: Oracle database engine
+Version: ${version}
+Libs: -L${libdir} -lclntsh
+Libs.private:
+Cflags: -I${includedir}

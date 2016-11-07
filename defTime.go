@@ -5,6 +5,7 @@
 package ora
 
 /*
+#include <stdlib.h>
 #include <oci.h>
 #include "version.h"
 */
@@ -18,82 +19,81 @@ import (
 )
 
 type defTime struct {
-	rset        *Rset
-	ocidef      *C.OCIDefine
-	ociDateTime *C.OCIDateTime
-	null        C.sb2
-	isNullable  bool
+	ociDef
+	isNullable bool
+	dates      []*C.OCIDateTime
 }
 
 func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable = isNullable
-	r := C.OCIDEFINEBYPOS(
-		def.rset.ocistmt,                              //OCIStmt     *stmtp,
-		&def.ocidef,                                   //OCIDefine   **defnpp,
-		def.rset.stmt.ses.srv.env.ocierr,              //OCIError    *errhp,
-		C.ub4(position),                               //ub4         position,
-		unsafe.Pointer(&def.ociDateTime),              //void        *valuep,
-		C.LENGTH_TYPE(unsafe.Sizeof(def.ociDateTime)), //sb8         value_sz,
-		C.SQLT_TIMESTAMP_TZ,                           //defineTypeCode,                               //ub2         dty,
-		unsafe.Pointer(&def.null),                     //void        *indp,
-		nil,           //ub2         *rlenp,
-		nil,           //ub2         *rcodep,
-		C.OCI_DEFAULT) //ub4         mode );
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
+	if def.dates != nil {
+		C.free(unsafe.Pointer(&def.dates[0]))
 	}
-	return nil
+	def.dates = (*((*[MaxFetchLen]*C.OCIDateTime)(C.malloc(C.size_t(rset.fetchLen) * C.sof_DateTimep))))[:rset.fetchLen]
+	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), int(C.sof_DateTimep), C.SQLT_TIMESTAMP_TZ)
 }
 
-func (def *defTime) value() (value interface{}, err error) {
-	if def.isNullable {
-		oraTimeValue := Time{IsNull: def.null < 0}
-		if !oraTimeValue.IsNull {
-			oraTimeValue.Value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
+func (def *defTime) value(offset int) (value interface{}, err error) {
+	if def.nullInds[offset] < 0 {
+		if def.isNullable {
+			return Time{IsNull: true}, nil
 		}
-		value = oraTimeValue
-	} else {
-		value, err = getTime(def.rset.stmt.ses.srv.env, def.ociDateTime)
+		return nil, nil
 	}
-	return value, err
+	t, err := getTime(def.rset.stmt.ses.srv.env, def.dates[offset])
+	if def.isNullable {
+		return Time{Value: t}, err
+	}
+	return t, err
 }
 
 func (def *defTime) alloc() error {
-	r := C.OCIDescriptorAlloc(
-		unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),    //CONST dvoid   *parenth,
-		(*unsafe.Pointer)(unsafe.Pointer(&def.ociDateTime)), //dvoid         **descpp,
-		C.OCI_DTYPE_TIMESTAMP_TZ,                            //ub4           type,
-		0,   //size_t        xtramem_sz,
-		nil) //dvoid         **usrmempp);
-	if r == C.OCI_ERROR {
-		return def.rset.stmt.ses.srv.env.ociError()
-	} else if r == C.OCI_INVALID_HANDLE {
-		return errNew("unable to allocate oci timestamp handle during define")
+	for i := range def.dates {
+		r := C.OCIDescriptorAlloc(
+			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.dates[i])), //dvoid         **descpp,
+			C.OCI_DTYPE_TIMESTAMP_TZ,                         //ub4           type,
+			0,   //size_t        xtramem_sz,
+			nil) //dvoid         **usrmempp);
+		if r == C.OCI_ERROR {
+			return def.rset.stmt.ses.srv.env.ociError()
+		} else if r == C.OCI_INVALID_HANDLE {
+			return errNew("unable to allocate oci timestamp handle during define")
+		}
 	}
 	return nil
 
 }
 
 func (def *defTime) free() {
-	defer func() {
-		recover()
-	}()
-	C.OCIDescriptorFree(
-		unsafe.Pointer(def.ociDateTime), //void     *descp,
-		C.OCI_DTYPE_TIMESTAMP_TZ)        //ub4      type );
+	for i, d := range def.dates {
+		if d == nil {
+			continue
+		}
+		def.dates[i] = nil
+		C.OCIDescriptorFree(
+			unsafe.Pointer(d),        //void     *descp,
+			C.OCI_DTYPE_TIMESTAMP_TZ) //timeDefine.descTypeCode)                //ub4      type );
+	}
 }
 
 func (def *defTime) close() (err error) {
 	defer func() {
 		if value := recover(); value != nil {
-			err = errRecover(value)
+			err = errR(value)
 		}
 	}()
 
+	def.free()
 	rset := def.rset
 	def.rset = nil
+	if def.dates != nil {
+		C.free(unsafe.Pointer(&def.dates[0]))
+		def.dates = nil
+	}
 	def.ocidef = nil
+	def.arrHlp.close()
 	rset.putDef(defIdxTime, def)
 	return nil
 }
@@ -142,7 +142,9 @@ func getTime(env *Env, ociDateTime *C.OCIDateTime) (result time.Time, err error)
 			buffer.WriteByte(buf[n])
 		}
 		locName := buffer.String()
-		location = _locations[locName]
+		_drv.locationsMu.RLock()
+		location = _drv.locations[locName]
+		_drv.locationsMu.RUnlock()
 		if location == nil {
 			// timestamp_ltz returns numeric offset
 			// time.Time's lookup for numeric offset is unknown;
@@ -174,7 +176,9 @@ func getTime(env *Env, ociDateTime *C.OCIDateTime) (result time.Time, err error)
 			// stored location for future reference
 			// important that FixedZone is called as few times as possible
 			// to reduce significant memory allocation
-			_locations[locName] = location
+			_drv.locationsMu.Lock()
+			_drv.locations[locName] = location
+			_drv.locationsMu.Unlock()
 		}
 	} else {
 		// Date Oracle type doesn't have timezone info

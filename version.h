@@ -26,15 +26,19 @@
     #define OCIBINDBYPOS                OCIBindByPos2
     #define OCIDEFINEBYPOS              OCIDefineByPos2
     #define ACTUAL_LENGTH_TYPE          ub4
+	#define ACTUAL_LENGTH_LENGTH		4
 	#define MAX_BINARY_BYTES			32767
 	#define LENGTH_TYPE					sb8
+	#define LENGTH_LENGTH				8
 #else
     #define OCIBINDBYNAME               OCIBindByName
     #define OCIBINDBYPOS                OCIBindByPos
     #define OCIDEFINEBYPOS              OCIDefineByPos
     #define ACTUAL_LENGTH_TYPE          ub2
+	#define ACTUAL_LENGTH_LENGTH		2
 	#define MAX_BINARY_BYTES			4000
 	#define LENGTH_TYPE					sb4
+	#define LENGTH_LENGTH				4
 
 	#define OCI_ATTR_UB8_ROW_COUNT		OCI_ATTR_ROW_COUNT
 #endif
@@ -50,3 +54,36 @@
 	#define OCILOBTRIM 					OCILobTrim
 	#define OCILOBWRITE					OCILobWrite
 #endif
+
+#define sof_DateTimep sizeof(OCIDateTime*)
+#define sof_Intervalp sizeof(OCIInterval*)
+#define sof_LobLocatorp sizeof(OCILobLocator*)
+#define sof_Stmtp sizeof(OCIStmt*)
+
+sword
+numberFromIntSlice(
+	OCIError *err,
+	void *inum,
+	uword inum_length,
+	uword inum_s_flag,
+	OCINumber *numbers,
+	ub4 arr_length
+);
+
+sword
+numberFromFloatSlice(
+	OCIError *err,
+	void *inum,
+	uword inum_length,
+	OCINumber *numbers,
+	ub4 arr_length
+);
+
+sword
+decriptorAllocSlice(
+	OCIEnv *env,
+	void *dest,
+	ub4 elem_size,
+	ub4 type,
+	size_t length
+);

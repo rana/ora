@@ -5,9 +5,42 @@
 package ora
 
 import (
-	"container/list"
 	"database/sql/driver"
+	"fmt"
 )
+
+// LogConCfg represents Con logging configuration values.
+type LogConCfg struct {
+	// Close determines whether the Con.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// Prepare determines whether the Con.Prepare method is logged.
+	//
+	// The default is true.
+	Prepare bool
+
+	// Begin determines whether the Con.Begin method is logged.
+	//
+	// The default is true.
+	Begin bool
+
+	// Ping determines whether the Con.Ping method is logged.
+	//
+	// The default is true.
+	Ping bool
+}
+
+// NewLogConCfg creates a LogTxCfg with default values.
+func NewLogConCfg() LogConCfg {
+	c := LogConCfg{}
+	c.Close = true
+	c.Prepare = true
+	c.Begin = true
+	c.Ping = true
+	return c
+}
 
 // Con is an Oracle connection associated with a server and session.
 //
@@ -15,16 +48,18 @@ import (
 type Con struct {
 	id uint64
 
-	env  *Env
-	srv  *Srv
-	ses  *Ses
-	elem *list.Element
+	env *Env
+	ses *Ses
+
+	pool *Pool
+
+	sysNamer
 }
 
 // checkIsOpen validates that the connection is open.
 func (con *Con) checkIsOpen() error {
 	if !con.IsOpen() {
-		return errNewF("Con is closed (id %v)", con.id)
+		return er("Con is closed.")
 	}
 	return nil
 }
@@ -43,42 +78,39 @@ func (con *Con) IsOpen() bool {
 //
 // Close is a member of the driver.Conn interface.
 func (con *Con) Close() (err error) {
-	if err := con.checkIsOpen(); err != nil {
+	con.env.openCons.remove(con)
+	return con.close()
+}
+
+// close ends a session and disconnects from an Oracle server.
+// does not remove Con from Ses.openCons
+func (con *Con) close() (err error) {
+	con.log(_drv.cfg.Log.Con.Close)
+	if err = con.checkIsOpen(); err != nil {
 		return err
 	}
-	Log.Infof("E%vC%v] Close", con.env.id, con.id)
 	defer func() {
 		if value := recover(); value != nil {
-			Log.Errorln(recoverMsg(value))
-			err = errRecover(value)
+			err = errR(value)
 		}
-
-		env := con.env
-		env.cons.Remove(con.elem)
 		con.env = nil
-		con.srv = nil
+		con.pool = nil
 		con.ses = nil
-		con.elem = nil
-		env.drv.conPool.Put(con)
+		_drv.conPool.Put(con)
 	}()
 
-	err1 := con.ses.Close()
-	err2 := con.srv.Close()
-	m := newMultiErr(err1, err2)
-	if m != nil {
-		err = *m
-	}
-	return err
+	con.pool.Put(con.ses)
+	return nil
 }
 
 // Prepare readies a sql string for use.
 //
 // Prepare is a member of the driver.Conn interface.
 func (con *Con) Prepare(sql string) (driver.Stmt, error) {
+	con.log(_drv.cfg.Log.Con.Prepare)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	Log.Infof("E%vC%v] Prepare", con.env.id, con.id)
 	stmt, err := con.ses.Prep(sql)
 	if err != nil {
 		return nil, err
@@ -90,10 +122,10 @@ func (con *Con) Prepare(sql string) (driver.Stmt, error) {
 //
 // Begin is a member of the driver.Conn interface.
 func (con *Con) Begin() (driver.Tx, error) {
+	con.log(_drv.cfg.Log.Con.Begin)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	Log.Infof("E%vC%v] Begin", con.env.id, con.id)
 	tx, err := con.ses.StartTx()
 	if err != nil {
 		return nil, err
@@ -103,9 +135,30 @@ func (con *Con) Begin() (driver.Tx, error) {
 
 // Ping makes a round-trip call to an Oracle server to confirm that the connection is active.
 func (con *Con) Ping() error {
+	con.log(_drv.cfg.Log.Con.Ping)
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	Log.Infof("E%vC%v] Ping", con.env.id, con.id)
-	return con.srv.Ping()
+	return con.ses.Ping()
+}
+
+// sysName returns a string representing the Con.
+func (con *Con) sysName() string {
+	if con == nil {
+		return "E_S_S_C_"
+	}
+	return con.sysNamer.Name(func() string {
+		return fmt.Sprintf("%sC%v", con.ses.sysName(), con.id)
+	})
+}
+
+// log writes a message with an Con system name and caller info.
+func (con *Con) log(enabled bool, v ...interface{}) {
+	if enabled {
+		if len(v) == 0 {
+			_drv.cfg.Log.Logger.Infof("%v %v", con.sysName(), callInfo(1))
+		} else {
+			_drv.cfg.Log.Logger.Infof("%v %v %v", con.sysName(), callInfo(1), fmt.Sprint(v...))
+		}
+	}
 }

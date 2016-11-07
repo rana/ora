@@ -12,205 +12,320 @@ import "C"
 import (
 	"container/list"
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
-// Env is an Oracle environment.
+// EnvCfg configures a new Env.
+type EnvCfg struct {
+	// StmtCfg configures new Stmts.
+	StmtCfg *StmtCfg
+}
+
+// NewEnvCfg creates a EnvCfg with default values.
+func NewEnvCfg() *EnvCfg {
+	c := &EnvCfg{}
+	c.StmtCfg = NewStmtCfg()
+	return c
+}
+
+// LogEnvCfg represents Env logging configuration values.
+type LogEnvCfg struct {
+	// Close determines whether the Env.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// OpenSrv determines whether the Env.OpenSrv method is logged.
+	//
+	// The default is true.
+	OpenSrv bool
+
+	// OpenCon determines whether the Env.OpenCon method is logged.
+	//
+	// The default is true.
+	OpenCon bool
+}
+
+// NewLogEnvCfg creates a LogEnvCfg with default values.
+func NewLogEnvCfg() LogEnvCfg {
+	c := LogEnvCfg{}
+	c.Close = true
+	c.OpenSrv = true
+	c.OpenCon = true
+	return c
+}
+
+// Env represents an Oracle environment.
 type Env struct {
-	id     uint64
-	drv    *Drv
-	ocienv *C.OCIEnv
-	ocierr *C.OCIError
-
-	srvId    uint64
-	conId    uint64
-	srvs     *list.List
-	cons     *list.List
-	elem     *list.Element
-	stmtCfg  StmtCfg
+	id       uint64
+	cfg      EnvCfg
+	mu       sync.Mutex
+	ocienv   *C.OCIEnv
+	ocierr   *C.OCIError
 	errBuf   [512]C.char
-	isSqlPkg bool
-}
+	ociHndMu sync.Mutex
 
-// NumSrv returns the number of open Oracle servers.
-func (env *Env) NumSrv() int {
-	return env.srvs.Len()
-}
+	openSrvs *srvList
+	openCons *conList
 
-// NumCon returns the number of open Oracle connections.
-func (env *Env) NumCon() int {
-	return env.cons.Len()
-}
-
-// checkIsOpen validates that the environment is open.
-func (env *Env) checkIsOpen() error {
-	if !env.IsOpen() {
-		return errNewF("Env is closed (id %v)", env.id)
-	}
-	return nil
-}
-
-// IsOpen returns true when the environment is open; otherwise, false.
-//
-// Calling Close will cause IsOpen to return false.
-// Once closed, the environment may be re-opened by
-// calling Open.
-func (env *Env) IsOpen() bool {
-	return env.drv != nil
+	sysNamer
 }
 
 // Close disconnects from servers and resets optional fields.
 func (env *Env) Close() (err error) {
-	if err := env.checkIsOpen(); err != nil {
-		return err
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.log(_drv.cfg.Log.Env.Close)
+	err = env.checkClosed()
+	if err != nil {
+		return errE(err)
 	}
-	Log.Infof("E%v] Close", env.id)
-	errs := env.drv.listPool.Get().(*list.List)
+	_drv.mu.Lock()
+	for k, p := range _drv.srvSesPools {
+		if p == nil || p.env != env {
+			continue
+		}
+		p.Close()
+		delete(_drv.srvSesPools, k)
+	}
+	_drv.mu.Unlock()
+	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
-			Log.Errorln(recoverMsg(value))
-			errs.PushBack(errRecover(value))
+			errs.PushBack(errR(value))
 		}
-
-		drv := env.drv
-		drv.envs.Remove(env.elem)
-		env.srvs.Init()
-		env.drv = nil
+		_drv.openEnvs.remove(env)
 		env.ocienv = nil
 		env.ocierr = nil
-		env.elem = nil
-		drv.envPool.Put(env)
+		env.openSrvs.clear()
+		env.openCons.clear()
+		_drv.envPool.Put(env)
 
-		m := newMultiErrL(errs)
-		if m != nil {
-			err = *m
+		multiErr := newMultiErrL(errs)
+		if multiErr != nil {
+			err = errE(*multiErr)
 		}
 		errs.Init()
-		drv.listPool.Put(errs)
+		_drv.listPool.Put(errs)
 	}()
-
-	// close connections
-	for e := env.cons.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Con).Close()
-		errs.PushBack(err0)
-	}
-	// close servers
-	for e := env.srvs.Front(); e != nil; e = e.Next() {
-		err0 := e.Value.(*Srv).Close()
-		errs.PushBack(err0)
-	}
+	env.openCons.closeAll(errs)
+	env.openSrvs.closeAll(errs)
 
 	// Free oci environment handle and all oci child handles
 	// The oci error handle is released as a child of the environment handle
 	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
-	return err
+	if err != nil {
+		return errE(err)
+	}
+	return nil
 }
 
 // OpenSrv connects to an Oracle server returning a *Srv and possible error.
-func (env *Env) OpenSrv(dbname string) (*Srv, error) {
-	if err := env.checkIsOpen(); err != nil {
-		return nil, err
+func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.log(_drv.cfg.Log.Env.OpenSrv)
+	err = env.checkClosed()
+	if err != nil {
+		return nil, errE(err)
 	}
-	Log.Infof("E%v] OpenSrv (dbname %v)", env.id, dbname)
+	if cfg == nil {
+		return nil, er("Parameter 'cfg' may not be nil.")
+	}
 	// allocate server handle
 	ocisrv, err := env.allocOciHandle(C.OCI_HTYPE_SERVER)
 	if err != nil {
-		return nil, err
+		return nil, errE(err)
 	}
 	// attach to server
-	cDbname := C.CString(dbname)
-	defer C.free(unsafe.Pointer(cDbname))
+	cDblink := C.CString(cfg.Dblink)
+	defer C.free(unsafe.Pointer(cDblink))
 	r := C.OCIServerAttach(
 		(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
 		env.ocierr,                            //OCIError      *errhp,
-		(*C.OraText)(unsafe.Pointer(cDbname)), //const OraText *dbname,
-		C.sb4(len(dbname)),                    //sb4           dbname_len,
+		(*C.OraText)(unsafe.Pointer(cDblink)), //const OraText *dblink,
+		C.sb4(len(cfg.Dblink)),                //sb4           dblink_len,
 		C.OCI_DEFAULT)                         //ub4           mode);
 	if r == C.OCI_ERROR {
-		return nil, env.ociError()
-	}
-	// allocate service context handle
-	ocisvcctx, err := env.allocOciHandle(C.OCI_HTYPE_SVCCTX)
-	if err != nil {
-		return nil, err
-	}
-	// set server handle onto service context handle
-	err = env.setAttr(ocisvcctx, C.OCI_HTYPE_SVCCTX, ocisrv, C.ub4(0), C.OCI_ATTR_SERVER)
-	if err != nil {
-		return nil, err
+		return nil, errE(env.ociErrorNL())
 	}
 
-	// set srv struct
-	srv := env.drv.srvPool.Get().(*Srv)
-	if srv.id == 0 {
-		env.srvId++
-		srv.id = env.srvId
-	}
-	Log.Infof("E%v] OpenSrv (srvId %v)", env.id, srv.id)
+	srv = _drv.srvPool.Get().(*Srv) // set *Srv
+	srv.mu.Lock()
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
-	srv.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
-	srv.stmtCfg = env.stmtCfg
-	srv.dbname = dbname
-	srv.elem = env.srvs.PushBack(srv)
+	if srv.id == 0 {
+		srv.id = _drv.srvId.nextId()
+	}
+	srv.cfg = *cfg
+	if srv.cfg.StmtCfg == nil && srv.env.cfg.StmtCfg != nil {
+		srv.cfg.StmtCfg = &(*srv.env.cfg.StmtCfg) // copy by value so that user may change independently
+	}
+	srv.mu.Unlock()
+	env.openSrvs.add(srv)
+
 	return srv, nil
 }
 
+var (
+	conCharset   = make(map[string]string, 2)
+	conCharsetMu sync.Mutex
+)
+
 // OpenCon starts an Oracle session on a server returning a *Con and possible error.
 //
-// The connection string has the form username/password@dbname e.g., scott/tiger@orcl
-// dbname is a connection identifier such as a net service name,
+// The connection string has the form username/password@dblink e.g., scott/tiger@orcl
+// For connecting as SYSDBA or SYSOPER, append " AS SYSDBA" to the end of the connection string: "sys/sys as sysdba".
+//
+// dblink is a connection identifier such as a net service name,
 // full connection identifier, or a simple connection identifier.
-// The dbname may be defined in the client machine's tnsnames.ora file.
-func (env *Env) OpenCon(str string) (*Con, error) {
-	if err := env.checkIsOpen(); err != nil {
-		return nil, err
+// The dblink may be defined in the client machine's tnsnames.ora file.
+func (env *Env) OpenCon(dsn string) (con *Con, err error) {
+	// do not lock; calls to env.OpenSrv will lock
+	env.log(_drv.cfg.Log.Env.OpenCon)
+	err = env.checkClosed()
+	if err != nil {
+		return nil, errE(err)
 	}
-	Log.Infof("E%v] OpenCon", env.id)
-	// parse connection string
-	var username string
-	var password string
-	var dbname string
-	str = strings.TrimSpace(str)
-	if strings.HasPrefix(str, "/@") {
-		dbname = str[2:]
-	} else {
-		str = strings.Replace(str, "/", " / ", 1)
-		str = strings.Replace(str, "@", " @ ", 1)
-		_, err := fmt.Sscanf(str, "%s / %s @ %s", &username, &password, &dbname)
-		Log.Infof("E%v] OpenCon (dbname %v, username %v)", env.id, dbname, username)
-		if err != nil {
-			return nil, fmt.Errorf("parse %q: %v", err)
+	dsn = strings.TrimSpace(dsn)
+	_drv.mu.Lock()
+	p := _drv.srvSesPools[dsn]
+	if p == nil {
+		var srvCfg SrvCfg
+		sesCfg := SesCfg{Mode: DSNMode(dsn)}
+		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+		p = env.NewPool(&srvCfg, &sesCfg, 0)
+		_drv.srvSesPools[dsn] = p
+	}
+	_drv.mu.Unlock()
+	ses, err := p.Get()
+	if err != nil {
+		return nil, errE(err)
+	}
+	srvCfg := p.srvCfg
+	con = _drv.conPool.Get().(*Con) // set *Con
+	con.env = env
+	con.pool = p
+	con.ses = ses
+	if con.id == 0 {
+		con.id = _drv.conId.nextId()
+	}
+	conCharsetMu.Lock()
+	defer conCharsetMu.Unlock()
+	if cs, ok := conCharset[srvCfg.Dblink]; ok {
+		con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
+		return con, nil
+	}
+	if rset, err := ses.PrepAndQry(
+		`SELECT property_value FROM database_properties WHERE property_name = 'NLS_CHARACTERSET'`,
+	); err != nil {
+		//Log.Errorf("E%vS%vS%v] Determine database characterset: %v",
+		//	env.id, con.id, ses.id, err)
+	} else if rset != nil && rset.Next() && len(rset.Row) == 1 {
+		//Log.Infof("E%vS%vS%v] Database characterset=%q",
+		//	env.id, con.id, ses.id, rset.Row[0])
+		if cs, ok := rset.Row[0].(string); ok {
+			conCharset[srvCfg.Dblink] = cs
+			con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
 		}
 	}
-	// connect to server
-	srv, err := env.OpenSrv(dbname)
-	if err != nil {
-		return nil, err
-	}
-	// open a session on the server
-	ses, err := srv.OpenSes(username, password)
-	if err != nil {
-		return nil, err
-	}
-	// set con struct
-	con := env.drv.conPool.Get().(*Con)
-	if con.id == 0 {
-		env.conId++
-		con.id = env.conId
-	}
-	Log.Infof("E%v] OpenCon (conId %v)", env.id, con.id)
-	con.env = env
-	con.srv = srv
-	con.ses = ses
-	con.elem = env.cons.PushBack(con)
+	env.openCons.add(con)
 
 	return con, nil
 }
 
-// allocateOciHandle allocates an oci handle.
+// NumSrv returns the number of open Oracle servers.
+func (env *Env) NumSrv() int {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.openSrvs.len()
+}
+
+// NumCon returns the number of open Oracle connections.
+func (env *Env) NumCon() int {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.openCons.len()
+}
+
+// SetCfg applies the specified cfg to the Env.
+//
+// Open Srvs do not observe the specified cfg.
+func (env *Env) SetCfg(cfg *EnvCfg) {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	env.cfg = *cfg
+}
+
+// Cfg returns the Env's cfg.
+func (env *Env) Cfg() *EnvCfg {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return &env.cfg
+}
+
+// IsOpen returns true when the environment is open; otherwise, false.
+//
+// Calling Close will cause IsOpen to return false. Once closed, the environment
+// may be re-opened by calling Open.
+func (env *Env) IsOpen() bool {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	return env.ocienv != nil
+}
+
+// checkClosed returns an error if Env is closed. No locking occurs.
+func (env *Env) checkClosed() error {
+	if env == nil || env.ocienv == nil {
+		return er("Env is closed.")
+	}
+	return nil
+}
+
+// sysName returns a string representing the Env.
+func (env *Env) sysName() string {
+	if env == nil {
+		return "E_"
+	}
+	return env.sysNamer.Name(func() string { return fmt.Sprintf("E%v", env.id) })
+}
+
+// log writes a message with an Env system name and caller info.
+func (env *Env) log(enabled bool, v ...interface{}) {
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
+	}
+}
+
+// log writes a formatted message with an Env system name and caller info.
+func (env *Env) logF(enabled bool, format string, v ...interface{}) {
+	if !_drv.cfg.Log.IsEnabled(enabled) {
+		return
+	}
+	if len(v) == 0 {
+		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+	} else {
+		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+	}
+}
+
+// allocateOciHandle allocates an oci handle. No locking occurs.
 func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
+	env.ociHndMu.Lock()
+	defer env.ociHndMu.Unlock()
 	// OCIHandleAlloc returns: OCI_SUCCESS, OCI_INVALID_HANDLE
 	var handle unsafe.Pointer
 	r := C.OCIHandleAlloc(
@@ -220,27 +335,28 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 		C.size_t(0),                //size_t        xtramem_sz,
 		nil)                        //void          **usrmempp
 	if r == C.OCI_INVALID_HANDLE {
-		return nil, errNew("Unable to allocate handle")
+		return nil, er("Unable to allocate handle")
 	}
 	return handle, nil
 }
 
-// freeOciHandle deallocates an oci handle.
+// freeOciHandle deallocates an oci handle. No locking occurs.
 func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error {
+	env.ociHndMu.Lock()
+	defer env.ociHndMu.Unlock()
 	// OCIHandleFree returns: OCI_SUCCESS, OCI_INVALID_HANDLE, or OCI_ERROR
 	r := C.OCIHandleFree(
-		unsafe.Pointer(env.ocienv), //void      *hndlp,
-		handleType)                 //ub4       type );
+		ociHandle,  //void      *hndlp,
+		handleType) //ub4       type );
 	if r == C.OCI_INVALID_HANDLE {
-		return errNew("Unable to free handle")
+		return er("Unable to free handle")
 	} else if r == C.OCI_ERROR {
-		return env.ociError()
+		return errE(env.ociError())
 	}
-
 	return nil
 }
 
-// setOciAttribute sets an attribute value on a handle or descriptor.
+// setOciAttribute sets an attribute value on a handle or descriptor. No locking occurs.
 func (env *Env) setAttr(
 	target unsafe.Pointer,
 	targetType C.ub4,
@@ -256,33 +372,184 @@ func (env *Env) setAttr(
 		attributeType, //ub4         attrtype,
 		env.ocierr)    //OCIError    *errhp );
 	if r == C.OCI_ERROR {
-		return env.ociError()
+		return errE(env.ociError())
 	}
 	return nil
 }
 
-// getOciError gets an error returned by an Oracle server.
+// ociError gets an error returned by an Oracle server. Locks env.mu!
 func (env *Env) ociError() error {
+	env.mu.Lock()
+	err := env.ociErrorNL()
+	env.mu.Unlock()
+	return err
+}
+
+// ociError gets an error returned by an Oracle server. No locking occurs.
+func (env *Env) ociErrorNL() error {
 	var errcode C.sb4
 	C.OCIErrorGet(
 		unsafe.Pointer(env.ocierr),
 		1, nil,
 		&errcode,
 		(*C.OraText)(unsafe.Pointer(&env.errBuf[0])),
-		512,
+		C.ub4(len(env.errBuf)),
 		C.OCI_HTYPE_ERROR)
-	return errNew(C.GoString(&env.errBuf[0]))
+	return er(&ORAError{
+		code:    int(errcode),
+		message: C.GoString(&env.errBuf[0]),
+	})
 }
 
-// Sets the StmtCfg on the Environment and all open Environment Servers.
-func (env *Env) SetStmtCfg(c StmtCfg) {
-	env.stmtCfg = c
-	for e := env.srvs.Front(); e != nil; e = e.Next() {
-		e.Value.(*Srv).SetStmtCfg(c)
+type ORAError struct {
+	code    int
+	message string
+}
+
+func (e ORAError) Code() int {
+	return e.code
+}
+
+func (e *ORAError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.message != "" {
+		return e.message
+	}
+	return fmt.Sprintf("ORA-%05d", e.code)
+}
+
+var b8Pool = sync.Pool{
+	New: func() interface{} {
+		p := unsafe.Pointer(C.malloc(8))
+		runtime.SetFinalizer(&p, b8Free)
+		return p
+	},
+}
+
+func b8Free(pp *unsafe.Pointer) {
+	if pp != nil && *pp != nil {
+		C.free(*pp)
+		*pp = nil
 	}
 }
 
-// StmtCfg returns a *StmtCfg.
-func (env *Env) StmtCfg() *StmtCfg {
-	return &env.stmtCfg
+func (env *Env) OCINumberFromInt(dest *C.OCINumber, value int64, byteLen int) error {
+	val := (*C.sb8)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.sb8(value)
+	r := C.OCINumberFromInt(
+		env.ocierr,          //OCIError            *err,
+		unsafe.Pointer(val), //const void          *inum,
+		C.uword(byteLen),    //uword               inum_length,
+		C.OCI_NUMBER_SIGNED, //uword               inum_s_flag,
+		dest)                //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToInt(src *C.OCINumber, byteLen int) (int64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToInt(
+		env.ocierr,          //OCIError              *err,
+		src,                 //const OCINumber       *number,
+		C.uword(byteLen),    //uword                 rsl_length,
+		C.OCI_NUMBER_SIGNED, //uword                 rsl_flag,
+		val)                 //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	var ret int64
+	switch byteLen {
+	case 1:
+		ret = int64(*((*C.sb1)(val)))
+	case 2:
+		ret = int64(*((*C.sb2)(val)))
+	case 4:
+		ret = int64(*((*C.sb4)(val)))
+	default:
+		ret = int64(*((*C.sb8)(val)))
+	}
+	b8Pool.Put(val)
+	return ret, nil
+}
+
+func (env *Env) OCINumberFromUint(dest *C.OCINumber, value uint64, byteLen int) error {
+	val := (*C.ub8)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.ub8(value)
+	r := C.OCINumberFromInt(
+		env.ocierr,            //OCIError            *err,
+		unsafe.Pointer(val),   //const void          *inum,
+		C.uword(byteLen),      //uword               inum_length,
+		C.OCI_NUMBER_UNSIGNED, //uword               inum_s_flag,
+		dest) //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToUint(src *C.OCINumber, byteLen int) (uint64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToInt(
+		env.ocierr,            //OCIError              *err,
+		src,                   //const OCINumber       *number,
+		C.uword(byteLen),      //uword                 rsl_length,
+		C.OCI_NUMBER_UNSIGNED, //uword                 rsl_flag,
+		val) //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	var ret uint64
+	switch byteLen {
+	case 1:
+		ret = uint64(*(*C.ub1)(val))
+	case 2:
+		ret = uint64(*(*C.ub2)(val))
+	case 4:
+		ret = uint64(*(*C.ub4)(val))
+	default:
+		ret = uint64(*(*C.ub8)(val))
+		b8Pool.Put(val)
+	}
+	return ret, nil
+}
+
+func (env *Env) OCINumberFromFloat(dest *C.OCINumber, value float64, byteLen int) error {
+	val := (*C.double)(b8Pool.Get().(unsafe.Pointer))
+	*val = C.double(value)
+	r := C.OCINumberFromReal(
+		env.ocierr,          //OCIError            *err,
+		unsafe.Pointer(val), //const void          *inum,
+		C.uword(byteLen),    //uword               inum_length,
+		dest)                //OCINumber           *number );
+	b8Pool.Put(unsafe.Pointer(val))
+	if r == C.OCI_ERROR {
+		return env.ociError()
+	}
+	return nil
+}
+
+func (env *Env) OCINumberToFloat(src *C.OCINumber, byteLen int) (float64, error) {
+	val := b8Pool.Get().(unsafe.Pointer)
+	r := C.OCINumberToReal(
+		env.ocierr,       //OCIError              *err,
+		src,              //const OCINumber       *number,
+		C.uword(byteLen), //uword                 rsl_length,
+		val)              //void                  *rsl );
+	if r == C.OCI_ERROR {
+		return 0, env.ociError()
+	}
+	var ret float64
+	if byteLen == 4 {
+		ret = float64(*(*C.float)(val))
+	} else {
+		ret = float64(*(*C.double)(val))
+	}
+	b8Pool.Put(val)
+	return ret, nil
 }
