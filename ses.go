@@ -621,8 +621,10 @@ func (ses *Ses) Break() (err error) {
 	if err != nil {
 		return errE(err)
 	}
-	r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr)
-	if r == C.OCI_ERROR {
+	if r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr); r == C.OCI_ERROR {
+		return errE(ses.srv.env.ociError())
+	}
+	if r := C.OCIReset(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr); r == C.OCI_ERROR {
 		return errE(ses.srv.env.ociError())
 	}
 	return nil
