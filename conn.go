@@ -150,10 +150,8 @@ func (con *Con) Ping(ctx context.Context) error {
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(func() error {
@@ -161,10 +159,13 @@ func (con *Con) Ping(ctx context.Context) error {
 	})
 	<-ctx.Done()
 	err := ctx.Err()
-	if isCanceled(err) {
-		con.ses.Break()
+	if err != nil {
+		if isCanceled(err) {
+			con.ses.Break()
+		}
+		return err
 	}
-	return err
+	return grp.Wait()
 }
 
 // sysName returns a string representing the Con.
@@ -189,5 +190,5 @@ func (con *Con) log(enabled bool, v ...interface{}) {
 }
 
 func isCanceled(err error) bool {
-	return err == context.Canceled || err == context.DeadlineExceeded
+	return err != nil && (err == context.Canceled || err == context.DeadlineExceeded)
 }

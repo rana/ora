@@ -28,10 +28,8 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 		}
 		params[n] = v.Value
 	}
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	var res DrvExecResult
 	grp, ctx := errgroup.WithContext(ctx)
@@ -48,6 +46,9 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 		if isCanceled(err) {
 			ds.stmt.ses.Break()
 		}
+		return nil, err
+	}
+	if err := grp.Wait(); err != nil {
 		return nil, err
 	}
 	if res.rowsAffected == 0 {
@@ -70,10 +71,8 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 		}
 		params[n] = v.Value
 	}
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	var rset *Rset
 	grp, ctx := errgroup.WithContext(ctx)
@@ -92,5 +91,5 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 		}
 		return nil, err
 	}
-	return &DrvQueryResult{rset: rset}, nil
+	return &DrvQueryResult{rset: rset}, err.Wait()
 }

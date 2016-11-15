@@ -48,10 +48,8 @@ func (con *Con) PrepareContext(ctx context.Context, query string) (driver.Stmt, 
 // value is true to either set the read-only transaction property if supported
 // or return an error if it is not supported.
 func (con *Con) BeginContext(ctx context.Context) (driver.Tx, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	var flags C.ub4
 	if driver.ReadOnlyFromContext(ctx) {
@@ -80,9 +78,11 @@ func (con *Con) BeginContext(ctx context.Context) (driver.Tx, error) {
 		return err
 	})
 	<-ctx.Done()
-	if err := ctx.Err(); isCanceled(err) {
-		con.ses.Break()
+	if err := ctx.Err(); err != nil {
+		if isCanceled(err) {
+			con.ses.Break()
+		}
 		return nil, err
 	}
-	return tx, ctx.Err()
+	return tx, grp.Wait()
 }
