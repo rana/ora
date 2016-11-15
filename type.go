@@ -674,6 +674,9 @@ func (this *Lob) Scan(src interface{}) error {
 	default:
 		return fmt.Errorf("src should be an io.Reader, not %T", src)
 	}
+	if c, ok := src.(io.Closer); ok {
+		this.Closer = c
+	}
 	return nil
 }
 func (this *Lob) String() string {
