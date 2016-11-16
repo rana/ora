@@ -6,6 +6,9 @@ package ora
 
 // RsetCfg affects the association of Oracle select-list columns to
 // Go types.
+//
+// Though it is unlucky, an empty RsetCfg is unusable!
+// Please use NewRsetCfg().
 type RsetCfg struct {
 	numberInt      GoColumnType
 	numberBigInt   GoColumnType
@@ -56,8 +59,8 @@ func NewRsetCfg() RsetCfg {
 	c.char = S
 	c.varchar = S
 	c.long = S
-	c.clob = D
-	c.blob = D
+	c.clob = S
+	c.blob = Bin
 	c.raw = Bin
 	c.longRaw = Bin
 

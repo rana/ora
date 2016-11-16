@@ -4,6 +4,9 @@
 
 ## v3.7.5 ##
   * go1.8: support additional features, as requested by @kardianos in #127.
+  * Change default column types for BLOB and CLOB: Bin and S, instead of D and D.
+    With this change the driver will return a string/[]byte from [CB]LOB columns,
+	instead of an io.ReadCloser.
 
 ## v3.7.4 ##
   * Add RTrimChar to StmtCfg, default true. This makes the strip of right padding of CHAR columns configurable.

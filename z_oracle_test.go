@@ -3241,45 +3241,60 @@ func TestLobSelect(t *testing.T) {
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	rows, err := testDb.Query("SELECT * FROM " + tbl)
-	if err != nil {
-		t.Errorf("SELECT: %v", err)
-		return
-	}
-	defer rows.Close()
-	var buf bytes.Buffer
-	for rows.Next() {
-		var v interface{}
-		if err = rows.Scan(&v); err != nil {
-			t.Errorf("Scan: %v", err)
-		}
-		//t.Logf("%#v (%T)", v, v)
-		_, err := io.Copy(&buf, v.(io.Reader))
-		if err != nil {
-			t.Errorf("Read: %v", err)
-		}
-		//t.Logf("n=%d data=%v", n, buf.Bytes())
-		buf.Reset()
-	}
+
+	sCfg := ora.Cfg().Env.StmtCfg
+	oCfg := sCfg.Rset
+	defer func() { sCfg.Rset = oCfg }()
+
+	sCfg.Rset.SetBlob(ora.Bin)
 
 	// SELECT into []byte
-	oCfg := ora.Cfg().Env.StmtCfg.Rset
-	defer func() { ora.Cfg().Env.StmtCfg.Rset = oCfg }()
-	ora.Cfg().Env.StmtCfg.Rset.SetBlob(ora.Bin)
-
-	rows, err = testDb.Query("SELECT * FROM " + tbl)
-	if err != nil {
-		t.Errorf("SELECT: %v", err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var v []byte
-		if err = rows.Scan(&v); err != nil {
-			t.Errorf("Scan: %v", err)
+	{
+		rows, err := testDb.Query("SELECT * FROM " + tbl)
+		if err != nil {
+			t.Errorf("SELECT: %v", err)
+			return
 		}
-		if len(v) != 3 {
-			t.Errorf("got %v, wanted %v.", v, []byte{'\x7f', '\x7f', '\x7f'})
+		defer rows.Close()
+		for rows.Next() {
+			var v []byte
+			if err = rows.Scan(&v); err != nil {
+				t.Errorf("Scan: %v", err)
+			}
+			if len(v) != 3 {
+				t.Errorf("got %v, wanted %v.", v, []byte{'\x7f', '\x7f', '\x7f'})
+			}
+		}
+	}
+
+	sCfg.Rset.SetBlob(ora.D)
+
+	// SELECT into io.ReadCloser
+	{
+		rows, err := testDb.Query("SELECT * FROM " + tbl)
+		if err != nil {
+			t.Errorf("SELECT: %v", err)
+			return
+		}
+		defer rows.Close()
+		var buf bytes.Buffer
+		for rows.Next() {
+			var v interface{}
+			if err = rows.Scan(&v); err != nil {
+				t.Errorf("Scan: %v", err)
+			}
+			//t.Logf("%#v (%T)", v, v)
+			rc, ok := v.(io.ReadCloser)
+			if !ok {
+				t.Fatalf("wanted io.ReadCloser for LOB, got %T - cfg.Rset.SetBlob ineffective?", v)
+			}
+			_, err := io.Copy(&buf, rc)
+			rc.Close()
+			if err != nil {
+				t.Errorf("Read: %v", err)
+			}
+			//t.Logf("n=%d data=%v", n, buf.Bytes())
+			buf.Reset()
 		}
 	}
 }
@@ -3297,6 +3312,12 @@ func TestLobSelectString(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
+	sCfg := ora.Cfg().Env.StmtCfg
+	oCfg := sCfg.Rset
+	defer func() { sCfg.Rset = oCfg }()
+
+	sCfg.Rset.SetClob(ora.D)
+
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Errorf("SELECT: %v", err)
@@ -3310,7 +3331,13 @@ func TestLobSelectString(t *testing.T) {
 			t.Errorf("Scan: %v", err)
 		}
 		//t.Logf("%#v (%T)", v, v)
-		_, err := io.Copy(&buf, v.(io.Reader))
+		rc, ok := v.(io.ReadCloser)
+		if ok {
+			_, err = io.Copy(&buf, rc)
+			rc.Close()
+		} else {
+			buf.WriteString(v.(string))
+		}
 		if err != nil {
 			t.Errorf("Read: %v", err)
 		}
@@ -3319,9 +3346,7 @@ func TestLobSelectString(t *testing.T) {
 	}
 
 	// SELECT into string
-	oCfg := ora.Cfg().Env.StmtCfg.Rset
-	defer func() { ora.Cfg().Env.StmtCfg.Rset = oCfg }()
-	ora.Cfg().Env.StmtCfg.Rset.SetClob(ora.S)
+	sCfg.Rset.SetClob(ora.S)
 
 	rows, err = testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {

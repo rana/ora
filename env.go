@@ -221,9 +221,11 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
 	if cs, ok := conCharset[srvCfg.Dblink]; ok {
-		con.ses.mu.Lock()
+		ses.mu.Lock()
+		ses.srv.mu.Lock()
 		con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
-		con.ses.mu.Unlock()
+		ses.srv.mu.Unlock()
+		ses.mu.Unlock()
 		return con, nil
 	}
 	if rset, err := ses.PrepAndQry(
