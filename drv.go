@@ -164,7 +164,7 @@ func (drv *Drv) Open(conStr string) (driver.Conn, error) {
 	log(true)
 	con, err := _drv.sqlPkgEnv.OpenCon(conStr)
 	if err != nil {
-		return nil, errE(err)
+		return nil, maybeBadConn(err)
 	}
 	return con, nil
 }

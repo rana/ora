@@ -67,7 +67,7 @@ type Con struct {
 // checkIsOpen validates that the connection is open.
 func (con *Con) checkIsOpen() error {
 	if !con.IsOpen() {
-		return er("Con is closed.")
+		return driver.ErrBadConn
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func (con *Con) Prepare(query string) (driver.Stmt, error) {
 	}
 	stmt, err := con.ses.Prep(query)
 	if err != nil {
-		return nil, err
+		return nil, maybeBadConn(err)
 	}
 	return &DrvStmt{stmt: stmt}, err
 }
@@ -139,7 +139,7 @@ func (con *Con) Begin() (driver.Tx, error) {
 	}
 	tx, err := con.ses.StartTx()
 	if err != nil {
-		return nil, err
+		return nil, maybeBadConn(err)
 	}
 	return tx, nil
 }
@@ -155,7 +155,7 @@ func (con *Con) Ping(ctx context.Context) error {
 	}
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(func() error {
-		return con.ses.Ping()
+		return maybeBadConn(con.ses.Ping())
 	})
 	<-ctx.Done()
 	err := ctx.Err()
@@ -191,4 +191,21 @@ func (con *Con) log(enabled bool, v ...interface{}) {
 
 func isCanceled(err error) bool {
 	return err != nil && (err == context.Canceled || err == context.DeadlineExceeded)
+}
+func maybeBadConn(err error) error {
+	if err == nil {
+		return nil
+	}
+	// database/sql API expect driver.ErrBadConn to reconnect to the database
+	if cd, ok := err.(interface {
+		Code() int
+	}); ok {
+		switch cd.Code() {
+		case 3114, 12545:
+			// ORA-03114: not connected to ORACLE
+			// ORA-12545: Connect failed because target host or object does not exist
+			return driver.ErrBadConn
+		}
+	}
+	return err
 }

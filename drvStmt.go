@@ -65,7 +65,7 @@ func (ds *DrvStmt) Exec(values []driver.Value) (driver.Result, error) {
 	}
 	rowsAffected, lastInsertId, err := ds.stmt.exe(params, false)
 	if err != nil {
-		return nil, errE(err)
+		return nil, maybeBadConn(err)
 	}
 	if rowsAffected == 0 {
 		return driver.RowsAffected(0), nil
@@ -88,7 +88,7 @@ func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error) {
 	}
 	rset, err := ds.stmt.qry(params)
 	if err != nil {
-		return nil, errE(err)
+		return nil, maybeBadConn(err)
 	}
 	return &DrvQueryResult{rset: rset}, nil
 }

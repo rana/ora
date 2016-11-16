@@ -7,6 +7,7 @@
   * Change default column types for BLOB and CLOB: Bin and S, instead of D and D.
     With this change the driver will return a string/[]byte from [CB]LOB columns,
 	instead of an io.ReadCloser.
+  * Return driver.ErrBadConn for connection errors, to allow database/sql to reconnect.
 
 ## v3.7.4 ##
   * Add RTrimChar to StmtCfg, default true. This makes the strip of right padding of CHAR columns configurable.
