@@ -7,8 +7,11 @@ package ora_test
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"gopkg.in/rana/ora.v3"
 )
@@ -97,6 +100,44 @@ func TestSelectNull_db(t *testing.T) {
 		}
 		rows.Close()
 	}
+}
+
+func TestSetConnMaxLifetime(t *testing.T) {
+	var db *sql.DB
+	var err error
+	db, err = sql.Open("ora", testConStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxIdleConns(2)
+	db.SetConnMaxLifetime(1 * time.Second)
+	defer db.Close()
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	dbRoutine := func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			var temp int
+			db.QueryRow("SELECT 1 FROM DUAL").Scan(&temp)
+			if rand.Int()%10 == 0 {
+				time.Sleep(50 * time.Millisecond)
+			}
+		}
+	}
+
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go dbRoutine()
+	}
+	time.Sleep(8 * time.Second)
+	close(done)
+	wg.Wait()
 }
 
 func Test_numberP38S0Identity_db(t *testing.T) {
