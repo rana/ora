@@ -135,7 +135,7 @@ func TestSetConnMaxLifetime(t *testing.T) {
 		wg.Add(1)
 		go dbRoutine()
 	}
-	time.Sleep(8 * time.Second)
+	time.Sleep(3 * time.Second)
 	close(done)
 	wg.Wait()
 }
@@ -387,8 +387,19 @@ func TestSysdba(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if err := db.Ping(); err != nil {
-		t.Skipf("%q: %v", dsn, err)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := db.Ping(); err != nil {
+			t.Skipf("%q: %v", dsn, err)
+		}
+	}()
+
+	select {
+	case <-time.After(10 * time.Second):
+		t.Error("Sysdba test timed out!")
+	case <-done:
+		return
 	}
 }
 
