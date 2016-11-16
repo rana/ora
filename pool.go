@@ -402,22 +402,36 @@ const poolWaitPut = 1 * time.Second
 // The backing store is a simple []io.Closer, which is treated as random store,
 // to achive uniform reuse.
 type idlePool struct {
-	elems chan io.Closer
+	elems atomic.Value
+}
+
+func (p *idlePool) Elems() chan io.Closer {
+	i := p.elems.Load()
+	if i == nil {
+		return nil
+	}
+	return i.(chan io.Closer)
+}
+func (p *idlePool) SetElems(c chan io.Closer) chan io.Closer {
+	b := p.Elems()
+	p.elems.Store(c)
+	return b
 }
 
 // NewidlePool returns an idlePool.
 func newIdlePool(size int) *idlePool {
-	return &idlePool{
-		elems: make(chan io.Closer, size),
-	}
+	var p idlePool
+	p.SetElems(make(chan io.Closer, size))
+	return &p
 }
 
 // Evict halves the idle items
 func (p *idlePool) Evict(dur time.Duration) {
-	n := len(p.elems)/2 + 1
+	elems := p.Elems()
+	n := len(elems)/2 + 1
 	for i := 0; i < n; i++ {
 		select {
-		case elem, ok := <-p.elems:
+		case elem, ok := <-elems:
 			if !ok {
 				return
 			}
@@ -433,8 +447,9 @@ func (p *idlePool) Evict(dur time.Duration) {
 // Get returns a closer or nil, if no pool found.
 func (p *idlePool) Get() io.Closer {
 	for {
+		elems := p.Elems()
 		select {
-		case elem := <-p.elems:
+		case elem := <-elems:
 			if elem != nil {
 				return elem
 			}
@@ -450,12 +465,12 @@ func (p *idlePool) Get() io.Closer {
 // This way elements reused uniformly.
 func (p *idlePool) Put(c io.Closer) {
 	select {
-	case p.elems <- c:
+	case p.Elems() <- c:
 		return
 	default:
 		go func() {
 			select {
-			case p.elems <- c:
+			case p.Elems() <- c:
 				return
 			case <-time.After(poolWaitPut):
 				c.Close()
@@ -466,11 +481,10 @@ func (p *idlePool) Put(c io.Closer) {
 
 // Close all elements.
 func (p *idlePool) Close() error {
-	elems := p.elems
+	elems := p.SetElems(nil)
 	if elems == nil {
 		return nil
 	}
-	p.elems = nil
 	close(elems)
 	var err error
 	for elem := range elems {
