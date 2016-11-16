@@ -326,7 +326,6 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
-	ses.mu.Lock()
 	stmtCfg := ses.cfg.StmtCfg
 	if stmtCfg == nil {
 		stmtCfg = ses.srv.cfg.StmtCfg
@@ -334,10 +333,14 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 			stmtCfg = NewStmtCfg()
 		}
 	}
-	if !ses.srv.dbIsUTF8 && stmtCfg.stringPtrBufferSize > 1000 {
-		stmtCfg.stringPtrBufferSize = 1000
+	if stmtCfg.stringPtrBufferSize > 1000 {
+		ses.srv.mu.Lock()
+		isUTF8 := ses.srv.dbIsUTF8
+		ses.srv.mu.Unlock()
+		if isUTF8 {
+			stmtCfg.stringPtrBufferSize = 1000
+		}
 	}
-	ses.mu.Unlock()
 	stmt.cfg = *stmtCfg
 	stmt.sql = sql
 	stmt.gcts = gcts
@@ -351,9 +354,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	}
 	stmt.stmtType = *((*C.ub2)(st))
 	C.free(unsafe.Pointer(st))
-	ses.mu.Lock()
 	ses.openStmts.add(stmt)
-	ses.mu.Unlock()
 	stmt.mu.Unlock()
 
 	return stmt, nil
