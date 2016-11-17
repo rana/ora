@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -27,25 +28,24 @@ func startDB(dsn string) {
 }
 
 func dbRoutine() {
-	tick := time.Tick(1000 * time.Second)
-	for {
-		select {
-		case <-tick:
-			log.Println("finish")
-			return
-		default:
-			var temp int
-			db.QueryRow("select popid from devicetable where devid=7008").Scan(&temp)
-			if rand.Int()%10 == 0 {
-				time.Sleep(50 * time.Millisecond)
-			}
+	for i := 0; i < 3; i++ {
+		var temp int
+		db.QueryRow("select 1 from DUAL").Scan(&temp)
+		log.Println("running")
+		if rand.Int()%10 == 0 {
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }
 
 func main() {
-	log.SetPrefix("#131 ")
+	log.SetPrefix("#133 ")
 	log.Println("starting")
+
+	go func() {
+		http.ListenAndServe("0.0.0.0:6060", nil)
+	}()
+
 	startDB(fmt.Sprintf("%s/%s@%s", os.Getenv("GO_ORA_DRV_TEST_USERNAME"), os.Getenv("GO_ORA_DRV_TEST_PASSWORD"), os.Getenv("GO_ORA_DRV_TEST_DB")))
 
 	var wg sync.WaitGroup
