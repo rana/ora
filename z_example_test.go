@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -470,11 +468,10 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
-	b, err := ioutil.ReadAll(row[0].(io.Reader))
-	if err != nil {
+	if err := rset.Err; err != nil {
 		fmt.Printf("ERROR: %v", err)
 	} else {
-		fmt.Println(b)
+		fmt.Println(row[0].([]byte))
 	}
 
 	// Output:
@@ -1589,13 +1586,8 @@ func ExampleWriteLOB() {
 		log.Fatalf("%q: %v", qry, err)
 	}
 	for rset.Next() {
-		lob := rset.Row[0].(io.Reader)
-		b, err := ioutil.ReadAll(lob)
-		if err != nil {
-			log.Printf("ERROR: %v", err)
-		} else {
-			fmt.Println(len(b))
-		}
+		b := rset.Row[0].([]byte)
+		fmt.Println(len(b))
 	}
 	// Output:
 	// 32768
