@@ -1,4 +1,4 @@
-// Copyright 2014 Rana Ian. All rights reserved.
+// Copyright 2015 Rana Ian. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
@@ -13,6 +13,7 @@ import (
 	"container/list"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -55,12 +56,12 @@ func NewLogSrvCfg() LogSrvCfg {
 
 // Srv represents an Oracle server.
 type Srv struct {
-	id       uint64
-	cfg      SrvCfg
-	mu       sync.Mutex
-	env      *Env
-	ocisrv   *C.OCIServer
-	dbIsUTF8 bool
+	id     uint64
+	cfg    SrvCfg
+	mu     sync.Mutex
+	env    *Env
+	ocisrv *C.OCIServer
+	isUTF8 int32
 
 	openSess *sesList
 
@@ -302,6 +303,14 @@ func (srv *Srv) Cfg() *SrvCfg {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	return &srv.cfg
+}
+
+// IsUTF8 returns whether the DB uses AL32UTF8 encoding.
+func (srv *Srv) IsUTF8() bool {
+	if srv == nil {
+		return false
+	}
+	return atomic.LoadInt32(&srv.isUTF8) == 1
 }
 
 // IsOpen returns true when the server is open; otherwise, false.

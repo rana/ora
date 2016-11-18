@@ -334,10 +334,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 		}
 	}
 	if stmtCfg.stringPtrBufferSize > 1000 {
-		ses.srv.mu.Lock()
-		isUTF8 := ses.srv.dbIsUTF8
-		ses.srv.mu.Unlock()
-		if isUTF8 {
+		if ses.srv.IsUTF8() {
 			stmtCfg.stringPtrBufferSize = 1000
 		}
 	}

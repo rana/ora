@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -218,14 +219,21 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
 	}
+	setUTF8 := func(cs string) {
+		ses.mu.Lock()
+		var isUTF8 int32
+		if cs == "AL32UTF8" {
+			isUTF8 = 1
+		}
+		atomic.StoreInt32(&con.ses.srv.isUTF8, isUTF8)
+		ses.mu.Unlock()
+	}
+
 	conCharsetMu.Lock()
 	defer conCharsetMu.Unlock()
+
 	if cs, ok := conCharset[srvCfg.Dblink]; ok {
-		ses.mu.Lock()
-		ses.srv.mu.Lock()
-		con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
-		ses.srv.mu.Unlock()
-		ses.mu.Unlock()
+		setUTF8(cs)
 		return con, nil
 	}
 	if rset, err := ses.PrepAndQry(
@@ -238,7 +246,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
 			conCharset[srvCfg.Dblink] = cs
-			con.ses.srv.dbIsUTF8 = cs == "AL32UTF8"
+			setUTF8(cs)
 		}
 	}
 	env.openCons.add(con)
