@@ -57,4 +57,5 @@ func main() {
 		}()
 	}
 	wg.Wait()
+	log.Println("finished.")
 }

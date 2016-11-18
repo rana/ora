@@ -35,7 +35,7 @@ func dbRoutine() {
 			return
 		default:
 			var temp int
-			db.QueryRow("select popid from devicetable where devid=7008").Scan(&temp)
+			db.QueryRow("select 1 from dual").Scan(&temp)
 			if rand.Int()%10 == 0 {
 				time.Sleep(50 * time.Millisecond)
 			}
@@ -57,4 +57,5 @@ func main() {
 		}()
 	}
 	wg.Wait()
+	log.Println("finished.")
 }
