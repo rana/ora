@@ -3,8 +3,8 @@
 package main
 
 import (
-	"flag"
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/exec"

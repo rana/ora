@@ -31,10 +31,10 @@ func startDB(dsn string) {
 func dbRoutine(ctx context.Context) {
 	for {
 		select {
-			case <-ctx.Done():
-				log.Printf(" %v. finished.", ctx.Value("id"))
-				return
-			default:
+		case <-ctx.Done():
+			log.Printf(" %v. finished.", ctx.Value("id"))
+			return
+		default:
 		}
 		var temp int
 		db.QueryRow("select 1 from dual").Scan(&temp)
@@ -47,9 +47,9 @@ func dbRoutine(ctx context.Context) {
 func main() {
 	dur, _ := time.ParseDuration(os.Getenv("DURATION"))
 	if dur == 0 {
-		dur = 24*time.Hour
+		dur = 24 * time.Hour
 	}
-	
+
 	log.SetPrefix("#131 ")
 	log.Println("starting")
 	startDB(fmt.Sprintf("%s/%s@%s", os.Getenv("GO_ORA_DRV_TEST_USERNAME"), os.Getenv("GO_ORA_DRV_TEST_PASSWORD"), os.Getenv("GO_ORA_DRV_TEST_DB")))

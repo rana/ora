@@ -23,7 +23,7 @@ func (bnd *bndUint16) bind(value uint16, position int, stmt *Stmt) error {
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 		unsafe.Pointer(&value),      //const void          *inum,
 		byteWidth16,                 //uword               inum_length,
-		C.OCI_NUMBER_UNSIGNED,         //uword               inum_s_flag,
+		C.OCI_NUMBER_UNSIGNED,       //uword               inum_s_flag,
 		&bnd.ociNumber[0])           //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
