@@ -230,9 +230,10 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	}
 
 	conCharsetMu.Lock()
-	defer conCharsetMu.Unlock()
+	cs, ok := conCharset[srvCfg.Dblink]
+	conCharsetMu.Unlock()
 
-	if cs, ok := conCharset[srvCfg.Dblink]; ok {
+	if ok {
 		setUTF8(cs)
 		return con, nil
 	}
@@ -245,7 +246,9 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		//Log.Infof("E%vS%vS%v] Database characterset=%q",
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
+			conCharsetMu.Lock()
 			conCharset[srvCfg.Dblink] = cs
+			conCharsetMu.Unlock()
 			setUTF8(cs)
 		}
 	}
