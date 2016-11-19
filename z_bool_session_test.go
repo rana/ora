@@ -5,6 +5,7 @@
 package ora_test
 
 import (
+	"fmt"
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
@@ -16,234 +17,99 @@ import (
 //charC1     oracleColumnType = "char(1 char) not null"
 //charC1Null oracleColumnType = "char(1 char) null"
 
-//////////////////////////////////////////////////////////////////////////////////
-//// charB1
-//////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bool_charB1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolFalse(), charB1, t, nil)
+func TestBindDefineBool(t *testing.T) {
+	type testCase struct {
+		gen func() interface{}
+		ct  oracleColumnType
+	}
+	sc := ora.NewStmtCfg()
+	testCases := make(map[string]testCase, 32)
+	for _, ctName := range []string{"charB1", "charB1Null"} {
+		ct := _T_colType[ctName]
+		for _, typName := range []string{"bool", "OraBool", "boolSlice"} {
+			for _, valName := range []string{"false", "true"} {
+				testCases[fmt.Sprintf("%s_%s_%s", ctName, typName, valName)] = testCase{ct: ct, gen: _T_boolGen[typName+"_"+valName]}
+			}
+		}
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) { t.Parallel(); testBindDefine(tc.gen(), tc.ct, t, sc) })
+	}
 }
 
-func TestBindDefine_bool_charB1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolTrue(), charB1, t, nil)
+func TestBindPtrBool(t *testing.T) {
+	type testCase struct {
+		gen func() interface{}
+		ct  oracleColumnType
+	}
+	testCases := make(map[string]testCase, 16)
+	for _, ctName := range []string{"charB1", "charB1Null", "charC1", "charC1Null"} {
+		for _, valName := range []string{"false", "true"} {
+			k := ctName + "_" + valName
+			testCases[k] = testCase{
+				gen: _T_boolGen[k],
+				ct:  _T_colType[ctName],
+			}
+		}
+	}
+
+	sc := ora.NewStmtCfg()
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testBindPtr(tc.gen(), tc.ct, t)
+		})
+	}
 }
 
-func TestBindPtr_bool_charB1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolFalse(), charB1, t)
+func TestMultiDefineBool(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	for _, ctName := range []string{
+		"charB1", "charB1Null",
+		"charC1", "charC1Null",
+	} {
+		t.Run(ctName, func(t *testing.T) {
+			t.Parallel()
+			testMultiDefine(
+				_T_boolGen[ctName+"_true"],
+				_T_colType[ctName],
+				t,
+			)
+		})
+	}
 }
 
-func TestBindPtr_bool_charB1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolTrue(), charB1, t)
+func TestWorkloadBool(t *testing.T) {
+	for name, ct := range map[string]oracleColumnType{
+		"charB1":     charB1,
+		"charB1Null": charB1Null,
+		"charC1":     charC1,
+		"charC1Null": charC1Null,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			//enableLogging(t)
+			defer setC1Bool()()
+			testWorkload(ct, t)
+		})
+	}
 }
 
-func TestBindDefine_OraBool_charB1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolFalse(false), charB1, t, nil)
+var _T_colType = map[string]oracleColumnType{
+	"charB1":     charB1,
+	"charB1Null": charB1Null,
+	"charC1":     charC1,
+	"charC1Null": charC1Null,
 }
 
-func TestBindDefine_OraBool_charB1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolTrue(false), charB1, t, nil)
-}
-
-func TestBindSlice_bool_charB1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolSlice(), charB1, t, nil)
-}
-
-func TestBindSlice_OraBool_charB1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolSlice(false), charB1, t, nil)
-}
-
-func TestMultiDefine_charB1_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_boolTrue(), charB1, t)
-}
-
-func TestWorkload_charB1_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	defer setC1Bool()()
-	testWorkload(charB1, t)
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-//// charB1Null
-//////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bool_charB1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolFalse(), charB1Null, t, nil)
-}
-
-func TestBindDefine_bool_charB1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolTrue(), charB1Null, t, nil)
-}
-
-func TestBindPtr_bool_charB1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolFalse(), charB1Null, t)
-}
-
-func TestBindPtr_bool_charB1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolTrue(), charB1Null, t)
-}
-
-func TestBindDefine_OraBool_charB1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolFalse(true), charB1Null, t, nil)
-}
-
-func TestBindDefine_OraBool_charB1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolTrue(true), charB1Null, t, nil)
-}
-
-func TestBindSlice_bool_charB1Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolSlice(), charB1Null, t, nil)
-}
-
-func TestBindSlice_OraBool_charB1Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolSlice(true), charB1Null, t, nil)
-}
-
-func TestMultiDefine_charB1Null_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_boolTrue(), charB1Null, t)
-}
-
-func TestWorkload_charB1Null_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	defer setC1Bool()()
-	testWorkload(charB1Null, t)
-}
-
-func TestBindDefine_charB1Null_nil_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(nil, charB1Null, t, nil)
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-//// charC1
-//////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bool_charC1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolFalse(), charC1, t, nil)
-}
-
-func TestBindDefine_bool_charC1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolTrue(), charC1, t, nil)
-}
-
-func TestBindPtr_bool_charC1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolFalse(), charC1, t)
-}
-
-func TestBindPtr_bool_charC1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolTrue(), charC1, t)
-}
-
-func TestBindDefine_OraBool_charC1_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolFalse(false), charC1, t, nil)
-}
-
-func TestBindDefine_OraBool_charC1_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolTrue(false), charC1, t, nil)
-}
-
-func TestBindSlice_bool_charC1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolSlice(), charC1, t, nil)
-}
-
-func TestBindSlice_OraBool_charC1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolSlice(false), charC1, t, nil)
-}
-
-func TestMultiDefine_charC1_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_boolTrue(), charC1, t)
-}
-
-func TestWorkload_charC1_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testWorkload(charC1, t)
-}
-
-//////////////////////////////////////////////////////////////////////////////////
-//// charC1Null
-//////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bool_charC1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolFalse(), charC1Null, t, nil)
-}
-
-func TestBindDefine_bool_charC1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_boolTrue(), charC1Null, t, nil)
-}
-
-func TestBindPtr_bool_charC1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolFalse(), charC1Null, t)
-}
-
-func TestBindPtr_bool_charC1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindPtr(gen_boolTrue(), charC1Null, t)
-}
-
-func TestBindDefine_OraBool_charC1Null_false_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolFalse(true), charC1Null, t, nil)
-}
-
-func TestBindDefine_OraBool_charC1Null_true_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolTrue(true), charC1Null, t, nil)
-}
-
-func TestBindSlice_bool_charC1Null_session(t *testing.T) {
-	t.Parallel()
-	//ora.Cfg().Log.Rset.Next = true
-	//ora.Cfg().Log.Rset.BeginRow = true
-	//enableLogging(t)
-	testBindDefine(gen_boolSlice(), charC1Null, t, nil)
-}
-
-func TestBindSlice_OraBool_charC1Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBoolSlice(true), charC1Null, t, nil)
-}
-
-func TestMultiDefine_charC1Null_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_boolTrue(), charC1Null, t)
-}
-
-func TestWorkload_charC1Null_session(t *testing.T) {
-	t.Parallel()
-	testWorkload(charC1Null, t)
-}
-
-func TestBindDefine_charC1Null_nil_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(nil, charC1Null, t, nil)
+var _T_boolGen = map[string](func() interface{}){
+	"bool_false":        func() interface{} { gen_boolFalse },
+	"bool_true":         func() interface{} { gen_boolTrue },
+	"OraBool_false":     func() interface{} { return gen_OraBoolFalse() },
+	"OraBool_true":      func() interface{} { return gen_OraBoolTrue() },
+	"boolSlice_false":   func() interface{} { return gen_boolSlice() },
+	"boolSlice_false":   func() interface{} { return gen_boolSlice() },
+	"OraBoolSlice_true": func() interface{} { return gen_boolSlice(false) },
 }
 
 func setC1Bool() func() {
