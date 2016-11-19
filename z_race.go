@@ -3,6 +3,7 @@
 package main
 
 import (
+	"flag"
 	"context"
 	"log"
 	"os"
@@ -12,9 +13,13 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var issues = []string{"z_issue131.go", "z_issue133.go"}
+var issues = []string{"z_issue131.go"}
 
 func main() {
+	flagDur := flag.Duration("duration", 24*time.Hour, "test duration")
+	flag.Parse()
+	os.Setenv("DURATION", flagDur.String())
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	grp, ctx := errgroup.WithContext(ctx)
