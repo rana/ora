@@ -90,15 +90,13 @@ func (stmt *Stmt) Close() (err error) {
 		stmt.ses.openStmts.remove(stmt)
 	}
 	stmt.ses.mu.Unlock()
-	stmt.mu.Unlock()
+	defer stmt.mu.Unlock()
 	return stmt.close()
 }
 
 // close closes the SQL statement, without locking stmt.
 // does not remove Stmt from Ses.openStmts
 func (stmt *Stmt) close() (err error) {
-	stmt.mu.Lock()
-	defer stmt.mu.Unlock()
 	stmt.log(_drv.cfg.Log.Stmt.Close)
 	err = stmt.checkClosed()
 	if err != nil {

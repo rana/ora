@@ -86,15 +86,13 @@ func (srv *Srv) Close() (err error) {
 	srv.env.mu.Lock()
 	srv.env.openSrvs.remove(srv)
 	srv.env.mu.Unlock()
-	srv.mu.Unlock()
+	defer srv.mu.Unlock()
 	return srv.close()
 }
 
-// close disconnects from an Oracle server.
-// does not remove Srv from Ses.openSrvs
+// close disconnects from an Oracle server, without holding locks.
+// Does not remove Srv from Ses.openSrvs
 func (srv *Srv) close() (err error) {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
 	srv.log(_drv.cfg.Log.Srv.Close)
 	err = srv.checkClosed()
 	if err != nil {

@@ -149,15 +149,15 @@ func (ses *Ses) Close() (err error) {
 	ses.srv.mu.Lock()
 	ses.srv.openSess.remove(ses)
 	ses.srv.mu.Unlock()
-	ses.mu.Unlock()
+	defer ses.mu.Unlock()
 	return ses.close()
 }
 
-// close ends a session on an Oracle server.
+// close ends a session on an Oracle server, without holding locks.
 // does not remove Ses from Srv.openSess
 func (ses *Ses) close() (err error) {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
+	//ses.mu.Lock()
+	//defer ses.mu.Unlock()
 	ses.log(_drv.cfg.Log.Ses.Close)
 	err = ses.checkClosed()
 	if err != nil {
