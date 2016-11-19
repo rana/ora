@@ -313,28 +313,40 @@ func (env *Env) sysName() string {
 	return env.sysNamer.Name(func() string { return fmt.Sprintf("E%v", env.id) })
 }
 
-// log writes a message with an Env system name and caller info.
-func (env *Env) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+// logL writes a message with an Env system name and caller info.
+func logL(nm string, enabled bool, v ...interface{}) {
+	Log := _drv.cfg.Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		Log.Logger.Infof("%v %v", nm, callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
+		Log.Logger.Infof("%v %v %v", nm, callInfo(2), fmt.Sprint(v...))
 	}
 }
 
-// log writes a formatted message with an Env system name and caller info.
-func (env *Env) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+// logF writes a formatted message with an Env system name and caller info.
+func logF(nm string, enabled bool, format string, v ...interface{}) {
+	Log := _drv.cfg.Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		Log.Logger.Infof("%v %v", nm, callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		Log.Logger.Infof("%v %v %v", nm, callInfo(2), fmt.Sprintf(format, v...))
 	}
+}
+
+// logL writes a message with an Env system name and caller info.
+func (env *Env) log(enabled bool, v ...interface{}) {
+	logL(env.sysName(), enabled, v...)
+}
+
+// logF writes a formatted message with an Env system name and caller info.
+func (env *Env) logF(enabled bool, format string, v ...interface{}) {
+	logF(env.sysName(), enabled, format, v...)
 }
 
 // allocateOciHandle allocates an oci handle. No locking occurs.

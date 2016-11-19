@@ -135,7 +135,7 @@ func Ins(v interface{}, ses *Ses) (err error) {
 			err = errR(value)
 		}
 	}()
-	log(_drv.cfg.Log.Ins)
+	logL("Ins", _drv.cfg.Log.Ins)
 	tbl, err := tblGet(v)
 	if err != nil {
 		return errE(err)
@@ -230,7 +230,7 @@ func Upd(v interface{}, ses *Ses) (err error) {
 			err = errR(value)
 		}
 	}()
-	log(_drv.cfg.Log.Upd)
+	logL("Upd", _drv.cfg.Log.Upd)
 	tbl, err := tblGet(v)
 	if err != nil {
 		return errE(err)
@@ -282,7 +282,7 @@ func Del(v interface{}, ses *Ses) (err error) {
 			err = errR(value)
 		}
 	}()
-	log(_drv.cfg.Log.Del)
+	logL("Del", _drv.cfg.Log.Del)
 	tbl, err := tblGet(v)
 	if err != nil {
 		return errE(err)
@@ -350,7 +350,7 @@ func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...inter
 			err = errR(value)
 		}
 	}()
-	log(_drv.cfg.Log.Sel)
+	logL("Sel", _drv.cfg.Log.Sel)
 	tbl, err := tblGet(v)
 	if err != nil {
 		return nil, errE(err)
@@ -621,7 +621,7 @@ func AddTbl(v interface{}, tblName string) (err error) {
 	if err != nil {
 		return errE(err)
 	}
-	logF(_drv.cfg.Log.AddTbl, "%v to %v", typ.Name(), tblName)
+	logF("AddTbl", _drv.cfg.Log.AddTbl, "%v to %v", typ.Name(), tblName)
 	_, err = tblCreate(typ, strings.ToUpper(tblName))
 	if err != nil {
 		return errE(err)

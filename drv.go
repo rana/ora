@@ -161,7 +161,7 @@ type Drv struct {
 //
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
-	log(true)
+	logL("Open", true)
 	con, err := _drv.sqlPkgEnv.OpenCon(conStr)
 	if err != nil {
 		return nil, maybeBadConn(err)

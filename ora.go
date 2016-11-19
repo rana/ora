@@ -167,7 +167,7 @@ func Register(cfg *DrvCfg) {
 func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
 	_drv.mu.Lock()
 	defer _drv.mu.Unlock()
-	log(_drv.cfg.Log.OpenEnv)
+	logL("OpenEnv", _drv.cfg.Log.OpenEnv)
 	if cfg == nil { // ensure cfg
 		tmp := *_drv.cfg.Env // copy by value to ensure independent cfgs
 		cfg = &tmp

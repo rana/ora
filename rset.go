@@ -906,24 +906,10 @@ func (rset *Rset) sysName() string {
 
 // log writes a message with an Rset system name and caller info.
 func (rset *Rset) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprint(v...))
-	}
+	logL(rset.sysName(), enabled, v...)
 }
 
 // log writes a formatted message with an Rset system name and caller info.
 func (rset *Rset) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-	}
+	logF(rset.sysName(), enabled, format, v...)
 }

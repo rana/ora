@@ -198,28 +198,6 @@ type methodInfo struct {
 
 func (m methodInfo) String() string { return m.Type + "." + m.Method }
 
-// log writes a message with caller info.
-func log(enabled bool, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprint(v...))
-		}
-	}
-}
-
-// log writes a formatted message with caller info.
-func logF(enabled bool, format string, v ...interface{}) {
-	if enabled {
-		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
-		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprintf(format, v...))
-		}
-	}
-}
-
 // err creates an error with caller info.
 func er(v ...interface{}) error {
 	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprint(v...)))

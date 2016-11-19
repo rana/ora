@@ -339,24 +339,10 @@ func (srv *Srv) sysName() string {
 
 // log writes a message with an Srv system name and caller info.
 func (srv *Srv) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprint(v...))
-	}
+	logL(srv.sysName(), enabled, v...)
 }
 
 // log writes a formatted message with an Srv system name and caller info.
 func (srv *Srv) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-	}
+	logF(srv.sysName(), enabled, format, v...)
 }

@@ -1304,26 +1304,12 @@ func (stmt *Stmt) sysName() string {
 
 // log writes a message with an Stmt system name and caller info.
 func (stmt *Stmt) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprint(v...))
-	}
+	logL(stmt.sysName(), enabled, v...)
 }
 
 // log writes a formatted message with an Stmt system name and caller info.
 func (stmt *Stmt) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
-		return
-	}
-	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
-	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprintf(format, v...))
-	}
+	logF(stmt.sysName(), enabled, format, v...)
 }
 
 // set prefetch size. No locking occurs.
