@@ -16,6 +16,7 @@ import (
 )
 
 func Test_plsarr_num_session(t *testing.T) {
+	t.Parallel()
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_num AS
   TYPE pls_tab_typ IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
@@ -123,6 +124,7 @@ END TST_ora_plsarr_num;`,
 }
 
 func Test_plsarr_dt_session(t *testing.T) {
+	t.Parallel()
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_dt AS
   TYPE string_tab_typ IS TABLE OF VARCHAR2(1000) INDEX BY PLS_INTEGER;

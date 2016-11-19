@@ -11,6 +11,7 @@ import (
 )
 
 func TestEnv_OpenClose(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	err = env.Close()
@@ -18,6 +19,7 @@ func TestEnv_OpenClose(t *testing.T) {
 }
 
 func TestEnv_IsOpen_opened(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
@@ -31,6 +33,7 @@ func TestEnv_IsOpen_opened(t *testing.T) {
 }
 
 func TestEnv_IsOpen_opened_closed(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	testErr(err, t)
@@ -45,6 +48,7 @@ func TestEnv_IsOpen_opened_closed(t *testing.T) {
 }
 
 func TestEnv_OpenCloseServer(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
@@ -58,6 +62,7 @@ func TestEnv_OpenCloseServer(t *testing.T) {
 }
 
 func TestEnv_OpenCloseCon(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()
@@ -71,6 +76,7 @@ func TestEnv_OpenCloseCon(t *testing.T) {
 }
 
 func TestEnv_SrvCfg(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -112,6 +118,7 @@ func TestEnv_SrvCfg(t *testing.T) {
 }
 
 func TestEnv_SesCfg(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	if err != nil {
 		t.Fatal(err)

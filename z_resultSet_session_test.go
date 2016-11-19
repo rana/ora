@@ -13,6 +13,7 @@ import (
 )
 
 func Test_cursor1_session(t *testing.T) {
+	t.Parallel()
 
 	// create table
 	tableName := tableName()
@@ -71,6 +72,7 @@ func Test_cursor1_session(t *testing.T) {
 }
 
 func Test_nested_rset(t *testing.T) {
+	t.Parallel()
 	_, err := testSes.PrepAndExe(`CREATE OR REPLACE PROCEDURE proc2(p_cur OUT SYS_REFCURSOR) IS
 BEGIN
   OPEN p_cur FOR

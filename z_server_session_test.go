@@ -14,6 +14,7 @@ import (
 )
 
 func TestServer_OpenCloseSession(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
@@ -34,6 +35,7 @@ func TestServer_OpenCloseSession(t *testing.T) {
 }
 
 func TestServer_Ping(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
@@ -49,6 +51,7 @@ func TestServer_Ping(t *testing.T) {
 }
 
 func TestServer_Version(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	defer env.Close()
 	testErr(err, t)
@@ -67,6 +70,7 @@ func TestServer_Version(t *testing.T) {
 }
 
 func TestPool(t *testing.T) {
+	t.Parallel()
 	env, err := ora.OpenEnv(nil)
 	testErr(err, t)
 	defer env.Close()

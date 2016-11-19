@@ -22,23 +22,28 @@ import (
 //// longRaw
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_longRaw_session(t *testing.T) {
+	t.Parallel()
 	//enableLogging(t)
 	testBindDefine(gen_bytes(9), longRaw, t, nil, ora.Bin)
 }
 
 func TestBindDefine_OraBytes_longRaw_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytes(9, false), longRaw, t, nil, ora.OraBin)
 }
 
 func TestBindSlice_bytes_longRaw_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytesSlice(9), longRaw, t, nil)
 }
 
 func TestBindSlice_OraBytes_longRaw_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytesSlice(9, false), longRaw, t, nil)
 }
 
 func TestMultiDefine_longRaw_session(t *testing.T) {
+	t.Parallel()
 	//enableLogging(t)
 	testMultiDefine(gen_bytes(9), longRaw, t)
 }
@@ -53,22 +58,27 @@ func TestMultiDefine_longRaw_session(t *testing.T) {
 // longRawNull
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_longRawNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytes(9), longRawNull, t, nil, ora.Bin)
 }
 
 func TestBindDefine_OraBytes_longRawNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytes(9, true), longRawNull, t, nil, ora.OraBin)
 }
 
 func TestBindSlice_bytes_longRawNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytesSlice(9), longRawNull, t, nil)
 }
 
 func TestBindSlice_OraBytes_longRawNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytesSlice(9, true), longRawNull, t, nil)
 }
 
 func TestMultiDefine_longRawNull_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_bytes(9), longRawNull, t)
 }
 
@@ -79,6 +89,7 @@ func TestMultiDefine_longRawNull_session(t *testing.T) {
 //}
 
 func TestBindDefine_longRawNull_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, longRawNull, t, nil)
 }
 
@@ -86,26 +97,32 @@ func TestBindDefine_longRawNull_nil_session(t *testing.T) {
 // raw2000
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytes(2000), raw2000, t, nil, ora.Bin)
 }
 
 func TestBindDefine_OraBytes_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytes(2000, false), raw2000, t, nil, ora.OraBin)
 }
 
 func TestBindSlice_bytes_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytesSlice(2000), raw2000, t, nil)
 }
 
 func TestBindSlice_OraBytes_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytesSlice(2000, false), raw2000, t, nil)
 }
 
 func TestMultiDefine_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_bytes(2000), raw2000, t)
 }
 
 func TestWorkload_raw2000_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(raw2000, t)
 }
 
@@ -113,30 +130,37 @@ func TestWorkload_raw2000_session(t *testing.T) {
 // raw2000Null
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bytes_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytes(2000), raw2000Null, t, nil, ora.Bin)
 }
 
 func TestBindDefine_OraBytes_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytes(2000, true), raw2000Null, t, nil, ora.OraBin)
 }
 
 func TestBindSlice_bytes_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_bytesSlice(2000), raw2000Null, t, nil)
 }
 
 func TestBindSlice_OraBytes_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBytesSlice(2000, true), raw2000Null, t, nil)
 }
 
 func TestMultiDefine_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_bytes(2000), raw2000Null, t)
 }
 
 func TestWorkload_raw2000Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(raw2000Null, t)
 }
 
 func TestBindDefine_raw2000Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, raw2000Null, t, nil)
 }
 

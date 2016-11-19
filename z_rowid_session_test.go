@@ -12,11 +12,13 @@ import (
 
 // test on heap table to retreive ROWID
 func TestDefine_string_rowid_session(t *testing.T) {
+	t.Parallel()
 	testRowid(false, t)
 }
 
 // test on indexed table to retrieve UROWID
 func TestDefine_string_urowid_session(t *testing.T) {
+	t.Parallel()
 	testRowid(true, t)
 }
 

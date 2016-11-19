@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -99,12 +100,14 @@ var testSrvCfg *ora.SrvCfg
 var testSesCfg *ora.SesCfg
 var testConStr string
 var testDbsessiontimezone *time.Location
-var testTableId int
+var testTableID uint32
 var testWorkloadColumnCount int
 var testSes *ora.Ses
 var testDb *sql.DB
 
-const tableNamePrefix = "test_"
+const tableNameBase = "test_"
+
+var tableNamePrefix = fmt.Sprintf(tableNameBase+"%d_", os.Getpid())
 
 func init() {
 	testSrvCfg = &ora.SrvCfg{Dblink: os.Getenv("GO_ORA_DRV_TEST_DB")}
@@ -145,7 +148,7 @@ func init() {
 	fmt.Println("Dropping previous tables...")
 	stmt, err := testSes.Prep(`
 BEGIN
-	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE UPPER('` + tableNamePrefix + `')||'_%') LOOP
+	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE UPPER('` + tableNameBase + `')||'%') LOOP
 		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
 	END LOOP;
 END;`)
@@ -729,8 +732,7 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 }
 
 func tableName() string {
-	testTableId++
-	return tableNamePrefix + strconv.Itoa(testTableId)
+	return tableNamePrefix + strconv.FormatUint(uint64(atomic.AddUint32(&testTableID, 1)), 10)
 }
 
 func testErr(err error, t testing.TB, expectedErrs ...error) {

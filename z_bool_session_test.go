@@ -20,42 +20,52 @@ import (
 //// charB1
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bool_charB1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolFalse(), charB1, t, nil)
 }
 
 func TestBindDefine_bool_charB1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolTrue(), charB1, t, nil)
 }
 
 func TestBindPtr_bool_charB1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolFalse(), charB1, t)
 }
 
 func TestBindPtr_bool_charB1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolTrue(), charB1, t)
 }
 
 func TestBindDefine_OraBool_charB1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolFalse(false), charB1, t, nil)
 }
 
 func TestBindDefine_OraBool_charB1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolTrue(false), charB1, t, nil)
 }
 
 func TestBindSlice_bool_charB1_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolSlice(), charB1, t, nil)
 }
 
 func TestBindSlice_OraBool_charB1_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolSlice(false), charB1, t, nil)
 }
 
 func TestMultiDefine_charB1_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_boolTrue(), charB1, t)
 }
 
 func TestWorkload_charB1_session(t *testing.T) {
+	t.Parallel()
 	//enableLogging(t)
 	defer setC1Bool()()
 	testWorkload(charB1, t)
@@ -65,48 +75,59 @@ func TestWorkload_charB1_session(t *testing.T) {
 //// charB1Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bool_charB1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolFalse(), charB1Null, t, nil)
 }
 
 func TestBindDefine_bool_charB1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolTrue(), charB1Null, t, nil)
 }
 
 func TestBindPtr_bool_charB1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolFalse(), charB1Null, t)
 }
 
 func TestBindPtr_bool_charB1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolTrue(), charB1Null, t)
 }
 
 func TestBindDefine_OraBool_charB1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolFalse(true), charB1Null, t, nil)
 }
 
 func TestBindDefine_OraBool_charB1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolTrue(true), charB1Null, t, nil)
 }
 
 func TestBindSlice_bool_charB1Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolSlice(), charB1Null, t, nil)
 }
 
 func TestBindSlice_OraBool_charB1Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolSlice(true), charB1Null, t, nil)
 }
 
 func TestMultiDefine_charB1Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_boolTrue(), charB1Null, t)
 }
 
 func TestWorkload_charB1Null_session(t *testing.T) {
+	t.Parallel()
 	//enableLogging(t)
 	defer setC1Bool()()
 	testWorkload(charB1Null, t)
 }
 
 func TestBindDefine_charB1Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, charB1Null, t, nil)
 }
 
@@ -114,42 +135,52 @@ func TestBindDefine_charB1Null_nil_session(t *testing.T) {
 //// charC1
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bool_charC1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolFalse(), charC1, t, nil)
 }
 
 func TestBindDefine_bool_charC1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolTrue(), charC1, t, nil)
 }
 
 func TestBindPtr_bool_charC1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolFalse(), charC1, t)
 }
 
 func TestBindPtr_bool_charC1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolTrue(), charC1, t)
 }
 
 func TestBindDefine_OraBool_charC1_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolFalse(false), charC1, t, nil)
 }
 
 func TestBindDefine_OraBool_charC1_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolTrue(false), charC1, t, nil)
 }
 
 func TestBindSlice_bool_charC1_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolSlice(), charC1, t, nil)
 }
 
 func TestBindSlice_OraBool_charC1_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolSlice(false), charC1, t, nil)
 }
 
 func TestMultiDefine_charC1_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_boolTrue(), charC1, t)
 }
 
 func TestWorkload_charC1_session(t *testing.T) {
+	t.Parallel()
 	//enableLogging(t)
 	testWorkload(charC1, t)
 }
@@ -158,30 +189,37 @@ func TestWorkload_charC1_session(t *testing.T) {
 //// charC1Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_bool_charC1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolFalse(), charC1Null, t, nil)
 }
 
 func TestBindDefine_bool_charC1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_boolTrue(), charC1Null, t, nil)
 }
 
 func TestBindPtr_bool_charC1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolFalse(), charC1Null, t)
 }
 
 func TestBindPtr_bool_charC1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_boolTrue(), charC1Null, t)
 }
 
 func TestBindDefine_OraBool_charC1Null_false_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolFalse(true), charC1Null, t, nil)
 }
 
 func TestBindDefine_OraBool_charC1Null_true_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolTrue(true), charC1Null, t, nil)
 }
 
 func TestBindSlice_bool_charC1Null_session(t *testing.T) {
+	t.Parallel()
 	//ora.Cfg().Log.Rset.Next = true
 	//ora.Cfg().Log.Rset.BeginRow = true
 	//enableLogging(t)
@@ -189,18 +227,22 @@ func TestBindSlice_bool_charC1Null_session(t *testing.T) {
 }
 
 func TestBindSlice_OraBool_charC1Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraBoolSlice(true), charC1Null, t, nil)
 }
 
 func TestMultiDefine_charC1Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_boolTrue(), charC1Null, t)
 }
 
 func TestWorkload_charC1Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(charC1Null, t)
 }
 
 func TestBindDefine_charC1Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, charC1Null, t, nil)
 }
 
@@ -216,6 +258,7 @@ func setC1Bool() func() {
 
 // Issue89
 func TestSelectChar(t *testing.T) {
+	t.Parallel()
 	tableName := tableName()
 	if _, err := testDb.Exec("CREATE TABLE " + tableName + "(c1 CHAR(1), c2 CHAR(4))"); err != nil {
 		t.Fatal(err)

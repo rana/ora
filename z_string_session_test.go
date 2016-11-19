@@ -12,30 +12,37 @@ import (
 // charB48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), charB48, t, nil)
 }
 
 func TestBindPtr_string_charB48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), charB48, t)
 }
 
 func TestBindDefine_OraString_charB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(false), charB48, t, nil)
 }
 
 func TestBindSlice_string_charB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), charB48, t, nil)
 }
 
 func TestBindSlice_OraString_charB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(false), charB48, t, nil)
 }
 
 func TestMultiDefine_charB48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), charB48, t)
 }
 
 func TestWorkload_charB48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(charB48, t)
 }
 
@@ -43,34 +50,42 @@ func TestWorkload_charB48_session(t *testing.T) {
 //// charB48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), charB48Null, t, nil)
 }
 
 func TestBindPtr_string_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), charB48Null, t)
 }
 
 func TestBindDefine_OraString_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(true), charB48Null, t, nil)
 }
 
 func TestBindSlice_string_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), charB48Null, t, nil)
 }
 
 func TestBindSlice_OraString_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(true), charB48Null, t, nil)
 }
 
 func TestMultiDefine_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), charB48Null, t)
 }
 
 func TestWorkload_charB48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(charB48Null, t)
 }
 
 func TestBindDefine_charB48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, charB48Null, t, nil)
 }
 
@@ -78,30 +93,37 @@ func TestBindDefine_charB48Null_nil_session(t *testing.T) {
 // charC48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), charC48, t, nil)
 }
 
 func TestBindPtr_string_charC48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), charC48, t)
 }
 
 func TestBindDefine_OraString_charC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(false), charC48, t, nil)
 }
 
 func TestBindSlice_string_charC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), charC48, t, nil)
 }
 
 func TestBindSlice_OraString_charC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(false), charC48, t, nil)
 }
 
 func TestMultiDefine_charC48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), charC48, t)
 }
 
 func TestWorkload_charC48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(charC48, t)
 }
 
@@ -109,34 +131,42 @@ func TestWorkload_charC48_session(t *testing.T) {
 //// charC48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), charC48Null, t, nil)
 }
 
 func TestBindPtr_string_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), charC48Null, t)
 }
 
 func TestBindDefine_OraString_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(true), charC48Null, t, nil)
 }
 
 func TestBindSlice_string_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), charC48Null, t, nil)
 }
 
 func TestBindSlice_OraString_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(true), charC48Null, t, nil)
 }
 
 func TestMultiDefine_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), charC48Null, t)
 }
 
 func TestWorkload_charC48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(charC48Null, t)
 }
 
 func TestBindDefine_charC48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, charC48Null, t, nil)
 }
 
@@ -144,30 +174,37 @@ func TestBindDefine_charC48Null_nil_session(t *testing.T) {
 // nchar48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), nchar48, t, nil)
 }
 
 func TestBindPtr_string_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), nchar48, t)
 }
 
 func TestBindDefine_OraString_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(false), nchar48, t, nil)
 }
 
 func TestBindSlice_string_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), nchar48, t, nil)
 }
 
 func TestBindSlice_OraString_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(false), nchar48, t, nil)
 }
 
 func TestMultiDefine_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), nchar48, t)
 }
 
 func TestWorkload_nchar48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(nchar48, t)
 }
 
@@ -175,34 +212,42 @@ func TestWorkload_nchar48_session(t *testing.T) {
 //// nchar48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string48(), nchar48Null, t, nil)
 }
 
 func TestBindPtr_string_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string48(), nchar48Null, t)
 }
 
 func TestBindDefine_OraString_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString48(true), nchar48Null, t, nil)
 }
 
 func TestBindSlice_string_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice48(), nchar48Null, t, nil)
 }
 
 func TestBindSlice_OraString_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice48(true), nchar48Null, t, nil)
 }
 
 func TestMultiDefine_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string48(), nchar48Null, t)
 }
 
 func TestWorkload_nchar48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(nchar48Null, t)
 }
 
 func TestBindDefine_nchar48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, nchar48Null, t, nil)
 }
 
@@ -210,30 +255,37 @@ func TestBindDefine_nchar48Null_nil_session(t *testing.T) {
 // varcharB48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varcharB48, t, nil)
 }
 
 func TestBindPtr_string_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varcharB48, t)
 }
 
 func TestBindDefine_OraString_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), varcharB48, t, nil)
 }
 
 func TestBindSlice_string_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varcharB48, t, nil)
 }
 
 func TestBindSlice_OraString_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), varcharB48, t, nil)
 }
 
 func TestMultiDefine_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varcharB48, t)
 }
 
 func TestWorkload_varcharB48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varcharB48, t)
 }
 
@@ -241,34 +293,42 @@ func TestWorkload_varcharB48_session(t *testing.T) {
 //// varcharB48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varcharB48Null, t, nil)
 }
 
 func TestBindPtr_string_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varcharB48Null, t)
 }
 
 func TestBindDefine_OraString_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), varcharB48Null, t, nil)
 }
 
 func TestBindSlice_string_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varcharB48Null, t, nil)
 }
 
 func TestBindSlice_OraString_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), varcharB48Null, t, nil)
 }
 
 func TestMultiDefine_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varcharB48Null, t)
 }
 
 func TestWorkload_varcharB48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varcharB48Null, t)
 }
 
 func TestBindDefine_varcharB48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, varcharB48Null, t, nil)
 }
 
@@ -276,30 +336,37 @@ func TestBindDefine_varcharB48Null_nil_session(t *testing.T) {
 // varcharC48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varcharC48, t, nil)
 }
 
 func TestBindPtr_string_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varcharC48, t)
 }
 
 func TestBindDefine_OraString_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), varcharC48, t, nil)
 }
 
 func TestBindSlice_string_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varcharC48, t, nil)
 }
 
 func TestBindSlice_OraString_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), varcharC48, t, nil)
 }
 
 func TestMultiDefine_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varcharC48, t)
 }
 
 func TestWorkload_varcharC48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varcharC48, t)
 }
 
@@ -307,34 +374,42 @@ func TestWorkload_varcharC48_session(t *testing.T) {
 //// varcharC48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varcharC48Null, t, nil)
 }
 
 func TestBindPtr_string_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varcharC48Null, t)
 }
 
 func TestBindDefine_OraString_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), varcharC48Null, t, nil)
 }
 
 func TestBindSlice_string_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varcharC48Null, t, nil)
 }
 
 func TestBindSlice_OraString_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), varcharC48Null, t, nil)
 }
 
 func TestMultiDefine_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varcharC48Null, t)
 }
 
 func TestWorkload_varcharC48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varcharC48Null, t)
 }
 
 func TestBindDefine_varcharC48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, varcharC48Null, t, nil)
 }
 
@@ -342,30 +417,37 @@ func TestBindDefine_varcharC48Null_nil_session(t *testing.T) {
 // varchar2B48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varchar2B48, t, nil)
 }
 
 func TestBindPtr_string_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varchar2B48, t)
 }
 
 func TestBindDefine_OraString_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), varchar2B48, t, nil)
 }
 
 func TestBindSlice_string_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varchar2B48, t, nil)
 }
 
 func TestBindSlice_OraString_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), varchar2B48, t, nil)
 }
 
 func TestMultiDefine_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varchar2B48, t)
 }
 
 func TestWorkload_varchar2B48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varchar2B48, t)
 }
 
@@ -373,34 +455,42 @@ func TestWorkload_varchar2B48_session(t *testing.T) {
 //// varchar2B48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varchar2B48Null, t, nil)
 }
 
 func TestBindPtr_string_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varchar2B48Null, t)
 }
 
 func TestBindDefine_OraString_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), varchar2B48Null, t, nil)
 }
 
 func TestBindSlice_string_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varchar2B48Null, t, nil)
 }
 
 func TestBindSlice_OraString_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), varchar2B48Null, t, nil)
 }
 
 func TestMultiDefine_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varchar2B48Null, t)
 }
 
 func TestWorkload_varchar2B48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varchar2B48Null, t)
 }
 
 func TestBindDefine_varchar2B48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, varchar2B48Null, t, nil)
 }
 
@@ -408,30 +498,37 @@ func TestBindDefine_varchar2B48Null_nil_session(t *testing.T) {
 // varchar2C48
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varchar2C48, t, nil)
 }
 
 func TestBindPtr_string_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varchar2C48, t)
 }
 
 func TestBindDefine_OraString_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), varchar2C48, t, nil)
 }
 
 func TestBindSlice_string_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varchar2C48, t, nil)
 }
 
 func TestBindSlice_OraString_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), varchar2C48, t, nil)
 }
 
 func TestMultiDefine_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varchar2C48, t)
 }
 
 func TestWorkload_varchar2C48_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varchar2C48, t)
 }
 
@@ -439,34 +536,42 @@ func TestWorkload_varchar2C48_session(t *testing.T) {
 //// varchar2C48Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), varchar2C48Null, t, nil)
 }
 
 func TestBindPtr_string_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), varchar2C48Null, t)
 }
 
 func TestBindDefine_OraString_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), varchar2C48Null, t, nil)
 }
 
 func TestBindSlice_string_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), varchar2C48Null, t, nil)
 }
 
 func TestBindSlice_OraString_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), varchar2C48Null, t, nil)
 }
 
 func TestMultiDefine_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), varchar2C48Null, t)
 }
 
 func TestWorkload_varchar2C48Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(varchar2C48Null, t)
 }
 
 func TestBindDefine_varchar2C48Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, varchar2C48Null, t, nil)
 }
 
@@ -474,30 +579,37 @@ func TestBindDefine_varchar2C48Null_nil_session(t *testing.T) {
 // nvarchar248
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), nvarchar248, t, nil)
 }
 
 func TestBindPtr_string_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), nvarchar248, t)
 }
 
 func TestBindDefine_OraString_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), nvarchar248, t, nil)
 }
 
 func TestBindSlice_string_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), nvarchar248, t, nil)
 }
 
 func TestBindSlice_OraString_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), nvarchar248, t, nil)
 }
 
 func TestMultiDefine_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), nvarchar248, t)
 }
 
 func TestWorkload_nvarchar248_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(nvarchar248, t)
 }
 
@@ -505,34 +617,42 @@ func TestWorkload_nvarchar248_session(t *testing.T) {
 //// nvarchar248Null
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), nvarchar248Null, t, nil)
 }
 
 func TestBindPtr_string_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testBindPtr(gen_string(), nvarchar248Null, t)
 }
 
 func TestBindDefine_OraString_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), nvarchar248Null, t, nil)
 }
 
 func TestBindSlice_string_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), nvarchar248Null, t, nil)
 }
 
 func TestBindSlice_OraString_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), nvarchar248Null, t, nil)
 }
 
 func TestMultiDefine_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), nvarchar248Null, t)
 }
 
 func TestWorkload_nvarchar248Null_session(t *testing.T) {
+	t.Parallel()
 	testWorkload(nvarchar248Null, t)
 }
 
 func TestBindDefine_nvarchar248Null_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, nvarchar248Null, t, nil)
 }
 
@@ -540,6 +660,7 @@ func TestBindDefine_nvarchar248Null_nil_session(t *testing.T) {
 // long
 ////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_long_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), long, t, nil)
 }
 
@@ -549,18 +670,22 @@ func TestBindDefine_string_long_session(t *testing.T) {
 //}
 
 func TestBindDefine_OraString_long_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(false), long, t, nil)
 }
 
 func TestBindSlice_string_long_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), long, t, nil)
 }
 
 func TestBindSlice_OraString_long_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(false), long, t, nil)
 }
 
 func TestMultiDefine_long_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), long, t)
 }
 
@@ -573,6 +698,7 @@ func TestMultiDefine_long_session(t *testing.T) {
 //// longNull
 //////////////////////////////////////////////////////////////////////////////////
 func TestBindDefine_string_longNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_string(), longNull, t, nil)
 }
 
@@ -582,18 +708,22 @@ func TestBindDefine_string_longNull_session(t *testing.T) {
 //}
 
 func TestBindDefine_OraString_longNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraString(true), longNull, t, nil)
 }
 
 func TestBindSlice_string_longNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_stringSlice(), longNull, t, nil)
 }
 
 func TestBindSlice_OraString_longNull_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(gen_OraStringSlice(true), longNull, t, nil)
 }
 
 func TestMultiDefine_longNull_session(t *testing.T) {
+	t.Parallel()
 	testMultiDefine(gen_string(), longNull, t)
 }
 
@@ -603,6 +733,7 @@ func TestMultiDefine_longNull_session(t *testing.T) {
 //}
 
 func TestBindDefine_longNull_nil_session(t *testing.T) {
+	t.Parallel()
 	testBindDefine(nil, longNull, t, nil)
 }
 

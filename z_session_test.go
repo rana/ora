@@ -15,6 +15,7 @@ import (
 )
 
 func Test_open_cursors(t *testing.T) {
+	t.Parallel()
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
 	// or at least "GRANT SELECT ON v_$mystat TO test".
 	// use 'opened cursors current' STATISTIC#=5 to determine open cursors
@@ -94,6 +95,7 @@ func Test_open_cursors(t *testing.T) {
 }
 
 func TestSession_PrepCloseStmt(t *testing.T) {
+	t.Parallel()
 
 	// setup
 	env, err := ora.OpenEnv(nil)
@@ -114,6 +116,7 @@ func TestSession_PrepCloseStmt(t *testing.T) {
 }
 
 func TestSession_Tx_StartCommit(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -149,6 +152,7 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 }
 
 func TestSession_Tx_StartRollback(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -184,6 +188,7 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 }
 
 func TestSession_PrepAndExe(t *testing.T) {
+	t.Parallel()
 	rowsAffected, err := testSes.PrepAndExe(fmt.Sprintf("create table %v (c1 number)", tableName()))
 	testErr(err, t)
 
@@ -193,6 +198,7 @@ func TestSession_PrepAndExe(t *testing.T) {
 }
 
 func TestSession_PrepAndExe_Insert(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -215,6 +221,7 @@ func TestSession_PrepAndExe_Insert(t *testing.T) {
 }
 
 func TestSession_PrepAndQry(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -296,6 +303,7 @@ func benchmarkSession_PrepAndExe_Insert(b *testing.B) {
 }
 
 func TestSessionCallPkg(t *testing.T) {
+	t.Parallel()
 	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE PACKAGE mypkg AS
   FUNCTION myproc(user IN VARCHAR2, pass IN VARCHAR2) RETURN PLS_INTEGER;
 END mypkg;`); err != nil {
@@ -320,6 +328,7 @@ END mypkg;`); err != nil {
 }
 
 func TestIssue59(t *testing.T) {
+	t.Parallel()
 	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE
 PROCEDURE test_59(theoutput OUT VARCHAR2, param1 IN VARCHAR2, param2 IN VARCHAR2, param3 IN VARCHAR2) IS
   TYPE vc_tab_typ IS TABLE OF VARCHAR2(32767) INDEX BY PLS_INTEGER;

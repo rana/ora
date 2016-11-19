@@ -10,6 +10,7 @@ import (
 )
 
 func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
+	t.Parallel()
 	tableName := tableName()
 
 	// create table
@@ -35,6 +36,7 @@ func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
 }
 
 func TestStmt_Exe_insert(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -50,6 +52,7 @@ func TestStmt_Exe_insert(t *testing.T) {
 }
 
 func TestStmt_Exe_update(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -75,6 +78,7 @@ func TestStmt_Exe_update(t *testing.T) {
 }
 
 func TestStmt_Exe_delete(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
@@ -100,6 +104,7 @@ func TestStmt_Exe_delete(t *testing.T) {
 }
 
 func TestStmt_Exe_select(t *testing.T) {
+	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
 
