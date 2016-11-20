@@ -1263,17 +1263,17 @@ func (stmt *Stmt) Gcts() []GoColumnType {
 // SetCfg applies the specified cfg to the Stmt.
 //
 // Open Rsets do not observe the specified cfg.
-func (stmt *Stmt) SetCfg(cfg *StmtCfg) {
+func (stmt *Stmt) SetCfg(cfg StmtCfg) {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
-	stmt.cfg = *cfg
+	stmt.cfg = cfg
 }
 
 // Cfg returns the Stmt's cfg.
-func (stmt *Stmt) Cfg() *StmtCfg {
+func (stmt *Stmt) Cfg() StmtCfg {
 	stmt.mu.Lock()
 	defer stmt.mu.Unlock()
-	return &stmt.cfg
+	return stmt.cfg
 }
 
 // IsOpen returns true when a statement is open; otherwise, false.

@@ -48,10 +48,9 @@ type StmtCfg struct {
 }
 
 // NewStmtCfg returns a StmtCfg with default values.
-func NewStmtCfg() *StmtCfg {
-	c := &StmtCfg{}
-	if _drv.cfg.Env != nil && _drv.cfg.Env.StmtCfg != nil {
-		*c = *_drv.cfg.Env.StmtCfg
+func NewStmtCfg() StmtCfg {
+	var c StmtCfg
+	if c = _drv.cfg.Env.StmtCfg; !c.IsZero() {
 		return c
 	}
 	c.prefetchRowCount = 128
@@ -68,6 +67,8 @@ func NewStmtCfg() *StmtCfg {
 	c.Rset = NewRsetCfg()
 	return c
 }
+
+func (c StmtCfg) IsZero() bool { return c.prefetchRowCount == 0 && c.prefetchMemorySize == 0 }
 
 // SetPrefetchRowCount sets the number of rows to prefetch during a select query.
 func (c *StmtCfg) SetPrefetchRowCount(prefetchRowCount uint32) error {

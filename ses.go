@@ -24,9 +24,12 @@ import (
 type SesCfg struct {
 	Username string
 	Password string
-	StmtCfg  *StmtCfg
+	StmtCfg  StmtCfg
 	Mode     SessionMode
 }
+
+func (c SesCfg) IsZero() bool { return c.StmtCfg.IsZero() }
+func NewSesCfg() SesCfg       { return SesCfg{} }
 
 type SessionMode uint8
 
@@ -169,7 +172,7 @@ func (ses *Ses) close() (err error) {
 			errs.PushBack(errR(value))
 		}
 
-		ses.cfg.StmtCfg = nil
+		ses.cfg.StmtCfg = StmtCfg{}
 		ses.srv = nil
 		ses.ocisvcctx = nil
 		ses.ocises = nil
@@ -327,9 +330,8 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
 	stmtCfg := ses.cfg.StmtCfg
-	if stmtCfg == nil {
-		stmtCfg = ses.srv.cfg.StmtCfg
-		if stmtCfg == nil {
+	if stmtCfg.IsZero() {
+		if stmtCfg = ses.srv.cfg.StmtCfg; stmtCfg.IsZero() {
 			stmtCfg = NewStmtCfg()
 		}
 	}
@@ -338,7 +340,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 			stmtCfg.stringPtrBufferSize = 1000
 		}
 	}
-	stmt.cfg = *stmtCfg
+	stmt.cfg = stmtCfg
 	stmt.sql = sql
 	stmt.gcts = gcts
 	if stmt.id == 0 {
@@ -656,10 +658,10 @@ func (ses *Ses) SetCfg(cfg SesCfg) {
 }
 
 // Cfg returns the Ses's cfg.
-func (ses *Ses) Cfg() *SesCfg {
+func (ses *Ses) Cfg() SesCfg {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	return &ses.cfg
+	return ses.cfg
 }
 
 // IsOpen returns true when a session is open; otherwise, false.

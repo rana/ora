@@ -36,13 +36,13 @@ type RsetCfg struct {
 	TrueRune rune
 }
 
+func (c RsetCfg) IsZero() bool { return c.numberInt == 0 }
+
 // NewRsetCfg returns a RsetCfg with default values.
 func NewRsetCfg() RsetCfg {
 	var c RsetCfg
-	if _drv.cfg.Env != nil && _drv.cfg.Env.StmtCfg != nil {
-		if c = _drv.cfg.Env.StmtCfg.Rset; c.numberInt != 0 {
-			return c
-		}
+	if c = _drv.cfg.Env.StmtCfg.Rset; !c.IsZero() {
+		return c
 	}
 	c.numberInt = I64
 	c.numberBigInt = N
@@ -94,7 +94,7 @@ func (c *RsetCfg) SetNumberInt(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberInt is used.
-func (c *RsetCfg) NumberInt() GoColumnType {
+func (c RsetCfg) NumberInt() GoColumnType {
 	return c.numberInt
 }
 
@@ -124,7 +124,7 @@ func (c *RsetCfg) SetNumberBigInt(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberInt is used.
-func (c *RsetCfg) NumberBigInt() GoColumnType {
+func (c RsetCfg) NumberBigInt() GoColumnType {
 	return c.numberBigInt
 }
 
@@ -154,7 +154,7 @@ func (c *RsetCfg) SetNumberFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberFloat is used.
-func (c *RsetCfg) NumberFloat() GoColumnType {
+func (c RsetCfg) NumberFloat() GoColumnType {
 	return c.numberFloat
 }
 
@@ -184,7 +184,7 @@ func (c *RsetCfg) SetNumberBigFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, NumberFloat is used.
-func (c *RsetCfg) NumberBigFloat() GoColumnType {
+func (c RsetCfg) NumberBigFloat() GoColumnType {
 	return c.numberBigFloat
 }
 
@@ -214,7 +214,7 @@ func (c *RsetCfg) SetBinaryDouble(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, BinaryDouble is used.
-func (c *RsetCfg) BinaryDouble() GoColumnType {
+func (c RsetCfg) BinaryDouble() GoColumnType {
 	return c.binaryDouble
 }
 
@@ -246,7 +246,7 @@ func (c *RsetCfg) SetBinaryFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, BinaryFloat is used.
-func (c *RsetCfg) BinaryFloat() GoColumnType {
+func (c RsetCfg) BinaryFloat() GoColumnType {
 	return c.binaryFloat
 }
 
@@ -276,7 +276,7 @@ func (c *RsetCfg) SetFloat(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Float is used.
-func (c *RsetCfg) Float() GoColumnType {
+func (c RsetCfg) Float() GoColumnType {
 	return c.float
 }
 
@@ -304,7 +304,7 @@ func (c *RsetCfg) SetDate(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Date is used.
-func (c *RsetCfg) Date() GoColumnType {
+func (c RsetCfg) Date() GoColumnType {
 	return c.date
 }
 
@@ -332,7 +332,7 @@ func (c *RsetCfg) SetTimestamp(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Timestamp is used.
-func (c *RsetCfg) Timestamp() GoColumnType {
+func (c RsetCfg) Timestamp() GoColumnType {
 	return c.timestamp
 }
 
@@ -360,7 +360,7 @@ func (c *RsetCfg) SetTimestampTz(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, TimestampTz is used.
-func (c *RsetCfg) TimestampTz() GoColumnType {
+func (c RsetCfg) TimestampTz() GoColumnType {
 	return c.timestampTz
 }
 
@@ -388,7 +388,7 @@ func (c *RsetCfg) SetTimestampLtz(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, TimestampLtz is used.
-func (c *RsetCfg) TimestampLtz() GoColumnType {
+func (c RsetCfg) TimestampLtz() GoColumnType {
 	return c.timestampLtz
 }
 
@@ -417,7 +417,7 @@ func (c *RsetCfg) SetChar1(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Char1 is used.
-func (c *RsetCfg) Char1() GoColumnType {
+func (c RsetCfg) Char1() GoColumnType {
 	return c.char1
 }
 
@@ -445,7 +445,7 @@ func (c *RsetCfg) SetChar(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Char is used.
-func (c *RsetCfg) Char() GoColumnType {
+func (c RsetCfg) Char() GoColumnType {
 	return c.char
 }
 
@@ -473,7 +473,7 @@ func (c *RsetCfg) SetVarchar(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Varchar is used.
-func (c *RsetCfg) Varchar() GoColumnType {
+func (c RsetCfg) Varchar() GoColumnType {
 	return c.varchar
 }
 
@@ -501,7 +501,7 @@ func (c *RsetCfg) SetLong(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Long is used.
-func (c *RsetCfg) Long() GoColumnType {
+func (c RsetCfg) Long() GoColumnType {
 	return c.long
 }
 
@@ -529,7 +529,7 @@ func (c *RsetCfg) SetClob(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Clob is used.
-func (c *RsetCfg) Clob() GoColumnType {
+func (c RsetCfg) Clob() GoColumnType {
 	return c.clob
 }
 
@@ -557,7 +557,7 @@ func (c *RsetCfg) SetBlob(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Blob is used.
-func (c *RsetCfg) Blob() GoColumnType {
+func (c RsetCfg) Blob() GoColumnType {
 	return c.blob
 }
 
@@ -585,7 +585,7 @@ func (c *RsetCfg) SetRaw(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, Raw is used.
-func (c *RsetCfg) Raw() GoColumnType {
+func (c RsetCfg) Raw() GoColumnType {
 	return c.raw
 }
 
@@ -613,7 +613,7 @@ func (c *RsetCfg) SetLongRaw(gct GoColumnType) (err error) {
 // When using the ora package directly, custom GoColumnType associations may
 // be specified to the Ses.Prep method. If no custom GoColumnType association
 // is specified, LongRaw is used.
-func (c *RsetCfg) LongRaw() GoColumnType {
+func (c RsetCfg) LongRaw() GoColumnType {
 	return c.longRaw
 }
 
@@ -621,7 +621,7 @@ func (c *RsetCfg) LongRaw() GoColumnType {
 // column, based on precision and scale.
 //
 // See issue #33 and #36 for the reason this became a testable separate function.
-func (c *RsetCfg) numericColumnType(precision, scale int) (gct GoColumnType) {
+func (c RsetCfg) numericColumnType(precision, scale int) (gct GoColumnType) {
 	//defer func() {
 	//    fmt.Printf("numericColumnType(%d, %d): %s\n", precision, scale, gct)
 	//}()

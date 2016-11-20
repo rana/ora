@@ -36,7 +36,7 @@ func init() {
 	_drv.locations = make(map[string]*time.Location)
 	_drv.srvSesPools = make(map[string]*Pool)
 	_drv.openEnvs = newEnvList()
-	_drv.cfg = *NewDrvCfg()
+	_drv.cfg = NewDrvCfg()
 
 	// init general pools
 	_drv.listPool = newPool(func() interface{} { return list.New() })
@@ -135,7 +135,7 @@ func init() {
 	_drv.defPools[defIdxRset] = newPool(func() interface{} { return &defRset{} })
 
 	var err error
-	if _drv.sqlPkgEnv, err = OpenEnv(nil); err != nil {
+	if _drv.sqlPkgEnv, err = OpenEnv(NewEnvCfg()); err != nil {
 		panic(fmt.Sprintf("OpenEnv: %v", err))
 	}
 	// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
@@ -149,7 +149,7 @@ func SetDrvCfg(cfg *DrvCfg) {
 		return
 	}
 	_drv.cfg = *cfg
-	_drv.sqlPkgEnv.cfg = *cfg.Env
+	_drv.sqlPkgEnv.cfg = cfg.Env
 	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
 }
 
@@ -164,13 +164,12 @@ func Register(cfg *DrvCfg) {
 //
 // Optionally specify a cfg parameter. If cfg is nil, default cfg values are
 // applied.
-func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
+func OpenEnv(cfg EnvCfg) (env *Env, err error) {
 	_drv.mu.Lock()
 	defer _drv.mu.Unlock()
 	log(_drv.cfg.Log.OpenEnv)
-	if cfg == nil { // ensure cfg
-		tmp := *_drv.cfg.Env // copy by value to ensure independent cfgs
-		cfg = &tmp
+	if cfg.IsZero() { // ensure cfg
+		cfg = _drv.cfg.Env
 	}
 	var csIDAl32UTF8 C.ub2
 	if csIDAl32UTF8 == 0 { // Get the code for AL32UTF8
@@ -210,7 +209,7 @@ func OpenEnv(cfg *EnvCfg) (env *Env, err error) {
 	if env.id == 0 {
 		env.id = _drv.envId.nextId()
 	}
-	env.cfg = *cfg
+	env.cfg = cfg
 	_drv.openEnvs.add(env)
 
 	return env, nil

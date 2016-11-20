@@ -28,7 +28,10 @@ const (
 // usage on the server.
 //
 // If size <= 0, then DefaultPoolSize is used.
-func (env *Env) NewPool(srvCfg *SrvCfg, sesCfg *SesCfg, size int) *Pool {
+func (env *Env) NewPool(srvCfg SrvCfg, sesCfg SesCfg, size int) *Pool {
+	if srvCfg.IsZero() {
+		panic("srvCfg shall not be empty")
+	}
 	if size <= 0 {
 		size = DefaultPoolSize
 	}
@@ -56,13 +59,13 @@ func NewPool(dsn string, size int) (*Pool, error) {
 	var srvCfg SrvCfg
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	return env.NewPool(&srvCfg, &sesCfg, size), nil
+	return env.NewPool(srvCfg, sesCfg, size), nil
 }
 
 type Pool struct {
 	env    *Env
-	srvCfg *SrvCfg
-	sesCfg *SesCfg
+	srvCfg SrvCfg
+	sesCfg SesCfg
 
 	sync.Mutex
 	srv, ses *idlePool
@@ -139,8 +142,8 @@ func (p *Pool) Get() (ses *Ses, err error) {
 
 	var srv *Srv
 	// try to get srv from the srv pool
-	if p.sesCfg == nil {
-		p.sesCfg = &SesCfg{}
+	if p.sesCfg.IsZero() {
+		p.sesCfg = NewSesCfg()
 	}
 	for {
 		x := p.srv.Get()
@@ -201,7 +204,7 @@ func (s sesSrvPB) Close() error {
 // NewSrvPool returns a connection pool, which evicts the idle connections in every minute.
 // The pool holds at most size idle Srv.
 // If size is zero, DefaultPoolSize will be used.
-func (env *Env) NewSrvPool(srvCfg *SrvCfg, size int) *SrvPool {
+func (env *Env) NewSrvPool(srvCfg SrvCfg, size int) *SrvPool {
 	p := &SrvPool{
 		env:    env,
 		srv:    newIdlePool(size),
@@ -214,7 +217,7 @@ func (env *Env) NewSrvPool(srvCfg *SrvCfg, size int) *SrvPool {
 
 type SrvPool struct {
 	env    *Env
-	srvCfg *SrvCfg
+	srvCfg SrvCfg
 	srv    *idlePool
 
 	*poolEvictor
@@ -247,7 +250,7 @@ func (p *SrvPool) Put(srv *Srv) {
 // NewSesPool returns a session pool, which evicts the idle sessions in every minute.
 // The pool holds at most size idle Ses.
 // If size is zero, DefaultPoolSize will be used.
-func (srv *Srv) NewSesPool(sesCfg *SesCfg, size int) *SesPool {
+func (srv *Srv) NewSesPool(sesCfg SesCfg, size int) *SesPool {
 	p := &SesPool{
 		srv:    srv,
 		sesCfg: sesCfg,
@@ -260,7 +263,7 @@ func (srv *Srv) NewSesPool(sesCfg *SesCfg, size int) *SesPool {
 
 type SesPool struct {
 	srv    *Srv
-	sesCfg *SesCfg
+	sesCfg SesCfg
 	ses    *idlePool
 
 	*poolEvictor
@@ -371,7 +374,7 @@ func DSNMode(str string) SessionMode {
 // and opens a session (Ses), in one call.
 //
 // Ideal for simple use cases.
-func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
+func NewEnvSrvSes(dsn string, envCfg EnvCfg) (*Env, *Srv, *Ses, error) {
 	env, err := OpenEnv(envCfg)
 	if err != nil {
 		return nil, nil, nil, err
@@ -379,12 +382,12 @@ func NewEnvSrvSes(dsn string, envCfg *EnvCfg) (*Env, *Srv, *Ses, error) {
 	var srvCfg SrvCfg
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	srv, err := env.OpenSrv(&srvCfg)
+	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
 		env.Close()
 		return nil, nil, nil, err
 	}
-	ses, err := srv.OpenSes(&sesCfg)
+	ses, err := srv.OpenSes(sesCfg)
 	if err != nil {
 		srv.Close()
 		env.Close()

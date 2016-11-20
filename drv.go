@@ -17,13 +17,13 @@ import (
 
 // DrvCfg represents configuration values for the ora package.
 type DrvCfg struct {
-	Env *EnvCfg
+	Env EnvCfg
 	Log LogDrvCfg
 }
 
 // NewDrvCfg creates a DrvCfg with default values.
-func NewDrvCfg() *DrvCfg {
-	c := &DrvCfg{}
+func NewDrvCfg() DrvCfg {
+	var c DrvCfg
 	c.Env = NewEnvCfg()
 	c.Log = NewLogDrvCfg()
 	return c

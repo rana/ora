@@ -175,10 +175,20 @@ const tableNameBase = "test_"
 var tableNamePrefix = fmt.Sprintf(tableNameBase+"%d_", os.Getpid())
 
 func init() {
-	testSrvCfg = ora.SrvCfg{Dblink: os.Getenv("GO_ORA_DRV_TEST_DB")}
+	testSrvCfg = ora.SrvCfg{
+		Dblink:  os.Getenv("GO_ORA_DRV_TEST_DB"),
+		StmtCfg: ora.NewStmtCfg(),
+	}
+	if testSrvCfg.IsZero() {
+		panic("testSrvCfg is Zero")
+	}
 	testSesCfg = ora.SesCfg{
 		Username: os.Getenv("GO_ORA_DRV_TEST_USERNAME"),
 		Password: os.Getenv("GO_ORA_DRV_TEST_PASSWORD"),
+		StmtCfg:  testSrvCfg.StmtCfg,
+	}
+	if testSesCfg.IsZero() {
+		panic("testSesCfg is Zero")
 	}
 	testConStr = fmt.Sprintf("%v/%v@%v", testSesCfg.Username, testSesCfg.Password, testSrvCfg.Dblink)
 	fmt.Printf("Read environment variable GO_ORA_DRV_TEST_DB = '%v'\n", testSrvCfg.Dblink)

@@ -10,7 +10,7 @@ type GoColumnType uint
 // go column types
 const (
 	// D defines a sql select column based on its default mapping.
-	D GoColumnType = iota
+	D GoColumnType = iota + 1
 	// I64 defines a sql select column as a Go int64.
 	I64
 	// I32 defines a sql select column as a Go int32.

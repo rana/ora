@@ -24,8 +24,10 @@ type SrvCfg struct {
 	Dblink string
 
 	// StmtCfg configures new Stmts.
-	StmtCfg *StmtCfg
+	StmtCfg StmtCfg
 }
+
+func (c SrvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
 
 // LogSrvCfg represents Srv logging configuration values.
 type LogSrvCfg struct {
@@ -132,7 +134,7 @@ func (srv *Srv) close() (err error) {
 }
 
 // OpenSes opens an Oracle session returning a *Ses and possible error.
-func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
+func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -148,7 +150,7 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	if cfg == nil {
+	if cfg.IsZero() {
 		return nil, er("Parameter 'cfg' may not be nil.")
 	}
 	// allocate session handle
@@ -243,9 +245,9 @@ func (srv *Srv) OpenSes(cfg *SesCfg) (ses *Ses, err error) {
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
 	}
-	ses.cfg = *cfg
-	if ses.cfg.StmtCfg == nil && ses.srv.cfg.StmtCfg != nil {
-		ses.cfg.StmtCfg = &(*ses.srv.cfg.StmtCfg) // copy by value so that user may change independently
+	ses.cfg = cfg
+	if ses.cfg.StmtCfg.IsZero() && !ses.srv.cfg.StmtCfg.IsZero() {
+		ses.cfg.StmtCfg = ses.srv.cfg.StmtCfg
 	}
 	srv.openSess.add(ses)
 	ses.mu.Unlock()

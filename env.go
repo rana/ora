@@ -22,15 +22,17 @@ import (
 // EnvCfg configures a new Env.
 type EnvCfg struct {
 	// StmtCfg configures new Stmts.
-	StmtCfg *StmtCfg
+	StmtCfg StmtCfg
 }
 
 // NewEnvCfg creates a EnvCfg with default values.
-func NewEnvCfg() *EnvCfg {
-	c := &EnvCfg{}
+func NewEnvCfg() EnvCfg {
+	var c EnvCfg
 	c.StmtCfg = NewStmtCfg()
 	return c
 }
+
+func (c EnvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
 
 // LogEnvCfg represents Env logging configuration values.
 type LogEnvCfg struct {
@@ -125,7 +127,10 @@ func (env *Env) Close() (err error) {
 }
 
 // OpenSrv connects to an Oracle server returning a *Srv and possible error.
-func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
+func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
+	if cfg.IsZero() {
+		panic("Parameter 'cfg' may not be nil.")
+	}
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -137,9 +142,6 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	err = env.checkClosed()
 	if err != nil {
 		return nil, errE(err)
-	}
-	if cfg == nil {
-		return nil, er("Parameter 'cfg' may not be nil.")
 	}
 	// allocate server handle
 	ocisrv, err := env.allocOciHandle(C.OCI_HTYPE_SERVER)
@@ -166,9 +168,9 @@ func (env *Env) OpenSrv(cfg *SrvCfg) (srv *Srv, err error) {
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
-	srv.cfg = *cfg
-	if srv.cfg.StmtCfg == nil && srv.env.cfg.StmtCfg != nil {
-		srv.cfg.StmtCfg = &(*srv.env.cfg.StmtCfg) // copy by value so that user may change independently
+	srv.cfg = cfg
+	if srv.cfg.StmtCfg.IsZero() && !srv.env.cfg.StmtCfg.IsZero() {
+		srv.cfg.StmtCfg = srv.env.cfg.StmtCfg
 	}
 	srv.mu.Unlock()
 	env.openSrvs.add(srv)
@@ -203,7 +205,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		var srvCfg SrvCfg
 		sesCfg := SesCfg{Mode: DSNMode(dsn)}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-		p = env.NewPool(&srvCfg, &sesCfg, 0)
+		p = env.NewPool(srvCfg, sesCfg, 0)
 		_drv.srvSesPools[dsn] = p
 	}
 	_drv.mu.Unlock()
@@ -281,10 +283,10 @@ func (env *Env) SetCfg(cfg *EnvCfg) {
 }
 
 // Cfg returns the Env's cfg.
-func (env *Env) Cfg() *EnvCfg {
+func (env *Env) Cfg() EnvCfg {
 	env.mu.Lock()
 	defer env.mu.Unlock()
-	return &env.cfg
+	return env.cfg
 }
 
 // IsOpen returns true when the environment is open; otherwise, false.
