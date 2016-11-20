@@ -5,6 +5,7 @@
 package ora_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,123 +21,75 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 // intervalYM
 ////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_OraIntervalYM_intervalYM_Positive1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: 1, Month: 1}, intervalYM, t, nil)
+func TestBindDefine_OraIntervalYM(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	for _, interval := range []ora.IntervalYM{
+		ora.IntervalYM{Year: 1, Month: 1},
+		ora.IntervalYM{Year: 99, Month: 9},
+		ora.IntervalYM{Year: -1, Month: -1},
+		ora.IntervalYM{Year: -99, Month: -9},
+	} {
+		for _, ctName := range []string{"intervalYM", "intervalYMNull"} {
+			t.Run(fmt.Sprintf("%s_%s", ctName, interval), func(t *testing.T) {
+				t.Parallel()
+				testBindDefine(interval, _T_colType[ctName], t, sc)
+			})
+		}
+	}
+
+	t.Run("null", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(ora.IntervalYM{IsNull: true}, intervalYMNull, t, sc)
+	})
 }
 
-func TestBindDefine_OraIntervalYM_intervalYM_Positive99_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: 99, Month: 9}, intervalYM, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYM_Negative1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: -1, Month: -1}, intervalYM, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYM_Negative99_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: -99, Month: -9}, intervalYM, t, nil)
-}
-
-func TestBindDefine_OraIntervalYMSlice_intervalYM_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraIntervalYMSlice(false), intervalYM, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// intervalYMNull
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_OraIntervalYM_intervalYMNull_Positive1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: 1, Month: 1}, intervalYMNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYMNull_Positive99_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: 99, Month: 9}, intervalYMNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYMNull_Negative1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: -1, Month: -1}, intervalYMNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYMNull_Negative99_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{Year: -99, Month: -9}, intervalYMNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalYM_intervalYMNull_null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalYM{IsNull: true}, intervalYMNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalYMSlice_intervalYMNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraIntervalYMSlice(true), intervalYMNull, t, nil)
+func TestBindDefine_OraIntervalYMSlice(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	t.Run("notnull", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(gen_OraIntervalYMSlice(false), intervalYM, t, sc)
+	})
+	t.Run("null", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(gen_OraIntervalYMSlice(true), intervalYMNull, t, sc)
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // intervalDS
 ////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_OraIntervalDS_intervalDS_Positive1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}, intervalDS, t, nil)
+func TestBindDefine_OraIntervalDS(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	for _, interval := range []ora.IntervalDS{
+		ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789},
+		ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789},
+		ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789},
+		ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789},
+	} {
+		for _, ctName := range []string{"intervalDS", "intervalDSNull"} {
+			t.Run(fmt.Sprintf("%s_%s", interval, ctName), func(t *testing.T) {
+				t.Parallel()
+				testBindDefine(interval, _T_colType[ctName], t, sc)
+			})
+		}
+	}
+	t.Run("intervalDSNull_null", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(ora.IntervalDS{IsNull: true}, intervalDSNull, t, sc)
+	})
 }
 
-func TestBindDefine_OraIntervalDS_intervalDS_Positive59_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}, intervalDS, t, nil)
-}
+func TestBindDefine_OraIntervalDSSlice(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	t.Run("notnull", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(gen_OraIntervalDSSlice(false), intervalDS, t, sc)
+	})
 
-func TestBindDefine_OraIntervalDS_intervalDS_Negative1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}, intervalDS, t, nil)
-}
-
-func TestBindDefine_OraIntervalDS_intervalDS_Negative59_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}, intervalDS, t, nil)
-}
-
-func TestBindDefine_OraIntervalDSSlice_intervalDS_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraIntervalDSSlice(false), intervalDS, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// intervalDSNull
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_OraIntervalDSNull_intervalDSNull_Positive1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: 1, Hour: 1, Minute: 1, Second: 1, Nanosecond: 123456789}, intervalDSNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalDSNull_intervalDSNull_Positive59_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: 59, Hour: 59, Minute: 59, Second: 59, Nanosecond: 123456789}, intervalDSNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalDSNull_intervalDSNull_Negative1_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: -1, Hour: -1, Minute: -1, Second: -1, Nanosecond: -123456789}, intervalDSNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalDSNull_intervalDSNull_Negative59_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789}, intervalDSNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalDS_intervalDSNull_null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(ora.IntervalDS{IsNull: true}, intervalDSNull, t, nil)
-}
-
-func TestBindDefine_OraIntervalDSSlice_intervalDSNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraIntervalDSSlice(true), intervalDSNull, t, nil)
+	t.Run("null", func(t *testing.T) {
+		t.Parallel()
+		testBindDefine(gen_OraIntervalDSSlice(true), intervalDSNull, t, sc)
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////////////
