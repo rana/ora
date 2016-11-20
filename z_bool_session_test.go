@@ -33,7 +33,10 @@ func TestBindDefineBool(t *testing.T) {
 		}
 	}
 	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) { t.Parallel(); testBindDefine(tc.gen(), tc.ct, t, sc) })
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testBindDefine(tc.gen(), tc.ct, t, sc)
+		})
 	}
 }
 
@@ -100,6 +103,29 @@ var _T_colType = map[string]oracleColumnType{
 	"charB1Null": charB1Null,
 	"charC1":     charC1,
 	"charC1Null": charC1Null,
+
+	"longRaw":     longRaw,
+	"longRawNull": longRawNull,
+	"raw2000":     raw2000,
+	"raw2000Null": raw2000Null,
+	"blob":        blob,
+	"blobNull":    blobNull,
+
+	"intervalYM":     intervalYM,
+	"intervalYMNull": intervalYMNull,
+	"intervalDS":     intervalYM,
+	"intervalDSNull": intervalYMNull,
+
+	"numberP38S0":      numberP38S0,
+	"numberP38S0Null":  numberP38S0Null,
+	"numberP16S15":     numberP16S15,
+	"numberP16S15Null": numberP16S15Null,
+	"binaryDouble":     binaryDouble,
+	"binaryDoubleNull": binaryDoubleNull,
+	"binaryFloat":      binaryFloat,
+	"binaryFloatNull":  binaryFloatNull,
+	"floatP126":        floatP126,
+	"floatP126Null":    floatP126Null,
 }
 
 var _T_boolGen = map[string](func() interface{}){
@@ -108,7 +134,7 @@ var _T_boolGen = map[string](func() interface{}){
 	"OraBool_false":     func() interface{} { return gen_OraBoolFalse() },
 	"OraBool_true":      func() interface{} { return gen_OraBoolTrue() },
 	"boolSlice_false":   func() interface{} { return gen_boolSlice() },
-	"boolSlice_false":   func() interface{} { return gen_boolSlice() },
+	"boolSlice_true":    func() interface{} { return gen_boolSlice() },
 	"OraBoolSlice_true": func() interface{} { return gen_boolSlice(false) },
 }
 
