@@ -5,6 +5,8 @@
 package ora_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"gopkg.in/rana/ora.v3"
@@ -17,35 +19,117 @@ import (
 //raw2000Null oracleColumnType = "raw(2000) null"
 //blob        oracleColumnType = "blob not null"
 //blobNull    oracleColumnType = "blob null"
-
-//////////////////////////////////////////////////////////////////////////////////
-//// longRaw
-//////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_longRaw_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testBindDefine(gen_bytes(9), longRaw, t, nil, ora.Bin)
+var _T_bytesCols = []string{
+	"longRaw", "longRawNull",
+	"raw2000", "raw2000Null",
+	"blob", "blobNull",
 }
 
-func TestBindDefine_OraBytes_longRaw_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytes(9, false), longRaw, t, nil, ora.OraBin)
+func TestBindDefine_bytes(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	type testCase struct {
+		gen func() interface{}
+		ct  oracleColumnType
+		gct ora.GoColumnType
+	}
+	testCases := make(map[string]testCase)
+	for _, ctName := range _T_bytesCols {
+		for _, typName := range []string{
+			"bytes", "OraBytes", "OraBytesLob",
+			"bytes2000", "OraBytes2000",
+		} {
+			testCases[typName+"_"+ctName] = testCase{
+				gen: _T_bytesGen[typName],
+				ct:  _T_colType[ctName],
+			}
+		}
+	}
+	for name, tc := range testCases {
+		gct := ora.Bin
+		if strings.HasPrefix(name, "Ora") {
+			gct = ora.OraBin
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testBindDefine(tc.gen(), tc.ct, t, sc, tc.gct)
+		})
+	}
 }
 
-func TestBindSlice_bytes_longRaw_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytesSlice(9), longRaw, t, nil)
+func TestBindSlice_bytes(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	type testCase struct {
+		ct  oracleColumnType
+		gen func() interface{}
+	}
+	testCases := make(map[string]testCase)
+	for _, typName := range []string{
+		"bytesSlice", "OraBytesSlice",
+		"bytesSlice2000", "OraBytesSlice2000",
+	} {
+		for _, ctName := range _T_bytesCols {
+			if strings.HasSuffix(ctName, "Null") {
+				typName += "_null"
+			}
+			testCases[typName+"_"+ctName] = testCase{
+				ct:  _T_colType[ctName],
+				gen: _T_bytesGen[typName],
+			}
+		}
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testBindDefine(tc.gen(), tc.ct, t, sc)
+		})
+	}
 }
 
-func TestBindSlice_OraBytes_longRaw_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytesSlice(9, false), longRaw, t, nil)
+func TestMultiDefine_bytes(t *testing.T) {
+	for _, ctName := range _T_bytesCols {
+		t.Run(ctName, func(t *testing.T) {
+			t.Parallel()
+			//enableLogging(t)
+			testMultiDefine(gen_bytes(9), _T_colType[ctName], t)
+		})
+	}
 }
 
-func TestMultiDefine_longRaw_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testMultiDefine(gen_bytes(9), longRaw, t)
+func TestWorkload_bytes(t *testing.T) {
+	for _, ctName := range []string{"raw2000", "raw2000Null", "blob", "blobNull"} {
+		t.Run(ctName, func(t *testing.T) {
+			t.Parallel()
+			testWorkload(_T_colType[ctName], t)
+		})
+	}
+}
+
+func TestBindDefine_bytes_nil(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	for _, ctName := range []string{"longRawNull", "raw2000Null", "blobNull"} {
+		t.Run(ctName, func(t *testing.T) {
+			t.Parallel()
+			testBindDefine(nil, _T_colType[ctName], t, sc)
+		})
+	}
+}
+
+var _T_bytesGen = map[string](func() interface{}){
+	"bytes":     func() interface{} { return gen_bytes(9) },
+	"bytes2000": func() interface{} { return gen_bytes(2000) },
+
+	"OraBytes":          func() interface{} { return gen_OraBytes(9, false) },
+	"OraBytes2000":      func() interface{} { return gen_OraBytes(2000, false) },
+	"OraBytes_null":     func() interface{} { return gen_OraBytes(9, true) },
+	"OraBytes2000_null": func() interface{} { return gen_OraBytes(2000, true) },
+	"OraBytesLob":       func() interface{} { return gen_OraBytesLob(9, false) },
+
+	"bytesSlice":             func() interface{} { return gen_bytesSlice(9) },
+	"bytesSlice2000":         func() interface{} { return gen_bytesSlice(2000) },
+	"OraBytesSlice":          func() interface{} { return gen_OraBytesSlice(9, false) },
+	"OraBytesSlice2000":      func() interface{} { return gen_OraBytesSlice(2000, false) },
+	"OraBytesSlice_null":     func() interface{} { return gen_OraBytesSlice(9, true) },
+	"OraBytesSlice2000_null": func() interface{} { return gen_OraBytesSlice(2000, true) },
 }
 
 //// Do not test workload of multiple Oracle LONG RAW types within the same table because
@@ -54,272 +138,28 @@ func TestMultiDefine_longRaw_session(t *testing.T) {
 //	testWorkload(testWorkloadColumnCount, t, longRaw)
 //}
 
-////////////////////////////////////////////////////////////////////////////////
-// longRawNull
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_longRawNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytes(9), longRawNull, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytes_longRawNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytes(9, true), longRawNull, t, nil, ora.OraBin)
-}
-
-func TestBindSlice_bytes_longRawNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytesSlice(9), longRawNull, t, nil)
-}
-
-func TestBindSlice_OraBytes_longRawNull_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytesSlice(9, true), longRawNull, t, nil)
-}
-
-func TestMultiDefine_longRawNull_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_bytes(9), longRawNull, t)
-}
-
 //// Do not test workload of multiple Oracle LONG RAW types within the same table because
 //// ORA-01754: a table may contain only one column of type LONG
 //func TestWorkload_longRawNull_session(t *testing.T) {
 //	testWorkload(testWorkloadColumnCount, t, longRawNull)
 //}
 
-func TestBindDefine_longRawNull_nil_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(nil, longRawNull, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// raw2000
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytes(2000), raw2000, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytes_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytes(2000, false), raw2000, t, nil, ora.OraBin)
-}
-
-func TestBindSlice_bytes_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytesSlice(2000), raw2000, t, nil)
-}
-
-func TestBindSlice_OraBytes_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytesSlice(2000, false), raw2000, t, nil)
-}
-
-func TestMultiDefine_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_bytes(2000), raw2000, t)
-}
-
-func TestWorkload_raw2000_session(t *testing.T) {
-	t.Parallel()
-	testWorkload(raw2000, t)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// raw2000Null
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytes(2000), raw2000Null, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytes_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytes(2000, true), raw2000Null, t, nil, ora.OraBin)
-}
-
-func TestBindSlice_bytes_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_bytesSlice(2000), raw2000Null, t, nil)
-}
-
-func TestBindSlice_OraBytes_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(gen_OraBytesSlice(2000, true), raw2000Null, t, nil)
-}
-
-func TestMultiDefine_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testMultiDefine(gen_bytes(2000), raw2000Null, t)
-}
-
-func TestWorkload_raw2000Null_session(t *testing.T) {
-	t.Parallel()
-	testWorkload(raw2000Null, t)
-}
-
-func TestBindDefine_raw2000Null_nil_session(t *testing.T) {
-	t.Parallel()
-	testBindDefine(nil, raw2000Null, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// blob
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_blob_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytes_blob_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, false), blob, t, nil, ora.OraBin)
-}
-
-func TestBindDefine_Lob_blob_session(t *testing.T) {
-	//enableLogging(t)
-	testBindDefine(gen_OraBytesLob(9, false), blob, t, nil, ora.OraBin)
-}
-
-func TestBindSlice_bytes_blob_session(t *testing.T) {
-	ora.Cfg().Log.Rset.BeginRow = true
-	ora.Cfg().Log.Rset.EndRow = true
-	ora.Cfg().Log.Rset.Next = true
-	//enableLogging(t)
-	//ora.Cfg().Log.Logger = lg.Log
-	testBindDefine(gen_bytesSlice(9), blob, t, nil)
-}
-
-func TestBindSlice_OraBytes_blob_session(t *testing.T) {
-	testBindDefine(gen_OraBytesSlice(9, false), blob, t, nil)
-}
-
-func TestMultiDefine_blob_session(t *testing.T) {
-	//enableLogging(t)
-	testMultiDefine(gen_bytes(9), blob, t)
-}
-
-func TestWorkload_blob_session(t *testing.T) {
-	testWorkload(blob, t)
-}
-
-func TestBindDefine_bytes_blob_bufferSize_session(t *testing.T) {
+func TestBindDefine_bytes_blob_size(t *testing.T) {
 	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes(sc.LobBufferSize()), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_bytes_blob_bufferSizeMinusOne_session(t *testing.T) {
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes(sc.LobBufferSize()-1), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_bytes_blob_bufferSizePlusOne_session(t *testing.T) {
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes(sc.LobBufferSize()+1), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_bytes_blob_bufferSizeMultiple_session(t *testing.T) {
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes(sc.LobBufferSize()*3), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_bytes_blob_bufferSizeMultipleMinusOne_session(t *testing.T) {
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes((sc.LobBufferSize()*3)-1), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_bytes_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_bytes((sc.LobBufferSize()*3)+1), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSize_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob(sc.LobBufferSize(), false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLobPtr_blob_bufferSize_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	lob := gen_OraBytesLob(sc.LobBufferSize(), false)
-	testBindDefine(&lob, blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSizeMinusOne_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob(sc.LobBufferSize()-1, false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSizePlusOne_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob(sc.LobBufferSize()+1, false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSizeMultiple_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob(sc.LobBufferSize()*3, false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSizeMultipleMinusOne_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob((sc.LobBufferSize()*3)-1, false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLob_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	testBindDefine(gen_OraBytesLob((sc.LobBufferSize()*3)+1, false), blob, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytesLobPtr_blob_bufferSizeMultiplePlusOne_session(t *testing.T) {
-	//enableLogging(t)
-	sc := ora.NewStmtCfg()
-	lob := gen_OraBytesLob((sc.LobBufferSize()*3)+1, false)
-	testBindDefine(&lob, blob, t, nil, ora.Bin)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// blobNull
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_bytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_bytes(9), blobNull, t, nil, ora.Bin)
-}
-
-func TestBindDefine_OraBytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_OraBytes(9, true), blobNull, t, nil, ora.OraBin)
-}
-
-func TestBindDefine_OraBytesLob_blobNull_session(t *testing.T) {
-	//enableLogging(t)
-	testBindDefine(gen_OraBytesLob(9, true), blobNull, t, nil, ora.OraBin)
-}
-
-func TestBindDefine_OraBytesLobPtr_blobNull_session(t *testing.T) {
-	//enableLogging(t)
-	lob := gen_OraBytesLob(9, true)
-	testBindDefine(&lob, blobNull, t, nil, ora.OraBin)
-}
-
-func TestBindSlice_bytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_bytesSlice(9), blobNull, t, nil)
-}
-
-func TestBindSlice_OraBytes_blobNull_session(t *testing.T) {
-	testBindDefine(gen_OraBytesSlice(9, true), blobNull, t, nil)
-}
-
-func TestMultiDefine_blobNull_session(t *testing.T) {
-	testMultiDefine(gen_bytes(9), blobNull, t)
-}
-
-func TestWorkload_blobNull_session(t *testing.T) {
-	testWorkload(blobNull, t)
-}
-
-func TestBindDefine_blobNull_nil_session(t *testing.T) {
-	testBindDefine(nil, blobNull, t, nil)
+	lbs := sc.LobBufferSize()
+	for _, size := range []int{
+		lbs - 1,
+		lbs,
+		lbs + 1,
+		lbs*3 - 1,
+		lbs * 3,
+		lbs*3 + 1,
+	} {
+		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
+			testBindDefine(gen_bytes(size), blob, t, sc, ora.Bin)
+			testBindDefine(gen_OraBytesLob(size, false), blob, t, sc, ora.Bin)
+			lob := gen_OraBytesLob(size, false)
+			testBindDefine(&lob, blob, t, sc, ora.Bin)
+		})
+	}
 }
