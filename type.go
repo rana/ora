@@ -1112,7 +1112,10 @@ func (l *sesList) closeAll(errs *list.List) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for n := 0; n < len(l.items); n++ {
-		err := l.items[n].close() // close will not remove Ses from openSess
+		ses := l.items[n]
+		ses.mu.Lock()
+		err := ses.close() // close will not remove Ses from openSess
+		ses.mu.Unlock()
 		if err != nil {
 			errs.PushBack(errE(err))
 		}
