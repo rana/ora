@@ -96,8 +96,73 @@ const (
 	bfileNull oracleColumnType = "bfile null"
 )
 
-var testSrvCfg *ora.SrvCfg
-var testSesCfg *ora.SesCfg
+var _T_colType = map[string]oracleColumnType{
+	"charB1":     charB1,
+	"charB1Null": charB1Null,
+	"charC1":     charC1,
+	"charC1Null": charC1Null,
+
+	"longRaw":     longRaw,
+	"longRawNull": longRawNull,
+	"raw2000":     raw2000,
+	"raw2000Null": raw2000Null,
+	"blob":        blob,
+	"blobNull":    blobNull,
+
+	"intervalYM":     intervalYM,
+	"intervalYMNull": intervalYMNull,
+	"intervalDS":     intervalYM,
+	"intervalDSNull": intervalYMNull,
+
+	"numberP38S0":      numberP38S0,
+	"numberP38S0Null":  numberP38S0Null,
+	"numberP16S15":     numberP16S15,
+	"numberP16S15Null": numberP16S15Null,
+	"binaryDouble":     binaryDouble,
+	"binaryDoubleNull": binaryDoubleNull,
+	"binaryFloat":      binaryFloat,
+	"binaryFloatNull":  binaryFloatNull,
+	"floatP126":        floatP126,
+	"floatP126Null":    floatP126Null,
+
+	"charB48":         charB48,
+	"charB48Null":     charB48Null,
+	"charC48":         charC48,
+	"charC48Null":     charC48Null,
+	"nchar48":         nchar48,
+	"nchar48Null":     nchar48Null,
+	"varcharB48":      varcharB48,
+	"varcharB48Null":  varcharB48Null,
+	"varcharC48":      varcharC48,
+	"varcharC48Null":  varcharC48Null,
+	"varchar2B48":     varchar2B48,
+	"varchar2B48Null": varchar2B48Null,
+	"varchar2C48":     varchar2C48,
+	"varchar2C48Null": varchar2C48Null,
+	"nvarchar248":     nvarchar248,
+	"nvarchar248Null": nvarchar248Null,
+
+	"long":      long,
+	"longNull":  longNull,
+	"clob":      clob,
+	"clobNull":  clobNull,
+	"nclob":     nclob,
+	"nclobNull": nclobNull,
+
+	"date":               dateNotNull,
+	"dateNull":           dateNull,
+	"time":               dateNotNull,
+	"timeNull":           dateNull,
+	"timestampP9":        timestampP9,
+	"timestampP9Null":    timestampP9Null,
+	"timestampTzP9":      timestampTzP9,
+	"timestampTzP9Null":  timestampTzP9Null,
+	"timestampLtzP9":     timestampLtzP9,
+	"timestampLtzP9Null": timestampLtzP9Null,
+}
+
+var testSrvCfg ora.SrvCfg
+var testSesCfg ora.SesCfg
 var testConStr string
 var testDbsessiontimezone *time.Location
 var testTableID uint32
@@ -110,8 +175,8 @@ const tableNameBase = "test_"
 var tableNamePrefix = fmt.Sprintf(tableNameBase+"%d_", os.Getpid())
 
 func init() {
-	testSrvCfg = &ora.SrvCfg{Dblink: os.Getenv("GO_ORA_DRV_TEST_DB")}
-	testSesCfg = &ora.SesCfg{
+	testSrvCfg = ora.SrvCfg{Dblink: os.Getenv("GO_ORA_DRV_TEST_DB")}
+	testSesCfg = ora.SesCfg{
 		Username: os.Getenv("GO_ORA_DRV_TEST_USERNAME"),
 		Password: os.Getenv("GO_ORA_DRV_TEST_PASSWORD"),
 	}
@@ -124,15 +189,15 @@ func init() {
 	var err error
 
 	// setup test environment, server and session
-	testEnv, err := ora.OpenEnv(nil)
+	testEnv, err := ora.OpenEnv(ora.EnvCfg{})
 	if err != nil {
-		fmt.Println("initError: ", err)
+		panic(fmt.Sprintf("initError: %v", err))
 	}
 
 	pool := testEnv.NewPool(testSrvCfg, testSesCfg, 4)
 	testSes, err = pool.Get()
 	if err != nil {
-		fmt.Println("initError: ", err)
+		panic(fmt.Sprintf("initError: %v", err))
 	}
 
 	//ora.Cfg().Env.StmtCfg.RTrimChar = false
@@ -188,7 +253,7 @@ func testIterations() int {
 	}
 }
 
-func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c *ora.StmtCfg, goColumnTypes ...ora.GoColumnType) {
+func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c ora.StmtCfg, goColumnTypes ...ora.GoColumnType) {
 	var gct ora.GoColumnType
 	if len(goColumnTypes) > 0 {
 		gct = goColumnTypes[0]
@@ -203,7 +268,7 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 
 	// insert
 	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
-	if c != nil {
+	if !c.IsZero() {
 		insertStmt.SetCfg(c)
 	}
 	defer insertStmt.Close()

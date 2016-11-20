@@ -56,7 +56,6 @@ func TestBindPtrBool(t *testing.T) {
 		}
 	}
 
-	sc := ora.NewStmtCfg()
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -66,7 +65,6 @@ func TestBindPtrBool(t *testing.T) {
 }
 
 func TestMultiDefineBool(t *testing.T) {
-	sc := ora.NewStmtCfg()
 	for _, ctName := range []string{
 		"charB1", "charB1Null",
 		"charC1", "charC1Null",
@@ -98,44 +96,14 @@ func TestWorkloadBool(t *testing.T) {
 	}
 }
 
-var _T_colType = map[string]oracleColumnType{
-	"charB1":     charB1,
-	"charB1Null": charB1Null,
-	"charC1":     charC1,
-	"charC1Null": charC1Null,
-
-	"longRaw":     longRaw,
-	"longRawNull": longRawNull,
-	"raw2000":     raw2000,
-	"raw2000Null": raw2000Null,
-	"blob":        blob,
-	"blobNull":    blobNull,
-
-	"intervalYM":     intervalYM,
-	"intervalYMNull": intervalYMNull,
-	"intervalDS":     intervalYM,
-	"intervalDSNull": intervalYMNull,
-
-	"numberP38S0":      numberP38S0,
-	"numberP38S0Null":  numberP38S0Null,
-	"numberP16S15":     numberP16S15,
-	"numberP16S15Null": numberP16S15Null,
-	"binaryDouble":     binaryDouble,
-	"binaryDoubleNull": binaryDoubleNull,
-	"binaryFloat":      binaryFloat,
-	"binaryFloatNull":  binaryFloatNull,
-	"floatP126":        floatP126,
-	"floatP126Null":    floatP126Null,
-}
-
 var _T_boolGen = map[string](func() interface{}){
-	"bool_false":        func() interface{} { gen_boolFalse },
-	"bool_true":         func() interface{} { gen_boolTrue },
-	"OraBool_false":     func() interface{} { return gen_OraBoolFalse() },
-	"OraBool_true":      func() interface{} { return gen_OraBoolTrue() },
+	"bool_false":        func() interface{} { return gen_boolFalse() },
+	"bool_true":         func() interface{} { return gen_boolTrue() },
+	"OraBool_false":     func() interface{} { return gen_OraBoolFalse(false) },
+	"OraBool_true":      func() interface{} { return gen_OraBoolTrue(false) },
 	"boolSlice_false":   func() interface{} { return gen_boolSlice() },
 	"boolSlice_true":    func() interface{} { return gen_boolSlice() },
-	"OraBoolSlice_true": func() interface{} { return gen_boolSlice(false) },
+	"OraBoolSlice_true": func() interface{} { return gen_OraBoolSlice(false) },
 }
 
 func setC1Bool() func() {

@@ -12,7 +12,7 @@ import (
 
 func TestEnv_OpenClose(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
@@ -20,7 +20,7 @@ func TestEnv_OpenClose(t *testing.T) {
 
 func TestEnv_IsOpen_opened(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -34,7 +34,7 @@ func TestEnv_IsOpen_opened(t *testing.T) {
 
 func TestEnv_IsOpen_opened_closed(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	testErr(err, t)
 	err = env.Close()
@@ -49,7 +49,7 @@ func TestEnv_IsOpen_opened_closed(t *testing.T) {
 
 func TestEnv_OpenCloseServer(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -63,7 +63,7 @@ func TestEnv_OpenCloseServer(t *testing.T) {
 
 func TestEnv_OpenCloseCon(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -77,7 +77,7 @@ func TestEnv_OpenCloseCon(t *testing.T) {
 
 func TestEnv_SrvCfg(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,8 +96,8 @@ func TestEnv_SrvCfg(t *testing.T) {
 	if y := srvCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
 		t.Errorf("srvCfg: wanted %s, got %s", x, y)
 	}
-	sesCfg := &(*testSesCfg)
-	sesCfg.StmtCfg = nil // you have to use sesCfg with nil StmtCfg to inherit from SrvCfg!
+	sesCfg := testSesCfg
+	sesCfg.StmtCfg = ora.StmtCfg{}
 	ses, err := srv.OpenSes(sesCfg)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestEnv_SrvCfg(t *testing.T) {
 
 func TestEnv_SesCfg(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	if err != nil {
 		t.Fatal(err)
 	}

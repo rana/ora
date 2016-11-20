@@ -5,270 +5,70 @@
 package ora_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+
+	ora "gopkg.in/rana/ora.v3"
 )
 
-////////////////////////////////////////////////////////////////////////////////
-// date
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_d_date_session(t *testing.T) {
-	testBindDefine(gen_date(), dateNotNull, t, nil)
+var _T_timeCols = []string{
+	"date", "dateNull",
+	"time", "timeNull",
+	"timestampP9", "timestampP9Null",
+	"timestampTzP9", "timestampTzP9Null",
+	"timestampLtzP9", "timestampLtzP9Null",
 }
 
-func TestBindPtr_time_d_date_session(t *testing.T) {
-	testBindPtr(gen_date(), dateNotNull, t)
-}
+func TestBindDefine_time(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	for valName, gen := range map[string](func() interface{}){
+		"date":             func() interface{} { return gen_date() },
+		"OraDate":          func() interface{} { return gen_OraDate(false) },
+		"OraDateNull":      func() interface{} { return gen_OraDate(true) },
+		"dateSlice":        func() interface{} { return gen_dateSlice() },
+		"OraDateSlice":     func() interface{} { return gen_OraDateSlice(false) },
+		"OraDateSliceNull": func() interface{} { return gen_OraDateSlice(true) },
 
-func TestBindDefine_OraTime_d_date_session(t *testing.T) {
-	testBindDefine(gen_OraDate(false), dateNotNull, t, nil)
-}
-
-func TestBindSlice_time_d_date_session(t *testing.T) {
-	testBindDefine(gen_dateSlice(), dateNotNull, t, nil)
-}
-
-func TestBindSlice_OraTime_d_date_session(t *testing.T) {
-	testBindDefine(gen_OraDateSlice(false), dateNotNull, t, nil)
+		"time":             func() interface{} { return gen_time() },
+		"OraTime":          func() interface{} { return gen_OraTime(false) },
+		"OraTimeNull":      func() interface{} { return gen_OraTime(true) },
+		"timeSlice":        func() interface{} { return gen_timeSlice() },
+		"OraTimeSlice":     func() interface{} { return gen_OraTimeSlice(false) },
+		"OraTimeSliceNull": func() interface{} { return gen_OraTimeSlice(true) },
+	} {
+		valName := valName
+		for _, ctName := range _T_timeCols {
+			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
+				continue
+			}
+			if strings.HasPrefix(ctName, "time") && !strings.Contains(valName, "ime") {
+				continue
+			}
+			if strings.HasPrefix(ctName, "date") && !strings.Contains(valName, "ate") {
+				continue
+			}
+			t.Run(fmt.Sprintf("%s_%s", valName, ctName), func(t *testing.T) {
+				t.Parallel()
+				testBindDefine(gen(), _T_colType[ctName], t, sc)
+				testBindPtr(gen(), _T_colType[ctName], t)
+			})
+		}
+	}
 }
 
 func TestMultiDefine_date_session(t *testing.T) {
-	testMultiDefine(gen_date(), dateNotNull, t)
+	for _, ctName := range []string{"date"} {
+		t.Run(ctName, func(t *testing.T) {
+			testMultiDefine(gen_date(), _T_colType[ctName], t)
+		})
+	}
 }
 
 func TestWorkload_date_session(t *testing.T) {
-	testWorkload(dateNotNull, t)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// dateNull
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_d_dateNull_session(t *testing.T) {
-	testBindDefine(gen_date(), dateNull, t, nil)
-}
-
-func TestBindPtr_time_d_dateNull_session(t *testing.T) {
-	testBindPtr(gen_date(), dateNull, t)
-}
-
-func TestBindDefine_OraTime_d_dateNull_session(t *testing.T) {
-	testBindDefine(gen_OraDate(true), dateNull, t, nil)
-}
-
-func TestBindSlice_time_d_dateNull_session(t *testing.T) {
-	testBindDefine(gen_dateSlice(), dateNull, t, nil)
-}
-
-func TestBindSlice_OraTime_d_dateNull_session(t *testing.T) {
-	testBindDefine(gen_OraDateSlice(true), dateNull, t, nil)
-}
-
-func TestMultiDefine_dateNull_session(t *testing.T) {
-	testMultiDefine(gen_date(), dateNull, t)
-}
-
-func TestWorkload_dateNull_session(t *testing.T) {
-	testWorkload(dateNull, t)
-}
-
-func TestBindDefine_dateNull_nil_session(t *testing.T) {
-	testBindDefine(nil, dateNull, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampP9
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampP9_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampP9, t, nil)
-}
-
-func TestBindPtr_time_timestampP9_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampP9, t)
-}
-
-func TestBindDefine_OraTime_timestampP9_session(t *testing.T) {
-	testBindDefine(gen_OraTime(false), timestampP9, t, nil)
-}
-
-func TestBindSlice_time_timestampP9_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampP9, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampP9_session(t *testing.T) {
-	testBindDefine(gen_OraTimeSlice(false), timestampP9, t, nil)
-}
-
-func TestMultiDefine_timestampP9_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampP9, t)
-}
-
-func TestWorkload_timestampP9_session(t *testing.T) {
-	testWorkload(timestampP9, t)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampP9Null
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampP9Null_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampP9Null, t, nil)
-}
-
-func TestBindPtr_time_timestampP9Null_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampP9Null, t)
-}
-
-func TestBindDefine_OraTime_timestampP9Null_session(t *testing.T) {
-	testBindDefine(gen_OraTime(true), timestampP9Null, t, nil)
-}
-
-func TestBindSlice_time_timestampP9Null_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampP9Null, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampP9Null_session(t *testing.T) {
-	testBindDefine(gen_OraTimeSlice(true), timestampP9Null, t, nil)
-}
-
-func TestMultiDefine_timestampP9Null_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampP9Null, t)
-}
-
-func TestWorkload_timestampP9Null_session(t *testing.T) {
-	testWorkload(timestampP9Null, t)
-}
-
-func TestBindDefine_timestampP9Null_nil_session(t *testing.T) {
-	testBindDefine(nil, timestampP9Null, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampTzP9
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampTzP9_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampTzP9, t, nil)
-}
-
-func TestBindPtr_time_timestampTzP9_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampTzP9, t)
-}
-
-func TestBindDefine_OraTime_timestampTzP9_session(t *testing.T) {
-	testBindDefine(gen_OraTime(false), timestampTzP9, t, nil)
-}
-
-func TestBindSlice_time_timestampTzP9_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampTzP9, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampTzP9_session(t *testing.T) {
-	testBindDefine(gen_OraTimeSlice(false), timestampTzP9, t, nil)
-}
-
-func TestMultiDefine_timestampTzP9_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampTzP9, t)
-}
-
-func TestWorkload_timestampTzP9_session(t *testing.T) {
-	testWorkload(timestampTzP9, t)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampTzP9Null
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampTzP9Null_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampTzP9Null, t, nil)
-}
-
-func TestBindPtr_time_timestampTzP9Null_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampTzP9Null, t)
-}
-
-func TestBindDefine_OraTime_timestampTzP9Null_session(t *testing.T) {
-	testBindDefine(gen_OraTime(true), timestampTzP9Null, t, nil)
-}
-
-func TestBindSlice_time_timestampTzP9Null_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampTzP9Null, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampTzP9Null_session(t *testing.T) {
-	testBindDefine(gen_OraTimeSlice(true), timestampTzP9Null, t, nil)
-}
-
-func TestMultiDefine_timestampTzP9Null_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampTzP9Null, t)
-}
-
-func TestWorkload_timestampTzP9Null_session(t *testing.T) {
-	testWorkload(timestampTzP9Null, t)
-}
-
-func TestBindDefine_timestampTzP9Null_nil_session(t *testing.T) {
-	testBindDefine(nil, timestampTzP9Null, t, nil)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampLtzP9
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampLtzP9_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampLtzP9, t, nil)
-}
-
-func TestBindPtr_time_timestampLtzP9_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampLtzP9, t)
-}
-
-func TestBindDefine_OraTime_timestampLtzP9_session(t *testing.T) {
-	testBindDefine(gen_OraTime(false), timestampLtzP9, t, nil)
-}
-
-func TestBindSlice_time_timestampLtzP9_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampLtzP9, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampLtzP9_session(t *testing.T) {
-	testBindDefine(gen_OraTimeSlice(false), timestampLtzP9, t, nil)
-}
-
-func TestMultiDefine_timestampLtzP9_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampLtzP9, t)
-}
-
-func TestWorkload_timestampLtzP9_session(t *testing.T) {
-	testWorkload(timestampLtzP9, t)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// timestampLtzP9Null
-////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_time_timestampLtzP9Null_session(t *testing.T) {
-	testBindDefine(gen_time(), timestampLtzP9Null, t, nil)
-}
-
-func TestBindPtr_time_timestampLtzP9Null_session(t *testing.T) {
-	testBindPtr(gen_time(), timestampLtzP9Null, t)
-}
-
-func TestBindDefine_OraTime_timestampLtzP9Null_session(t *testing.T) {
-	testBindDefine(gen_OraTime(true), timestampLtzP9Null, t, nil)
-}
-
-func TestBindSlice_time_timestampLtzP9Null_session(t *testing.T) {
-	testBindDefine(gen_timeSlice(), timestampLtzP9Null, t, nil)
-}
-
-func TestBindSlice_OraTime_timestampLtzP9Null_session(t *testing.T) {
-	//enableLogging(t)
-	testBindDefine(gen_OraTimeSlice(true), timestampLtzP9Null, t, nil)
-}
-
-func TestMultiDefine_timestampLtzP9Null_session(t *testing.T) {
-	testMultiDefine(gen_time(), timestampLtzP9Null, t)
-}
-
-func TestWorkload_timestampLtzP9Null_session(t *testing.T) {
-	testWorkload(timestampLtzP9Null, t)
-}
-
-func TestBindDefine_timestampLtzP9Null_nil_session(t *testing.T) {
-	testBindDefine(nil, timestampLtzP9Null, t, nil)
+	for _, ctName := range _T_timeCols {
+		t.Run(ctName, func(t *testing.T) {
+			testWorkload(_T_colType[ctName], t)
+		})
+	}
 }

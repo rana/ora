@@ -15,7 +15,7 @@ import (
 
 func TestServer_OpenCloseSession(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testSrvCfg)
@@ -36,7 +36,7 @@ func TestServer_OpenCloseSession(t *testing.T) {
 
 func TestServer_Ping(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testSrvCfg)
@@ -52,7 +52,7 @@ func TestServer_Ping(t *testing.T) {
 
 func TestServer_Version(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testSrvCfg)
@@ -71,7 +71,7 @@ func TestServer_Version(t *testing.T) {
 
 func TestPool(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	testErr(err, t)
 	defer env.Close()
 	const idleSize = 2

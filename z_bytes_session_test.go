@@ -45,10 +45,6 @@ func TestBindDefine_bytes(t *testing.T) {
 		}
 	}
 	for name, tc := range testCases {
-		gct := ora.Bin
-		if strings.HasPrefix(name, "Ora") {
-			gct = ora.OraBin
-		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			testBindDefine(tc.gen(), tc.ct, t, sc, tc.gct)

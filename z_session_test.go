@@ -23,7 +23,7 @@ func Test_open_cursors(t *testing.T) {
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
 	//enableLogging(t)
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestSession_PrepCloseStmt(t *testing.T) {
 	t.Parallel()
 
 	// setup
-	env, err := ora.OpenEnv(nil)
+	env, err := ora.OpenEnv(ora.EnvCfg{})
 	defer env.Close()
 	testErr(err, t)
 	srv, err := env.OpenSrv(testSrvCfg)

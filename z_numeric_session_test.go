@@ -60,8 +60,8 @@ var _T_numericGen = map[string](func() interface{}){
 	"OraFloat64TruncNull": func() interface{} { return gen_OraFloat64Trunc(true) },
 	"OraFloat32TruncNull": func() interface{} { return gen_OraFloat32Trunc(true) },
 
-	"numString":      func() interface{} { return gen_numString() },
-	"numStringTrunc": func() interface{} { return gen_numStringTrunc() },
+	"numString":      func() interface{} { return gen_NumString() },
+	"numStringTrunc": func() interface{} { return gen_NumStringTrunc() },
 }
 
 var _T_numericCols = []string{
