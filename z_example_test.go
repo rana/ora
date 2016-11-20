@@ -162,7 +162,7 @@ func ExampleDrvStmt_Exec_Query() {
 
 func ExampleStmt_Exe_insert() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -186,7 +186,7 @@ func ExampleStmt_Exe_insert() {
 
 func ExampleStmt_Exe_insert_return_identity() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -218,7 +218,7 @@ func ExampleStmt_Exe_insert_return_identity() {
 
 func ExampleStmt_Exe_insert_return_rowid() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -245,7 +245,7 @@ func ExampleStmt_Exe_insert_return_rowid() {
 
 func ExampleStmt_Exe_insert_fetch_bool() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -284,7 +284,7 @@ func ExampleStmt_Exe_insert_fetch_bool() {
 
 func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -304,12 +304,14 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	defer stmt.Close()
 	stmtCfg := stmt.Cfg()
 	stmtCfg.FalseRune = 'N'
+	stmt.SetCfg(stmtCfg)
 	stmt.Exe(falseValue)
 	// insert 'true' record
 	var trueValue bool = true
 	stmt, _ = ses.Prep("insert into "+tableName+" (c1) values (:c1)", ora.B)
 	defer stmt.Close()
 	stmtCfg.TrueRune = 'Y'
+	stmt.SetCfg(stmtCfg)
 	stmt.Exe(trueValue)
 
 	// Update RsetCfg to change the TrueRune
@@ -317,7 +319,8 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 	// fetch inserted records
 	stmt, _ = ses.Prep("select c1 from "+tableName, ora.B)
 	defer stmt.Close()
-	stmtCfg.Rset.TrueRune = 'Y'
+	stmtCfg.TrueRune = 'Y'
+	stmt.SetCfg(stmtCfg)
 	rset, _ := stmt.Qry()
 	for rset.Next() {
 		fmt.Printf("%v ", rset.Row[0])
@@ -327,7 +330,7 @@ func ExampleStmt_Exe_insert_fetch_bool_alternate() {
 
 func ExampleStmt_Exe_update() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -356,7 +359,7 @@ func ExampleStmt_Exe_update() {
 
 func ExampleStmt_Exe_delete() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -384,7 +387,7 @@ func ExampleStmt_Exe_delete() {
 
 func ExampleStmt_Exe_insert_slice() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -411,7 +414,7 @@ func ExampleStmt_Exe_insert_slice() {
 
 func ExampleStmt_Exe_insert_nullable() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -438,7 +441,7 @@ func ExampleStmt_Exe_insert_nullable() {
 
 func ExampleStmt_Exe_insert_fetch_blob() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -481,7 +484,7 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 
 func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -506,6 +509,7 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	defer stmt.Close()
 	stmtCfg := stmt.Cfg()
 	stmtCfg.SetByteSlice(ora.U8)
+	stmt.SetCfg(stmtCfg)
 	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
 
@@ -524,7 +528,7 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 
 func ExampleStmt_Qry() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -561,7 +565,7 @@ func ExampleStmt_Qry() {
 
 func ExampleStmt_Qry_nullable() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -599,7 +603,7 @@ func ExampleStmt_Qry_nullable() {
 
 func ExampleStmt_Qry_numerics() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -638,7 +642,7 @@ func ExampleStmt_Qry_numerics() {
 
 func ExampleRset_Next() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -674,7 +678,7 @@ func ExampleRset_Next() {
 
 func ExampleRset_NextRow() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -702,7 +706,7 @@ func ExampleRset_NextRow() {
 
 func ExampleRset_cursor_single() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -751,7 +755,7 @@ func ExampleRset_cursor_single() {
 
 func ExampleRset_cursor_multiple() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -813,7 +817,7 @@ func ExampleRset_cursor_multiple() {
 
 func ExampleSrv_Ping() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -831,7 +835,7 @@ func ExampleSrv_Ping() {
 
 func ExampleSrv_Version() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -849,7 +853,7 @@ func ExampleSrv_Version() {
 
 func ExampleInt64() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -890,7 +894,7 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -931,7 +935,7 @@ func ExampleInt32() {
 
 func ExampleInt16() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -972,7 +976,7 @@ func ExampleInt16() {
 
 func ExampleInt8() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1013,7 +1017,7 @@ func ExampleInt8() {
 
 func ExampleUint64() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1054,7 +1058,7 @@ func ExampleUint64() {
 
 func ExampleUint32() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1095,7 +1099,7 @@ func ExampleUint32() {
 
 func ExampleUint16() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1136,7 +1140,7 @@ func ExampleUint16() {
 
 func ExampleUint8() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1177,7 +1181,7 @@ func ExampleUint8() {
 
 func ExampleFloat64() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1218,7 +1222,7 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1259,7 +1263,7 @@ func ExampleFloat32() {
 
 func ExampleString() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1300,7 +1304,7 @@ func ExampleString() {
 
 func ExampleBool() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1341,7 +1345,7 @@ func ExampleBool() {
 
 func ExampleTime() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1395,7 +1399,7 @@ func ExampleTime() {
 
 func ExampleIntervalYM() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1438,7 +1442,7 @@ func ExampleIntervalYM_ShiftTime() {
 
 func ExampleIntervalDS() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1480,7 +1484,7 @@ func ExampleIntervalDS_ShiftTime() {
 
 func ExampleBytes() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1541,7 +1545,7 @@ func ExampleBytes() {
 
 func ExampleWriteLOB() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1596,7 +1600,7 @@ func ExampleWriteLOB() {
 
 func ExampleBfile() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1626,7 +1630,7 @@ func ExampleBfile() {
 
 func ExampleTx() {
 	// setup
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1674,7 +1678,7 @@ func ExampleTx() {
 func Example() {
 	// example usage of the ora package driver
 	// connect to a server and open a session
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, err := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1882,7 +1886,7 @@ func Example() {
 }
 
 func ExampleSes_PrepAndExe() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {
@@ -1901,7 +1905,7 @@ func ExampleSes_PrepAndExe() {
 }
 
 func ExampleSes_PrepAndQry() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1918,7 +1922,7 @@ func ExampleSes_PrepAndQry() {
 }
 
 func ExampleSes_Ins() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -1986,7 +1990,7 @@ func ExampleSes_Ins() {
 }
 
 func ExampleSes_Upd() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -2078,7 +2082,7 @@ func ExampleSes_Upd() {
 }
 
 func ExampleSes_Sel() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, _ := env.OpenSrv(testSrvCfg)
 	defer srv.Close()
@@ -2224,7 +2228,7 @@ func emptyString(s string) string {
 }
 
 func ExampleSes_InsertBatchDirect() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {
@@ -2243,7 +2247,7 @@ func ExampleSes_InsertBatchDirect() {
 }
 
 func ExampleSes_InsertBatchPlsql() {
-	env, _ := ora.OpenEnv(ora.EnvCfg{})
+	env, _ := ora.OpenEnv()
 	defer env.Close()
 	srv, err := env.OpenSrv(testSrvCfg)
 	if err != nil {

@@ -128,7 +128,9 @@ func (rset *Rset) closeWithRemove() (err error) {
 
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
-	rset.log(_drv.cfg.Log.Rset.Close)
+	rset.log(_drv.Cfg().Log.Rset.Close)
+	//rset.mu.Lock()
+	//defer rset.mu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -171,14 +173,14 @@ func (rset *Rset) close() (err error) {
 
 // beginRow allocates a handle for each column and fetches one row.
 func (rset *Rset) beginRow() (err error) {
-	rset.log(_drv.cfg.Log.Rset.BeginRow)
-	rset.logF(_drv.cfg.Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", rset.fetched, rset.offset, rset.finished)
+	rset.log(_drv.Cfg().Log.Rset.BeginRow)
+	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", rset.fetched, rset.offset, rset.finished)
 	if rset.fetched > 0 && rset.fetched > rset.offset {
 		rset.Index++
 		return nil
 	}
 	if rset.finished {
-		rset.log(_drv.cfg.Log.Rset.BeginRow, "finished")
+		rset.log(_drv.Cfg().Log.Rset.BeginRow, "finished")
 		return io.EOF
 	}
 	// check is open
@@ -187,7 +189,7 @@ func (rset *Rset) beginRow() (err error) {
 	}
 	// allocate define descriptor handles
 	for _, define := range rset.defs {
-		//rset.logF(_drv.cfg.Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
+		//rset.logF(_drv.Cfg().Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
 		if define == nil {
 			continue
 		}
@@ -209,7 +211,7 @@ func (rset *Rset) beginRow() (err error) {
 		err := rset.stmt.ses.srv.env.ociError()
 		return err
 	} else if r == C.OCI_NO_DATA {
-		rset.log(_drv.cfg.Log.Rset.BeginRow, "OCI_NO_DATA")
+		rset.log(_drv.Cfg().Log.Rset.BeginRow, "OCI_NO_DATA")
 		rset.finished = true
 		if rset.fetchLen == 1 {
 			// return io.EOF to conform with database/sql/driver
@@ -238,7 +240,7 @@ func (rset *Rset) beginRow() (err error) {
 
 // endRow deallocates a handle for each column.
 func (rset *Rset) endRow() {
-	rset.log(_drv.cfg.Log.Rset.EndRow)
+	rset.log(_drv.Cfg().Log.Rset.EndRow)
 	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
 	rset.offset++
 	if !done {
@@ -259,7 +261,7 @@ func (rset *Rset) endRow() {
 //
 // When Next returns false check Rset.Err for any error that may have occured.
 func (rset *Rset) Next() bool {
-	rset.log(_drv.cfg.Log.Rset.Next)
+	rset.log(_drv.Cfg().Log.Rset.Next)
 	if err := rset.checkIsOpen(); err != nil {
 		rset.Err = err
 		rset.Row = nil
@@ -270,7 +272,7 @@ func (rset *Rset) Next() bool {
 	}
 	err := rset.beginRow()
 	defer rset.endRow()
-	//rset.logF(_drv.cfg.Log.Rset.Next, "beginRow=%v", err)
+	//rset.logF(_drv.Cfg().Log.Rset.Next, "beginRow=%v", err)
 	if err != nil {
 		// io.EOF means no more data; return nil err
 		if err == io.EOF {
@@ -286,7 +288,7 @@ func (rset *Rset) Next() bool {
 	// populate column values
 	for n, define := range rset.defs {
 		value, err := define.value(rset.offset)
-		//rset.logF(_drv.cfg.Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
+		//rset.logF(_drv.Cfg().Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
 		if err != nil {
 			rset.Err = err
 			rset.Row = nil
@@ -297,7 +299,7 @@ func (rset *Rset) Next() bool {
 		}
 		rset.Row[n] = value
 	}
-	//rset.logF(_drv.cfg.Log.Rset.Next, "Row=%#v", rset.Row)
+	//rset.logF(_drv.Cfg().Log.Rset.Next, "Row=%#v", rset.Row)
 	return true
 }
 
@@ -329,7 +331,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.fetched = 0
 	rset.finished = false
 	rset.Err = nil
-	rset.log(_drv.cfg.Log.Rset.Open) // call log after rset.stmt is set
+	rset.log(_drv.Cfg().Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
 		rset.stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
@@ -419,7 +421,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 			Type:   params[n].typeCode,
 			Length: params[n].columnSize,
 		}
-		rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.Columns[n].Name, params[n].typeCode)
+		rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. %s/%d", n+1, rset.Columns[n].Name, params[n].typeCode)
 	}
 
 	rset.fetchLen = MaxFetchLen
@@ -456,7 +458,7 @@ Loop:
 			rset.Columns[n].Precision = precision
 			rset.Columns[n].Scale = scale
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.numericColumnType(int(precision), int(scale))
+				gct = rset.stmt.Cfg().numericColumnType(int(precision), int(scale))
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -464,7 +466,7 @@ Loop:
 				}
 				gct = stmt.gcts[n]
 			}
-			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%s", n+1, precision, scale, GctName(gct))
+			rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%s", n+1, precision, scale, GctName(gct))
 			err := rset.defineNumeric(n, gct)
 			if err != nil {
 				return err
@@ -472,7 +474,7 @@ Loop:
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.binaryDouble
+				gct = rset.stmt.Cfg().binaryDouble
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -487,7 +489,7 @@ Loop:
 		case C.SQLT_IBFLOAT:
 			// BINARY_FLOAT
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.binaryFloat
+				gct = rset.stmt.Cfg().binaryFloat
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -502,7 +504,7 @@ Loop:
 		case C.SQLT_DAT:
 			// DATE
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.date
+				gct = rset.stmt.Cfg().date
 			} else {
 				err = checkTimeColumn(stmt.gcts[n])
 				if err != nil {
@@ -525,11 +527,11 @@ Loop:
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				switch ociTypeCode {
 				case C.SQLT_TIMESTAMP:
-					gct = rset.stmt.cfg.Rset.timestamp
+					gct = rset.stmt.Cfg().timestamp
 				case C.SQLT_TIMESTAMP_TZ:
-					gct = rset.stmt.cfg.Rset.timestampTz
+					gct = rset.stmt.Cfg().timestampTz
 				case C.SQLT_TIMESTAMP_LTZ:
-					gct = rset.stmt.cfg.Rset.timestampLtz
+					gct = rset.stmt.Cfg().timestampLtz
 				}
 			} else {
 				err = checkTimeColumn(stmt.gcts[n])
@@ -551,7 +553,7 @@ Loop:
 		case C.SQLT_CHR:
 			// VARCHAR, VARCHAR2, NVARCHAR2
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.varchar
+				gct = rset.stmt.Cfg().varchar
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -565,13 +567,13 @@ Loop:
 			}
 		case C.SQLT_AFC:
 			// CHAR, NCHAR
-			rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC size=%d", n+1, columnSize)
+			rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. AFC size=%d", n+1, columnSize)
 			//Log.Infof("rset AFC size=%d gct=%v", columnSize, gct)
 			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
 			if columnSize == 1 || columnSize == 4 {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.cfg.Rset.char1
-					rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC no gct, char1=%s", n+1, gct)
+					gct = rset.stmt.Cfg().char1
+					rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. AFC no gct, char1=%s", n+1, gct)
 				} else {
 					err = checkBoolOrStringColumn(stmt.gcts[n])
 					if err != nil {
@@ -579,7 +581,7 @@ Loop:
 					}
 					gct = stmt.gcts[n]
 				}
-				rset.logF(_drv.cfg.Log.Rset.OpenDefs, "%d. AFC gct=%s", n+1, gct)
+				rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. AFC gct=%s", n+1, gct)
 				switch gct {
 				case B, OraB:
 					// Interpret single char as bool
@@ -600,7 +602,7 @@ Loop:
 			} else {
 				// Interpret as string
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.cfg.Rset.char
+					gct = rset.stmt.Cfg().char
 				} else {
 					err = checkStringColumn(stmt.gcts[n])
 					if err != nil {
@@ -616,7 +618,7 @@ Loop:
 		case C.SQLT_LNG:
 			// LONG
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.long
+				gct = rset.stmt.Cfg().long
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -626,14 +628,14 @@ Loop:
 			}
 
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
-			err = rset.defineString(n, stmt.cfg.longBufferSize, gct, false)
+			err = rset.defineString(n, stmt.Cfg().longBufferSize, gct, false)
 			if err != nil {
 				return err
 			}
 		case C.SQLT_CLOB:
 			// CLOB, NCLOB
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.clob
+				gct = rset.stmt.Cfg().clob
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -656,7 +658,7 @@ Loop:
 		case C.SQLT_BLOB:
 			// BLOB
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.blob
+				gct = rset.stmt.Cfg().blob
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -673,7 +675,7 @@ Loop:
 		case C.SQLT_BIN:
 			// RAW
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.raw
+				gct = rset.stmt.Cfg().raw
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -695,7 +697,7 @@ Loop:
 			//log(true, "LONG RAW")
 			// LONG RAW
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.cfg.Rset.longRaw
+				gct = rset.stmt.Cfg().longRaw
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -709,7 +711,7 @@ Loop:
 			}
 			def := rset.getDef(defIdxLongRaw).(*defLongRaw)
 			rset.defs[n] = def
-			err = def.define(n+1, rset.stmt.cfg.longRawBufferSize, isNullable, rset)
+			err = def.define(n+1, rset.stmt.Cfg().longRawBufferSize, isNullable, rset)
 			if err != nil {
 				return err
 			}
@@ -762,7 +764,7 @@ func (rset *Rset) defineString(n int, columnSize uint32, gct GoColumnType, rTrim
 	if gct == OraS {
 		isNullable = true
 	}
-	rTrim = rTrim && rset.stmt.cfg.RTrimChar
+	rTrim = rTrim && rset.stmt.Cfg().RTrimChar
 	def := rset.getDef(defIdxString).(*defString)
 	rset.defs[n] = def
 	err = def.define(n+1, int(columnSize), isNullable, rTrim, rset)
@@ -906,24 +908,24 @@ func (rset *Rset) sysName() string {
 
 // log writes a message with an Rset system name and caller info.
 func (rset *Rset) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprint(v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Rset system name and caller info.
 func (rset *Rset) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", rset.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", rset.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }

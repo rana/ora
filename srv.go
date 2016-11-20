@@ -24,7 +24,7 @@ type SrvCfg struct {
 	Dblink string
 
 	// StmtCfg configures new Stmts.
-	StmtCfg StmtCfg
+	StmtCfg
 }
 
 func (c SrvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
@@ -59,7 +59,7 @@ func NewLogSrvCfg() LogSrvCfg {
 // Srv represents an Oracle server.
 type Srv struct {
 	id     uint64
-	cfg    SrvCfg
+	cfg    atomic.Value
 	mu     sync.Mutex
 	env    *Env
 	ocisrv *C.OCIServer
@@ -68,6 +68,17 @@ type Srv struct {
 	openSess *sesList
 
 	sysNamer
+}
+
+func (srv *Srv) Cfg() SrvCfg {
+	c := srv.cfg.Load()
+	if c == nil {
+		return SrvCfg{}
+	}
+	return c.(SrvCfg)
+}
+func (srv *Srv) SetCfg(cfg SrvCfg) {
+	srv.cfg.Store(cfg)
 }
 
 // Close disconnects from an Oracle server.
@@ -88,14 +99,16 @@ func (srv *Srv) Close() (err error) {
 	srv.env.mu.Lock()
 	srv.env.openSrvs.remove(srv)
 	srv.env.mu.Unlock()
-	defer srv.mu.Unlock()
+	srv.mu.Unlock()
 	return srv.close()
 }
 
-// close disconnects from an Oracle server, without holding locks.
+// close disconnects from an Oracle server.
 // Does not remove Srv from Ses.openSrvs
 func (srv *Srv) close() (err error) {
-	srv.log(_drv.cfg.Log.Srv.Close)
+	srv.log(_drv.Cfg().Log.Srv.Close)
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
 	err = srv.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -145,7 +158,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	}
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	srv.log(_drv.cfg.Log.Srv.OpenSes)
+	srv.log(_drv.Cfg().Log.Srv.OpenSes)
 	err = srv.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -245,10 +258,10 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
 	}
-	ses.cfg = cfg
-	if ses.cfg.StmtCfg.IsZero() && !ses.srv.cfg.StmtCfg.IsZero() {
-		ses.cfg.StmtCfg = ses.srv.cfg.StmtCfg
+	if cfg.StmtCfg.IsZero() && !ses.srv.Cfg().StmtCfg.IsZero() {
+		cfg.StmtCfg = ses.srv.Cfg().StmtCfg
 	}
+	ses.SetCfg(cfg)
 	srv.openSess.add(ses)
 	ses.mu.Unlock()
 
@@ -261,7 +274,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 func (srv *Srv) Version() (ver string, err error) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-	srv.log(_drv.cfg.Log.Srv.Version)
+	srv.log(_drv.Cfg().Log.Srv.Version)
 	err = srv.checkClosed()
 	if err != nil {
 		return "", errE(err)
@@ -287,22 +300,6 @@ func (srv *Srv) NumSes() int {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	return srv.openSess.len()
-}
-
-// SetCfg applies the specified cfg to the Srv.
-//
-// Open Sess do not observe the specified cfg.
-func (srv *Srv) SetCfg(cfg SrvCfg) {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	srv.cfg = cfg
-}
-
-// Cfg returns the Srv's cfg.
-func (srv *Srv) Cfg() *SrvCfg {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	return &srv.cfg
 }
 
 // IsUTF8 returns whether the DB uses AL32UTF8 encoding.
@@ -341,24 +338,24 @@ func (srv *Srv) sysName() string {
 
 // log writes a message with an Srv system name and caller info.
 func (srv *Srv) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprint(v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Srv system name and caller info.
 func (srv *Srv) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", srv.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", srv.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }

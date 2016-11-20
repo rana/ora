@@ -202,9 +202,9 @@ func (m methodInfo) String() string { return m.Type + "." + m.Method }
 func log(enabled bool, v ...interface{}) {
 	if enabled {
 		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
+			_drv.Cfg().Log.Logger.Infof("%v", callInfo(1))
 		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprint(v...))
+			_drv.Cfg().Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprint(v...))
 		}
 	}
 }
@@ -213,9 +213,9 @@ func log(enabled bool, v ...interface{}) {
 func logF(enabled bool, format string, v ...interface{}) {
 	if enabled {
 		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v", callInfo(1))
+			_drv.Cfg().Log.Logger.Infof("%v", callInfo(1))
 		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprintf(format, v...))
+			_drv.Cfg().Log.Logger.Infof("%v %v", callInfo(1), fmt.Sprintf(format, v...))
 		}
 	}
 }
@@ -231,7 +231,7 @@ func er(v ...interface{}) error {
 		err = errors.New(fmt.Sprint(v...))
 	}
 	err = &oraErr{Caller: errInfo(1), Underlying: err}
-	_drv.cfg.Log.Logger.Errorln(err)
+	_drv.Cfg().Log.Logger.Errorln(err)
 	return err
 }
 
@@ -239,7 +239,7 @@ func er(v ...interface{}) error {
 func errF(format string, v ...interface{}) error {
 	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), fmt.Sprintf(format, v...)))
 	err := &oraErr{Caller: errInfo(1), Underlying: fmt.Errorf(format, v...)}
-	_drv.cfg.Log.Logger.Errorln(err)
+	_drv.Cfg().Log.Logger.Errorln(err)
 	return err
 }
 
@@ -261,7 +261,7 @@ func errR(v ...interface{}) error {
 		Underlying: errors.New(fmt.Sprint(v...)),
 		Trace:      getStack(),
 	}
-	_drv.cfg.Log.Logger.Errorln(err)
+	_drv.Cfg().Log.Logger.Errorln(err)
 	return err
 }
 
@@ -269,7 +269,7 @@ func errR(v ...interface{}) error {
 func errE(e error) error {
 	//err := errors.New(fmt.Sprintf("%v %v", errInfo(1), e.Error()))
 	err := &oraErr{Caller: errInfo(1), Underlying: e}
-	_drv.cfg.Log.Logger.Errorln(err)
+	_drv.Cfg().Log.Logger.Errorln(err)
 	return err
 }
 

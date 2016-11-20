@@ -38,15 +38,22 @@ func TestBindDefine_bytes(t *testing.T) {
 			"bytes", "OraBytes", "OraBytesLob",
 			"bytes2000", "OraBytes2000",
 		} {
+			gct := ora.Bin
+			if strings.Contains(typName, "Ora") {
+				gct = ora.OraBin
+			}
 			testCases[typName+"_"+ctName] = testCase{
 				gen: _T_bytesGen[typName],
 				ct:  _T_colType[ctName],
+				gct: gct,
 			}
 		}
 	}
 	for name, tc := range testCases {
+		if tc.gen == nil {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			testBindDefine(tc.gen(), tc.ct, t, sc, tc.gct)
 		})
 	}

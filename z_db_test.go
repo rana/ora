@@ -65,7 +65,9 @@ func Test_open_cursors_db(t *testing.T) {
 
 func TestSelectNull_db(t *testing.T) {
 	t.Parallel()
-	ora.Cfg().Log.Rset.BeginRow = true
+	cfg := ora.Cfg()
+	cfg.Log.Rset.BeginRow = true
+	ora.SetCfg(cfg)
 	//enableLogging(t)
 	var (
 		s   string

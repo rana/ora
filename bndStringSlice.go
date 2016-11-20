@@ -60,7 +60,7 @@ func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAs
 		*values = append(*values, "")
 	}
 	bnd.strings = values
-	bnd.maxLen = stmt.cfg.stringPtrBufferSize
+	bnd.maxLen = stmt.Cfg().stringPtrBufferSize
 	for _, str := range *values {
 		strLen := len(str)
 		if strLen > bnd.maxLen {
@@ -77,7 +77,7 @@ func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAs
 		copy(bnd.bytes[m*bnd.maxLen:], []byte(str))
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
 		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
 	r := C.OCIBINDBYPOS(
@@ -124,7 +124,7 @@ func (bnd *bndStringSlice) setPtr() error {
 	if bnd.values != nil {
 		*bnd.values = (*bnd.values)[:n]
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"StringSlice.setPtr n=%d alen=%v nulls=%v bytes=%s", n, bnd.alen, bnd.nullInds, bnd.bytes)
 	for i, length := range bnd.alen[:n] {
 		if bnd.nullInds[i] <= C.sb2(-1) {
@@ -134,7 +134,7 @@ func (bnd *bndStringSlice) setPtr() error {
 			continue
 		}
 		(*bnd.strings)[i] = string(bnd.bytes[i*bnd.maxLen : i*bnd.maxLen+int(length)])
-		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 			"StringSlice.setPtr[%d]=%s", i, (*bnd.strings)[i])
 		if bnd.values != nil {
 			(*bnd.values)[i].IsNull = false

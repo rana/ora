@@ -926,11 +926,11 @@ func (l *envList) remove(e *Env) {
 	}
 }
 
-func (l *envList) setAllCfg(cfg EnvCfg) {
+func (l *envList) setAllCfg(cfg StmtCfg) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for n := 0; n < len(l.items); n++ {
-		l.items[n].SetCfg(&cfg)
+		l.items[n].SetCfg(cfg)
 	}
 }
 

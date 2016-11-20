@@ -199,7 +199,7 @@ func init() {
 	var err error
 
 	// setup test environment, server and session
-	testEnv, err := ora.OpenEnv(ora.EnvCfg{})
+	testEnv, err := ora.OpenEnv()
 	if err != nil {
 		panic(fmt.Sprintf("initError: %v", err))
 	}
@@ -250,7 +250,9 @@ func enableLogging(t *testing.T) {
 	enableLoggingMu.Lock()
 	defer enableLoggingMu.Unlock()
 	if t != nil {
-		ora.Cfg().Log.Logger = tstlg.New(t)
+		cfg := ora.Cfg()
+		cfg.Log.Logger = tstlg.New(t)
+		ora.SetCfg(cfg)
 		return
 	}
 }
@@ -555,7 +557,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 					expected[c] = gen_string()
 					gcts[c] = ora.S
 				case charB1, charB1Null, charC1, charC1Null:
-					if gct := ora.Cfg().Env.StmtCfg.Rset.Char1(); gct == ora.B || gct == ora.OraB {
+					if gct := ora.Cfg().Char1(); gct == ora.B || gct == ora.OraB {
 						expected[c] = gen_boolTrue()
 						gcts[c] = ora.B
 					} else {
@@ -2373,7 +2375,7 @@ func gen_string48() string {
 	return rpad48(gen_string())
 }
 func rpad48(s string) string {
-	if ora.Cfg().Env.StmtCfg.RTrimChar {
+	if ora.Cfg().RTrimChar {
 		return s
 	}
 	return rpad(s, 48, " ")
@@ -3319,11 +3321,12 @@ func TestLobSelect(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	sCfg := ora.Cfg().Env.StmtCfg
-	oCfg := sCfg.Rset
-	defer func() { sCfg.Rset = oCfg }()
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
 
-	sCfg.Rset.SetBlob(ora.Bin)
+	cfg := oCfg
+	cfg.SetBlob(ora.Bin)
+	ora.SetCfg(cfg)
 
 	// SELECT into []byte
 	{
@@ -3344,7 +3347,8 @@ func TestLobSelect(t *testing.T) {
 		}
 	}
 
-	sCfg.Rset.SetBlob(ora.D)
+	cfg.SetBlob(ora.D)
+	ora.SetCfg(cfg)
 
 	// SELECT into io.ReadCloser
 	{
@@ -3389,11 +3393,12 @@ func TestLobSelectString(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	sCfg := ora.Cfg().Env.StmtCfg
-	oCfg := sCfg.Rset
-	defer func() { sCfg.Rset = oCfg }()
+	oCfg := ora.Cfg()
+	defer func() { ora.SetCfg(oCfg) }()
 
-	sCfg.Rset.SetClob(ora.D)
+	cfg := oCfg
+	cfg.SetClob(ora.D)
+	ora.SetCfg(cfg)
 
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
@@ -3423,7 +3428,8 @@ func TestLobSelectString(t *testing.T) {
 	}
 
 	// SELECT into string
-	sCfg.Rset.SetClob(ora.S)
+	cfg.SetClob(ora.S)
+	ora.SetCfg(cfg)
 
 	rows, err = testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
@@ -3580,7 +3586,9 @@ func TestIntFloat(t *testing.T) {
 			t.Fatalf("INSERT %#v: %v", numbers, err)
 		}
 	}
-	ora.Cfg().Env.StmtCfg.Rset.SetFloat(ora.N)
+	cfg := ora.Cfg()
+	cfg.SetFloat(ora.N)
+	ora.SetCfg(cfg)
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Fatal(err)
@@ -3618,15 +3626,18 @@ func TestIntFloat(t *testing.T) {
 func TestSetDrvCfg(t *testing.T) {
 	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
 
-	defer ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.Cfg().Env.StmtCfg.Rset.Char1())
-
-	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.B)
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+	cfg := oCfg
+	cfg.SetChar1(ora.B)
+	ora.SetCfg(cfg)
 	var b bool
 	if err := testDb.QueryRow(qry).Scan(&b); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.S)
+	cfg.SetChar1(ora.S)
+	ora.SetCfg(cfg)
 	var s string
 	if err := testDb.QueryRow(qry).Scan(&s); err != nil {
 		t.Fatalf("%s: %v", qry, err)

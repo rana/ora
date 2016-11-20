@@ -12,21 +12,19 @@ import "C"
 import (
 	"database/sql/driver"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // DrvCfg represents configuration values for the ora package.
 type DrvCfg struct {
-	Env EnvCfg
+	StmtCfg
 	Log LogDrvCfg
 }
 
 // NewDrvCfg creates a DrvCfg with default values.
 func NewDrvCfg() DrvCfg {
-	var c DrvCfg
-	c.Env = NewEnvCfg()
-	c.Log = NewLogDrvCfg()
-	return c
+	return DrvCfg{StmtCfg: NewStmtCfg(), Log: NewLogDrvCfg()}
 }
 
 // LogDrvCfg represents package-level logging configuration values.
@@ -117,7 +115,7 @@ func (c LogDrvCfg) IsEnabled(enabled bool) bool {
 //
 // Drv implements the driver.Driver interface.
 type Drv struct {
-	cfg      DrvCfg
+	cfg      atomic.Value
 	mu       sync.Mutex
 	insMu    sync.Mutex
 	updMu    sync.Mutex
@@ -151,6 +149,17 @@ type Drv struct {
 	openEnvs  *envList
 
 	srvSesPools map[string]*Pool
+}
+
+func (drv *Drv) Cfg() DrvCfg {
+	c := drv.cfg.Load()
+	if c == nil {
+		return DrvCfg{}
+	}
+	return c.(DrvCfg)
+}
+func (drv *Drv) SetCfg(cfg DrvCfg) {
+	drv.cfg.Store(cfg)
 }
 
 // Open opens a connection to an Oracle server with the database/sql environment.

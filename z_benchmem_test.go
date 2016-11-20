@@ -216,11 +216,12 @@ func TestMemoryNumString(t *testing.T) {
 	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
 }
 func TestMemoryNumStringI64(t *testing.T) {
-	ora.Cfg().Env.StmtCfg.Rset.SetNumberBigInt(ora.I64)
-	ora.Cfg().Env.StmtCfg.Rset.SetNumberBigFloat(ora.I64)
+	cfg := ora.Cfg()
+	oCfg := cfg
+	cfg.RsetCfg.SetNumberBigInt(ora.I64)
+	cfg.RsetCfg.SetNumberBigFloat(ora.I64)
 	defer func() {
-		ora.Cfg().Env.StmtCfg.Rset.SetNumberBigInt(ora.N)
-		ora.Cfg().Env.StmtCfg.Rset.SetNumberBigFloat(ora.N)
+		ora.SetCfg(oCfg)
 	}()
 	n := 1000
 	benchMem(t, n, 1800, `SELECT

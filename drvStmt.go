@@ -103,12 +103,13 @@ func (ds *DrvStmt) sysName() string {
 
 // log writes a message with an DrvStmt system name and caller info.
 func (ds *DrvStmt) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	cfg := _drv.Cfg()
+	if !cfg.Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", ds.sysName(), callInfo(1))
+		cfg.Log.Logger.Infof("%v %v", ds.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", ds.sysName(), callInfo(1), fmt.Sprint(v...))
+		cfg.Log.Logger.Infof("%v %v %v", ds.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }

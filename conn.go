@@ -93,7 +93,7 @@ func (con *Con) Close() (err error) {
 // close ends a session and disconnects from an Oracle server.
 // does not remove Con from Ses.openCons
 func (con *Con) close() (err error) {
-	con.log(_drv.cfg.Log.Con.Close)
+	con.log(_drv.Cfg().Log.Con.Close)
 	if err = con.checkIsOpen(); err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (con *Con) Prepare(query string) (driver.Stmt, error) {
 	// TODO(tgulacsi): use
 	// return con.PrepareContext(context.Background(), query)
 
-	con.log(_drv.cfg.Log.Con.Prepare)
+	con.log(_drv.Cfg().Log.Con.Prepare)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (con *Con) Prepare(query string) (driver.Stmt, error) {
 //
 // Begin is a member of the driver.Conn interface.
 func (con *Con) Begin() (driver.Tx, error) {
-	con.log(_drv.cfg.Log.Con.Begin)
+	con.log(_drv.Cfg().Log.Con.Begin)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (con *Con) Begin() (driver.Tx, error) {
 
 // Ping makes a round-trip call to an Oracle server to confirm that the connection is active.
 func (con *Con) Ping(ctx context.Context) error {
-	con.log(_drv.cfg.Log.Con.Ping)
+	con.log(_drv.Cfg().Log.Con.Ping)
 	if err := con.checkIsOpen(); err != nil {
 		return err
 	}
@@ -182,9 +182,9 @@ func (con *Con) sysName() string {
 func (con *Con) log(enabled bool, v ...interface{}) {
 	if enabled {
 		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", con.sysName(), callInfo(1))
+			_drv.Cfg().Log.Logger.Infof("%v %v", con.sysName(), callInfo(1))
 		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", con.sysName(), callInfo(1), fmt.Sprint(v...))
+			_drv.Cfg().Log.Logger.Infof("%v %v %v", con.sysName(), callInfo(1), fmt.Sprint(v...))
 		}
 	}
 }

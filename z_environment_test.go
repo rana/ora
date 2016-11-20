@@ -12,7 +12,7 @@ import (
 
 func TestEnv_OpenClose(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	err = env.Close()
 	testErr(err, t)
@@ -20,7 +20,7 @@ func TestEnv_OpenClose(t *testing.T) {
 
 func TestEnv_IsOpen_opened(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -34,7 +34,7 @@ func TestEnv_IsOpen_opened(t *testing.T) {
 
 func TestEnv_IsOpen_opened_closed(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	testErr(err, t)
 	err = env.Close()
@@ -49,7 +49,7 @@ func TestEnv_IsOpen_opened_closed(t *testing.T) {
 
 func TestEnv_OpenCloseServer(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -63,7 +63,7 @@ func TestEnv_OpenCloseServer(t *testing.T) {
 
 func TestEnv_OpenCloseCon(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	testErr(err, t)
 	defer env.Close()
 	testErr(err, t)
@@ -77,7 +77,7 @@ func TestEnv_OpenCloseCon(t *testing.T) {
 
 func TestEnv_SrvCfg(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,22 +88,22 @@ func TestEnv_SrvCfg(t *testing.T) {
 	}
 	defer srv.Close()
 	srvCfg := srv.Cfg()
-	old := srvCfg.StmtCfg.Rset.NumberBigFloat()
-	defer srvCfg.StmtCfg.Rset.SetNumberBigFloat(old)
+	old := srvCfg.NumberBigFloat()
+	defer srvCfg.SetNumberBigFloat(old)
 
 	x := ora.F64
-	srvCfg.StmtCfg.Rset.SetNumberBigFloat(x)
-	if y := srvCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
+	srvCfg.SetNumberBigFloat(x)
+	if y := srvCfg.NumberBigFloat(); y != x {
 		t.Errorf("srvCfg: wanted %s, got %s", x, y)
 	}
 	sesCfg := testSesCfg
-	sesCfg.StmtCfg = ora.StmtCfg{}
+	sesCfg.StmtCfg = ora.NewStmtCfg()
 	ses, err := srv.OpenSes(sesCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ses.Close()
-	if y := ses.Cfg().StmtCfg.Rset.NumberBigFloat(); y != x {
+	if y := ses.Cfg().NumberBigFloat(); y != x {
 		t.Errorf("sesCfg: wanted %s, got %s", x, y)
 	}
 
@@ -112,14 +112,14 @@ func TestEnv_SrvCfg(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stmt.Close()
-	if y := stmt.Cfg().Rset.NumberBigFloat(); y != x {
+	if y := stmt.Cfg().NumberBigFloat(); y != x {
 		t.Errorf("stmt.Cfg: wanted %v, got %s (default: %s)", x, y, old)
 	}
 }
 
 func TestEnv_SesCfg(t *testing.T) {
 	t.Parallel()
-	env, err := ora.OpenEnv(ora.EnvCfg{})
+	env, err := ora.OpenEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,21 +136,22 @@ func TestEnv_SesCfg(t *testing.T) {
 	defer ses.Close()
 
 	sesCfg := ses.Cfg()
-	old := sesCfg.StmtCfg.Rset.NumberBigFloat()
-	defer sesCfg.StmtCfg.Rset.SetNumberBigFloat(old)
+	old := sesCfg.NumberBigFloat()
+	defer sesCfg.SetNumberBigFloat(old)
 
 	x := ora.F64
-	sesCfg.StmtCfg.Rset.SetNumberBigFloat(x)
-	if y := sesCfg.StmtCfg.Rset.NumberBigFloat(); y != x {
+	sesCfg.SetNumberBigFloat(x)
+	if y := sesCfg.NumberBigFloat(); y != x {
 		t.Errorf("srvCfg: wanted %s, got %s", x, y)
 	}
+	ses.SetCfg(sesCfg)
 
 	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer stmt.Close()
-	if y := stmt.Cfg().Rset.NumberBigFloat(); y != x {
+	if y := stmt.Cfg().NumberBigFloat(); y != x {
 		t.Errorf("stmt.Cfg: wanted %v, got %s (default: %s)", x, y, old)
 	}
 }

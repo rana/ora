@@ -46,10 +46,10 @@ func (def *defBool) value(offset int) (value interface{}, err error) {
 	buf := def.buf[offset*def.columnSize : (offset+1)*def.columnSize]
 	if def.isNullable {
 		r, _ := utf8.DecodeRune(buf)
-		return Bool{Value: r == def.rset.stmt.cfg.Rset.TrueRune}, nil
+		return Bool{Value: r == def.rset.stmt.Cfg().TrueRune}, nil
 	}
 	r, _ := utf8.DecodeRune(buf)
-	return r == def.rset.stmt.cfg.Rset.TrueRune, nil
+	return r == def.rset.stmt.Cfg().TrueRune, nil
 }
 
 func (def *defBool) alloc() error {

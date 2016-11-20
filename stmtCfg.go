@@ -44,13 +44,13 @@ type StmtCfg struct {
 	TrueRune rune
 
 	// Rset represents configuration options for an Rset struct.
-	Rset RsetCfg
+	RsetCfg
 }
 
 // NewStmtCfg returns a StmtCfg with default values.
 func NewStmtCfg() StmtCfg {
 	var c StmtCfg
-	if c = _drv.cfg.Env.StmtCfg; !c.IsZero() {
+	if c = _drv.Cfg().StmtCfg; !c.IsZero() {
 		return c
 	}
 	c.prefetchRowCount = 128
@@ -64,7 +64,7 @@ func NewStmtCfg() StmtCfg {
 	c.RTrimChar = true
 	c.FalseRune = '0'
 	c.TrueRune = '1'
-	c.Rset = NewRsetCfg()
+	c.RsetCfg = NewRsetCfg()
 	return c
 }
 

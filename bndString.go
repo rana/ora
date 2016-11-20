@@ -29,7 +29,7 @@ func (bnd *bndString) bind(value string, position int, stmt *Stmt) error {
 	bnd.cString = C.CString(value)
 	bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(value))
 	bnd.nullp.Set(value == "")
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d alen=%v",
 		bnd, position, bnd.alen)
 

@@ -41,7 +41,7 @@ func (c RsetCfg) IsZero() bool { return c.numberInt == 0 }
 // NewRsetCfg returns a RsetCfg with default values.
 func NewRsetCfg() RsetCfg {
 	var c RsetCfg
-	if c = _drv.cfg.Env.StmtCfg.Rset; !c.IsZero() {
+	if c = _drv.Cfg().RsetCfg; !c.IsZero() {
 		return c
 	}
 	c.numberInt = I64

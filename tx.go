@@ -77,7 +77,7 @@ func (tx *Tx) Commit() (err error) {
 	if tx == nil {
 		return nil
 	}
-	tx.log(_drv.cfg.Log.Tx.Commit)
+	tx.log(_drv.Cfg().Log.Tx.Commit)
 	if err = tx.checkIsOpen(); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (tx *Tx) Rollback() (err error) {
 	if tx == nil {
 		return nil
 	}
-	tx.log(_drv.cfg.Log.Tx.Rollback)
+	tx.log(_drv.Cfg().Log.Tx.Rollback)
 	if err = tx.checkIsOpen(); err != nil {
 		return err
 	}
@@ -131,9 +131,9 @@ func (tx *Tx) sysName() string {
 func (tx *Tx) log(enabled bool, v ...interface{}) {
 	if enabled {
 		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", tx.sysName(), callInfo(1))
+			_drv.Cfg().Log.Logger.Infof("%v %v", tx.sysName(), callInfo(1))
 		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", tx.sysName(), callInfo(1), fmt.Sprint(v...))
+			_drv.Cfg().Log.Logger.Infof("%v %v %v", tx.sysName(), callInfo(1), fmt.Sprint(v...))
 		}
 	}
 }
@@ -142,9 +142,9 @@ func (tx *Tx) log(enabled bool, v ...interface{}) {
 func (tx *Tx) logF(enabled bool, format string, v ...interface{}) {
 	if enabled {
 		if len(v) == 0 {
-			_drv.cfg.Log.Logger.Infof("%v %v", tx.sysName(), callInfo(1))
+			_drv.Cfg().Log.Logger.Infof("%v %v", tx.sysName(), callInfo(1))
 		} else {
-			_drv.cfg.Log.Logger.Infof("%v %v %v", tx.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+			_drv.Cfg().Log.Logger.Infof("%v %v %v", tx.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 		}
 	}
 }

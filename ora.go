@@ -36,7 +36,7 @@ func init() {
 	_drv.locations = make(map[string]*time.Location)
 	_drv.srvSesPools = make(map[string]*Pool)
 	_drv.openEnvs = newEnvList()
-	_drv.cfg = NewDrvCfg()
+	_drv.SetCfg(NewDrvCfg())
 
 	// init general pools
 	_drv.listPool = newPool(func() interface{} { return list.New() })
@@ -135,28 +135,27 @@ func init() {
 	_drv.defPools[defIdxRset] = newPool(func() interface{} { return &defRset{} })
 
 	var err error
-	if _drv.sqlPkgEnv, err = OpenEnv(NewEnvCfg()); err != nil {
+	if _drv.sqlPkgEnv, err = OpenEnv(); err != nil {
 		panic(fmt.Sprintf("OpenEnv: %v", err))
 	}
 	// database/sql/driver expects binaryFloat to return float64 (not the Rset default of float32)
-	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
+	cfg := _drv.sqlPkgEnv.Cfg()
+	cfg.RsetCfg.binaryFloat = F64
+	_drv.sqlPkgEnv.SetCfg(cfg)
 	sql.Register(Name, _drv)
 }
 
 // SetDrvCfg sets the used configuration options for the driver.
-func SetDrvCfg(cfg *DrvCfg) {
-	if cfg == nil {
-		return
-	}
-	_drv.cfg = *cfg
-	_drv.sqlPkgEnv.cfg = cfg.Env
-	_drv.sqlPkgEnv.cfg.StmtCfg.Rset.binaryFloat = F64
+func SetDrvCfg(cfg DrvCfg) {
+	cfg.RsetCfg.binaryFloat = F64
+	_drv.SetCfg(cfg)
+	_drv.sqlPkgEnv.SetCfg(cfg.StmtCfg)
 }
 
 // Register used to register the ora database driver with the database/sql package,
 // but this is automatic now - so this function is deprecated, has the same effect
 // as SetDrvCfg.
-func Register(cfg *DrvCfg) {
+func Register(cfg DrvCfg) {
 	SetDrvCfg(cfg)
 }
 
@@ -164,13 +163,11 @@ func Register(cfg *DrvCfg) {
 //
 // Optionally specify a cfg parameter. If cfg is nil, default cfg values are
 // applied.
-func OpenEnv(cfg EnvCfg) (env *Env, err error) {
+func OpenEnv() (env *Env, err error) {
 	_drv.mu.Lock()
 	defer _drv.mu.Unlock()
-	log(_drv.cfg.Log.OpenEnv)
-	if cfg.IsZero() { // ensure cfg
-		cfg = _drv.cfg.Env
-	}
+	cfg := _drv.Cfg()
+	log(cfg.Log.OpenEnv)
 	var csIDAl32UTF8 C.ub2
 	if csIDAl32UTF8 == 0 { // Get the code for AL32UTF8
 		var ocienv *C.OCIEnv
@@ -209,7 +206,7 @@ func OpenEnv(cfg EnvCfg) (env *Env, err error) {
 	if env.id == 0 {
 		env.id = _drv.envId.nextId()
 	}
-	env.cfg = cfg
+	env.SetCfg(cfg.StmtCfg)
 	_drv.openEnvs.add(env)
 
 	return env, nil
@@ -224,15 +221,17 @@ func NumEnv() int {
 
 // SetCfg applies the specified cfg to the ora database driver and any open Envs.
 func SetCfg(cfg DrvCfg) {
+	_drv.cfg.Store(cfg)
 	_drv.mu.Lock()
-	_drv.cfg = cfg
-	_drv.openEnvs.setAllCfg(cfg.Env)
+	_drv.openEnvs.setAllCfg(cfg.StmtCfg)
 	_drv.mu.Unlock()
 }
 
 // Cfg returns the ora database driver's cfg.
-func Cfg() *DrvCfg {
-	_drv.mu.Lock()
-	defer _drv.mu.Unlock()
-	return &_drv.cfg
+func Cfg() DrvCfg {
+	c := _drv.cfg.Load()
+	if c == nil {
+		return DrvCfg{}
+	}
+	return c.(DrvCfg)
 }

@@ -24,7 +24,7 @@ import "C"
 // context is for the preparation of the statement,
 // it must not store the context within the statement itself.
 func (con *Con) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	con.log(_drv.cfg.Log.Con.Prepare)
+	con.log(_drv.Cfg().Log.Con.Prepare)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (con *Con) BeginContext(ctx context.Context) (driver.Tx, error) {
 			return nil, fmt.Errorf("Isolation level %s not supported.", level)
 		}
 	}
-	con.log(_drv.cfg.Log.Con.Begin)
+	con.log(_drv.Cfg().Log.Con.Begin)
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}

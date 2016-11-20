@@ -72,7 +72,7 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 		}
 		bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
@@ -98,7 +98,7 @@ func (bnd *bndStringPtr) setPtr() error {
 	if bnd.value == nil {
 		return nil
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"StringPtr.setPtr isNull=%t alen=%d", bnd.nullp.IsNull(), bnd.alen[0])
 	if !bnd.nullp.IsNull() {
 		*bnd.value = string(bnd.buf[:bnd.alen[0]])

@@ -61,7 +61,7 @@ func (def *defString) value(offset int) (value interface{}, err error) {
 		return "", nil
 	}
 	var s string
-	//def.rset.logF(_drv.cfg.Log.Stmt.Bind,
+	//def.rset.logF(_drv.Cfg().Log.Stmt.Bind,
 	//	"%p offset=%d alen=%v, colSize=%d, buf=%v",
 	//	def, offset, def.alen, def.columnSize, def.buf[offset*def.columnSize:offset*def.columnSize+int(def.alen[offset])])
 	if def.alen[offset] > 0 {

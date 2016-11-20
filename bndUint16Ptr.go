@@ -21,7 +21,7 @@ type bndUint16Ptr struct {
 }
 
 func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
-	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
+	//bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil)
@@ -29,7 +29,7 @@ func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
 		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), byteWidth16); err != nil {
 			return err
 		}
-		bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+		bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 			"Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
 	r := C.OCIBINDBYPOS(

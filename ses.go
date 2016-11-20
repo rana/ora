@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -24,8 +25,8 @@ import (
 type SesCfg struct {
 	Username string
 	Password string
-	StmtCfg  StmtCfg
-	Mode     SessionMode
+	StmtCfg
+	Mode SessionMode
 }
 
 func (c SesCfg) IsZero() bool { return c.StmtCfg.IsZero() }
@@ -114,7 +115,7 @@ func NewLogSesCfg() LogSesCfg {
 // Ses is an Oracle session associated with a server.
 type Ses struct {
 	id        uint64
-	cfg       SesCfg
+	cfg       atomic.Value
 	mu        sync.Mutex
 	srv       *Srv
 	ocisvcctx *C.OCISvcCtx
@@ -127,6 +128,17 @@ type Ses struct {
 	insteadClose func(ses *Ses) error
 	timezone     *time.Location
 	sysNamer
+}
+
+func (ses *Ses) Cfg() SesCfg {
+	c := ses.cfg.Load()
+	if c == nil {
+		return SesCfg{}
+	}
+	return c.(SesCfg)
+}
+func (ses *Ses) SetCfg(cfg SesCfg) {
+	ses.cfg.Store(cfg)
 }
 
 // Close ends a session on an Oracle server.
@@ -146,22 +158,21 @@ func (ses *Ses) Close() (err error) {
 	}
 	if ses.insteadClose != nil {
 		err = ses.insteadClose(ses)
-		ses.mu.Unlock()
 		return err
 	}
 	ses.srv.mu.Lock()
 	ses.srv.openSess.remove(ses)
 	ses.srv.mu.Unlock()
-	defer ses.mu.Unlock()
+	ses.mu.Unlock()
 	return ses.close()
 }
 
-// close ends a session on an Oracle server, without holding locks.
+// close ends a session on an Oracle server.
 // does not remove Ses from Srv.openSess
 func (ses *Ses) close() (err error) {
-	//ses.mu.Lock()
-	//defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Ses.Close)
+	ses.mu.Lock()
+	defer ses.mu.Unlock()
+	ses.log(_drv.Cfg().Log.Ses.Close)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -172,7 +183,7 @@ func (ses *Ses) close() (err error) {
 			errs.PushBack(errR(value))
 		}
 
-		ses.cfg.StmtCfg = StmtCfg{}
+		ses.SetCfg(SesCfg{})
 		ses.srv = nil
 		ses.ocisvcctx = nil
 		ses.ocises = nil
@@ -236,7 +247,7 @@ func (ses *Ses) prepAndExe(sql string, isAssocArray bool, params ...interface{})
 			err = errR(value)
 		}
 	}()
-	ses.log(_drv.cfg.Log.Ses.PrepAndExe)
+	ses.log(_drv.Cfg().Log.Ses.PrepAndExe)
 	err = ses.checkClosed()
 	if err != nil {
 		return 0, errE(err)
@@ -272,7 +283,7 @@ func (ses *Ses) prepAndExe(sql string, isAssocArray bool, params ...interface{})
 // The *Stmt internal to this method is automatically closed when the *Rset
 // retrieves all rows or returns an error.
 func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (rset *Rset, err error) {
-	ses.log(_drv.cfg.Log.Ses.PrepAndQry)
+	ses.log(_drv.Cfg().Log.Ses.PrepAndQry)
 	err = ses.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -303,7 +314,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 			err = errR(value)
 		}
 	}()
-	ses.log(_drv.cfg.Log.Ses.Prep, sql)
+	ses.log(_drv.Cfg().Log.Ses.Prep, sql)
 	err = ses.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -329,9 +340,9 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
-	stmtCfg := ses.cfg.StmtCfg
+	stmtCfg := ses.Cfg().StmtCfg
 	if stmtCfg.IsZero() {
-		if stmtCfg = ses.srv.cfg.StmtCfg; stmtCfg.IsZero() {
+		if stmtCfg = ses.srv.Cfg().StmtCfg; stmtCfg.IsZero() {
 			stmtCfg = NewStmtCfg()
 		}
 	}
@@ -340,7 +351,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 			stmtCfg.stringPtrBufferSize = 1000
 		}
 	}
-	stmt.cfg = stmtCfg
+	stmt.SetCfg(stmtCfg)
 	stmt.sql = sql
 	stmt.gcts = gcts
 	if stmt.id == 0 {
@@ -370,7 +381,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 // to the variadic parameter 'columnPairs' is expected to be a pointer capable
 // of receiving the identity value.
 func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
-	ses.log(_drv.cfg.Log.Ses.Ins)
+	ses.log(_drv.Cfg().Log.Ses.Ins)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -435,7 +446,7 @@ func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error) {
 //
 // Upd offers convenience when specifying a long list of sql columns.
 func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
-	ses.log(_drv.cfg.Log.Ses.Upd)
+	ses.log(_drv.Cfg().Log.Ses.Upd)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -503,7 +514,7 @@ func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error) {
 // name-GoColumnType pairs. The FROM clause may have additional SQL clauses
 // such as WHERE, HAVING, etc.
 func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (rset *Rset, err error) {
-	ses.log(_drv.cfg.Log.Ses.Sel)
+	ses.log(_drv.Cfg().Log.Ses.Sel)
 	err = ses.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -564,7 +575,7 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Ses.StartTx)
+	ses.log(_drv.Cfg().Log.Ses.StartTx)
 	err = ses.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -596,7 +607,7 @@ func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
 func (ses *Ses) Ping() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Ses.Ping)
+	ses.log(_drv.Cfg().Log.Ses.Ping)
 	defer func() {
 		if r := recover(); r != nil {
 			err = errR(r)
@@ -620,7 +631,7 @@ func (ses *Ses) Ping() (err error) {
 func (ses *Ses) Break() (err error) {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
-	ses.log(_drv.cfg.Log.Ses.Break)
+	ses.log(_drv.Cfg().Log.Ses.Break)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -646,22 +657,6 @@ func (ses *Ses) NumTx() int {
 	ses.mu.Lock()
 	defer ses.mu.Unlock()
 	return ses.openTxs.len()
-}
-
-// SetCfg applies the specified cfg to the Ses.
-//
-// Open Stmts do not observe the specified cfg.
-func (ses *Ses) SetCfg(cfg SesCfg) {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
-	ses.cfg = cfg
-}
-
-// Cfg returns the Ses's cfg.
-func (ses *Ses) Cfg() SesCfg {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
-	return ses.cfg
 }
 
 // IsOpen returns true when a session is open; otherwise, false.
@@ -771,24 +766,24 @@ func (ses *Ses) SetAction(module, action string) error {
 
 // log writes a message with an Ses system name and caller info.
 func (ses *Ses) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+		_drv.Cfg().Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Ses system name and caller info.
 func (ses *Ses) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+		_drv.Cfg().Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
 	}
 }

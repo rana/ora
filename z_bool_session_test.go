@@ -57,6 +57,9 @@ func TestBindPtrBool(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
+		if tc.gen == nil {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			testBindPtr(tc.gen(), tc.ct, t)
@@ -107,12 +110,14 @@ var _T_boolGen = map[string](func() interface{}){
 }
 
 func setC1Bool() func() {
-	old := ora.Cfg().Env.StmtCfg.Rset.Char1()
-	ora.Cfg().Log.Logger.Infof("setting Char1 from %s to %s.", old, ora.OraB)
-	ora.Cfg().Env.StmtCfg.Rset.SetChar1(ora.OraB)
+	oCfg := ora.Cfg()
+	old := oCfg.Char1()
+	oCfg.Log.Logger.Infof("setting Char1 from %s to %s.", old, ora.OraB)
+	cfg := oCfg
+	cfg.SetChar1(ora.OraB)
 	return func() {
-		ora.Cfg().Log.Logger.Infof("setting Char1 back from %s to %s.", ora.Cfg().Env.StmtCfg.Rset.Char1(), old)
-		ora.Cfg().Env.StmtCfg.Rset.SetChar1(old)
+		ora.Cfg().Log.Logger.Infof("setting Char1 back from %s to %s.", ora.Cfg().Char1(), old)
+		ora.SetCfg(oCfg)
 	}
 }
 

@@ -52,12 +52,15 @@ func (env *Env) NewPool(srvCfg SrvCfg, sesCfg SesCfg, size int) *Pool {
 
 // NewPool returns a new session pool with default config.
 func NewPool(dsn string, size int) (*Pool, error) {
-	env, err := OpenEnv(NewEnvCfg())
+	env, err := OpenEnv()
 	if err != nil {
 		return nil, err
 	}
-	var srvCfg SrvCfg
-	sesCfg := SesCfg{Mode: DSNMode(dsn)}
+	srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
+	sesCfg := SesCfg{
+		Mode:    DSNMode(dsn),
+		StmtCfg: srvCfg.StmtCfg,
+	}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	return env.NewPool(srvCfg, sesCfg, size), nil
 }
@@ -154,7 +157,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 		if srv == nil || srv.env == nil {
 			continue
 		}
-		p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
+		p.sesCfg.StmtCfg = srv.env.Cfg()
 		if ses, err = srv.OpenSes(p.sesCfg); err == nil {
 			ses.insteadClose = Instead
 			return ses, nil
@@ -166,7 +169,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 	if srv, err = p.env.OpenSrv(p.srvCfg); err != nil {
 		return nil, err
 	}
-	p.sesCfg.StmtCfg = srv.env.cfg.StmtCfg
+	p.sesCfg.StmtCfg = srv.env.Cfg()
 	if ses, err = srv.OpenSes(p.sesCfg); err != nil {
 		return nil, err
 	}
@@ -194,9 +197,10 @@ func (s sesSrvPB) Close() error {
 		return nil
 	}
 	if s.p != nil {
-		s.Ses.mu.Lock()
-		s.p.Put(s.Ses.srv)
-		s.Ses.mu.Unlock()
+		//s.Ses.mu.Lock()
+		srv := s.Ses.srv
+		//s.Ses.mu.Unlock()
+		s.p.Put(srv)
 	}
 	return s.Ses.Close()
 }
@@ -309,8 +313,15 @@ type poolEvictor struct {
 // Also starts eviction if not yet started.
 func (p *poolEvictor) SetEvictDuration(dur time.Duration) {
 	p.Lock()
-	if p.tickerCh == nil { // first initialize
-		p.tickerCh = make(chan *time.Ticker)
+	ch := p.tickerCh
+	fresh := ch == nil
+	if fresh { // first initialize
+		ch = make(chan *time.Ticker)
+		p.tickerCh = ch
+	}
+	p.Unlock()
+
+	if fresh {
 		go func(tickerCh <-chan *time.Ticker) {
 			ticker := <-tickerCh
 			for {
@@ -326,9 +337,8 @@ func (p *poolEvictor) SetEvictDuration(dur time.Duration) {
 					ticker = nxt
 				}
 			}
-		}(p.tickerCh)
+		}(ch)
 	}
-	p.Unlock()
 	atomic.StoreUint32(&p.evictDurSec, uint32(dur/time.Second))
 	p.tickerCh <- time.NewTicker(dur)
 }
@@ -374,8 +384,8 @@ func DSNMode(str string) SessionMode {
 // and opens a session (Ses), in one call.
 //
 // Ideal for simple use cases.
-func NewEnvSrvSes(dsn string, envCfg EnvCfg) (*Env, *Srv, *Ses, error) {
-	env, err := OpenEnv(envCfg)
+func NewEnvSrvSes(dsn string) (*Env, *Srv, *Ses, error) {
+	env, err := OpenEnv()
 	if err != nil {
 		return nil, nil, nil, err
 	}

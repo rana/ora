@@ -32,7 +32,7 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 	if value != nil {
 		bnd.ocidate[0] = value.Date
 	}
-	//bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
+	//bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
 		&bnd.ocibnd,                         //OCIBind      **bindpp,
@@ -54,7 +54,7 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 }
 
 func (bnd *bndDatePtr) setPtr() (err error) {
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind, "setPtr val=%#v nullp=%#v datep=%#v (%v)\n", bnd.value, bnd.nullp, bnd.ocidate[0], bnd.ocidate[0].Get())
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "setPtr val=%#v nullp=%#v datep=%#v (%v)\n", bnd.value, bnd.nullp, bnd.ocidate[0], bnd.ocidate[0].Get())
 
 	if bnd.value == nil {
 		return nil

@@ -19,21 +19,6 @@ import (
 	"unsafe"
 )
 
-// EnvCfg configures a new Env.
-type EnvCfg struct {
-	// StmtCfg configures new Stmts.
-	StmtCfg StmtCfg
-}
-
-// NewEnvCfg creates a EnvCfg with default values.
-func NewEnvCfg() EnvCfg {
-	var c EnvCfg
-	c.StmtCfg = NewStmtCfg()
-	return c
-}
-
-func (c EnvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
-
 // LogEnvCfg represents Env logging configuration values.
 type LogEnvCfg struct {
 	// Close determines whether the Env.Close method is logged.
@@ -64,7 +49,7 @@ func NewLogEnvCfg() LogEnvCfg {
 // Env represents an Oracle environment.
 type Env struct {
 	id       uint64
-	cfg      EnvCfg
+	cfg      atomic.Value
 	mu       sync.Mutex
 	ocienv   *C.OCIEnv
 	ocierr   *C.OCIError
@@ -77,11 +62,22 @@ type Env struct {
 	sysNamer
 }
 
+func (env *Env) Cfg() StmtCfg {
+	c := env.cfg.Load()
+	if c == nil {
+		return NewStmtCfg()
+	}
+	return c.(StmtCfg)
+}
+func (env *Env) SetCfg(cfg StmtCfg) {
+	env.cfg.Store(cfg)
+}
+
 // Close disconnects from servers and resets optional fields.
 func (env *Env) Close() (err error) {
 	env.mu.Lock()
 	defer env.mu.Unlock()
-	env.log(_drv.cfg.Log.Env.Close)
+	env.log(_drv.Cfg().Log.Env.Close)
 	err = env.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -138,7 +134,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	}()
 	env.mu.Lock()
 	defer env.mu.Unlock()
-	env.log(_drv.cfg.Log.Env.OpenSrv)
+	env.log(_drv.Cfg().Log.Env.OpenSrv)
 	err = env.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -168,9 +164,10 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
-	srv.cfg = cfg
-	if srv.cfg.StmtCfg.IsZero() && !srv.env.cfg.StmtCfg.IsZero() {
-		srv.cfg.StmtCfg = srv.env.cfg.StmtCfg
+	srv.SetCfg(cfg)
+	if cfg.StmtCfg.IsZero() && !srv.env.Cfg().IsZero() {
+		cfg.StmtCfg = srv.env.Cfg()
+		srv.SetCfg(cfg)
 	}
 	srv.mu.Unlock()
 	env.openSrvs.add(srv)
@@ -193,7 +190,7 @@ var (
 // The dblink may be defined in the client machine's tnsnames.ora file.
 func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	// do not lock; calls to env.OpenSrv will lock
-	env.log(_drv.cfg.Log.Env.OpenCon)
+	env.log(_drv.Cfg().Log.Env.OpenCon)
 	err = env.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -202,8 +199,11 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	_drv.mu.Lock()
 	p := _drv.srvSesPools[dsn]
 	if p == nil {
-		var srvCfg SrvCfg
-		sesCfg := SesCfg{Mode: DSNMode(dsn)}
+		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
+		sesCfg := SesCfg{
+			Mode:    DSNMode(dsn),
+			StmtCfg: srvCfg.StmtCfg,
+		}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 		p = env.NewPool(srvCfg, sesCfg, 0)
 		_drv.srvSesPools[dsn] = p
@@ -273,22 +273,6 @@ func (env *Env) NumCon() int {
 	return env.openCons.len()
 }
 
-// SetCfg applies the specified cfg to the Env.
-//
-// Open Srvs do not observe the specified cfg.
-func (env *Env) SetCfg(cfg *EnvCfg) {
-	env.mu.Lock()
-	defer env.mu.Unlock()
-	env.cfg = *cfg
-}
-
-// Cfg returns the Env's cfg.
-func (env *Env) Cfg() EnvCfg {
-	env.mu.Lock()
-	defer env.mu.Unlock()
-	return env.cfg
-}
-
 // IsOpen returns true when the environment is open; otherwise, false.
 //
 // Calling Close will cause IsOpen to return false. Once closed, the environment
@@ -317,25 +301,25 @@ func (env *Env) sysName() string {
 
 // log writes a message with an Env system name and caller info.
 func (env *Env) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Env system name and caller info.
 func (env *Env) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }
 

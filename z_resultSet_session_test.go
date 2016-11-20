@@ -81,15 +81,16 @@ END;`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	oLog := ora.Cfg().Log
-	defer func() {
-		ora.Cfg().Log = oLog
-	}()
-	ora.Cfg().Log.Rset.BeginRow = true
-	ora.Cfg().Log.Rset.OpenDefs = true
-	ora.Cfg().Log.Rset.Open = true
-	ora.Cfg().Log.Rset.Next = true
-	ora.Cfg().Log.Logger = lg.Log // log to stderr - in case of panic, we'll have that
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+
+	cfg := oCfg
+	cfg.Log.Rset.BeginRow = true
+	cfg.Log.Rset.OpenDefs = true
+	cfg.Log.Rset.Open = true
+	cfg.Log.Rset.Next = true
+	cfg.Log.Logger = lg.Log // log to stderr - in case of panic, we'll have that
+	ora.SetCfg(cfg)
 	stmt, err := testSes.Prep("call proc2(:1)")
 	testErr(err, t)
 	//enableLogging(t)

@@ -92,7 +92,7 @@ func (bnd *bndFloat64Slice) bind(values *[]float64, position int, stmt *Stmt, is
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
 	r := C.OCIBINDBYPOS(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,

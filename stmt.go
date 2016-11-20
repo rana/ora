@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -57,7 +58,7 @@ func NewLogStmtCfg() LogStmtCfg {
 // Stmt represents an Oracle statement.
 type Stmt struct {
 	id         uint64
-	cfg        StmtCfg
+	cfg        atomic.Value
 	mu         sync.Mutex
 	ses        *Ses
 	ocistmt    *C.OCIStmt
@@ -72,6 +73,17 @@ type Stmt struct {
 	sysNamer
 }
 
+func (stmt *Stmt) Cfg() StmtCfg {
+	c := stmt.cfg.Load()
+	if c == nil {
+		return NewStmtCfg()
+	}
+	return c.(StmtCfg)
+}
+func (stmt *Stmt) SetCfg(cfg StmtCfg) {
+	stmt.cfg.Store(cfg)
+}
+
 // Close closes the SQL statement.
 //
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
@@ -81,8 +93,8 @@ func (stmt *Stmt) Close() (err error) {
 		return nil
 	}
 	stmt.mu.Lock()
+	defer stmt.mu.Unlock()
 	if stmt.ses == nil {
-		stmt.mu.Unlock()
 		return nil
 	}
 	stmt.ses.mu.Lock()
@@ -90,14 +102,13 @@ func (stmt *Stmt) Close() (err error) {
 		stmt.ses.openStmts.remove(stmt)
 	}
 	stmt.ses.mu.Unlock()
-	defer stmt.mu.Unlock()
 	return stmt.close()
 }
 
 // close closes the SQL statement, without locking stmt.
 // does not remove Stmt from Ses.openStmts
 func (stmt *Stmt) close() (err error) {
-	stmt.log(_drv.cfg.Log.Stmt.Close)
+	stmt.log(_drv.Cfg().Log.Stmt.Close)
 	err = stmt.checkClosed()
 	if err != nil {
 		return errE(err)
@@ -187,7 +198,7 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 			err = errR(value)
 		}
 	}()
-	stmt.log(_drv.cfg.Log.Stmt.Exe)
+	stmt.log(_drv.Cfg().Log.Stmt.Exe)
 	err = stmt.checkClosed()
 	if err != nil {
 		return 0, 0, errE(err)
@@ -211,12 +222,12 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		return 0, 0, errE(err)
 	}
 	var mode C.ub4 // determine auto-commit state; don't auto-comit if there's an explicit user transaction occuring
-	if stmt.cfg.IsAutoCommitting && stmt.ses.openTxs.len() == 0 {
+	if stmt.Cfg().IsAutoCommitting && stmt.ses.openTxs.len() == 0 {
 		mode = C.OCI_COMMIT_ON_SUCCESS
 	} else {
 		mode = C.OCI_DEFAULT
 	}
-	stmt.logF(_drv.cfg.Log.Stmt.Exe, "iterations=%d", iterations)
+	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "iterations=%d", iterations)
 	// Execute statement on Oracle server
 	r := C.OCIStmtExecute(
 		stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
@@ -227,7 +238,7 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		nil,                     //const OCISnapshot   *snap_in,
 		nil,                     //OCISnapshot         *snap_out,
 		mode)                    //ub4                 mode );
-	stmt.logF(_drv.cfg.Log.Stmt.Exe, "returned %d", r)
+	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "returned %d", r)
 	if r == C.OCI_ERROR {
 		return 0, 0, errE(stmt.ses.srv.env.ociError())
 	}
@@ -270,7 +281,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 			err = errR(value)
 		}
 	}()
-	stmt.log(_drv.cfg.Log.Stmt.Qry)
+	stmt.log(_drv.Cfg().Log.Stmt.Qry)
 	err = stmt.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -283,18 +294,33 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
+	ses := stmt.ses
+	ses.mu.Lock()
+	srv := ses.srv
+	ocisvcctx := ses.ocisvcctx
+	ses.mu.Unlock()
+	srv.mu.Lock()
+	env := srv.env
+	srv.mu.Unlock()
+	env.mu.Lock()
+	ocierr := env.ocierr
+	env.mu.Unlock()
+
 	// Query statement on Oracle server
 	r := C.OCIStmtExecute(
-		stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
-		stmt.ocistmt,            //OCIStmt             *stmtp,
-		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
-		C.ub4(0),                //ub4                 iters,
-		C.ub4(0),                //ub4                 rowoff,
-		nil,                     //const OCISnapshot   *snap_in,
-		nil,                     //OCISnapshot         *snap_out,
-		C.OCI_DEFAULT)           //ub4                 mode );
+		//stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
+		ocisvcctx,    //OCISvcCtx           *svchp,
+		stmt.ocistmt, //OCIStmt             *stmtp,
+		//stmt.ses.srv.env.ocierr, //OCIError            *errhp,
+		ocierr,        //OCIError            *errhp,
+		C.ub4(0),      //ub4                 iters,
+		C.ub4(0),      //ub4                 rowoff,
+		nil,           //const OCISnapshot   *snap_in,
+		nil,           //OCISnapshot         *snap_out,
+		C.OCI_DEFAULT) //ub4                 mode );
 	if r == C.OCI_ERROR {
-		return nil, errE(stmt.ses.srv.env.ociError())
+		//return nil, errE(stmt.ses.srv.env.ociError())
+		return nil, errE(env.ociError())
 	}
 	if stmt.hasPtrBind { // set any bind pointers
 		err = stmt.setBindPtrs()
@@ -350,7 +376,7 @@ func (stmt *Stmt) putBnd(idx int, bnd bnd) {
 //
 // No locking occurs.
 func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint32, err error) {
-	stmt.logF(_drv.cfg.Log.Stmt.Bind, "Params %d", len(params))
+	stmt.logF(_drv.Cfg().Log.Stmt.Bind, "Params %d", len(params))
 	// Create binds for each parameter; bind position is 1-based
 	if len(params) == 0 {
 		return 1, nil
@@ -364,7 +390,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	iterations = 1
 	stmt.bnds = make([]bnd, len(params))
 	for n = range params {
-		//stmt.logF(_drv.cfg.Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
+		//stmt.logF(_drv.Cfg().Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := params[n].(type) {
 		case int64:
 			bnd := stmt.getBnd(bndIdxInt64).(*bndInt64)
@@ -692,7 +718,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 		case []uint8: // the same as []byte !
-			if stmt.cfg.byteSlice == U8 {
+			if stmt.Cfg().byteSlice == U8 {
 				bnd := stmt.getBnd(bndIdxUint8Slice).(*bndUint8Slice)
 				stmt.bnds[n] = bnd
 				iterations, err = bnd.bind(&value, n+1, stmt, isAssocArray)
@@ -712,7 +738,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 						stmt.setNilBind(n, C.SQLT_BLOB)
 					} else {
 						stmt.bnds[n] = bnd
-						err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.cfg.lobBufferSize, C.SQLT_BLOB, stmt)
+						err = bnd.bindReader(bytes.NewReader(value), n+1, stmt.Cfg().lobBufferSize, C.SQLT_BLOB, stmt)
 						if err != nil {
 							return iterations, err
 						}
@@ -996,7 +1022,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *string:
 			bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
 			stmt.bnds[n] = bnd
-			err = bnd.bind(value, n+1, stmt.cfg.stringPtrBufferSize, stmt)
+			err = bnd.bind(value, n+1, stmt.Cfg().stringPtrBufferSize, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1040,14 +1066,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case bool:
 			bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 			stmt.bnds[n] = bnd
-			err = bnd.bind(value, n+1, stmt.cfg, stmt)
+			err = bnd.bind(value, n+1, stmt.Cfg(), stmt)
 			if err != nil {
 				return iterations, err
 			}
 		case *bool:
 			bnd := stmt.getBnd(bndIdxBoolPtr).(*bndBoolPtr)
 			stmt.bnds[n] = bnd
-			err = bnd.bind(value, n+1, stmt.cfg.TrueRune, stmt)
+			err = bnd.bind(value, n+1, stmt.Cfg().TrueRune, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1058,7 +1084,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			} else {
 				bnd := stmt.getBnd(bndIdxBool).(*bndBool)
 				stmt.bnds[n] = bnd
-				err = bnd.bind(value.Value, n+1, stmt.cfg, stmt)
+				err = bnd.bind(value.Value, n+1, stmt.Cfg(), stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -1066,7 +1092,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case []bool:
 			bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 			stmt.bnds[n] = bnd
-			err = bnd.bind(value, nil, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+			err = bnd.bind(value, nil, n+1, stmt.Cfg().FalseRune, stmt.Cfg().TrueRune, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1074,7 +1100,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case []Bool:
 			bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 			stmt.bnds[n] = bnd
-			err = bnd.bindOra(value, n+1, stmt.cfg.FalseRune, stmt.cfg.TrueRune, stmt)
+			err = bnd.bindOra(value, n+1, stmt.Cfg().FalseRune, stmt.Cfg().TrueRune, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1100,7 +1126,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			} else {
 				bnd := stmt.getBnd(bndIdxLob).(*bndLob)
 				stmt.bnds[n] = bnd
-				err = bnd.bindReader(value.Reader, n+1, stmt.cfg.lobBufferSize, sqlt, stmt)
+				err = bnd.bindReader(value.Reader, n+1, stmt.Cfg().lobBufferSize, sqlt, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -1115,7 +1141,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			} else {
 				bnd := stmt.getBnd(bndIdxLobPtr).(*bndLobPtr)
 				stmt.bnds[n] = bnd
-				err = bnd.bindLob(value, n+1, stmt.cfg.lobBufferSize, sqlt, stmt)
+				err = bnd.bindLob(value, n+1, stmt.Cfg().lobBufferSize, sqlt, stmt)
 				if err != nil {
 					return iterations, err
 				}
@@ -1125,21 +1151,21 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case [][]byte:
 			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 			stmt.bnds[n] = bnd
-			iterations, err = bnd.bind(value, nil, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			iterations, err = bnd.bind(value, nil, n+1, stmt.Cfg().lobBufferSize, stmt, isAssocArray)
 			if err != nil {
 				return iterations, err
 			}
 		case []Raw:
 			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 			stmt.bnds[n] = bnd
-			iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			iterations, err = bnd.bindOra(value, n+1, stmt.Cfg().lobBufferSize, stmt, isAssocArray)
 			if err != nil {
 				return iterations, err
 			}
 		case []Lob:
 			bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
 			stmt.bnds[n] = bnd
-			iterations, err = bnd.bindOra(value, n+1, stmt.cfg.lobBufferSize, stmt, isAssocArray)
+			iterations, err = bnd.bindOra(value, n+1, stmt.Cfg().lobBufferSize, stmt, isAssocArray)
 			if err != nil {
 				return iterations, err
 			}
@@ -1260,22 +1286,6 @@ func (stmt *Stmt) Gcts() []GoColumnType {
 	return stmt.gcts
 }
 
-// SetCfg applies the specified cfg to the Stmt.
-//
-// Open Rsets do not observe the specified cfg.
-func (stmt *Stmt) SetCfg(cfg StmtCfg) {
-	stmt.mu.Lock()
-	defer stmt.mu.Unlock()
-	stmt.cfg = cfg
-}
-
-// Cfg returns the Stmt's cfg.
-func (stmt *Stmt) Cfg() StmtCfg {
-	stmt.mu.Lock()
-	defer stmt.mu.Unlock()
-	return stmt.cfg
-}
-
 // IsOpen returns true when a statement is open; otherwise, false.
 //
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
@@ -1304,40 +1314,40 @@ func (stmt *Stmt) sysName() string {
 
 // log writes a message with an Stmt system name and caller info.
 func (stmt *Stmt) log(enabled bool, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprint(v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Stmt system name and caller info.
 func (stmt *Stmt) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.cfg.Log.IsEnabled(enabled) {
+	if !_drv.Cfg().Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.cfg.Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
+		_drv.Cfg().Log.Logger.Infof("%v %v", stmt.sysName(), callInfo(1))
 	} else {
-		_drv.cfg.Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		_drv.Cfg().Log.Logger.Infof("%v %v %v", stmt.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }
 
 // set prefetch size. No locking occurs.
 func (stmt *Stmt) setPrefetchSize() error {
-	if stmt.cfg.prefetchRowCount > 0 {
-		//fmt.Println("stmt.setPrefetchSize: prefetchRowCount ", stmt.cfg.prefetchRowCount)
+	if stmt.Cfg().prefetchRowCount > 0 {
+		//fmt.Println("stmt.setPrefetchSize: prefetchRowCount ", stmt.Cfg().prefetchRowCount)
 		// set prefetch row count
-		if err := stmt.setAttr(stmt.cfg.prefetchRowCount, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
+		if err := stmt.setAttr(stmt.Cfg().prefetchRowCount, C.OCI_ATTR_PREFETCH_ROWS); err != nil {
 			return errE(err)
 		}
-	} else if stmt.cfg.prefetchMemorySize > 0 {
-		//fmt.Println("stmt.setPrefetchSize: prefetchMemorySize ", stmt.cfg.prefetchMemorySize)
+	} else if stmt.Cfg().prefetchMemorySize > 0 {
+		//fmt.Println("stmt.setPrefetchSize: prefetchMemorySize ", stmt.Cfg().prefetchMemorySize)
 		// Set prefetch memory size
-		if err := stmt.setAttr(stmt.cfg.prefetchMemorySize, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
+		if err := stmt.setAttr(stmt.Cfg().prefetchMemorySize, C.OCI_ATTR_PREFETCH_MEMORY); err != nil {
 			return errE(err)
 		}
 	}

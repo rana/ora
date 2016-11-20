@@ -95,7 +95,7 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 		}
 	}
 
-	bnd.stmt.logF(_drv.cfg.Log.Stmt.Bind,
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
 		bnd, position, cap(bnd.ociDateTimes), len(bnd.ociDateTimes), bnd.curlen, curlenp,
 		valueSz, bnd.alen)
