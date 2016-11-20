@@ -5,7 +5,10 @@
 package ora_test
 
 import (
+	"fmt"
 	"testing"
+
+	"gopkg.in/rana/ora.v3"
 )
 
 //// bfile
@@ -15,20 +18,18 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 // bfile
 ////////////////////////////////////////////////////////////////////////////////
-func TestBindDefine_OraBfile_bfile_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testBindDefine(gen_OraBfile(false), bfile, t, nil)
-}
-
-func TestBindDefine_OraBfileNull_bfile_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testBindDefine(gen_OraBfile(false), bfileNull, t, nil)
-}
-
-func TestBindDefine_OraBfileNull_bfile_null_session(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testBindDefine(gen_OraBfile(true), bfileNull, t, nil)
+func TestBindDefine_bfile(t *testing.T) {
+	sc := ora.NewStmtCfg()
+	t.Run("bfile", func(t *testing.T) {
+		t.Parallel()
+		//enableLogging(t)
+		testBindDefine(gen_OraBfile(false), bfile, t, sc)
+	})
+	for _, isNull := range []bool{true, false} {
+		t.Run(fmt.Sprintf("bfileNull_%t", isNull), func(t *testing.T) {
+			t.Parallel()
+			//enableLogging(t)
+			testBindDefine(gen_OraBfile(isNull), bfileNull, t, sc)
+		})
+	}
 }
