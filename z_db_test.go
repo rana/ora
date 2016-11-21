@@ -306,7 +306,7 @@ func Test_db(t *testing.T) {
 	} {
 		ct := _T_colType[ctName]
 		t.Run(ctName+"_bool", func(t *testing.T) {
-			t.Parallel()
+			//enableLogging(t)
 			testBindDefineDB(gen_boolTrue(), t, ct)
 		})
 	}
