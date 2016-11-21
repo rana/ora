@@ -33,6 +33,7 @@ func TestBindDefineBool(t *testing.T) {
 		}
 	}
 	for name, tc := range testCases {
+		tc := tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			testBindDefine(tc.gen(), tc.ct, t, sc)
@@ -57,6 +58,7 @@ func TestBindPtrBool(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
+		tc := tc
 		if tc.gen == nil {
 			continue
 		}

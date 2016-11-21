@@ -50,6 +50,7 @@ func TestBindDefine_bytes(t *testing.T) {
 		}
 	}
 	for name, tc := range testCases {
+		tc := tc
 		if tc.gen == nil {
 			continue
 		}
@@ -81,6 +82,7 @@ func TestBindSlice_bytes(t *testing.T) {
 		}
 	}
 	for name, tc := range testCases {
+		tc := tc
 		if tc.gen == nil {
 			continue
 		}
