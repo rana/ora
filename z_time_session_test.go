@@ -38,6 +38,7 @@ func TestBindDefine_time(t *testing.T) {
 		"OraTimeSliceNull": func() interface{} { return gen_OraTimeSlice(true) },
 	} {
 		valName := valName
+		v := gen()
 		for _, ctName := range _T_timeCols {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
@@ -48,10 +49,14 @@ func TestBindDefine_time(t *testing.T) {
 			if strings.HasPrefix(ctName, "date") && !strings.Contains(valName, "ate") {
 				continue
 			}
+			ct := _T_colType[ctName]
 			t.Run(fmt.Sprintf("%s_%s", valName, ctName), func(t *testing.T) {
 				t.Parallel()
-				testBindDefine(gen(), _T_colType[ctName], t, sc)
-				testBindPtr(gen(), _T_colType[ctName], t)
+				testBindDefine(v, ct, t, sc)
+				if vName := fmt.Sprintf("%T", v); strings.HasPrefix(vName, "[]") || strings.EqualFold(vName[:3], "ora") {
+					return
+				}
+				testBindPtr(v, ct, t)
 			})
 		}
 	}
