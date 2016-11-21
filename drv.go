@@ -153,12 +153,14 @@ type Drv struct {
 
 func (drv *Drv) Cfg() DrvCfg {
 	c := drv.cfg.Load()
-	if c == nil {
-		return DrvCfg{}
+	//fmt.Fprintf(os.Stderr, "%p.Cfg=%#v\n", drv, c)
+	if c == nil || c.(DrvCfg).IsZero() {
+		return NewDrvCfg()
 	}
 	return c.(DrvCfg)
 }
 func (drv *Drv) SetCfg(cfg DrvCfg) {
+	//fmt.Fprintf(os.Stderr, "%p.SetCfg(%#v)\n", drv, cfg)
 	drv.cfg.Store(cfg)
 }
 
@@ -171,7 +173,7 @@ func (drv *Drv) SetCfg(cfg DrvCfg) {
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
 	log(true)
-	con, err := _drv.sqlPkgEnv.OpenCon(conStr)
+	con, err := drv.sqlPkgEnv.OpenCon(conStr)
 	if err != nil {
 		return nil, maybeBadConn(err)
 	}

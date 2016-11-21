@@ -55,6 +55,7 @@ type Env struct {
 	ocierr   *C.OCIError
 	errBuf   [512]C.char
 	ociHndMu sync.Mutex
+	isPkgEnv bool
 
 	openSrvs *srvList
 	openCons *conList
@@ -64,8 +65,8 @@ type Env struct {
 
 func (env *Env) Cfg() StmtCfg {
 	c := env.cfg.Load()
-	if c == nil {
-		return NewStmtCfg()
+	if c == nil || c.(StmtCfg).IsZero() {
+		return _drv.Cfg().StmtCfg
 	}
 	return c.(StmtCfg)
 }
@@ -97,6 +98,7 @@ func (env *Env) Close() (err error) {
 			errs.PushBack(errR(value))
 		}
 		_drv.openEnvs.remove(env)
+		env.SetCfg(StmtCfg{})
 		env.ocienv = nil
 		env.ocierr = nil
 		env.openSrvs.clear()
@@ -200,10 +202,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	p := _drv.srvSesPools[dsn]
 	if p == nil {
 		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
-		sesCfg := SesCfg{
-			Mode:    DSNMode(dsn),
-			StmtCfg: srvCfg.StmtCfg,
-		}
+		sesCfg := SesCfg{Mode: DSNMode(dsn)}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 		p = env.NewPool(srvCfg, sesCfg, 0)
 		_drv.srvSesPools[dsn] = p

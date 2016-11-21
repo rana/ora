@@ -70,12 +70,19 @@ type Srv struct {
 	sysNamer
 }
 
+// Cfg returns the Srv's SrvCfg, or it's Env's, if not set.
+// If the env is the PkgSqlEnv, that will override StmtCfg!
 func (srv *Srv) Cfg() SrvCfg {
 	c := srv.cfg.Load()
-	if c == nil {
-		return SrvCfg{}
+	var cfg SrvCfg
+	if c != nil {
+		cfg = c.(SrvCfg)
 	}
-	return c.(SrvCfg)
+	env := srv.env
+	if cfg.StmtCfg.IsZero() || env.isPkgEnv {
+		cfg.StmtCfg = env.Cfg()
+	}
+	return cfg
 }
 func (srv *Srv) SetCfg(cfg SrvCfg) {
 	srv.cfg.Store(cfg)
@@ -118,6 +125,7 @@ func (srv *Srv) close() (err error) {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
+		srv.SetCfg(SrvCfg{})
 		srv.openSess.clear()
 		srv.env = nil
 		srv.ocisrv = nil
@@ -148,6 +156,9 @@ func (srv *Srv) close() (err error) {
 
 // OpenSes opens an Oracle session returning a *Ses and possible error.
 func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
+	if cfg.IsZero() {
+		return nil, er("Parameter 'cfg' may not be nil.")
+	}
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -162,9 +173,6 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	err = srv.checkClosed()
 	if err != nil {
 		return nil, errE(err)
-	}
-	if cfg.IsZero() {
-		return nil, er("Parameter 'cfg' may not be nil.")
 	}
 	// allocate session handle
 	ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
@@ -257,9 +265,6 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	ses.ocises = (*C.OCISession)(ocises)
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
-	}
-	if cfg.StmtCfg.IsZero() && !ses.srv.Cfg().StmtCfg.IsZero() {
-		cfg.StmtCfg = ses.srv.Cfg().StmtCfg
 	}
 	ses.SetCfg(cfg)
 	srv.openSess.add(ses)

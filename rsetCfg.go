@@ -41,9 +41,6 @@ func (c RsetCfg) IsZero() bool { return c.numberInt == 0 }
 // NewRsetCfg returns a RsetCfg with default values.
 func NewRsetCfg() RsetCfg {
 	var c RsetCfg
-	if c = _drv.Cfg().RsetCfg; !c.IsZero() {
-		return c
-	}
 	c.numberInt = I64
 	c.numberBigInt = N
 	c.numberFloat = F64
@@ -402,7 +399,7 @@ func (c *RsetCfg) SetChar1(gct GoColumnType) (err error) {
 	if err = checkBoolOrStringColumn(gct); err != nil {
 		return err
 	}
-	Cfg().Log.Logger.Infof("%p.Set Char1 to %s.", c, gct)
+	Cfg().Log.Logger.Infof("%p.Set Char1 to %s (%x).", c, gct, gct)
 	c.char1 = gct
 	return nil
 }

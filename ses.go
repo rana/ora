@@ -25,11 +25,12 @@ import (
 type SesCfg struct {
 	Username string
 	Password string
+	Mode     SessionMode
+
 	StmtCfg
-	Mode SessionMode
 }
 
-func (c SesCfg) IsZero() bool { return c.StmtCfg.IsZero() }
+func (c SesCfg) IsZero() bool { return false } //c.StmtCfg.IsZero() }
 func NewSesCfg() SesCfg       { return SesCfg{} }
 
 type SessionMode uint8
@@ -130,12 +131,21 @@ type Ses struct {
 	sysNamer
 }
 
+// Cfg returns the Ses's SesCfg, or it's Srv's, if not set.
+// If the ses.srv.env is the PkgSqlEnv, that will override StmtCfg!
 func (ses *Ses) Cfg() SesCfg {
 	c := ses.cfg.Load()
-	if c == nil {
-		return SesCfg{}
+	var cfg SesCfg
+	if c != nil {
+		cfg = c.(SesCfg)
 	}
-	return c.(SesCfg)
+	env := ses.srv.env
+	if env.isPkgEnv {
+		cfg.StmtCfg = env.Cfg()
+	} else {
+		cfg.StmtCfg = ses.srv.Cfg().StmtCfg
+	}
+	return cfg
 }
 func (ses *Ses) SetCfg(cfg SesCfg) {
 	ses.cfg.Store(cfg)
@@ -340,18 +350,9 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
-	stmtCfg := ses.Cfg().StmtCfg
-	if stmtCfg.IsZero() {
-		if stmtCfg = ses.srv.Cfg().StmtCfg; stmtCfg.IsZero() {
-			stmtCfg = NewStmtCfg()
-		}
+	if ses.srv.IsUTF8() && stmt.Cfg().stringPtrBufferSize > 1000 {
+		stmt.stringPtrBufferSize = 1000
 	}
-	if stmtCfg.stringPtrBufferSize > 1000 {
-		if ses.srv.IsUTF8() {
-			stmtCfg.stringPtrBufferSize = 1000
-		}
-	}
-	stmt.SetCfg(stmtCfg)
 	stmt.sql = sql
 	stmt.gcts = gcts
 	if stmt.id == 0 {

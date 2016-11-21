@@ -50,9 +50,6 @@ type StmtCfg struct {
 // NewStmtCfg returns a StmtCfg with default values.
 func NewStmtCfg() StmtCfg {
 	var c StmtCfg
-	if c = _drv.Cfg().StmtCfg; !c.IsZero() {
-		return c
-	}
 	c.prefetchRowCount = 128
 	c.prefetchMemorySize = 128 << 20 // 134,217,728
 	c.longBufferSize = 16 << 20      // 16,777,216

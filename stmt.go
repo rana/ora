@@ -57,28 +57,38 @@ func NewLogStmtCfg() LogStmtCfg {
 
 // Stmt represents an Oracle statement.
 type Stmt struct {
-	id         uint64
-	cfg        atomic.Value
-	mu         sync.Mutex
-	ses        *Ses
-	ocistmt    *C.OCIStmt
-	stmtType   C.ub2
-	sql        string
-	gcts       []GoColumnType
-	bnds       []bnd
-	hasPtrBind bool
+	id                  uint64
+	cfg                 atomic.Value
+	mu                  sync.Mutex
+	ses                 *Ses
+	ocistmt             *C.OCIStmt
+	stmtType            C.ub2
+	sql                 string
+	gcts                []GoColumnType
+	bnds                []bnd
+	hasPtrBind          bool
+	stringPtrBufferSize int
 
 	openRsets *rsetList
 
 	sysNamer
 }
 
+// Cfg returns the Stmt's StmtCfg, or it's Ses's, if not set.
+// If the env is the PkgSqlEnv, that will override StmtCfg!
 func (stmt *Stmt) Cfg() StmtCfg {
 	c := stmt.cfg.Load()
-	if c == nil {
-		return NewStmtCfg()
+	var cfg StmtCfg
+	if c != nil {
+		cfg = c.(StmtCfg)
 	}
-	return c.(StmtCfg)
+	env := stmt.ses.srv.env
+	if env.isPkgEnv {
+		cfg = env.Cfg()
+	} else if cfg.IsZero() {
+		cfg = stmt.ses.Cfg().StmtCfg
+	}
+	return cfg
 }
 func (stmt *Stmt) SetCfg(cfg StmtCfg) {
 	stmt.cfg.Store(cfg)
@@ -134,6 +144,7 @@ func (stmt *Stmt) close() (err error) {
 			errs.PushBack(errE(stmt.ses.srv.env.ociError()))
 		}
 
+		stmt.SetCfg(StmtCfg{})
 		stmt.ses = nil
 		stmt.ocistmt = nil
 		stmt.stmtType = 0
@@ -1022,7 +1033,11 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *string:
 			bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
 			stmt.bnds[n] = bnd
-			err = bnd.bind(value, n+1, stmt.Cfg().stringPtrBufferSize, stmt)
+			spbs := stmt.stringPtrBufferSize
+			if spbs == 0 {
+				spbs = stmt.Cfg().stringPtrBufferSize
+			}
+			err = bnd.bind(value, n+1, spbs, stmt)
 			if err != nil {
 				return iterations, err
 			}

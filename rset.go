@@ -435,6 +435,7 @@ Loop:
 		}
 	}
 
+	cfg := rset.stmt.Cfg()
 	for n := range rset.defs {
 		ocipar := params[n].param
 		ociTypeCode := params[n].typeCode
@@ -458,7 +459,7 @@ Loop:
 			rset.Columns[n].Precision = precision
 			rset.Columns[n].Scale = scale
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().numericColumnType(int(precision), int(scale))
+				gct = cfg.numericColumnType(int(precision), int(scale))
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -474,7 +475,7 @@ Loop:
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().binaryDouble
+				gct = cfg.binaryDouble
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -489,7 +490,7 @@ Loop:
 		case C.SQLT_IBFLOAT:
 			// BINARY_FLOAT
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().binaryFloat
+				gct = cfg.binaryFloat
 			} else {
 				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
 				if err != nil {
@@ -504,7 +505,7 @@ Loop:
 		case C.SQLT_DAT:
 			// DATE
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().date
+				gct = cfg.date
 			} else {
 				err = checkTimeColumn(stmt.gcts[n])
 				if err != nil {
@@ -527,11 +528,11 @@ Loop:
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
 				switch ociTypeCode {
 				case C.SQLT_TIMESTAMP:
-					gct = rset.stmt.Cfg().timestamp
+					gct = cfg.timestamp
 				case C.SQLT_TIMESTAMP_TZ:
-					gct = rset.stmt.Cfg().timestampTz
+					gct = cfg.timestampTz
 				case C.SQLT_TIMESTAMP_LTZ:
-					gct = rset.stmt.Cfg().timestampLtz
+					gct = cfg.timestampLtz
 				}
 			} else {
 				err = checkTimeColumn(stmt.gcts[n])
@@ -553,7 +554,7 @@ Loop:
 		case C.SQLT_CHR:
 			// VARCHAR, VARCHAR2, NVARCHAR2
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().varchar
+				gct = cfg.varchar
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -572,7 +573,7 @@ Loop:
 			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
 			if columnSize == 1 || columnSize == 4 {
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.Cfg().char1
+					gct = cfg.char1
 					rset.logF(_drv.Cfg().Log.Rset.OpenDefs, "%d. AFC no gct, char1=%s", n+1, gct)
 				} else {
 					err = checkBoolOrStringColumn(stmt.gcts[n])
@@ -602,7 +603,7 @@ Loop:
 			} else {
 				// Interpret as string
 				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-					gct = rset.stmt.Cfg().char
+					gct = cfg.char
 				} else {
 					err = checkStringColumn(stmt.gcts[n])
 					if err != nil {
@@ -618,7 +619,7 @@ Loop:
 		case C.SQLT_LNG:
 			// LONG
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().long
+				gct = cfg.long
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -635,7 +636,7 @@ Loop:
 		case C.SQLT_CLOB:
 			// CLOB, NCLOB
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().clob
+				gct = cfg.clob
 			} else {
 				err = checkStringColumn(stmt.gcts[n])
 				if err != nil {
@@ -658,7 +659,7 @@ Loop:
 		case C.SQLT_BLOB:
 			// BLOB
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().blob
+				gct = cfg.blob
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -675,7 +676,7 @@ Loop:
 		case C.SQLT_BIN:
 			// RAW
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().raw
+				gct = cfg.raw
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -697,7 +698,7 @@ Loop:
 			//log(true, "LONG RAW")
 			// LONG RAW
 			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
-				gct = rset.stmt.Cfg().longRaw
+				gct = cfg.longRaw
 			} else {
 				err = checkBinColumn(stmt.gcts[n])
 				if err != nil {
@@ -711,7 +712,7 @@ Loop:
 			}
 			def := rset.getDef(defIdxLongRaw).(*defLongRaw)
 			rset.defs[n] = def
-			err = def.define(n+1, rset.stmt.Cfg().longRawBufferSize, isNullable, rset)
+			err = def.define(n+1, cfg.longRawBufferSize, isNullable, rset)
 			if err != nil {
 				return err
 			}

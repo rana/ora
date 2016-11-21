@@ -204,7 +204,7 @@ func BenchmarkIter(b *testing.B) {
 // go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
 func TestMemoryNumString(t *testing.T) {
 	n := 1000
-	benchMem(t, n, 1780, `SELECT
+	benchMem(t, n, 1870, `SELECT
 		TO_NUMBER('123456789012345678') bn01
 		, TO_NUMBER('223456789012345678') bn02
 		, TO_NUMBER('323456789012345678') bn03
@@ -226,7 +226,7 @@ func TestMemoryNumStringI64(t *testing.T) {
 		ora.SetCfg(oCfg)
 	}()
 	n := 1000
-	benchMem(t, n, 1800, `SELECT
+	benchMem(t, n, 1801, `SELECT
 		TO_NUMBER('123456789012345678') bn01
 		, TO_NUMBER('223456789012345678') bn02
 		, TO_NUMBER('323456789012345678') bn03
@@ -242,7 +242,7 @@ func TestMemoryNumStringI64(t *testing.T) {
 
 func TestMemoryString(t *testing.T) {
 	n := 1000
-	benchMem(t, n, 1893, `SELECT
+	benchMem(t, n, 2014, `SELECT
 		'123456789012345678' bs01
 		, '223456789012345678' bs02
 		, '323456789012345678' bs03

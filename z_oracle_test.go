@@ -3630,11 +3630,16 @@ func TestIntFloat(t *testing.T) {
 func TestSetDrvCfg(t *testing.T) {
 	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
 
+	enableLogging(t)
 	oCfg := ora.Cfg()
 	defer ora.SetCfg(oCfg)
 	cfg := oCfg
+
 	cfg.SetChar1(ora.B)
 	ora.SetCfg(cfg)
+	if got := ora.Cfg().Char1(); got != ora.B {
+		t.Fatalf("SetChar1: got %v, wanted %v", got, ora.B)
+	}
 	var b bool
 	if err := testDb.QueryRow(qry).Scan(&b); err != nil {
 		t.Fatalf("%s: %v", qry, err)
@@ -3642,6 +3647,9 @@ func TestSetDrvCfg(t *testing.T) {
 
 	cfg.SetChar1(ora.S)
 	ora.SetCfg(cfg)
+	if got := ora.Cfg().Char1(); got != ora.S {
+		t.Fatalf("SetChar1: got %v, wanted %v", got, ora.S)
+	}
 	var s string
 	if err := testDb.QueryRow(qry).Scan(&s); err != nil {
 		t.Fatalf("%s: %v", qry, err)

@@ -57,10 +57,7 @@ func NewPool(dsn string, size int) (*Pool, error) {
 		return nil, err
 	}
 	srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
-	sesCfg := SesCfg{
-		Mode:    DSNMode(dsn),
-		StmtCfg: srvCfg.StmtCfg,
-	}
+	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	return env.NewPool(srvCfg, sesCfg, size), nil
 }
@@ -157,7 +154,6 @@ func (p *Pool) Get() (ses *Ses, err error) {
 		if srv == nil || srv.env == nil {
 			continue
 		}
-		p.sesCfg.StmtCfg = srv.env.Cfg()
 		if ses, err = srv.OpenSes(p.sesCfg); err == nil {
 			ses.insteadClose = Instead
 			return ses, nil
@@ -169,7 +165,6 @@ func (p *Pool) Get() (ses *Ses, err error) {
 	if srv, err = p.env.OpenSrv(p.srvCfg); err != nil {
 		return nil, err
 	}
-	p.sesCfg.StmtCfg = srv.env.Cfg()
 	if ses, err = srv.OpenSes(p.sesCfg); err != nil {
 		return nil, err
 	}
