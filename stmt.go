@@ -145,6 +145,7 @@ func (stmt *Stmt) close() (err error) {
 		}
 
 		stmt.SetCfg(StmtCfg{})
+		stmt.stringPtrBufferSize = 0
 		stmt.ses = nil
 		stmt.ocistmt = nil
 		stmt.stmtType = 0

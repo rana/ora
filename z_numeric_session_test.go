@@ -82,6 +82,7 @@ var _T_numericCols = []string{
 func TestBindDefine_numeric(t *testing.T) {
 	sc := ora.NewStmtCfg()
 	for _, ctName := range _T_numericCols {
+		ct := _T_colType[ctName]
 		for valName, gen := range _T_numericGen {
 			if !strings.Contains(valName, "int") && !strings.Contains(valName, "Int") && !strings.HasSuffix(valName, "Trunc") {
 				continue
@@ -92,10 +93,10 @@ func TestBindDefine_numeric(t *testing.T) {
 			gen := gen
 			t.Run(ctName, func(t *testing.T) {
 				t.Parallel()
-				testBindDefine(gen(), _T_colType[ctName], t, sc)
+				testBindDefine(gen(), ct, t, sc)
 			})
 			t.Run(ctName+"Ptr", func(t *testing.T) {
-				testBindPtr(gen(), _T_colType[ctName], t)
+				testBindPtr(gen(), ct, t)
 			})
 		}
 	}

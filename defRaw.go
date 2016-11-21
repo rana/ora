@@ -43,10 +43,12 @@ func (def *defRaw) value(offset int) (value interface{}, err error) {
 		}
 		return nil, nil
 	}
+	n := int(def.alen[offset])
+	off := offset * def.columnSize
 	if def.isNullable {
-		return Raw{Value: def.buf[offset*def.columnSize : (offset+1)*def.columnSize]}, nil
+		return Raw{Value: def.buf[off : off+n]}, nil
 	}
-	return def.buf[offset*def.columnSize : (offset+1)*def.columnSize], nil
+	return def.buf[off : off+n], nil
 }
 
 func (def *defRaw) alloc() error {

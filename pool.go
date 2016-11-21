@@ -44,7 +44,7 @@ func (env *Env) NewPool(srvCfg SrvCfg, sesCfg SesCfg, size int) *Pool {
 	p.poolEvictor = &poolEvictor{
 		Evict: func(d time.Duration) {
 			p.ses.Evict(d)
-			p.srv.Evict(d)
+			//p.srv.Evict(d)
 		}}
 	p.SetEvictDuration(DefaultEvictDuration)
 	return p
@@ -192,9 +192,9 @@ func (s sesSrvPB) Close() error {
 		return nil
 	}
 	if s.p != nil {
-		//s.Ses.mu.Lock()
+		s.Ses.mu.Lock()
 		srv := s.Ses.srv
-		//s.Ses.mu.Unlock()
+		s.Ses.mu.Unlock()
 		s.p.Put(srv)
 	}
 	return s.Ses.Close()

@@ -99,6 +99,7 @@ func (env *Env) Close() (err error) {
 		}
 		_drv.openEnvs.remove(env)
 		env.SetCfg(StmtCfg{})
+		env.isPkgEnv = false
 		env.ocienv = nil
 		env.ocierr = nil
 		env.openSrvs.clear()
@@ -200,14 +201,16 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	dsn = strings.TrimSpace(dsn)
 	_drv.mu.Lock()
 	p := _drv.srvSesPools[dsn]
+	_drv.mu.Unlock()
 	if p == nil {
 		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
 		sesCfg := SesCfg{Mode: DSNMode(dsn)}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 		p = env.NewPool(srvCfg, sesCfg, 0)
+		_drv.mu.Lock()
 		_drv.srvSesPools[dsn] = p
+		_drv.mu.Unlock()
 	}
-	_drv.mu.Unlock()
 	ses, err := p.Get()
 	if err != nil {
 		return nil, errE(err)

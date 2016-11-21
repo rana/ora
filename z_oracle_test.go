@@ -244,17 +244,13 @@ END;`)
 	}
 }
 
-var enableLoggingMu sync.Mutex
-
 func enableLogging(t *testing.T) {
-	enableLoggingMu.Lock()
-	defer enableLoggingMu.Unlock()
-	if t != nil {
-		cfg := ora.Cfg()
-		cfg.Log.Logger = tstlg.New(t)
-		ora.SetCfg(cfg)
+	if t == nil {
 		return
 	}
+	cfg := ora.Cfg()
+	cfg.Log.Logger = tstlg.New(t)
+	ora.SetCfg(cfg)
 }
 
 func testIterations() int {
@@ -1819,6 +1815,7 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 		t.Fatalf("Unable to cast actual value to []byte or ora.Raw. (%T, %v)\n%s", actual, actual, getStack(2))
 	}
 	if !areBytesEqual(e, a) {
+		panic(fmt.Sprintf("expected(%v), actual(%v=%d)", e, a, len(a)))
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
 }

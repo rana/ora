@@ -287,10 +287,10 @@ func Test_db(t *testing.T) {
 	} {
 		tc := tc
 		for _, ctName := range tc.cTypes {
-			ctName := ctName
+			ct := _T_colType[ctName]
 			t.Run(ctName+"_"+valName, func(t *testing.T) {
 				t.Parallel()
-				testBindDefineDB(tc.gen(), t, _T_colType[ctName])
+				testBindDefineDB(tc.gen(), t, ct)
 			})
 		}
 	}
@@ -304,10 +304,10 @@ func Test_db(t *testing.T) {
 		"charB1", "charB1Null",
 		"charC1", "charC1Null",
 	} {
+		ct := _T_colType[ctName]
 		t.Run(ctName+"_bool", func(t *testing.T) {
 			t.Parallel()
-			enableLogging(t)
-			testBindDefineDB(gen_boolTrue(), t, _T_colType[ctName])
+			testBindDefineDB(gen_boolTrue(), t, ct)
 		})
 	}
 }
