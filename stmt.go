@@ -216,7 +216,7 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		return 0, 0, errE(err)
 	}
 	// for case of inserting and returning identity for database/sql package
-	if _drv.sqlPkgEnv == stmt.ses.srv.env && stmt.stmtType == C.OCI_STMT_INSERT {
+	if stmt.ses.srv.env.isPkgEnv && stmt.stmtType == C.OCI_STMT_INSERT {
 		lastIndex := strings.LastIndex(stmt.sql, ")")
 		sqlEnd := spcRpl.Replace(stmt.sql[lastIndex+1 : len(stmt.sql)])
 		sqlEnd = strings.ToUpper(sqlEnd)

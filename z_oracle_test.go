@@ -348,6 +348,7 @@ func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) 
 }
 
 func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
+	t.Logf("expected=%T", expected)
 	for n := 0; n < testIterations(); n++ {
 		tableName, err := createTable(1, oct, testSes)
 		testErr(err, t)
@@ -395,12 +396,16 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 		case bool:
 			var value bool
 			actual = &value
+		default:
+			t.Fatalf("no value for %T", expected)
 		}
 
 		// insert
-		stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:1) returning c1 into :2", tableName))
+		qry := "insert into " + tableName + " (c1) values (:1) returning c1 into :2"
+		stmt, err := testSes.Prep(qry)
 		defer stmt.Close()
 		testErr(err, t)
+		t.Logf("%q, [%#v %T]", qry, expected, actual)
 		rowsAffected, err := stmt.Exe(expected, actual)
 		testErr(err, t)
 		if rowsAffected != 1 {
@@ -408,6 +413,7 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 		}
 
 		// validate
+		t.Logf("actual=%T (%v)", actual, actual)
 		compare2(expected, actual, t)
 	}
 }
@@ -472,7 +478,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 						//} else if value, ok := rset.Row[n].(ora.Date); ok {
 						//    compare_time(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected rset.Row[n] value (got %v, expected %v). (%v, %v)", rset.Row[n], expected, reflect.TypeOf(rset.Row[n]).Name(), rset.Row[n])
+						t.Fatalf("Unpexected rset.Row[n] value (got %v, expected %v). (%T, %v)", rset.Row[n], expected, rset.Row[n], rset.Row[n])
 					}
 				case ora.S:
 					compare_string(expected, rset.Row[n], t)
@@ -481,7 +487,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 					if ok {
 						compare_string(expected, value.Value, t)
 					} else {
-						t.Fatalf("Unpexected rset.Row[n] value. (%v, %v)", reflect.TypeOf(rset.Row[n]).Name(), rset.Row[n])
+						t.Fatalf("Unpexected rset.Row[n] value. (%T, %v)", rset.Row[n], rset.Row[n])
 					}
 				case ora.B, ora.OraB:
 					compare_bool(expected, rset.Row[n], t)
@@ -718,6 +724,7 @@ func compare2(expected interface{}, actual interface{}, t *testing.T) {
 	case ora.Int64:
 		compare_OraInt64(expected, actual, t)
 	case ora.Int32:
+		t.Logf("actual=%T (%#v)", actual, actual)
 		compare_OraInt32(expected, actual, t)
 	case ora.Int16:
 		compare_OraInt16(expected, actual, t)
@@ -1063,7 +1070,7 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to int64 or *int64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to int64 or *int64. (%T, %v)", expected, expected)
 		}
 	}
 	var a int64
@@ -1083,7 +1090,7 @@ func compare_int64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Error(err)
 		}
 	default:
-		t.Fatalf("Unable to cast actual value to int64 or *int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to int64 or *int64. (%T, %v)", actual, actual)
 	}
 	if e != a {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1098,7 +1105,7 @@ func compare_int32(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to int32 or *int32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to int32 or *int32. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1106,7 +1113,7 @@ func compare_int32(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to int32 or *int32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to int32 or *int32. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1122,7 +1129,7 @@ func compare_int16(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to int16 or *int16. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to int16 or *int16. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1130,7 +1137,7 @@ func compare_int16(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to int16 or *int16. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to int16 or *int16. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1146,7 +1153,7 @@ func compare_int8(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to int8 or *int8. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to int8 or *int8. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1154,7 +1161,7 @@ func compare_int8(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to int8 or *int8. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to int8 or *int8. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1170,7 +1177,7 @@ func compare_uint64(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to uint64 or *uint64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to uint64 or *uint64. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1178,7 +1185,7 @@ func compare_uint64(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to uint64 or *uint64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to uint64 or *uint64. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1194,7 +1201,7 @@ func compare_uint32(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to uint32 or *uint32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to uint32 or *uint32. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1202,7 +1209,7 @@ func compare_uint32(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to uint32 or *uint32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to uint32 or *uint32. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1218,7 +1225,7 @@ func compare_uint16(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to uint16 or *uint16. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to uint16 or *uint16. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1226,7 +1233,7 @@ func compare_uint16(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to uint16 or *uint16. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to uint16 or *uint16. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1242,7 +1249,7 @@ func compare_uint8(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to uint8 or *uint8. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to uint8 or *uint8. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1250,7 +1257,7 @@ func compare_uint8(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to uint8 or *uint8. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to uint8 or *uint8. (%T, %v)", actual, actual)
 		}
 	}
 	if e != a {
@@ -1265,7 +1272,7 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to float64 or *float64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to float64 or *float64. (%T, %v)", expected, expected)
 		}
 	}
 	var a float64
@@ -1289,7 +1296,7 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 			t.Error(err)
 		}
 	default:
-		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%T, %v)", actual, actual)
 	}
 	if !isFloat64Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1303,7 +1310,7 @@ func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to float32 or *float32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to float32 or *float32. (%T, %v)", expected, expected)
 		}
 	}
 	var a float32
@@ -1325,7 +1332,7 @@ func compare_float32(expected interface{}, actual interface{}, t *testing.T) {
 		}
 		a = float32(f)
 	default:
-		t.Fatalf("Unable to cast actual value to float64 or *float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to float64 or *float64. (%T, %v)", actual, actual)
 	}
 	if !isFloat32Close(e, a, t) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
@@ -1340,7 +1347,7 @@ func compare_OraInt64(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Int64 or *ora.Int64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Int64 or *ora.Int64. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1348,7 +1355,7 @@ func compare_OraInt64(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Int64 or *ora.Int64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Int64 or *ora.Int64. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1364,7 +1371,7 @@ func compare_OraInt32(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Int32 or *ora.Int32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Int32 or *ora.Int32. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1372,7 +1379,7 @@ func compare_OraInt32(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Int32 or *ora.Int32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Int32 or *ora.Int32. (%T, %v)\n%s", actual, actual, getStack(1))
 		}
 	}
 	if !e.Equals(a) {
@@ -1388,7 +1395,7 @@ func compare_OraInt16(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Int16 or *ora.Int16. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Int16 or *ora.Int16. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1396,7 +1403,7 @@ func compare_OraInt16(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Int16 or *ora.Int16. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Int16 or *ora.Int16. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1412,7 +1419,7 @@ func compare_OraInt8(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Int8 or *ora.Int8. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Int8 or *ora.Int8. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1420,7 +1427,7 @@ func compare_OraInt8(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Int8 or *ora.Int8. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Int8 or *ora.Int8. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1436,7 +1443,7 @@ func compare_OraUint64(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Uint64 or *ora.Uint64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Uint64 or *ora.Uint64. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1444,7 +1451,7 @@ func compare_OraUint64(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Uint64 or *ora.Uint64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Uint64 or *ora.Uint64. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1460,7 +1467,7 @@ func compare_OraUint32(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Uint32 or *ora.Uint32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Uint32 or *ora.Uint32. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1468,7 +1475,7 @@ func compare_OraUint32(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Uint32 or *ora.Uint32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Uint32 or *ora.Uint32. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1484,7 +1491,7 @@ func compare_OraUint16(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Uint16 or *ora.Uint16. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Uint16 or *ora.Uint16. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1492,7 +1499,7 @@ func compare_OraUint16(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Uint16 or *ora.Uint16. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Uint16 or *ora.Uint16. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1508,7 +1515,7 @@ func compare_OraUint8(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Uint8 or *ora.Uint8. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Uint8 or *ora.Uint8. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1516,7 +1523,7 @@ func compare_OraUint8(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Uint8 or *ora.Uint8. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Uint8 or *ora.Uint8. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1532,7 +1539,7 @@ func compare_OraFloat64(expected interface{}, actual interface{}, t *testing.T) 
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Float64 or *ora.Float64. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Float64 or *ora.Float64. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1540,7 +1547,7 @@ func compare_OraFloat64(expected interface{}, actual interface{}, t *testing.T) 
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Float64 or *ora.Float64. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Float64 or *ora.Float64. (%T, %v)", actual, actual)
 		}
 	}
 	if e.IsNull != a.IsNull && !isFloat64Close(e.Value, a.Value, t) {
@@ -1556,7 +1563,7 @@ func compare_OraFloat32(expected interface{}, actual interface{}, t *testing.T) 
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Float32 or *ora.Float32. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Float32 or *ora.Float32. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1564,7 +1571,7 @@ func compare_OraFloat32(expected interface{}, actual interface{}, t *testing.T) 
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Float32 or *ora.Float32. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Float32 or *ora.Float32. (%T, %v)", actual, actual)
 		}
 	}
 	if e.IsNull != a.IsNull && !isFloat32Close(e.Value, a.Value, t) {
@@ -1584,7 +1591,7 @@ func compare_time(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to time.Time, *time.Time, ora.Time. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to time.Time, *time.Time, ora.Time. (%T, %v)", expected, expected)
 			}
 		}
 	}
@@ -1597,7 +1604,7 @@ func compare_time(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to time.Time, *time.Time, ora.Time. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+				t.Fatalf("Unable to cast actual value to time.Time, *time.Time, ora.Time. (%T, %v)", actual, actual)
 			}
 		}
 	}
@@ -1614,7 +1621,7 @@ func compare_OraTime(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Time or *ora.Time. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Time or *ora.Time. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1622,7 +1629,7 @@ func compare_OraTime(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Time or *ora.Time. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Time or *ora.Time. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1641,7 +1648,7 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to string, *string, ora.String. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to string, *string, ora.String. (%T, %v)", expected, expected)
 			}
 		}
 	}
@@ -1682,7 +1689,7 @@ func compare_OraString(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.String or *ora.String. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.String or *ora.String. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1690,7 +1697,7 @@ func compare_OraString(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.String or *ora.String. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.String or *ora.String. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1710,7 +1717,7 @@ func compare_bool(expected interface{}, actual interface{}, t *testing.T) {
 			if eOraOk {
 				e = eOra.Value
 			} else {
-				t.Fatalf("Unable to cast expected value to bool, *bool, ora.Bool. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+				t.Fatalf("Unable to cast expected value to bool, *bool, ora.Bool. (%T, %v)", expected, expected)
 			}
 		}
 	}
@@ -1723,7 +1730,7 @@ func compare_bool(expected interface{}, actual interface{}, t *testing.T) {
 			if aOraOk {
 				a = aOra.Value
 			} else {
-				t.Fatalf("Unable to cast actual value to bool, *bool, ora.Bool. (%v, %v): %s", reflect.TypeOf(actual), actual, getStack(2))
+				t.Fatalf("Unable to cast actual value to bool, *bool, ora.Bool. (%T, %v): %s", actual, actual, getStack(2))
 			}
 		}
 	}
@@ -1740,7 +1747,7 @@ func compare_OraBool(expected interface{}, actual interface{}, t *testing.T) {
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.Bool or *ora.Bool. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.Bool or *ora.Bool. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1748,7 +1755,7 @@ func compare_OraBool(expected interface{}, actual interface{}, t *testing.T) {
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.Bool or *ora.Bool. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.Bool or *ora.Bool. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1763,7 +1770,7 @@ func compare_bytes(expected driver.Value, actual driver.Value, t *testing.T) {
 		if eOraOk {
 			e = eOra.Value
 		} else {
-			t.Fatalf("Unable to cast expected value to []byte or ora.Raw. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to []byte or ora.Raw. (%T, %v)", expected, expected)
 		}
 	}
 	var a []byte
@@ -1815,9 +1822,9 @@ func compare_Bytes(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(ora.Raw)
 	a, aOk := actual.(ora.Raw)
 	if !eOk {
-		t.Fatalf("Unable to cast expected value to ora.Raw. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+		t.Fatalf("Unable to cast expected value to ora.Raw. (%T, %v)", expected, expected)
 	} else if !aOk {
-		t.Fatalf("Unable to cast actual value to ora.Raw. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to ora.Raw. (%T, %v)", actual, actual)
 	} else if !e.Equals(a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
@@ -1831,7 +1838,7 @@ func compare_OraIntervalYM(expected interface{}, actual interface{}, t *testing.
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.IntervalYM or *ora.IntervalYM. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.IntervalYM or *ora.IntervalYM. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1839,7 +1846,7 @@ func compare_OraIntervalYM(expected interface{}, actual interface{}, t *testing.
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.IntervalYM or *ora.IntervalYM. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.IntervalYM or *ora.IntervalYM. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1855,7 +1862,7 @@ func compare_OraIntervalDS(expected interface{}, actual interface{}, t *testing.
 		if ePtrOk {
 			e = *ePtr
 		} else {
-			t.Fatalf("Unable to cast expected value to ora.IntervalDS or *ora.IntervalDS. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+			t.Fatalf("Unable to cast expected value to ora.IntervalDS or *ora.IntervalDS. (%T, %v)", expected, expected)
 		}
 	}
 	if !aOk {
@@ -1863,7 +1870,7 @@ func compare_OraIntervalDS(expected interface{}, actual interface{}, t *testing.
 		if aPtrOk {
 			a = *aPtr
 		} else {
-			t.Fatalf("Unable to cast actual value to ora.IntervalDS or *ora.IntervalDS. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+			t.Fatalf("Unable to cast actual value to ora.IntervalDS or *ora.IntervalDS. (%T, %v)", actual, actual)
 		}
 	}
 	if !e.Equals(a) {
@@ -1875,9 +1882,9 @@ func compare_OraBfile(expected interface{}, actual interface{}, t *testing.T) {
 	e, eOk := expected.(ora.Bfile)
 	a, aOk := actual.(ora.Bfile)
 	if !eOk {
-		t.Fatalf("Unable to cast expected value to ora.Bfile. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+		t.Fatalf("Unable to cast expected value to ora.Bfile. (%T, %v)", expected, expected)
 	} else if !aOk {
-		t.Fatalf("Unable to cast actual value to ora.Bfile. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Unable to cast actual value to ora.Bfile. (%T, %v)", actual, actual)
 	} else if !e.Equals(a) {
 		t.Fatalf("expected(%v), actual(%v)", e, a)
 	}
@@ -1885,10 +1892,10 @@ func compare_OraBfile(expected interface{}, actual interface{}, t *testing.T) {
 
 func compare_nil(expected interface{}, actual interface{}, t *testing.T) {
 	if expected != nil {
-		t.Fatalf("Expected value is not nil. (%v, %v)", reflect.TypeOf(expected).Name(), expected)
+		t.Fatalf("Expected value is not nil. (%T, %v)", expected, expected)
 	}
 	if actual != nil {
-		t.Fatalf("Actual value is not nil. (%v, %v)", reflect.TypeOf(actual).Name(), actual)
+		t.Fatalf("Actual value is not nil. (%T, %v)", actual, actual)
 	}
 }
 
@@ -1904,7 +1911,6 @@ func isFloat32Close(x float32, y float32, t *testing.T) bool {
 		if err != nil {
 			t.Fatalf("Unable to parse float. (%v)", y)
 		}
-		//fmt.Printf("isFloat32Close xx, yy: %v, %v\n", xx, yy)
 		return xx == yy
 	}
 }

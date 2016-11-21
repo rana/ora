@@ -5,6 +5,7 @@
 package ora_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -93,13 +94,20 @@ func TestBindDefine_numeric(t *testing.T) {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
-			gen := gen
-			t.Run(ctName, func(t *testing.T) {
+			v := gen()
+			//t.Logf("v=%T (%#v)", v, gen)
+			t.Run(valName+"_"+ctName, func(t *testing.T) {
 				t.Parallel()
-				testBindDefine(gen(), ct, t, sc)
+				testBindDefine(v, ct, t, sc)
 			})
-			t.Run(ctName+"Ptr", func(t *testing.T) {
-				testBindPtr(gen(), ct, t)
+			vName := fmt.Sprintf("%T", v)
+			if len(vName) >= 3 && strings.EqualFold(vName[:3], "ora") {
+				continue
+			}
+			t.Run(valName+"_"+ctName+"Ptr", func(t *testing.T) {
+				t.Parallel()
+				//enableLogging(t)
+				testBindPtr(v, ct, t)
 			})
 		}
 	}
@@ -151,16 +159,21 @@ func TestBindSlice_numeric(t *testing.T) {
 		"numStringTruncSlice": func() interface{} { return gen_NumStringTruncSlice() },
 	} {
 		valName := valName
+		if gen == nil {
+			continue
+		}
 		for _, ctName := range _T_numericCols {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
+			ct := _T_colType[ctName]
+			v := gen()
 			t.Run(valName, func(t *testing.T) {
 				t.Parallel()
 				if valName == "uint8Slice" {
 					sc.SetByteSlice(ora.U8)
 				}
-				testBindDefine(gen(), _T_colType[ctName], t, sc)
+				testBindDefine(v, ct, t, sc)
 			})
 		}
 	}
@@ -168,18 +181,20 @@ func TestBindSlice_numeric(t *testing.T) {
 
 func TestMultiDefine_numeric(t *testing.T) {
 	for _, ctName := range _T_numericCols {
+		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
-			testMultiDefine(gen_int64(), _T_colType[ctName], t)
+			testMultiDefine(gen_int64(), ct, t)
 		})
 	}
 }
 
 func TestWorkload_numeric(t *testing.T) {
 	for _, ctName := range _T_numericCols {
+		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
-			testWorkload(_T_colType[ctName], t)
+			testWorkload(ct, t)
 		})
 	}
 }
@@ -190,9 +205,10 @@ func TestBindDefine_numeric_nil(t *testing.T) {
 		if !strings.HasSuffix(ctName, "Null") {
 			continue
 		}
+		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
-			testBindDefine(nil, _T_colType[ctName], t, sc)
+			testBindDefine(nil, ct, t, sc)
 		})
 	}
 }
