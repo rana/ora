@@ -127,6 +127,8 @@ func TestSelectOrder(t *testing.T) {
 			break
 		}
 	}
+	for rows.Next() {
+	}
 }
 
 // go test -c && ./ora.v3.test -test.run=^$ -test.bench=Date -test.cpuprofile=/tmp/cpu.prof && go tool pprof ora.v3.test /tmp/cpu.prof

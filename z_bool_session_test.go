@@ -72,10 +72,14 @@ func TestMultiDefineBool(t *testing.T) {
 		"charB1", "charB1Null",
 		"charC1", "charC1Null",
 	} {
+		gen := _T_boolGen[ctName+"_true"]
+		if gen == nil {
+			continue
+		}
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
 			testMultiDefine(
-				_T_boolGen[ctName+"_true"],
+				gen(),
 				_T_colType[ctName],
 				t,
 			)
