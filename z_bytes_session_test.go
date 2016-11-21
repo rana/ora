@@ -55,6 +55,7 @@ func TestBindDefine_bytes(t *testing.T) {
 			continue
 		}
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testBindDefine(tc.gen(), tc.ct, t, sc, tc.gct)
 		})
 	}
@@ -72,6 +73,7 @@ func TestBindSlice_bytes(t *testing.T) {
 		"bytesSlice2000", "OraBytesSlice2000",
 	} {
 		for _, ctName := range _T_bytesCols {
+			typName := typName
 			if strings.HasSuffix(ctName, "Null") {
 				typName += "_null"
 			}
@@ -154,7 +156,12 @@ var _T_bytesGen = map[string](func() interface{}){
 
 func TestBindDefine_bytes_blob_size(t *testing.T) {
 	sc := ora.NewStmtCfg()
-	lbs := sc.LobBufferSize()
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+	cfg := oCfg
+	cfg.SetLobBufferSize(1024)
+	ora.SetCfg(cfg)
+	lbs := cfg.LobBufferSize()
 	for _, size := range []int{
 		lbs - 1,
 		lbs,
