@@ -430,23 +430,14 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 
 		// select
 		var selectStmt *ora.Stmt
-		var rset *ora.Rset
 		if isNumeric(expected) {
 			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, ora.F64, ora.F32, ora.OraI64, ora.OraI32, ora.OraI16, ora.OraI8, ora.OraU64, ora.OraU32, ora.OraU16, ora.OraU8, ora.OraF64, ora.OraF32)
-			defer selectStmt.Close()
-			testErr(err, t)
 		} else if isTime(expected) {
 			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), ora.T, ora.OraT)
-			defer selectStmt.Close()
-			testErr(err, t)
 		} else if isString(expected) {
 			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.S)
-			defer selectStmt.Close()
-			testErr(err, t)
 		} else if isBool(expected) {
 			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), ora.B, ora.OraB)
-			defer selectStmt.Close()
-			testErr(err, t)
 		} else if isBytes(expected) {
 			// one LOB cannot be opened twice in the same transaction (c1, c1 not works here)
 			col := ora.Bin
@@ -454,10 +445,10 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 				col = ora.OraBin
 			}
 			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), col)
-			defer selectStmt.Close()
-			testErr(err, t)
 		}
-		rset, err = selectStmt.Qry()
+		defer selectStmt.Close()
+		testErr(err, t)
+		rset, err := selectStmt.Qry()
 		testErr(err, t)
 
 		// validate

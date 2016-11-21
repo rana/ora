@@ -84,6 +84,9 @@ func TestBindDefine_numeric(t *testing.T) {
 	for _, ctName := range _T_numericCols {
 		ct := _T_colType[ctName]
 		for valName, gen := range _T_numericGen {
+			if gen == nil {
+				continue
+			}
 			if !strings.Contains(valName, "int") && !strings.Contains(valName, "Int") && !strings.HasSuffix(valName, "Trunc") {
 				continue
 			}

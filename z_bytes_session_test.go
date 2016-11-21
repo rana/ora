@@ -38,6 +38,9 @@ func TestBindDefine_bytes(t *testing.T) {
 			"bytes", "OraBytes", "OraBytesLob",
 			"bytes2000", "OraBytes2000",
 		} {
+			if strings.HasSuffix(ctName, "Null") && !strings.Contains(typName, "Ora") {
+				continue
+			}
 			gct := ora.Bin
 			if strings.Contains(typName, "Ora") {
 				gct = ora.OraBin
@@ -107,9 +110,10 @@ func TestMultiDefine_bytes(t *testing.T) {
 
 func TestWorkload_bytes(t *testing.T) {
 	for _, ctName := range []string{"raw2000", "raw2000Null", "blob", "blobNull"} {
+		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
-			testWorkload(_T_colType[ctName], t)
+			testWorkload(ct, t)
 		})
 	}
 }
@@ -117,9 +121,10 @@ func TestWorkload_bytes(t *testing.T) {
 func TestBindDefine_bytes_nil(t *testing.T) {
 	sc := ora.NewStmtCfg()
 	for _, ctName := range []string{"longRawNull", "raw2000Null", "blobNull"} {
+		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
 			t.Parallel()
-			testBindDefine(nil, _T_colType[ctName], t, sc)
+			testBindDefine(nil, ct, t, sc)
 		})
 	}
 }
