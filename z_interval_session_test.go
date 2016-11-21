@@ -67,6 +67,7 @@ func TestBindDefine_OraIntervalDS(t *testing.T) {
 		ora.IntervalDS{Day: -59, Hour: -59, Minute: -59, Second: -59, Nanosecond: -123456789},
 	} {
 		for _, ctName := range []string{"intervalDS", "intervalDSNull"} {
+			ctName := ctName
 			t.Run(fmt.Sprintf("%s_%s", interval, ctName), func(t *testing.T) {
 				t.Parallel()
 				testBindDefine(interval, _T_colType[ctName], t, sc)

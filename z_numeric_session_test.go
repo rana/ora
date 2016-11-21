@@ -89,12 +89,13 @@ func TestBindDefine_numeric(t *testing.T) {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
+			gen := gen
 			t.Run(ctName, func(t *testing.T) {
 				t.Parallel()
-				testBindDefine(gen, _T_colType[ctName], t, sc)
+				testBindDefine(gen(), _T_colType[ctName], t, sc)
 			})
 			t.Run(ctName+"Ptr", func(t *testing.T) {
-				testBindPtr(gen, _T_colType[ctName], t)
+				testBindPtr(gen(), _T_colType[ctName], t)
 			})
 		}
 	}

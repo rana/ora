@@ -111,8 +111,8 @@ var _T_colType = map[string]oracleColumnType{
 
 	"intervalYM":     intervalYM,
 	"intervalYMNull": intervalYMNull,
-	"intervalDS":     intervalYM,
-	"intervalDSNull": intervalYMNull,
+	"intervalDS":     intervalDS,
+	"intervalDSNull": intervalDSNull,
 
 	"numberP38S0":      numberP38S0,
 	"numberP38S0Null":  numberP38S0Null,
@@ -1287,6 +1287,10 @@ func compare_float64(expected interface{}, actual interface{}, t *testing.T) {
 		a = x
 	case *float64:
 		a = *x
+	case float32:
+		a = float64(x)
+	case *float32:
+		a = float64(*x)
 	case string:
 		var err error
 		if a, err = strconv.ParseFloat(x, 64); err != nil {

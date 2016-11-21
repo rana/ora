@@ -746,6 +746,13 @@ type IntervalYM struct {
 	Month  int32
 }
 
+func (this IntervalYM) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return fmt.Sprintf("%04d-%02d", this.Year, this.Month)
+}
+
 // Equals returns true when the receiver and specified IntervalYM are both null,
 // or when the receiver and specified IntervalYM are both not null, Year are equal
 // and Month are equal.
@@ -780,6 +787,13 @@ func (this IntervalDS) Equals(other IntervalDS) bool {
 			this.Minute == other.Minute &&
 			this.Second == other.Second &&
 			this.Nanosecond == other.Nanosecond)
+}
+
+func (this IntervalDS) String() string {
+	if this.IsNull {
+		return ""
+	}
+	return fmt.Sprintf("%02dd %02d:%02d:%02d.%d", this.Day, this.Hour, this.Minute, this.Second, this.Nanosecond)
 }
 
 // ShiftTime returns a new Time with IntervalDS applied.
@@ -1113,9 +1127,9 @@ func (l *sesList) closeAll(errs *list.List) {
 	defer l.mu.Unlock()
 	for n := 0; n < len(l.items); n++ {
 		ses := l.items[n]
-		ses.mu.Lock()
+		//ses.mu.Lock()
 		err := ses.close() // close will not remove Ses from openSess
-		ses.mu.Unlock()
+		//ses.mu.Unlock()
 		if err != nil {
 			errs.PushBack(errE(err))
 		}

@@ -170,264 +170,6 @@ func Test_numberP38S0Identity_db(t *testing.T) {
 	}
 }
 
-func Test_numberP38S0_int64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_int64(), t, numberP38S0)
-}
-
-func Test_numberP38S0Null_int64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_int64(), t, numberP38S0Null)
-}
-
-func Test_numberP16S15_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, numberP16S15)
-}
-
-func Test_numberP16S15Null_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, numberP16S15Null)
-}
-
-func Test_binaryDouble_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, binaryDouble)
-}
-
-func Test_binaryDoubleNull_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, binaryDoubleNull)
-}
-
-func Test_binaryFloat_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, binaryFloat)
-}
-
-func Test_binaryFloatNull_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, binaryFloatNull)
-}
-
-func Test_floatP126_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, floatP126)
-}
-
-func Test_floatP126Null_float64_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_float64(), t, floatP126Null)
-}
-
-func Test_date_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_date(), t, dateNotNull)
-}
-
-func Test_dateNull_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_date(), t, dateNull)
-}
-
-func Test_timestampP9_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampP9)
-}
-
-func Test_timestampP9Null_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampP9Null)
-}
-
-func Test_timestampTzP9_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampTzP9)
-}
-
-func Test_timestampTzP9Null_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampTzP9Null)
-}
-
-func Test_timestampLtzP9_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampLtzP9)
-}
-
-func Test_timestampLtzP9Null_time_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_time(), t, timestampLtzP9Null)
-}
-
-func Test_charB48_string_db(t *testing.T) {
-	t.Parallel()
-	enableLogging(t)
-	testBindDefineDB(gen_string48(), t, charB48)
-}
-
-func Test_charB48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string48(), t, charB48Null)
-}
-
-func Test_charC48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string48(), t, charC48)
-}
-
-func Test_charC48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string48(), t, charC48Null)
-}
-
-func Test_nchar48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string48(), t, nchar48)
-}
-
-func Test_nchar48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string48(), t, nchar48Null)
-}
-
-func Test_varcharB48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varcharB48)
-}
-
-func Test_varcharB48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varcharB48Null)
-}
-
-func Test_varcharC48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varcharC48)
-}
-
-func Test_varcharC48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varcharC48Null)
-}
-
-func Test_varchar2B48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varchar2B48)
-}
-
-func Test_varchar2B48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varchar2B48Null)
-}
-
-func Test_varchar2C48_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varchar2C48)
-}
-
-func Test_varchar2C48Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, varchar2C48Null)
-}
-
-func Test_nvarchar248_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, nvarchar248)
-}
-
-func Test_nvarchar248Null_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, nvarchar248Null)
-}
-
-func Test_long_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, long)
-}
-
-func Test_longNull_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, longNull)
-}
-
-func Test_clob_string_db(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	testBindDefineDB(gen_string(), t, clob)
-}
-
-func Test_clobNull_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, clobNull)
-}
-
-func Test_nclob_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, nclob)
-}
-
-func Test_nclobNull_string_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_string(), t, nclobNull)
-}
-
-func Test_charB1_bool_true_db(t *testing.T) {
-	t.Parallel()
-	defer setC1Bool()()
-	testBindDefineDB(gen_boolTrue(), t, charB1)
-}
-
-func Test_charB1Null_bool_true_db(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	defer setC1Bool()()
-	testBindDefineDB(gen_boolTrue(), t, charB1Null)
-}
-
-func Test_charC1_bool_true_db(t *testing.T) {
-	t.Parallel()
-	//enableLogging(t)
-	defer setC1Bool()()
-	testBindDefineDB(gen_boolTrue(), t, charC1)
-}
-
-func Test_charC1Null_bool_true_db(t *testing.T) {
-	t.Parallel()
-	defer setC1Bool()()
-	testBindDefineDB(gen_boolTrue(), t, charC1Null)
-}
-
-func Test_longRaw_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(9), t, longRaw)
-}
-
-func Test_longRawNull_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(9), t, longRawNull)
-}
-
-func Test_raw2000_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(2000), t, raw2000)
-}
-
-func Test_raw2000Null_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(2000), t, raw2000Null)
-}
-
-func Test_blob_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(9), t, blob)
-}
-
-func Test_blobNull_bytes_db(t *testing.T) {
-	t.Parallel()
-	testBindDefineDB(gen_bytes(9), t, blobNull)
-}
-
 func TestSysdba(t *testing.T) {
 	u := os.Getenv("GO_ORA_DRV_TEST_SYSDBA_USERNAME")
 	p := os.Getenv("GO_ORA_DRV_TEST_SYSDBA_PASSWORD")
@@ -475,5 +217,97 @@ func TestZeroRowsAffected(t *testing.T) {
 	}
 	if _, err := res.LastInsertId(); err == nil {
 		t.Error("wanted error for LastInsertId, got nil")
+	}
+}
+
+func Test_db(t *testing.T) {
+	for valName, tc := range map[string]struct {
+		gen    func() interface{}
+		cTypes []string
+	}{
+		"int64": {
+			gen:    func() interface{} { return gen_int64() },
+			cTypes: []string{"numberP38S0", "numberP38S0Null"},
+		},
+		"float64": {
+			gen: func() interface{} { return gen_float64() },
+			cTypes: []string{
+				"numberP16S15", "numberP16S15Null",
+				"binaryDouble", "binaryDoubleNull",
+				"binaryFloat", "binaryFloatNull",
+				"floatP126", "floatP126Null",
+			},
+		},
+
+		"date": {
+			gen:    func() interface{} { return gen_date() },
+			cTypes: []string{"date", "dateNull"},
+		},
+
+		"time": {
+			gen: func() interface{} { return gen_time() },
+			cTypes: []string{
+				"timestampP9", "timestampP9Null",
+				"timestampTzP9", "timestampTzP9Null",
+				"timestampLtzP9", "timestampLtzP9Null",
+			},
+		},
+
+		"string48": {
+			gen: func() interface{} { return gen_string48() },
+			cTypes: []string{
+				"charB48", "charB48Null",
+				"charC48", "charC48Null",
+				"nchar48", "nchar48Null",
+			},
+		},
+
+		"string": {
+			gen: func() interface{} { return gen_string() },
+			cTypes: []string{
+				"varcharB48", "varcharB48Null",
+				"varcharC48", "varcharC48Null",
+				"varchar2B48", "varchar2B48Null",
+				"varchar2C48", "varchar2C48Null",
+				"nvarchar248", "nvarchar248Null",
+				"long", "longNull",
+				"clob", "clobNull",
+				"nclob", "nclobNull",
+			},
+		},
+
+		"bytes9": {
+			gen: func() interface{} { return gen_bytes(9) },
+			cTypes: []string{
+				"longRaw", "longRawNull",
+				"raw2000", "raw2000Null",
+				"blob", "blobNull",
+			},
+		},
+	} {
+		tc := tc
+		for _, ctName := range tc.cTypes {
+			ctName := ctName
+			t.Run(ctName+"_"+valName, func(t *testing.T) {
+				t.Parallel()
+				testBindDefineDB(tc.gen(), t, _T_colType[ctName])
+			})
+		}
+	}
+
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+	cfg := oCfg
+	cfg.SetChar1(ora.B)
+	ora.SetCfg(cfg)
+	for _, ctName := range []string{
+		"charB1", "charB1Null",
+		"charC1", "charC1Null",
+	} {
+		t.Run(ctName+"_bool", func(t *testing.T) {
+			t.Parallel()
+			enableLogging(t)
+			testBindDefineDB(gen_boolTrue(), t, _T_colType[ctName])
+		})
 	}
 }
