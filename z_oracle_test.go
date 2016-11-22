@@ -310,6 +310,7 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	testErr(err, t)
 	rset, err := selectStmt.Qry()
 	testErr(err, t)
+	defer rset.Exhaust()
 	// validate
 	validate(expected, rset, t)
 }
@@ -476,6 +477,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 		defer selectStmt.Close()
 		rset, err := selectStmt.Qry()
 		testErr(err, t)
+		defer rset.Exhaust()
 
 		// validate
 		hasRow := rset.Next()
@@ -609,6 +611,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 			fetchStmt.SetGcts(gcts)
 			rset, err := fetchStmt.Qry()
 			testErr(err, t)
+			defer rset.Exhaust()
 			for rset.Next() {
 				if currentMultiple != len(rset.Row) {
 					t.Fatalf("select column count: expected(%v), actual(%v)", currentMultiple, len(rset.Row))
@@ -831,24 +834,24 @@ func testErr(err error, t testing.TB, expectedErrs ...error) {
 	if err == nil {
 		return
 	}
-	if expectedErrs == nil {
-		done := make(chan struct{})
-		go func() {
-			select {
-			case <-time.After(5 * time.Second):
-				fmt.Printf("\n\nPRINT TIMEOUT\n%v: %s\n", err, getStack(1))
-			case <-done:
-			}
-		}()
-		t.Fatalf("%v: %s", err, getStack(1))
-		close(done)
-	}
 	for _, expectedErr := range expectedErrs {
 		if expectedErr == err { // skip it
 			return
 		}
 	}
-	t.Fatal(err)
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-time.After(5 * time.Second):
+			fmt.Printf("\n\nPRINT TIMEOUT\n%v: %s\n", err, getStack(1))
+		case <-done:
+		}
+	}()
+	t.Fatalf("%v: %s", err, getStack(1))
+	if strings.Contains(err.Error(), "ORA-01000:") {
+		os.Exit(1)
+	}
+	close(done)
 }
 
 func goColumnTypeFromValue(value interface{}) ora.GoColumnType {

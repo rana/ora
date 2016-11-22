@@ -1241,9 +1241,10 @@ func (l *stmtList) add(s *Stmt) {
 func (l *stmtList) remove(s *Stmt) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for n := 0; n < len(l.items); n++ {
-		if l.items[n] == s {
-			l.items = append(l.items[:n], l.items[n+1:]...)
+	for n, item := range l.items {
+		if item == s {
+			l.items[n] = l.items[0]
+			l.items = l.items[1:]
 			break
 		}
 	}
@@ -1252,8 +1253,8 @@ func (l *stmtList) remove(s *Stmt) {
 func (l *stmtList) closeAll(errs *list.List) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for n := 0; n < len(l.items); n++ {
-		err := l.items[n].close() // close will not remove Stmt from openStmts
+	for _, item := range l.items {
+		err := item.close() // close will not remove Stmt from openStmts
 		if err != nil {
 			errs.PushBack(errE(err))
 		}
@@ -1288,24 +1289,16 @@ func newRsetList() *rsetList {
 func (l *rsetList) add(r *Rset) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if len(l.items) == cap(l.items) { // double capacity if needed
-		cap := cap(l.items)
-		if cap == 0 {
-			cap = 4
-		}
-		tmp := make([]*Rset, 0, 2*cap)
-		copy(tmp, l.items)
-		l.items = tmp
-	}
 	l.items = append(l.items, r) // append item
 }
 
 func (l *rsetList) remove(r *Rset) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for n := 0; n < len(l.items); n++ {
-		if l.items[n] == r {
-			l.items = append(l.items[:n], l.items[n+1:]...)
+	for n, item := range l.items {
+		if item == r {
+			l.items[n] = l.items[0]
+			l.items = l.items[1:]
 			break
 		}
 	}
@@ -1314,8 +1307,8 @@ func (l *rsetList) remove(r *Rset) {
 func (l *rsetList) closeAll(errs *list.List) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for n := 0; n < len(l.items); n++ {
-		err := l.items[n].close() // close will not remove Rset from openRsets
+	for _, item := range l.items {
+		err := item.close() // close will not remove Rset from openRsets
 		if err != nil {
 			errs.PushBack(errE(err))
 		}

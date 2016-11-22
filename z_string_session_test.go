@@ -96,8 +96,10 @@ func TestBindDefine_string_long(t *testing.T) {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
-			t.Run(valName, func(t *testing.T) {
-				t.Parallel()
+			t.Run(valName+"_"+ctName, func(t *testing.T) {
+				if !strings.Contains(ctName, "lob") {
+					t.Parallel()
+				}
 				testBindDefine(gen(), _T_colType[ctName], t, sc)
 			})
 		}

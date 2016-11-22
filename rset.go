@@ -276,6 +276,12 @@ func (rset *Rset) endRow() {
 	}
 }
 
+// Exhaust will cycle to the end of the Rset, to autoclose it.
+func (rset *Rset) Exhaust() {
+	for rset.Next() {
+	}
+}
+
 // Next attempts to load a row of data from an Oracle buffer. True is returned
 // when a row of data is retrieved. False is returned when no data is available.
 //
@@ -290,10 +296,14 @@ func (rset *Rset) Next() bool {
 		rset.Err = err
 		rset.Row = nil
 		autoClose := rset.autoClose
-		// closeing the Stmt will close this (and all) Rsets under it!
+		// closing the Stmt will close this (and all) Rsets under it!
 		rset.Unlock()
 		if autoClose {
-			rset.stmt.Close()
+			rset.RLock()
+			stmt := rset.stmt
+			rset.RUnlock()
+			rset.closeWithRemove()
+			stmt.Close()
 		}
 	}
 

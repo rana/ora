@@ -107,10 +107,9 @@ func (stmt *Stmt) closeWithRemove() error {
 		return nil
 	}
 	stmt.RLock()
-	ok := stmt.ses == nil
 	ses := stmt.ses
 	stmt.RUnlock()
-	if !ok {
+	if ses == nil {
 		return nil
 	}
 	if ses.openStmts != nil {
@@ -122,6 +121,7 @@ func (stmt *Stmt) closeWithRemove() error {
 // close closes the SQL statement, without locking stmt.
 // does not remove Stmt from Ses.openStmts
 func (stmt *Stmt) close() (err error) {
+	//fmt.Println("close " + stmt.sysName())
 	stmt.log(_drv.Cfg().Log.Stmt.Close)
 	err = stmt.checkClosed()
 	if err != nil {
@@ -187,6 +187,7 @@ func (stmt *Stmt) close() (err error) {
 	stmt.RLock()
 	openRsets := stmt.openRsets
 	stmt.RUnlock()
+	//fmt.Println("closeAll " + stmt.sysName())
 	openRsets.closeAll(errs)
 
 	return nil
@@ -1335,6 +1336,9 @@ func (stmt *Stmt) Gcts() []GoColumnType {
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
 // cannot be re-opened. Call Stmt.Prep to create a new statement.
 func (stmt *Stmt) IsOpen() bool {
+	if stmt == nil {
+		return false
+	}
 	stmt.RLock()
 	defer stmt.RUnlock()
 	return stmt.ocistmt != nil
@@ -1342,9 +1346,13 @@ func (stmt *Stmt) IsOpen() bool {
 
 // checkClosed returns an error if Stmt is closed. No locking occurs.
 func (stmt *Stmt) checkClosed() error {
+	if stmt == nil {
+		return er("Stmt is closed.")
+	}
 	stmt.RLock()
-	defer stmt.RUnlock()
-	if stmt.ocistmt == nil {
+	closed := stmt.ocistmt == nil
+	stmt.RUnlock()
+	if closed {
 		return er("Stmt is closed.")
 	}
 	return nil
