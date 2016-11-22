@@ -278,7 +278,21 @@ func (rset *Rset) endRow() {
 
 // Exhaust will cycle to the end of the Rset, to autoclose it.
 func (rset *Rset) Exhaust() {
-	for rset.Next() {
+	if rset == nil {
+		return
+	}
+	rset.RLock()
+	closed := rset.stmt == nil || rset.ocistmt == nil
+	rset.RUnlock()
+	if closed {
+		return
+	}
+	for {
+		err := rset.beginRow()
+		rset.endRow()
+		if err != nil {
+			return
+		}
 	}
 }
 

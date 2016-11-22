@@ -1413,16 +1413,15 @@ func (stmt *Stmt) setPrefetchSize() error {
 func (stmt *Stmt) attr(attrSize C.ub4, attrType C.ub4) (unsafe.Pointer, error) {
 	attrup := C.malloc(C.size_t(attrSize))
 	stmt.RLock()
-	ocistmt := unsafe.Pointer(stmt.ocistmt)
-	stmt.RUnlock()
 	r := C.OCIAttrGet(
-		ocistmt,                 //const void     *trgthndlp,
-		C.OCI_HTYPE_STMT,        //ub4         cfgtrghndltyp,
-		attrup,                  //void           *attributep,
-		&attrSize,               //ub4            *sizep,
-		attrType,                //ub4            attrtype,
-		stmt.ses.srv.env.ocierr, //OCIError       *errhp
+		unsafe.Pointer(stmt.ocistmt), //const void     *trgthndlp,
+		C.OCI_HTYPE_STMT,             //ub4         cfgtrghndltyp,
+		attrup,                       //void           *attributep,
+		&attrSize,                    //ub4            *sizep,
+		attrType,                     //ub4            attrtype,
+		stmt.ses.srv.env.ocierr,      //OCIError       *errhp
 	)
+	stmt.RUnlock()
 	if r == C.OCI_ERROR {
 		C.free(unsafe.Pointer(attrup))
 		return nil, stmt.ses.srv.env.ociError()
