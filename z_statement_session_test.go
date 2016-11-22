@@ -151,7 +151,7 @@ func TestStmt_Exe_select(t *testing.T) {
 	var length int
 	for rset.Next() {
 		length++
-		switch rset.Index {
+		switch rset.Len() - 1 {
 		case 0:
 			compare_int64(int64(9), rset.Row[0], t)
 		case 1:

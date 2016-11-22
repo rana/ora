@@ -12,6 +12,8 @@ import (
 	"container/list"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -75,6 +77,8 @@ func NewLogRsetCfg() LogRsetCfg {
 // Opening and closing a Rset is managed internally. Rset doesn't have an Open
 // method or Close method.
 type Rset struct {
+	sync.RWMutex
+
 	id        uint64
 	stmt      *Stmt
 	ocistmt   *C.OCIStmt
@@ -84,9 +88,9 @@ type Rset struct {
 
 	Row             []interface{}
 	Columns         []Column
-	Index           int
+	index           int64
 	Err             error
-	fetched, offset int
+	fetched, offset int64
 	fetchLen        int
 	finished        bool
 
@@ -103,7 +107,7 @@ type Column struct {
 
 // Len returns the number of rows retrieved.
 func (rset *Rset) Len() int {
-	return rset.Index + 1
+	return int(atomic.LoadInt64(&rset.index)) + 1
 }
 
 // checkIsOpen validates that the result set is open.
@@ -116,21 +120,26 @@ func (rset *Rset) checkIsOpen() error {
 
 // IsOpen returns true when a result set is open; otherwise, false.
 func (rset *Rset) IsOpen() bool {
+	rset.RLock()
+	defer rset.RUnlock()
 	return rset.stmt != nil
 }
 
 // closeWithRemove releases allocated resources and removes the Rset from the
 // Stmt.openRsets list.
 func (rset *Rset) closeWithRemove() (err error) {
+	rset.RLock()
 	rset.stmt.openRsets.remove(rset)
+	rset.RUnlock()
 	return rset.close()
 }
 
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.Close)
-	//rset.mu.Lock()
-	//defer rset.mu.Unlock()
+	rset.Lock()
+	defer rset.Unlock()
+
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -139,8 +148,9 @@ func (rset *Rset) close() (err error) {
 			_drv.rsetPool.Put(rset)
 		}
 	}()
-	if err := rset.checkIsOpen(); err != nil {
-		return err
+	//if err := rset.checkIsOpen(); err != nil {
+	if rset.stmt == nil {
+		return er("Rset is closed.")
 	}
 	errs := _drv.listPool.Get().(*list.List)
 	if len(rset.defs) > 0 { // close defines
@@ -156,7 +166,7 @@ func (rset *Rset) close() (err error) {
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
-	//rset.Index = -1  // either reset it, or use it after rset.Next() returned false (io.EOF)
+	//rset.index = -1  // either reset it, or use it after rset.Next() returned false (io.EOF)
 	rset.Row = nil
 	rset.Columns = nil
 	// do not clear error in case of autoClose when error exists
@@ -174,21 +184,26 @@ func (rset *Rset) close() (err error) {
 // beginRow allocates a handle for each column and fetches one row.
 func (rset *Rset) beginRow() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.BeginRow)
-	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", rset.fetched, rset.offset, rset.finished)
-	if rset.fetched > 0 && rset.fetched > rset.offset {
-		rset.Index++
+	rset.RLock()
+	fetched, offset, finished := rset.fetched, rset.offset, rset.finished
+	ocistmt, defs := rset.ocistmt, rset.defs
+	rset.RUnlock()
+
+	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", fetched, offset, finished)
+	if fetched > 0 && fetched > offset {
+		atomic.AddInt64(&rset.index, 1)
 		return nil
 	}
-	if rset.finished {
+	if finished {
 		rset.log(_drv.Cfg().Log.Rset.BeginRow, "finished")
 		return io.EOF
 	}
 	// check is open
-	if rset.ocistmt == nil {
+	if ocistmt == nil {
 		return errF("Rset is closed")
 	}
 	// allocate define descriptor handles
-	for _, define := range rset.defs {
+	for _, define := range defs {
 		//rset.logF(_drv.Cfg().Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
 		if define == nil {
 			continue
@@ -198,6 +213,9 @@ func (rset *Rset) beginRow() (err error) {
 			return err
 		}
 	}
+
+	rset.Lock()
+	defer rset.Unlock()
 	rset.finished = false
 	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
@@ -229,24 +247,27 @@ func (rset *Rset) beginRow() (err error) {
 		return err
 	}
 
-	rset.fetched = int(rowsFetched)
+	rset.fetched = int64(rowsFetched)
 	if rset.fetched == 0 {
 		rset.finished = true
 		return io.EOF
 	}
-	rset.Index++
+	rset.index++
 	return nil
 }
 
 // endRow deallocates a handle for each column.
 func (rset *Rset) endRow() {
 	rset.log(_drv.Cfg().Log.Rset.EndRow)
+	rset.RLock()
 	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
-	rset.offset++
+	defs := rset.defs
+	rset.RUnlock()
+	atomic.AddInt64(&rset.offset, 1)
 	if !done {
 		return
 	}
-	for _, define := range rset.defs {
+	for _, define := range defs {
 		if define != nil {
 			define.free()
 		}
@@ -262,12 +283,20 @@ func (rset *Rset) endRow() {
 // When Next returns false check Rset.Err for any error that may have occured.
 func (rset *Rset) Next() bool {
 	rset.log(_drv.Cfg().Log.Rset.Next)
-	if err := rset.checkIsOpen(); err != nil {
+	erase := func(err error) {
+		rset.Lock()
 		rset.Err = err
 		rset.Row = nil
-		if rset.autoClose {
+		autoClose := rset.autoClose
+		// closeing the Stmt will close this (and all) Rsets under it!
+		rset.Unlock()
+		if autoClose {
 			rset.stmt.Close()
 		}
+	}
+
+	if err := rset.checkIsOpen(); err != nil {
+		erase(err)
 		return false
 	}
 	err := rset.beginRow()
@@ -278,23 +307,15 @@ func (rset *Rset) Next() bool {
 		if err == io.EOF {
 			err = nil
 		}
-		rset.Err = err
-		rset.Row = nil
-		if rset.autoClose {
-			rset.stmt.Close()
-		}
+		erase(err)
 		return false
 	}
 	// populate column values
 	for n, define := range rset.defs {
-		value, err := define.value(rset.offset)
+		value, err := define.value(int(rset.offset))
 		//rset.logF(_drv.Cfg().Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
 		if err != nil {
-			rset.Err = err
-			rset.Row = nil
-			if rset.autoClose {
-				rset.stmt.Close()
-			}
+			erase(err)
 			return false
 		}
 		rset.Row[n] = value
@@ -309,6 +330,8 @@ func (rset *Rset) Next() bool {
 // When NextRow returns nil check Rset.Err for any error that may have occured.
 func (rset *Rset) NextRow() []interface{} {
 	rset.Next()
+	rset.RLock()
+	defer rset.RUnlock()
 	return rset.Row
 }
 
@@ -324,9 +347,11 @@ func (rset *Rset) putDef(idx int, def def) {
 
 // Open defines select-list columns.
 func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
+	rset.Lock()
+	defer rset.Unlock()
 	rset.stmt = stmt
 	rset.ocistmt = ocistmt
-	rset.Index = -1
+	rset.index = -1
 	rset.offset = 0
 	rset.fetched = 0
 	rset.finished = false

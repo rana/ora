@@ -608,7 +608,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 					}
 				}
 			}
-			testErr(rset.Err, t)
+			testErr(errors.Wrap(rset.Err, sql.String()), t)
 			fetchStmt.Close()
 
 			// Reduce the multiple by half
@@ -681,7 +681,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 	case []int64:
 		for {
 			//t.Logf("Row=%v Index=%d", rset.Row, rset.Index)
-			expectedElem := elemAt(expected, rset.Index)
+			expectedElem := elemAt(expected, rset.Len()-1)
 			compare_int64(expectedElem, rset.Row[0], t)
 			if !rset.Next() {
 				break
@@ -690,7 +690,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 
 	case []ora.IntervalYM:
 		for {
-			expectedElem := elemAt(expected, rset.Index)
+			expectedElem := elemAt(expected, rset.Len()-1)
 			compare_OraIntervalYM(expectedElem, rset.Row[0], t)
 			if !rset.Next() {
 				break
@@ -698,7 +698,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 		}
 	case []ora.IntervalDS:
 		for {
-			expectedElem := elemAt(expected, rset.Index)
+			expectedElem := elemAt(expected, rset.Len()-1)
 			compare_OraIntervalDS(expectedElem, rset.Row[0], t)
 			if !rset.Next() {
 				break
