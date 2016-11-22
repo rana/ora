@@ -216,9 +216,9 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		sesCfg := SesCfg{Mode: DSNMode(dsn)}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 		p = env.NewPool(srvCfg, sesCfg, 0)
-		_drv.RLock()
+		_drv.Lock()
 		_drv.srvSesPools[dsn] = p
-		_drv.RUnlock()
+		_drv.Unlock()
 	}
 	ses, err := p.Get()
 	if err != nil {
