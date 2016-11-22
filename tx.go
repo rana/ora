@@ -39,30 +39,45 @@ func NewLogTxCfg() LogTxCfg {
 //
 // Implements the driver.Tx interface.
 type Tx struct {
+	sync.RWMutex
+
 	id  uint64
 	ses *Ses
-	mu  sync.Mutex
 }
 
 // checkIsOpen validates that the session is open.
 func (tx *Tx) checkIsOpen() error {
-	if tx == nil || tx.ses == nil {
+	if tx == nil {
 		return er("Tx is closed.")
 	}
-	return tx.ses.checkClosed()
+	tx.RLock()
+	ses := tx.ses
+	tx.RUnlock()
+	if tx.ses == nil {
+		return er("Tx is closed.")
+	}
+	return ses.checkClosed()
 }
 
 // closeWithRemove releases allocated resources and removes the Tx from the
 // Ses.openTxss list.
 func (tx *Tx) closeWithRemove() (err error) {
+	tx.RLock()
 	tx.ses.openTxs.remove(tx)
+	tx.RUnlock()
 	return tx.close()
 }
 
 // close releases allocated resources.
 func (tx *Tx) close() (err error) {
+	var ok bool
+	tx.Lock()
 	if tx.ses != nil {
 		tx.ses = nil
+		ok = true
+	}
+	tx.Unlock()
+	if ok {
 		_drv.txPool.Put(tx)
 	}
 	return nil
@@ -72,8 +87,6 @@ func (tx *Tx) close() (err error) {
 //
 // Commit is a member of the driver.Tx interface.
 func (tx *Tx) Commit() (err error) {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
 	if tx == nil {
 		return nil
 	}
@@ -82,10 +95,12 @@ func (tx *Tx) Commit() (err error) {
 		return err
 	}
 	defer tx.closeWithRemove()
+	tx.RLock()
 	r := C.OCITransCommit(
 		tx.ses.ocisvcctx,      //OCISvcCtx    *svchp,
 		tx.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.OCI_DEFAULT)         //ub4          flags );
+	tx.RUnlock()
 	if r == C.OCI_ERROR {
 		return tx.ses.srv.env.ociError()
 	}
@@ -96,8 +111,6 @@ func (tx *Tx) Commit() (err error) {
 //
 // Rollback is a member of the driver.Tx interface.
 func (tx *Tx) Rollback() (err error) {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
 	if tx == nil {
 		return nil
 	}
@@ -105,14 +118,19 @@ func (tx *Tx) Rollback() (err error) {
 	if err = tx.checkIsOpen(); err != nil {
 		return err
 	}
-	if tx.ses == nil || tx.ses.srv == nil {
+	tx.RLock()
+	ses := tx.ses
+	tx.RUnlock()
+	if ses == nil || ses.srv == nil {
 		return nil
 	}
 	defer tx.closeWithRemove()
+	tx.RLock()
 	r := C.OCITransRollback(
 		tx.ses.ocisvcctx,      //OCISvcCtx    *svchp,
 		tx.ses.srv.env.ocierr, //OCIError     *errhp,
 		C.OCI_DEFAULT)         //ub4          flags );
+	tx.RUnlock()
 	if r == C.OCI_ERROR {
 		return tx.ses.srv.env.ociError()
 	}

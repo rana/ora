@@ -115,8 +115,10 @@ func NewLogSesCfg() LogSesCfg {
 
 // Ses is an Oracle session associated with a server.
 type Ses struct {
-	id        uint64
+	sync.RWMutex
+
 	cfg       atomic.Value
+	id        uint64
 	mu        sync.Mutex
 	srv       *Srv
 	ocisvcctx *C.OCISvcCtx
@@ -128,6 +130,7 @@ type Ses struct {
 
 	insteadClose func(ses *Ses) error
 	timezone     *time.Location
+
 	sysNamer
 }
 
@@ -162,19 +165,24 @@ func (ses *Ses) Close() (err error) {
 	if ses == nil {
 		return nil
 	}
-	ses.mu.Lock()
-	if ses.srv == nil {
-		ses.mu.Unlock()
+	return ses.closeWithRemove()
+}
+
+func (ses *Ses) closeWithRemove() error {
+	if ses == nil {
 		return nil
 	}
-	if ses.insteadClose != nil {
-		err = ses.insteadClose(ses)
-		return err
+	ses.RLock()
+	srv := ses.srv
+	insteadClose := ses.insteadClose
+	ses.RUnlock()
+	if srv == nil {
+		return nil
 	}
-	ses.srv.mu.Lock()
-	ses.srv.openSess.remove(ses)
-	ses.srv.mu.Unlock()
-	defer ses.mu.Unlock()
+	if insteadClose != nil {
+		return insteadClose(ses)
+	}
+	srv.openSess.remove(ses)
 	return ses.close()
 }
 
@@ -195,11 +203,13 @@ func (ses *Ses) close() (err error) {
 		}
 
 		ses.SetCfg(SesCfg{})
+		ses.Lock()
 		ses.srv = nil
 		ses.ocisvcctx = nil
 		ses.ocises = nil
 		ses.openStmts.clear()
 		ses.openTxs.clear()
+		ses.Unlock()
 		_drv.sesPool.Put(ses)
 
 		multiErr := newMultiErrL(errs)
@@ -215,16 +225,21 @@ func (ses *Ses) close() (err error) {
 	// Expect user to make explicit Commit or Rollback.
 	// Any open transactions will be timedout by the server
 	// if not explicitly committed or rolledback.
-	ses.openTxs.closeAll(errs)
-	ses.openStmts.closeAll(errs) // close statements
+	ses.RLock()
+	openTxs, openStmts := ses.openTxs, ses.openStmts
+	ses.RUnlock()
+	openTxs.closeAll(errs)
+	openStmts.closeAll(errs) // close statements
 
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
+	ses.RLock()
 	r := C.OCISessionEnd(
 		ses.ocisvcctx,      //OCISvcCtx       *svchp,
 		ses.srv.env.ocierr, //OCIError        *errhp,
 		ses.ocises,         //OCISession      *usrhp,
 		C.OCI_DEFAULT)      //ub4             mode );
+	ses.RUnlock()
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(ses.srv.env.ociError()))
 	}
@@ -318,8 +333,6 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	if ses == nil {
 		return nil, er("ses may not be nil.")
 	}
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -332,7 +345,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	}
 	ocistmt := (*C.OCIStmt)(nil)
 	cSql := C.CString(sql) // prepare sql text with statement handle
-	defer C.free(unsafe.Pointer(cSql))
+	ses.RLock()
 	r := C.OCIStmtPrepare2(
 		ses.ocisvcctx,                      // OCISvcCtx     *svchp,
 		&ocistmt,                           // OCIStmt       *stmtp,
@@ -343,6 +356,8 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 		C.ub4(0),                           // ub4           keylen,
 		C.OCI_NTV_SYNTAX,                   // ub4           language,
 		C.OCI_DEFAULT)                      // ub4           mode );
+	ses.RUnlock()
+	C.free(unsafe.Pointer(cSql))
 	if r == C.OCI_ERROR {
 		return nil, errE(ses.srv.env.ociError())
 	}
@@ -580,8 +595,6 @@ func (ses *Ses) StartTx() (tx *Tx, err error) {
 }
 
 func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
 	ses.log(_drv.Cfg().Log.Ses.StartTx)
 	err = ses.checkClosed()
 	if err != nil {
@@ -592,19 +605,23 @@ func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
 	// before it is automatically terminated by the system.
 	// TODO: add timeout config value
 	var timeout = C.uword(60)
+	ses.RLock()
 	r := C.OCITransStart(
 		ses.ocisvcctx,         //OCISvcCtx    *svchp,
 		ses.srv.env.ocierr,    //OCIError     *errhp,
 		timeout,               //uword        timeout,
 		C.OCI_TRANS_NEW|flags) //ub4          flags );
+	ses.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errE(ses.srv.env.ociError())
 	}
 	tx = _drv.txPool.Get().(*Tx) // set *Tx
+	tx.Lock()
 	tx.ses = ses
 	if tx.id == 0 {
 		tx.id = _drv.txId.nextId()
 	}
+	tx.Unlock()
 	ses.openTxs.add(tx)
 
 	return tx, nil
@@ -612,8 +629,6 @@ func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
 
 // Ping returns nil when an Oracle server is contacted; otherwise, an error.
 func (ses *Ses) Ping() (err error) {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
 	ses.log(_drv.Cfg().Log.Ses.Ping)
 	defer func() {
 		if r := recover(); r != nil {
@@ -624,10 +639,12 @@ func (ses *Ses) Ping() (err error) {
 	if err != nil {
 		return errE(err)
 	}
+	ses.RLock()
 	r := C.OCIPing(
 		ses.ocisvcctx,      //OCISvcCtx     *svchp,
 		ses.srv.env.ocierr, //OCIError      *errhp,
 		C.OCI_DEFAULT)      //ub4           mode );
+	ses.RUnlock()
 	if r == C.OCI_ERROR {
 		return errE(ses.srv.env.ociError())
 	}
@@ -636,13 +653,13 @@ func (ses *Ses) Ping() (err error) {
 
 // Break stops the currently running OCI function.
 func (ses *Ses) Break() (err error) {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
 	ses.log(_drv.Cfg().Log.Ses.Break)
 	err = ses.checkClosed()
 	if err != nil {
 		return errE(err)
 	}
+	ses.RLock()
+	defer ses.RUnlock()
 	if r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.srv.env.ocierr); r == C.OCI_ERROR {
 		return errE(ses.srv.env.ociError())
 	}
@@ -654,16 +671,18 @@ func (ses *Ses) Break() (err error) {
 
 // NumStmt returns the number of open Oracle statements.
 func (ses *Ses) NumStmt() int {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
-	return ses.openStmts.len()
+	ses.RLock()
+	openStmts := ses.openStmts
+	ses.RUnlock()
+	return openStmts.len()
 }
 
 // NumTx returns the number of open Oracle transactions.
 func (ses *Ses) NumTx() int {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
-	return ses.openTxs.len()
+	ses.RLock()
+	openTxs := ses.openTxs
+	ses.RUnlock()
+	return openTxs.len()
 }
 
 // IsOpen returns true when a session is open; otherwise, false.
@@ -671,17 +690,22 @@ func (ses *Ses) NumTx() int {
 // Calling Close will cause Ses.IsOpen to return false. Once closed, a session
 // cannot be re-opened. Call Srv.OpenSes to open a new session.
 func (ses *Ses) IsOpen() bool {
-	ses.mu.Lock()
-	defer ses.mu.Unlock()
 	return ses.checkClosed() == nil
 }
 
 // checkClosed returns an error if Ses is closed. No locking occurs.
 func (ses *Ses) checkClosed() error {
-	if ses == nil || ses.ocises == nil {
+	if ses == nil {
 		return er("Ses is closed.")
 	}
-	return ses.srv.checkClosed()
+	ses.RLock()
+	closed := ses.ocises == nil
+	srv := ses.srv
+	ses.RUnlock()
+	if closed {
+		return er("Ses is closed.")
+	}
+	return srv.checkClosed()
 }
 
 // sysName returns a string representing the Ses.
@@ -694,8 +718,11 @@ func (ses *Ses) sysName() string {
 
 // Timezone return the current session's timezone.
 func (ses *Ses) Timezone() (*time.Location, error) {
-	if ses.timezone != nil {
-		return ses.timezone, nil
+	ses.RLock()
+	tz := ses.timezone
+	ses.RUnlock()
+	if tz != nil {
+		return tz, nil
 	}
 	rset, err := ses.PrepAndQry("select CAST(tz_offset(sessiontimezone) AS VARCHAR2(7)) from dual")
 	if err != nil {
@@ -741,8 +768,11 @@ func (ses *Ses) Timezone() (*time.Location, error) {
 		return nil, err
 	}
 	offset := sign * ((int(hourOffset) * 3600) + (int(minOffset) * 60))
-	ses.timezone = time.FixedZone(value, offset)
-	return ses.timezone, nil
+	tz = time.FixedZone(value, offset)
+	ses.Lock()
+	ses.timezone = tz
+	ses.Unlock()
+	return tz, nil
 }
 
 // SetAction sets the MODULE and ACTION attribute of the session.

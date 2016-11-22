@@ -48,9 +48,10 @@ func NewLogEnvCfg() LogEnvCfg {
 
 // Env represents an Oracle environment.
 type Env struct {
+	sync.RWMutex
+
 	id       uint64
 	cfg      atomic.Value
-	mu       sync.Mutex
 	ocienv   *C.OCIEnv
 	ocierr   *C.OCIError
 	errBuf   [512]C.char
@@ -76,14 +77,12 @@ func (env *Env) SetCfg(cfg StmtCfg) {
 
 // Close disconnects from servers and resets optional fields.
 func (env *Env) Close() (err error) {
-	env.mu.Lock()
-	defer env.mu.Unlock()
 	env.log(_drv.Cfg().Log.Env.Close)
 	err = env.checkClosed()
 	if err != nil {
 		return errE(err)
 	}
-	_drv.mu.Lock()
+	_drv.Lock()
 	for k, p := range _drv.srvSesPools {
 		if p == nil || p.env != env {
 			continue
@@ -91,19 +90,25 @@ func (env *Env) Close() (err error) {
 		p.Close()
 		delete(_drv.srvSesPools, k)
 	}
-	_drv.mu.Unlock()
+	_drv.Unlock()
 	errs := _drv.listPool.Get().(*list.List)
+	env.RLock()
+	openSrvs, openCons := env.openSrvs, env.openCons
+	env.RUnlock()
+
 	defer func() {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
 		_drv.openEnvs.remove(env)
 		env.SetCfg(StmtCfg{})
+		env.Lock()
 		env.isPkgEnv = false
 		env.ocienv = nil
 		env.ocierr = nil
-		env.openSrvs.clear()
-		env.openCons.clear()
+		env.Unlock()
+		openSrvs.clear()
+		openCons.clear()
 		_drv.envPool.Put(env)
 
 		multiErr := newMultiErrL(errs)
@@ -113,12 +118,14 @@ func (env *Env) Close() (err error) {
 		errs.Init()
 		_drv.listPool.Put(errs)
 	}()
-	env.openCons.closeAll(errs)
-	env.openSrvs.closeAll(errs)
+	openCons.closeAll(errs)
+	openSrvs.closeAll(errs)
 
 	// Free oci environment handle and all oci child handles
 	// The oci error handle is released as a child of the environment handle
+	env.RLock()
 	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+	env.RUnlock()
 	if err != nil {
 		return errE(err)
 	}
@@ -135,8 +142,6 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 			err = errR(value)
 		}
 	}()
-	env.mu.Lock()
-	defer env.mu.Unlock()
 	env.log(_drv.Cfg().Log.Env.OpenSrv)
 	err = env.checkClosed()
 	if err != nil {
@@ -149,31 +154,35 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	}
 	// attach to server
 	cDblink := C.CString(cfg.Dblink)
-	defer C.free(unsafe.Pointer(cDblink))
+	env.RLock()
 	r := C.OCIServerAttach(
 		(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
 		env.ocierr,                            //OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(cDblink)), //const OraText *dblink,
 		C.sb4(len(cfg.Dblink)),                //sb4           dblink_len,
 		C.OCI_DEFAULT)                         //ub4           mode);
+	env.RUnlock()
+	C.free(unsafe.Pointer(cDblink))
 	if r == C.OCI_ERROR {
 		return nil, errE(env.ociErrorNL())
 	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
-	srv.mu.Lock()
+	srv.Lock()
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
+	srv.Unlock()
 	srv.SetCfg(cfg)
 	if cfg.StmtCfg.IsZero() && !srv.env.Cfg().IsZero() {
 		cfg.StmtCfg = srv.env.Cfg()
 		srv.SetCfg(cfg)
 	}
-	srv.mu.Unlock()
+	env.RLock()
 	env.openSrvs.add(srv)
+	env.RUnlock()
 
 	return srv, nil
 }
@@ -199,17 +208,17 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		return nil, errE(err)
 	}
 	dsn = strings.TrimSpace(dsn)
-	_drv.mu.Lock()
+	_drv.RLock()
 	p := _drv.srvSesPools[dsn]
-	_drv.mu.Unlock()
+	_drv.RUnlock()
 	if p == nil {
 		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
 		sesCfg := SesCfg{Mode: DSNMode(dsn)}
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 		p = env.NewPool(srvCfg, sesCfg, 0)
-		_drv.mu.Lock()
+		_drv.RLock()
 		_drv.srvSesPools[dsn] = p
-		_drv.mu.Unlock()
+		_drv.RUnlock()
 	}
 	ses, err := p.Get()
 	if err != nil {
@@ -224,13 +233,11 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		con.id = _drv.conId.nextId()
 	}
 	setUTF8 := func(cs string) {
-		ses.mu.Lock()
 		var isUTF8 int32
 		if cs == "AL32UTF8" {
 			isUTF8 = 1
 		}
-		atomic.StoreInt32(&con.ses.srv.isUTF8, isUTF8)
-		ses.mu.Unlock()
+		atomic.StoreInt32(&ses.srv.isUTF8, isUTF8)
 	}
 
 	conCharsetMu.Lock()
@@ -256,23 +263,27 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 			setUTF8(cs)
 		}
 	}
+	env.RLock()
 	env.openCons.add(con)
+	env.RUnlock()
 
 	return con, nil
 }
 
 // NumSrv returns the number of open Oracle servers.
 func (env *Env) NumSrv() int {
-	env.mu.Lock()
-	defer env.mu.Unlock()
-	return env.openSrvs.len()
+	env.RLock()
+	n := env.openSrvs.len()
+	env.RUnlock()
+	return n
 }
 
 // NumCon returns the number of open Oracle connections.
 func (env *Env) NumCon() int {
-	env.mu.Lock()
-	defer env.mu.Unlock()
-	return env.openCons.len()
+	env.RLock()
+	n := env.openCons.len()
+	env.RUnlock()
+	return n
 }
 
 // IsOpen returns true when the environment is open; otherwise, false.
@@ -280,14 +291,21 @@ func (env *Env) NumCon() int {
 // Calling Close will cause IsOpen to return false. Once closed, the environment
 // may be re-opened by calling Open.
 func (env *Env) IsOpen() bool {
-	env.mu.Lock()
-	defer env.mu.Unlock()
-	return env.ocienv != nil
+	env.RLock()
+	ok := env.ocienv != nil
+	env.RUnlock()
+	return ok
 }
 
 // checkClosed returns an error if Env is closed. No locking occurs.
 func (env *Env) checkClosed() error {
-	if env == nil || env.ocienv == nil {
+	if env == nil {
+		return er("Env is closed.")
+	}
+	env.RLock()
+	closed := env.ocienv == nil
+	env.RUnlock()
+	if closed {
 		return er("Env is closed.")
 	}
 	return nil
@@ -334,12 +352,14 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 	defer env.ociHndMu.Unlock()
 	// OCIHandleAlloc returns: OCI_SUCCESS, OCI_INVALID_HANDLE
 	var handle unsafe.Pointer
+	env.RLock()
 	r := C.OCIHandleAlloc(
 		unsafe.Pointer(env.ocienv), //const void    *parenth,
 		&handle,                    //void          **hndlpp,
 		handleType,                 //ub4           type,
 		C.size_t(0),                //size_t        xtramem_sz,
 		nil)                        //void          **usrmempp
+	env.RUnlock()
 	if r == C.OCI_INVALID_HANDLE {
 		return nil, er("Unable to allocate handle")
 	}
@@ -385,15 +405,13 @@ func (env *Env) setAttr(
 
 // ociError gets an error returned by an Oracle server. Locks env.mu!
 func (env *Env) ociError() error {
-	env.mu.Lock()
-	err := env.ociErrorNL()
-	env.mu.Unlock()
-	return err
+	return env.ociErrorNL()
 }
 
 // ociError gets an error returned by an Oracle server. No locking occurs.
 func (env *Env) ociErrorNL() error {
 	var errcode C.sb4
+	env.RLock()
 	C.OCIErrorGet(
 		unsafe.Pointer(env.ocierr),
 		1, nil,
@@ -401,10 +419,9 @@ func (env *Env) ociErrorNL() error {
 		(*C.OraText)(unsafe.Pointer(&env.errBuf[0])),
 		C.ub4(len(env.errBuf)),
 		C.OCI_HTYPE_ERROR)
-	return er(&ORAError{
-		code:    int(errcode),
-		message: C.GoString(&env.errBuf[0]),
-	})
+	msg := C.GoString(&env.errBuf[0])
+	env.RUnlock()
+	return er(&ORAError{code: int(errcode), message: msg})
 }
 
 type ORAError struct {

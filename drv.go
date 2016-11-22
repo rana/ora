@@ -115,8 +115,9 @@ func (c LogDrvCfg) IsEnabled(enabled bool) bool {
 //
 // Drv implements the driver.Driver interface.
 type Drv struct {
+	sync.RWMutex
+
 	cfg      atomic.Value
-	mu       sync.Mutex
 	insMu    sync.Mutex
 	updMu    sync.Mutex
 	delMu    sync.Mutex

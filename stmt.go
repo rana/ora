@@ -100,20 +100,22 @@ func (stmt *Stmt) SetCfg(cfg StmtCfg) {
 // Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
 // cannot be re-opened. Call Stmt.Prep to create a new statement.
 func (stmt *Stmt) Close() (err error) {
+	return stmt.closeWithRemove()
+}
+func (stmt *Stmt) closeWithRemove() error {
 	if stmt == nil {
 		return nil
 	}
 	stmt.RLock()
 	ok := stmt.ses == nil
+	ses := stmt.ses
 	stmt.RUnlock()
 	if !ok {
 		return nil
 	}
-	stmt.RLock()
-	if stmt.ses.openStmts != nil {
-		stmt.ses.openStmts.remove(stmt)
+	if ses.openStmts != nil {
+		ses.openStmts.remove(stmt)
 	}
-	stmt.RUnlock()
 	return stmt.close()
 }
 
@@ -183,8 +185,9 @@ func (stmt *Stmt) close() (err error) {
 		}
 	}
 	stmt.RLock()
-	stmt.openRsets.closeAll(errs)
+	openRsets := stmt.openRsets
 	stmt.RUnlock()
+	openRsets.closeAll(errs)
 
 	return nil
 }

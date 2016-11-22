@@ -58,9 +58,10 @@ func NewLogSrvCfg() LogSrvCfg {
 
 // Srv represents an Oracle server.
 type Srv struct {
+	sync.RWMutex
+
 	id     uint64
 	cfg    atomic.Value
-	mu     sync.Mutex
 	env    *Env
 	ocisrv *C.OCIServer
 	isUTF8 int32
@@ -98,15 +99,19 @@ func (srv *Srv) Close() (err error) {
 	if srv == nil {
 		return nil
 	}
-	srv.mu.Lock()
-	if srv.env == nil {
-		srv.mu.Unlock()
+	return srv.closeWithRemove()
+}
+func (srv *Srv) closeWithRemove() error {
+	if srv == nil {
 		return nil
 	}
-	srv.env.mu.Lock()
-	srv.env.openSrvs.remove(srv)
-	srv.env.mu.Unlock()
-	srv.mu.Unlock()
+	srv.RLock()
+	env := srv.env
+	srv.RUnlock()
+	if env == nil {
+		return nil
+	}
+	env.openSrvs.remove(srv)
 	return srv.close()
 }
 
@@ -114,21 +119,24 @@ func (srv *Srv) Close() (err error) {
 // Does not remove Srv from Ses.openSrvs
 func (srv *Srv) close() (err error) {
 	srv.log(_drv.Cfg().Log.Srv.Close)
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
 	err = srv.checkClosed()
 	if err != nil {
 		return errE(err)
 	}
+	srv.RLock()
+	openSess := srv.openSess
+	srv.RUnlock()
 	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
 			errs.PushBack(errR(value))
 		}
 		srv.SetCfg(SrvCfg{})
-		srv.openSess.clear()
+		openSess.clear()
+		srv.Lock()
 		srv.env = nil
 		srv.ocisrv = nil
+		srv.Unlock()
 		_drv.srvPool.Put(srv)
 
 		multiErr := newMultiErrL(errs)
@@ -139,15 +147,17 @@ func (srv *Srv) close() (err error) {
 		_drv.listPool.Put(errs)
 	}()
 
-	srv.openSess.closeAll(errs) // close sessions
+	openSess.closeAll(errs) // close sessions
 
 	// detach server
 	// OCIServerDetach invalidates oci server handle; no need to free server.ocisvr
 	// OCIServerDetach invalidates oci service context handle; no need to free server.ocisvcctx
+	srv.RLock()
 	r := C.OCIServerDetach(
 		srv.ocisrv,     //OCIServer   *srvhp,
 		srv.env.ocierr, //OCIError    *errhp,
 		C.OCI_DEFAULT)  //ub4         mode );
+	srv.RUnlock()
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(srv.env.ociError()))
 	}
@@ -167,8 +177,6 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	if srv == nil {
 		return nil, er("srv may not be nil.")
 	}
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
 	srv.log(_drv.Cfg().Log.Srv.OpenSes)
 	err = srv.checkClosed()
 	if err != nil {
@@ -236,12 +244,14 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 		mode |= C.OCI_SYSOPER
 	}
 	// begin session
+	srv.RLock()
 	r := C.OCISessionBegin(
 		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
 		srv.env.ocierr,            //OCIError      *errhp,
 		(*C.OCISession)(ocises),   //OCISession    *usrhp,
 		credentialType,            //ub4           credt,
 		mode)                      //ub4           mode );
+	srv.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errE(srv.env.ociError())
 	}
@@ -259,16 +269,16 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	}
 
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
-	ses.mu.Lock()
+	ses.Lock()
 	ses.srv = srv
 	ses.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	ses.ocises = (*C.OCISession)(ocises)
 	if ses.id == 0 {
 		ses.id = _drv.sesId.nextId()
 	}
+	ses.Unlock()
 	ses.SetCfg(cfg)
 	srv.openSess.add(ses)
-	ses.mu.Unlock()
 
 	return ses, nil
 }
@@ -277,20 +287,20 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 //
 // Version requires the server have at least one open session.
 func (srv *Srv) Version() (ver string, err error) {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
 	srv.log(_drv.Cfg().Log.Srv.Version)
 	err = srv.checkClosed()
 	if err != nil {
 		return "", errE(err)
 	}
 	var buf [512]C.char
+	srv.RLock()
 	r := C.OCIServerVersion(
 		unsafe.Pointer(srv.ocisrv),            //void         *hndlp,
 		srv.env.ocierr,                        //OCIError     *errhp,
 		(*C.OraText)(unsafe.Pointer(&buf[0])), //OraText      *bufp,
 		C.ub4(len(buf)),                       //ub4          bufsz
 		C.OCI_HTYPE_SERVER)                    //ub1          hndltype );
+	srv.RUnlock()
 	if r == C.OCI_ERROR {
 		return "", errE(srv.env.ociError())
 	}
@@ -302,9 +312,10 @@ func (srv *Srv) NumSes() int {
 	if srv == nil {
 		return 0
 	}
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	return srv.openSess.len()
+	srv.RLock()
+	openSess := srv.openSess
+	srv.RUnlock()
+	return openSess.len()
 }
 
 // IsUTF8 returns whether the DB uses AL32UTF8 encoding.
@@ -320,14 +331,18 @@ func (srv *Srv) IsUTF8() bool {
 // Calling Close will cause Srv.IsOpen to return false. Once closed, a server cannot
 // be re-opened. Call Env.OpenSrv to open a new server.
 func (srv *Srv) IsOpen() bool {
-	srv.mu.Lock()
-	defer srv.mu.Unlock()
 	return srv.checkClosed() == nil
 }
 
 // checkClosed returns an error if Srv is closed. No locking occurs.
 func (srv *Srv) checkClosed() error {
-	if srv == nil || srv.ocisrv == nil {
+	if srv == nil {
+		return er("Srv is closed.")
+	}
+	srv.RLock()
+	closed := srv.ocisrv == nil
+	srv.RUnlock()
+	if closed {
 		return er("Srv is closed.")
 	}
 	return srv.env.checkClosed()

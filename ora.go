@@ -150,8 +150,6 @@ func init() {
 // Optionally specify a cfg parameter. If cfg is nil, default cfg values are
 // applied.
 func OpenEnv() (env *Env, err error) {
-	_drv.mu.Lock()
-	defer _drv.mu.Unlock()
 	cfg := _drv.Cfg()
 	log(cfg.Log.OpenEnv)
 	var csIDAl32UTF8 C.ub2
@@ -168,6 +166,7 @@ func OpenEnv() (env *Env, err error) {
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
 	// OCI_OBJECT   - Uses object features such as OCINumber, OCINumberToInt, OCINumberFromInt. These are used in oracle-go type conversions.
+	_drv.RLock()
 	env = _drv.envPool.Get().(*Env) // set *Env
 	r := C.OCIEnvNlsCreate(
 		&env.ocienv, //OCIEnv        **envhpp,
@@ -180,6 +179,7 @@ func OpenEnv() (env *Env, err error) {
 		nil,          //void          **usrmempp
 		csIDAl32UTF8, //ub2           charset,
 		csIDAl32UTF8) //ub2           ncharset );
+	_drv.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errF("Unable to create environment handle (Return code = %d).", r)
 	}
@@ -193,15 +193,17 @@ func OpenEnv() (env *Env, err error) {
 		env.id = _drv.envId.nextId()
 	}
 	env.SetCfg(cfg.StmtCfg)
+	_drv.RLock()
 	_drv.openEnvs.add(env)
+	_drv.RUnlock()
 
 	return env, nil
 }
 
 // NumEnv returns the number of open Oracle environments.
 func NumEnv() int {
-	_drv.mu.Lock()
-	defer _drv.mu.Unlock()
+	_drv.RLock()
+	defer _drv.RUnlock()
 	return _drv.openEnvs.len()
 }
 
@@ -209,10 +211,9 @@ func NumEnv() int {
 func SetCfg(cfg DrvCfg) {
 	cfg.RsetCfg.binaryFloat = F64
 	_drv.SetCfg(cfg)
-	_drv.mu.Lock()
-	//_drv.openEnvs.setAllCfg(cfg.StmtCfg)
+	_drv.Lock()
 	_drv.sqlPkgEnv.SetCfg(cfg.StmtCfg)
-	_drv.mu.Unlock()
+	_drv.Unlock()
 }
 
 // Cfg returns the ora database driver's cfg.

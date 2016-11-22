@@ -137,8 +137,6 @@ func (rset *Rset) closeWithRemove() (err error) {
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.Close)
-	rset.Lock()
-	defer rset.Unlock()
 
 	defer func() {
 		if value := recover(); value != nil {
@@ -148,13 +146,15 @@ func (rset *Rset) close() (err error) {
 			_drv.rsetPool.Put(rset)
 		}
 	}()
-	//if err := rset.checkIsOpen(); err != nil {
-	if rset.stmt == nil {
+	if err := rset.checkIsOpen(); err != nil {
 		return er("Rset is closed.")
 	}
 	errs := _drv.listPool.Get().(*list.List)
-	if len(rset.defs) > 0 { // close defines
-		for _, def := range rset.defs {
+	rset.RLock()
+	defs := rset.defs
+	rset.RUnlock()
+	if len(defs) > 0 { // close defines
+		for _, def := range defs {
 			if def != nil {
 				err0 := def.close()
 				if err0 != nil {
@@ -163,12 +163,14 @@ func (rset *Rset) close() (err error) {
 			}
 		}
 	}
+	rset.Lock()
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
 	//rset.index = -1  // either reset it, or use it after rset.Next() returned false (io.EOF)
 	rset.Row = nil
 	rset.Columns = nil
+	rset.Unlock()
 	// do not clear error in case of autoClose when error exists
 	// clear error when rset in initialized
 	//rset.Err = nil
