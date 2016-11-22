@@ -219,7 +219,7 @@ An example of using the ora package directly:
 	func main() {
 		// example usage of the ora package driver
 		// connect to a server and open a session
-		env, err := ora.OpenEnv(nil)
+		env, err := ora.OpenEnv()
 		defer env.Close()
 		if err != nil {
 			panic(err)
