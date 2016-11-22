@@ -93,18 +93,19 @@ func TestEnv_SrvCfg(t *testing.T) {
 
 	x := ora.F64
 	srvCfg.SetNumberBigFloat(x)
+	srv.SetCfg(srvCfg)
 	if y := srvCfg.NumberBigFloat(); y != x {
-		t.Errorf("srvCfg: wanted %s, got %s", x, y)
+		t.Fatalf("srvCfg: wanted %s, got %s", x, y)
 	}
 	sesCfg := testSesCfg
-	sesCfg.StmtCfg = ora.NewStmtCfg()
+	sesCfg.StmtCfg = srvCfg.StmtCfg
 	ses, err := srv.OpenSes(sesCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ses.Close()
 	if y := ses.Cfg().NumberBigFloat(); y != x {
-		t.Errorf("sesCfg: wanted %s, got %s", x, y)
+		t.Fatalf("sesCfg: wanted %s, got %s", x, y)
 	}
 
 	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")
@@ -135,23 +136,27 @@ func TestEnv_SesCfg(t *testing.T) {
 	}
 	defer ses.Close()
 
-	sesCfg := ses.Cfg()
-	old := sesCfg.NumberBigFloat()
-	defer sesCfg.SetNumberBigFloat(old)
+	old := ses.Cfg()
+	defer ses.SetCfg(old)
 
 	x := ora.F64
-	sesCfg.SetNumberBigFloat(x)
-	if y := sesCfg.NumberBigFloat(); y != x {
-		t.Errorf("srvCfg: wanted %s, got %s", x, y)
+	sesCfg := old
+	enableLogging(t)
+	if err := sesCfg.SetNumberBigFloat(x); err != nil {
+		t.Fatal(err)
 	}
 	ses.SetCfg(sesCfg)
-
+	if y := ses.Cfg().NumberBigFloat(); y != x {
+		t.Fatalf("sesCfg: wanted %s, got %s", x, y)
+	}
+	t.Logf(" sesCfg=%#v", ses.Cfg())
 	stmt, err := ses.Prep("SELECT COUNT(0) FROM user_objects")
+	t.Logf("stmtCfg=%#v", stmt.Cfg())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer stmt.Close()
 	if y := stmt.Cfg().NumberBigFloat(); y != x {
-		t.Errorf("stmt.Cfg: wanted %v, got %s (default: %s)", x, y, old)
+		t.Errorf("stmt.Cfg: wanted %s=%d, got %s=%d (default: %s)", x, x, y, y, old.NumberBigFloat())
 	}
 }

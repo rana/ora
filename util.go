@@ -16,10 +16,11 @@ func checkNumericColumn(gct GoColumnType, columnName string) error {
 	case I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN:
 		return nil
 	}
-	if columnName == "" {
-		return errF("Invalid go column type (%v) specified for numeric sql column. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or OraN.", GctName(gct))
+	var s string
+	if columnName != "" {
+		s = fmt.Sprintf(" (%s)", columnName)
 	}
-	return errF("Invalid go column type (%v) specified for numeric sql column (%v). Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or ORaN.", GctName(gct), columnName)
+	return errF("Invalid go column type (%v) specified for numeric sql column%s. Expected go column type I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N or OraN.", GctName(gct), s)
 }
 
 // checkTimeColumn returns nil when the column type is time; otherwise, an error.

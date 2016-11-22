@@ -298,6 +298,9 @@ func (env *Env) sysName() string {
 	if env == nil {
 		return "E_"
 	}
+	if env.isPkgEnv {
+		return "EP"
+	}
 	return env.sysNamer.Name(func() string { return fmt.Sprintf("E%v", env.id) })
 }
 

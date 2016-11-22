@@ -128,7 +128,7 @@ func (rset *Rset) closeWithRemove() (err error) {
 
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
-	rset.log(_drv.Cfg().Log.Rset.Close, getStack())
+	rset.log(_drv.Cfg().Log.Rset.Close)
 	//rset.mu.Lock()
 	//defer rset.mu.Unlock()
 	defer func() {

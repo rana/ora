@@ -136,13 +136,14 @@ type Ses struct {
 func (ses *Ses) Cfg() SesCfg {
 	c := ses.cfg.Load()
 	var cfg SesCfg
+	//fmt.Fprintf(os.Stderr, "%s.Cfg=%#v\n", ses.sysName(), c)
 	if c != nil {
 		cfg = c.(SesCfg)
 	}
 	env := ses.srv.env
 	if env.isPkgEnv {
 		cfg.StmtCfg = env.Cfg()
-	} else {
+	} else if cfg.StmtCfg.IsZero() {
 		cfg.StmtCfg = ses.srv.Cfg().StmtCfg
 	}
 	return cfg
@@ -347,6 +348,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	}
 	// set stmt struct
 	stmt = _drv.stmtPool.Get().(*Stmt)
+	stmt.SetCfg(StmtCfg{})
 	stmt.mu.Lock()
 	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
@@ -367,6 +369,8 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	C.free(unsafe.Pointer(st))
 	ses.openStmts.add(stmt)
 	stmt.mu.Unlock()
+
+	//ses.logF(true, "\n ses.cfg=%#v\nstmt.cfg=%#v", ses.Cfg().StmtCfg, stmt.Cfg())
 
 	return stmt, nil
 }
