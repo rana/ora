@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"gopkg.in/rana/ora.v3"
 	"gopkg.in/rana/ora.v3/tstlg"
 )
@@ -435,31 +437,38 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 		}
 
 		// select
-		var selectStmt *ora.Stmt
+		var qry string
+		var params []ora.GoColumnType
 		if isNumeric(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName), ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, ora.F64, ora.F32, ora.OraI64, ora.OraI32, ora.OraI16, ora.OraI8, ora.OraU64, ora.OraU32, ora.OraU16, ora.OraU8, ora.OraF64, ora.OraF32)
+			qry = fmt.Sprintf("select c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1, c1 from %v", tableName)
+			params = append(params, ora.I64, ora.I32, ora.I16, ora.I8, ora.U64, ora.U32, ora.U16, ora.U8, ora.F64, ora.F32, ora.OraI64, ora.OraI32, ora.OraI16, ora.OraI8, ora.OraU64, ora.OraU32, ora.OraU16, ora.OraU8, ora.OraF64, ora.OraF32)
 		} else if isTime(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), ora.T, ora.OraT)
+			qry = fmt.Sprintf("select c1, c1 from %v", tableName)
+			params = append(params, ora.T, ora.OraT)
 		} else if isString(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.S)
+			qry = fmt.Sprintf("select c1 from %v", tableName)
+			params = append(params, ora.S)
 		} else if isBool(expected) {
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1, c1 from %v", tableName), ora.B, ora.OraB)
+			qry = fmt.Sprintf("select c1, c1 from %v", tableName)
+			params = append(params, ora.B, ora.OraB)
 		} else if isBytes(expected) {
 			// one LOB cannot be opened twice in the same transaction (c1, c1 not works here)
 			col := ora.Bin
 			if n%2 == 1 {
 				col = ora.OraBin
 			}
-			selectStmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), col)
+			qry = fmt.Sprintf("select c1 from %v", tableName)
+			params = append(params, col)
 		}
-		defer selectStmt.Close()
+		selectStmt, err := testSes.Prep(qry, params...)
 		testErr(err, t)
+		defer selectStmt.Close()
 		rset, err := selectStmt.Qry()
 		testErr(err, t)
 
 		// validate
 		hasRow := rset.Next()
-		testErr(rset.Err, t)
+		testErr(errors.Wrapf(rset.Err, "%q %v", qry, params), t)
 		if !hasRow {
 			t.Fatalf("no row returned")
 		} else if len(rset.Row) != len(selectStmt.Gcts()) {
