@@ -18,6 +18,12 @@ var issues = []string{"z_issue131.go"}
 func main() {
 	flagDur := flag.Duration("duration", 24*time.Hour, "test duration")
 	flag.Parse()
+
+	cmd := exec.Command("go", "install", "-race")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 	os.Setenv("DURATION", flagDur.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)

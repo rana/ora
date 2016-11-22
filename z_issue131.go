@@ -37,8 +37,15 @@ func dbRoutine(ctx context.Context) {
 		default:
 		}
 		var temp int
+		i := rand.Int()
+		if i%100 == 0 {
+			log.Printf(" %v. starts", ctx.Value("id"))
+		}
 		db.QueryRow("select 1 from dual").Scan(&temp)
-		if rand.Int()%10 == 0 {
+		if i%100 == 0 {
+			log.Printf(" %v. ends", ctx.Value("id"))
+		}
+		if i%10 == 0 {
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
