@@ -168,7 +168,7 @@ func TestBindSlice_numeric(t *testing.T) {
 			}
 			ct := _T_colType[ctName]
 			v := gen()
-			t.Run(valName, func(t *testing.T) {
+			t.Run(valName+"_"+ctName, func(t *testing.T) {
 				t.Parallel()
 				if valName == "uint8Slice" {
 					sc.SetByteSlice(ora.U8)

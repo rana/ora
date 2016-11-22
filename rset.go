@@ -120,6 +120,9 @@ func (rset *Rset) checkIsOpen() error {
 
 // IsOpen returns true when a result set is open; otherwise, false.
 func (rset *Rset) IsOpen() bool {
+	if rset == nil {
+		return false
+	}
 	rset.RLock()
 	defer rset.RUnlock()
 	return rset.stmt != nil
