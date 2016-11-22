@@ -535,6 +535,11 @@ func ExampleStmt_Qry() {
 	ses, _ := srv.OpenSes(testSesCfg)
 	defer ses.Close()
 
+	cfg := ses.Cfg()
+	defer ses.SetCfg(cfg)
+	cfg.SetChar1(ora.B)
+	ses.SetCfg(cfg)
+
 	// create table
 	tableName := tableName()
 	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char), c3 char(1 byte))", tableName))
