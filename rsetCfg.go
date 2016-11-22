@@ -509,11 +509,13 @@ func (c RsetCfg) Long() GoColumnType {
 //
 // Returns an error if a non-string GoColumnType is specified.
 func (c *RsetCfg) SetClob(gct GoColumnType) (err error) {
-	err = checkStringColumn(gct)
-	if err == nil {
-		c.clob = gct
+	if gct != D {
+		if err = checkStringColumn(gct); err != nil {
+			return err
+		}
 	}
-	return err
+	c.clob = gct
+	return nil
 }
 
 // Clob returns a GoColumnType associated to an Oracle select-list
@@ -537,11 +539,13 @@ func (c RsetCfg) Clob() GoColumnType {
 //
 // Returns an error if a non-string GoColumnType is specified.
 func (c *RsetCfg) SetBlob(gct GoColumnType) (err error) {
-	err = checkBinColumn(gct)
-	if err == nil {
-		c.blob = gct
+	if gct != D {
+		if err = checkBinColumn(gct); err != nil {
+			return err
+		}
 	}
-	return err
+	c.blob = gct
+	return nil
 }
 
 // Blob returns a GoColumnType associated to an Oracle select-list
