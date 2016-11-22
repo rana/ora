@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
+	"net/http"
 	"os"
 	"reflect"
 	"runtime"
@@ -22,6 +23,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/pkg/errors"
 
@@ -244,6 +247,14 @@ END;`)
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
+
+	go func() {
+		addr := "localhost:8642"
+		fmt.Println("blockprofile: go tool pprof http://" + addr + "/debug/pprof/block")
+		runtime.SetBlockProfileRate(1)
+		fmt.Println(http.ListenAndServe(addr, nil))
+	}()
+
 }
 
 func enableLogging(t *testing.T) {
@@ -821,7 +832,16 @@ func testErr(err error, t testing.TB, expectedErrs ...error) {
 		return
 	}
 	if expectedErrs == nil {
+		done := make(chan struct{})
+		go func() {
+			select {
+			case <-time.After(5 * time.Second):
+				fmt.Printf("\n\nPRINT TIMEOUT\n%v: %s\n", err, getStack(1))
+			case <-done:
+			}
+		}()
 		t.Fatalf("%v: %s", err, getStack(1))
+		close(done)
 	}
 	for _, expectedErr := range expectedErrs {
 		if expectedErr == err { // skip it

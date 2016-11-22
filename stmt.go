@@ -429,6 +429,9 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	} else {
 		bnds = bnds[:len(params)]
 	}
+	stmt.Lock()
+	stmt.bnds = bnds
+	stmt.Unlock()
 	for n = range params {
 		//stmt.logF(_drv.Cfg().Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := params[n].(type) {
@@ -1276,18 +1279,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				err = stmt.setNilBind(n, C.SQLT_CHR)
 			} else {
 				t := reflect.TypeOf(params[n])
-				if t.Kind() == reflect.Slice {
-					if t.Elem().Kind() == reflect.Interface {
-						return iterations, errF("Invalid bind parameter. ([]interface{}) (%v).", params[n])
-					}
+				if t.Kind() == reflect.Slice &&
+					t.Elem().Kind() == reflect.Interface {
+					return iterations, errF("Invalid bind parameter. ([]interface{}) (%v).", params[n])
 				}
 				return iterations, errF("Invalid bind parameter (%v) (%T:%v).", t.Name(), params[n], params[n])
 			}
 		}
 	}
-	stmt.Lock()
-	stmt.bnds = bnds
-	stmt.Unlock()
 
 	return iterations, err
 }
