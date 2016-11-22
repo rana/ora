@@ -128,7 +128,7 @@ func (rset *Rset) closeWithRemove() (err error) {
 
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
-	rset.log(_drv.Cfg().Log.Rset.Close)
+	rset.log(_drv.Cfg().Log.Rset.Close, getStack())
 	//rset.mu.Lock()
 	//defer rset.mu.Unlock()
 	defer func() {
@@ -156,7 +156,7 @@ func (rset *Rset) close() (err error) {
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
-	rset.Index = -1
+	//rset.Index = -1  // either reset it, or use it after rset.Next() returned false (io.EOF)
 	rset.Row = nil
 	rset.Columns = nil
 	// do not clear error in case of autoClose when error exists
@@ -272,7 +272,7 @@ func (rset *Rset) Next() bool {
 	}
 	err := rset.beginRow()
 	defer rset.endRow()
-	//rset.logF(_drv.Cfg().Log.Rset.Next, "beginRow=%v", err)
+	rset.logF(_drv.Cfg().Log.Rset.Next, "beginRow=%v", err)
 	if err != nil {
 		// io.EOF means no more data; return nil err
 		if err == io.EOF {
@@ -436,6 +436,7 @@ Loop:
 	}
 
 	cfg := rset.stmt.Cfg()
+	//rset.logF(_drv.Cfg().Log.Rset.Open, "cfg=%#v", cfg)
 	for n := range rset.defs {
 		ocipar := params[n].param
 		ociTypeCode := params[n].typeCode

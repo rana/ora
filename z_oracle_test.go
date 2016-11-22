@@ -812,7 +812,8 @@ func createTableSql(tableName string, multiple int, columns ...oracleColumnType)
 }
 
 func tableName() string {
-	return tableNamePrefix + strconv.FormatUint(uint64(atomic.AddUint32(&testTableID, 1)), 10)
+	nm := tableNamePrefix + strconv.FormatUint(uint64(atomic.AddUint32(&testTableID, 1)), 10)
+	return nm
 }
 
 func testErr(err error, t testing.TB, expectedErrs ...error) {

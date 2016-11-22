@@ -7,6 +7,10 @@ package ora_test
 import (
 	"fmt"
 	"testing"
+
+	ora "gopkg.in/rana/ora.v3"
+
+	"github.com/pkg/errors"
 )
 
 func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
@@ -129,13 +133,24 @@ func TestStmt_Exe_select(t *testing.T) {
 	}
 
 	// fetch records
-	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
-	defer stmt.Close()
-	testErr(err, t)
-	rset, err := stmt.Qry()
-	testErr(err, t)
+	qry := fmt.Sprintf("select c1 from %v", tableName)
 
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+	cfg := oCfg
+	cfg.Log.Rset.Next = true
+	ora.SetCfg(cfg)
+	enableLogging(t)
+
+	stmt, err = testSes.Prep(qry)
+	testErr(errors.Wrap(err, qry), t)
+	defer stmt.Close()
+	rset, err := stmt.Qry()
+	testErr(errors.Wrap(err, qry), t)
+
+	var length int
 	for rset.Next() {
+		length++
 		switch rset.Index {
 		case 0:
 			compare_int64(int64(9), rset.Row[0], t)
@@ -143,8 +158,8 @@ func TestStmt_Exe_select(t *testing.T) {
 			compare_int64(int64(11), rset.Row[0], t)
 		}
 	}
-	if 2 != rset.Len() {
-		t.Fatalf("rows affected: expected(%v), actual(%v)", 2, rset.Len())
+	if 2 != length {
+		t.Fatalf("rows affected: expected(%v), actual(%v) err=%+v\n%s", 2, rset.Len(), rset.Err, qry)
 	}
 }
 

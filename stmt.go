@@ -308,15 +308,9 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	}
 	ses := stmt.ses
 	ses.mu.Lock()
-	srv := ses.srv
 	ocisvcctx := ses.ocisvcctx
+	env := ses.srv.env
 	ses.mu.Unlock()
-	srv.mu.Lock()
-	env := srv.env
-	srv.mu.Unlock()
-	env.mu.Lock()
-	ocierr := env.ocierr
-	env.mu.Unlock()
 
 	// Query statement on Oracle server
 	r := C.OCIStmtExecute(
@@ -324,7 +318,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 		ocisvcctx,    //OCISvcCtx           *svchp,
 		stmt.ocistmt, //OCIStmt             *stmtp,
 		//stmt.ses.srv.env.ocierr, //OCIError            *errhp,
-		ocierr,        //OCIError            *errhp,
+		env.ocierr,    //OCIError            *errhp,
 		C.ub4(0),      //ub4                 iters,
 		C.ub4(0),      //ub4                 rowoff,
 		nil,           //const OCISnapshot   *snap_in,
