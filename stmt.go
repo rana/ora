@@ -234,12 +234,14 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 		return 0, 0, errE(err)
 	}
 	var mode C.ub4 // determine auto-commit state; don't auto-comit if there's an explicit user transaction occuring
+	var autoCommit bool
 	if stmt.Cfg().IsAutoCommitting && stmt.ses.openTxs.len() == 0 {
 		mode = C.OCI_COMMIT_ON_SUCCESS
+		autoCommit = true
 	} else {
 		mode = C.OCI_DEFAULT
 	}
-	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "iterations=%d", iterations)
+	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "iterations=%d autoCommit=%t", iterations, autoCommit)
 	// Execute statement on Oracle server
 	r := C.OCIStmtExecute(
 		stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
