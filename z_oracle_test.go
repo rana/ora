@@ -3345,6 +3345,7 @@ func TestLobSelect(t *testing.T) {
 		}
 	}
 
+	//enableLogging(t)
 	cfg.SetBlob(ora.D)
 	ora.SetCfg(cfg)
 
@@ -3392,7 +3393,7 @@ func TestLobSelectString(t *testing.T) {
 	}
 
 	oCfg := ora.Cfg()
-	defer func() { ora.SetCfg(oCfg) }()
+	defer ora.SetCfg(oCfg)
 
 	cfg := oCfg
 	cfg.SetClob(ora.D)
