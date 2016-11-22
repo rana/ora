@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -96,15 +97,22 @@ Loop:
 }
 
 func TestSelectOrder(t *testing.T) {
+	t.Parallel()
 	const limit = 1013
 	var cnt int64
-	if err := testDb.QueryRow("SELECT count(0) FROM all_objects").Scan(&cnt); err != nil {
+	tbl := "user_objects"
+	start := time.Now()
+	if err := testDb.QueryRow("SELECT count(0) FROM " + tbl).Scan(&cnt); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("all_objects rowcount=%d", cnt)
-	qry := "SELECT ROWNUM FROM all_objects"
+	t.Logf("%s rowcount=%d (%s)", tbl, cnt, time.Since(start))
+	if cnt == 0 {
+		cnt = 10
+		tbl = "(SELECT 1 FROM DUAL" + strings.Repeat("UNION ALL SELECT 1 FROM DUAL", int(cnt)-1) + ")"
+	}
+	qry := "SELECT ROWNUM FROM " + tbl
 	for i := cnt; i < limit; i *= cnt {
-		qry += ", all_objects"
+		qry += ", " + tbl
 	}
 	t.Logf("qry=%s", qry)
 	rows, err := testDb.Query(qry)
@@ -113,7 +121,6 @@ func TestSelectOrder(t *testing.T) {
 	}
 	defer rows.Close()
 	i := 0
-	enableLogging(t)
 	for rows.Next() {
 		var rn int
 		if err = rows.Scan(&rn); err != nil {

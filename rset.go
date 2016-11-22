@@ -323,6 +323,8 @@ func (rset *Rset) Next() bool {
 		return false
 	}
 	// populate column values
+	rset.Lock()
+	defer rset.Unlock()
 	for n, define := range rset.defs {
 		value, err := define.value(int(rset.offset))
 		//rset.logF(_drv.Cfg().Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
