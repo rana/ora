@@ -65,7 +65,7 @@ func Test_cursor1_session(t *testing.T) {
 		expectedStrs = expectedStrs[1:]
 		expectedInt64s = expectedInt64s[1:]
 	}
-	testErr(rset.Err, t)
+	testErr(rset.Err(), t)
 	if len(expectedStrs) > 0 {
 		t.Errorf("didn't get wanted %v", expectedStrs)
 	}

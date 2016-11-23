@@ -89,7 +89,7 @@ type Rset struct {
 	Row             []interface{}
 	Columns         []Column
 	index           int64
-	Err             error
+	err             error
 	fetched, offset int64
 	fetchLen        int
 	finished        bool
@@ -103,6 +103,14 @@ type Column struct {
 	Length    uint32
 	Precision C.sb2
 	Scale     C.sb1
+}
+
+// Err returns the last error of the reesult set.
+func (rset *Rset) Err() error {
+	rset.RLock()
+	err := rset.err
+	rset.RUnlock()
+	return err
 }
 
 // Len returns the number of rows retrieved.
@@ -176,7 +184,7 @@ func (rset *Rset) close() (err error) {
 	rset.Unlock()
 	// do not clear error in case of autoClose when error exists
 	// clear error when rset in initialized
-	//rset.Err = nil
+	//rset.err = nil
 	m := newMultiErrL(errs)
 	if m != nil {
 		err = *m
@@ -267,8 +275,8 @@ func (rset *Rset) endRow() {
 	rset.RLock()
 	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
 	defs := rset.defs
+	rset.offset++
 	rset.RUnlock()
-	atomic.AddInt64(&rset.offset, 1)
 	if !done {
 		return
 	}
@@ -305,12 +313,12 @@ func (rset *Rset) Exhaust() {
 // Retrieve the loaded row from the Rset.Row field. Rset.Row is updated
 // on each call to Next. Rset.Row is set to nil when Next returns false.
 //
-// When Next returns false check Rset.Err for any error that may have occured.
+// When Next returns false check Rset.Err() for any error that may have occured.
 func (rset *Rset) Next() bool {
 	rset.log(_drv.Cfg().Log.Rset.Next)
 	erase := func(err error) {
 		rset.Lock()
-		rset.Err = err
+		rset.err = err
 		rset.Row = nil
 		autoClose := rset.autoClose
 		// closing the Stmt will close this (and all) Rsets under it!
@@ -358,7 +366,7 @@ func (rset *Rset) Next() bool {
 // NextRow attempts to load a row from the Oracle buffer and return the row.
 // Nil is returned when there's no data.
 //
-// When NextRow returns nil check Rset.Err for any error that may have occured.
+// When NextRow returns nil check Rset.Err() for any error that may have occured.
 func (rset *Rset) NextRow() []interface{} {
 	rset.Next()
 	rset.RLock()
@@ -386,7 +394,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.offset = 0
 	rset.fetched = 0
 	rset.finished = false
-	rset.Err = nil
+	rset.err = nil
 	rset.log(_drv.Cfg().Log.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(

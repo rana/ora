@@ -305,8 +305,8 @@ An example of using the ora package directly:
 		for rset.Next() {
 			fmt.Println(rset.Row[0], rset.Row[1])
 		}
-		if rset.Err != nil {
-			panic(rset.Err)
+		if err := rset.Err(); err != nil {
+			panic(err)
 		}
 
 		// commit first transaction
@@ -354,8 +354,8 @@ An example of using the ora package directly:
 		if row != nil {
 			fmt.Println(row[0])
 		}
-		if rset.Err != nil {
-			panic(rset.Err)
+		if err := rset.Err(); err != nil {
+			panic(err)
 		}
 
 		// create stored procedure with sys_refcursor
@@ -386,8 +386,8 @@ An example of using the ora package directly:
 			for procRset.Next() {
 				fmt.Println(procRset.Row[0], procRset.Row[1])
 			}
-			if procRset.Err != nil {
-				panic(procRset.Err)
+			if err := procRset.Err(); err != nil {
+				panic(err)
 			}
 			fmt.Println(procRset.Len())
 		}

@@ -159,7 +159,7 @@ func TestStmt_Exe_select(t *testing.T) {
 		}
 	}
 	if 2 != length {
-		t.Fatalf("rows affected: expected(%v), actual(%v) err=%+v\n%s", 2, rset.Len(), rset.Err, qry)
+		t.Fatalf("rows affected: expected(%v), actual(%v) err=%+v\n%s", 2, rset.Len(), rset.Err(), qry)
 	}
 }
 

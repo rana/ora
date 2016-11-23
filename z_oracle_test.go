@@ -215,7 +215,7 @@ func init() {
 		panic(fmt.Sprintf("initError: %v", err))
 	}
 
-	//ora.Cfg().Env.StmtCfg.RTrimChar = false
+	//ora.SetCfg(func() StmtCfg { cfg = ora.Cfg(); cfg.RTrimChar = false; return cfg }())
 
 	// load session time zone
 	testDbsessiontimezone, err = loadDbtimezone()
@@ -481,7 +481,7 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 
 		// validate
 		hasRow := rset.Next()
-		testErr(errors.Wrapf(rset.Err, "%q %v", qry, params), t)
+		testErr(errors.Wrapf(rset.Err(), "%q %v", qry, params), t)
 		if !hasRow {
 			t.Fatalf("no row returned")
 		} else if len(rset.Row) != len(selectStmt.Gcts()) {
@@ -622,7 +622,7 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 					}
 				}
 			}
-			testErr(errors.Wrap(rset.Err, sql.String()), t)
+			testErr(errors.Wrap(rset.Err(), sql.String()), t)
 			fetchStmt.Close()
 
 			// Reduce the multiple by half
@@ -719,7 +719,7 @@ func validate(expected interface{}, rset *ora.Rset, t *testing.T) {
 			}
 		}
 	}
-	testErr(rset.Err, t)
+	testErr(rset.Err(), t)
 }
 
 func compare2(expected interface{}, actual interface{}, t *testing.T) {
@@ -3352,12 +3352,10 @@ func TestLobSelect(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
+	cfg := ora.Cfg()
+	defer ora.SetCfg(cfg)
 
-	cfg := oCfg
-	cfg.SetBlob(ora.Bin)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetBlob(ora.Bin))
 
 	// SELECT into []byte
 	{
@@ -3379,8 +3377,7 @@ func TestLobSelect(t *testing.T) {
 	}
 
 	//enableLogging(t)
-	cfg.SetBlob(ora.D)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetBlob(ora.D))
 
 	// SELECT into io.ReadCloser
 	{
@@ -3425,12 +3422,10 @@ func TestLobSelectString(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
+	cfg := ora.Cfg()
+	defer ora.SetCfg(cfg)
 
-	cfg := oCfg
-	cfg.SetClob(ora.D)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetClob(ora.D))
 
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
@@ -3460,8 +3455,7 @@ func TestLobSelectString(t *testing.T) {
 	}
 
 	// SELECT into string
-	cfg.SetClob(ora.S)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetClob(ora.S))
 
 	rows, err = testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
@@ -3618,9 +3612,7 @@ func TestIntFloat(t *testing.T) {
 			t.Fatalf("INSERT %#v: %v", numbers, err)
 		}
 	}
-	cfg := ora.Cfg()
-	cfg.SetFloat(ora.N)
-	ora.SetCfg(cfg)
+	ora.SetCfg(ora.Cfg().SetFloat(ora.N))
 	rows, err := testDb.Query("SELECT * FROM " + tbl)
 	if err != nil {
 		t.Fatal(err)
@@ -3659,12 +3651,10 @@ func TestSetDrvCfg(t *testing.T) {
 	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
 
 	enableLogging(t)
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
-	cfg := oCfg
+	cfg := ora.Cfg()
+	defer ora.SetCfg(cfg)
 
-	cfg.SetChar1(ora.B)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetChar1(ora.B))
 	if got := ora.Cfg().Char1(); got != ora.B {
 		t.Fatalf("SetChar1: got %v, wanted %v", got, ora.B)
 	}
@@ -3673,8 +3663,7 @@ func TestSetDrvCfg(t *testing.T) {
 		t.Fatalf("%s: %v", qry, err)
 	}
 
-	cfg.SetChar1(ora.S)
-	ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetChar1(ora.S))
 	if got := ora.Cfg().Char1(); got != ora.S {
 		t.Fatalf("SetChar1: got %v, wanted %v", got, ora.S)
 	}

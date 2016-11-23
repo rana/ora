@@ -73,12 +73,13 @@ func NewRsetCfg() RsetCfg {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberInt(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.numberInt = gct
+func (c RsetCfg) SetNumberInt(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		c.Err = err
+		return c
 	}
-	return err
+	c.numberInt = gct
+	return c
 }
 
 // NumberInt returns a GoColumnType associated to an Oracle select-list

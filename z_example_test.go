@@ -471,7 +471,7 @@ func ExampleStmt_Exe_insert_fetch_blob() {
 	defer stmt.Close()
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
-	if err := rset.Err; err != nil {
+	if err := rset.Err(); err != nil {
 		fmt.Printf("ERROR: %v", err)
 	} else {
 		fmt.Println(row[0].([]byte))
@@ -1786,8 +1786,8 @@ func Example() {
 	for rset.Next() {
 		fmt.Println(rset.Row[0], emptyString(rset.Row[1].(string)))
 	}
-	if rset.Err != nil {
-		panic(rset.Err)
+	if rset.Err() != nil {
+		panic(rset.Err())
 	}
 
 	// commit first transaction
@@ -1835,8 +1835,8 @@ func Example() {
 	if row != nil {
 		fmt.Println(row[0])
 	}
-	if rset.Err != nil {
-		panic(rset.Err)
+	if rset.Err() != nil {
+		panic(rset.Err())
 	}
 
 	// create stored procedure with sys_refcursor

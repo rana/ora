@@ -58,7 +58,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 		rset, err := selectStmt.Qry()
 		testErr(err, t)
 		hasRow := rset.Next()
-		testErr(rset.Err, t)
+		testErr(rset.Err(), t)
 		if !hasRow {
 			t.Fatalf("no row returned")
 		} else if len(rset.Row) != 1 {
@@ -88,7 +88,7 @@ func testRowid(isUrowid bool, t *testing.T) {
 			rset2, err := stmtSelect2.Qry()
 			testErr(err, t)
 			rset2.Next()
-			testErr(rset2.Err, t)
+			testErr(rset2.Err(), t)
 			c1, ok := rset2.Row[0].(string)
 			if !ok {
 				t.Fatalf("Expected string for c1 column. (%s, %v)", reflect.TypeOf(rset2.Row[0]).Name(), rset2.Row[0])

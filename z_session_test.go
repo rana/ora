@@ -79,7 +79,7 @@ func Test_open_cursors(t *testing.T) {
 			for rset.Next() {
 				j++
 			}
-			//t.Logf("%d objects, error=%v", j, rset.Err)
+			//t.Logf("%d objects, error=%v", j, rset.Err())
 		}()
 	}
 	rset, err = ses.PrepAndQry("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
@@ -412,5 +412,5 @@ func GetCompileErrors(ses *ora.Ses, all bool) ([]CompileError, error) {
 			errors = append(errors, ce)
 		}
 	}
-	return errors, rows.Err
+	return errors, rows.Err()
 }

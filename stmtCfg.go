@@ -8,6 +8,9 @@ package ora
 //
 // Assign values to StmtCfg prior to calling Stmt.Exe
 // and Stmt.Qry for the configuration values to take effect.
+//
+// StmtCfg is not modifyable, so every Set method returns a new
+// instance, maybe with Err set, too.
 type StmtCfg struct {
 	prefetchRowCount    uint32
 	prefetchMemorySize  uint32
@@ -45,6 +48,9 @@ type StmtCfg struct {
 
 	// Rset represents configuration options for an Rset struct.
 	RsetCfg
+
+	// Err is the error from the last Set... call, if there's any.
+	Err error
 }
 
 // NewStmtCfg returns a StmtCfg with default values.
@@ -68,9 +74,9 @@ func NewStmtCfg() StmtCfg {
 func (c StmtCfg) IsZero() bool { return c.prefetchRowCount == 0 && c.prefetchMemorySize == 0 }
 
 // SetPrefetchRowCount sets the number of rows to prefetch during a select query.
-func (c *StmtCfg) SetPrefetchRowCount(prefetchRowCount uint32) error {
+func (c StmtCfg) SetPrefetchRowCount(prefetchRowCount uint32) StmtCfg {
 	c.prefetchRowCount = prefetchRowCount
-	return nil
+	return c
 }
 
 // PrefetchRowCount returns the number of rows to prefetch during a select query.
@@ -80,15 +86,15 @@ func (c *StmtCfg) SetPrefetchRowCount(prefetchRowCount uint32) error {
 // PrefetchRowCount works in coordination with PrefetchMemorySize. When
 // PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 // otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
-func (c *StmtCfg) PrefetchRowCount() uint32 {
+func (c StmtCfg) PrefetchRowCount() uint32 {
 	return c.prefetchRowCount
 }
 
 // SetPrefetchMemorySize sets the prefetch memory size in bytes used during a SQL
 // select command.
-func (c *StmtCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) error {
+func (c StmtCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) StmtCfg {
 	c.prefetchMemorySize = prefetchMemorySize
-	return nil
+	return c
 }
 
 // PrefetchMemorySize returns the prefetch memory size in bytes used during a SQL
@@ -99,7 +105,7 @@ func (c *StmtCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) error {
 // PrefetchMemorySize works in coordination with PrefetchRowCount. When
 // PrefetchRowCount is set to zero only PrefetchMemorySize is used;
 // otherwise, the minimum of PrefetchRowCount and PrefetchMemorySize is used.
-func (c *StmtCfg) PrefetchMemorySize() uint32 {
+func (c StmtCfg) PrefetchMemorySize() uint32 {
 	return c.prefetchMemorySize
 }
 
@@ -108,17 +114,19 @@ func (c *StmtCfg) PrefetchMemorySize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is less than 1 or greater than 2,147,483,642.
-func (c *StmtCfg) SetLongBufferSize(size uint32) error {
+func (c StmtCfg) SetLongBufferSize(size uint32) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		return errNew("long buffer size too large")
+		c.Err = errNew("long buffer size too large")
+		return c
 	}
 	if size < 1 {
-		return errNew("SetLongBufferSize parameter 'size' must be greater than zero")
+		c.Err = errNew("SetLongBufferSize parameter 'size' must be greater than zero")
+		return c
 	}
 	c.longBufferSize = size
-	return nil
+	return c
 }
 
 // LongBufferSize returns the long buffer size in bytes used to define the sql select-column
@@ -128,7 +136,7 @@ func (c *StmtCfg) SetLongBufferSize(size uint32) error {
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (c *StmtCfg) LongBufferSize() uint32 {
+func (c StmtCfg) LongBufferSize() uint32 {
 	return c.longBufferSize
 }
 
@@ -137,14 +145,15 @@ func (c *StmtCfg) LongBufferSize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is greater than 2,147,483,642.
-func (c *StmtCfg) SetLongRawBufferSize(size uint32) error {
+func (c StmtCfg) SetLongRawBufferSize(size uint32) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		return errNew("long raw buffer size too large")
+		c.Err = errNew("long raw buffer size too large")
+		return c
 	}
 	c.longRawBufferSize = size
-	return nil
+	return c
 }
 
 // LongRawBufferSize returns the LONG RAW buffer size in bytes used to define the sql select-column
@@ -154,7 +163,7 @@ func (c *StmtCfg) SetLongRawBufferSize(size uint32) error {
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (c *StmtCfg) LongRawBufferSize() uint32 {
+func (c StmtCfg) LongRawBufferSize() uint32 {
 	return c.longRawBufferSize
 }
 
@@ -163,14 +172,15 @@ func (c *StmtCfg) LongRawBufferSize() uint32 {
 // The maximum is 2,147,483,642 bytes.
 //
 // Returns an error if the specified size is greater than 2,147,483,642.
-func (c *StmtCfg) SetLobBufferSize(size int) error {
+func (c StmtCfg) SetLobBufferSize(size int) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		return errNew("lob buffer size too large")
+		c.Err = errNew("lob buffer size too large")
+		return c
 	}
 	c.lobBufferSize = size
-	return nil
+	return c
 }
 
 // LobBufferSize returns the LOB buffer size in bytes used to define the sql select-column
@@ -180,18 +190,19 @@ func (c *StmtCfg) SetLobBufferSize(size int) error {
 //
 // The default is considered a moderate buffer where the 2GB max buffer may not
 // be feasible on all clients.
-func (c *StmtCfg) LobBufferSize() int {
+func (c StmtCfg) LobBufferSize() int {
 	return c.lobBufferSize
 }
 
 // SetStringPtrBufferSize sets the size of a buffer used to store a string during
 // *string parameter binding and []*string parameter binding in a SQL statement.
-func (c *StmtCfg) SetStringPtrBufferSize(size int) error {
+func (c StmtCfg) SetStringPtrBufferSize(size int) StmtCfg {
 	if size < 1 {
-		return errNew("SetStringPtrBufferSize parameter 'size' must be greater than zero")
+		c.Err = errNew("SetStringPtrBufferSize parameter 'size' must be greater than zero")
+		return c
 	}
 	c.stringPtrBufferSize = size
-	return nil
+	return c
 }
 
 // StringPtrBufferSize returns the size of a buffer in bytes used to store a string
@@ -203,7 +214,7 @@ func (c *StmtCfg) SetStringPtrBufferSize(size int) error {
 // StringPtrBufferSize depending on the Oracle column type. For VARCHAR2,
 // NVARCHAR2, and RAW oracle columns the Oracle MAX_STRING_SIZE is usually 4000
 // but may be set up to 32767.
-func (c *StmtCfg) StringPtrBufferSize() int {
+func (c StmtCfg) StringPtrBufferSize() int {
 	return c.stringPtrBufferSize
 }
 
@@ -212,12 +223,13 @@ func (c *StmtCfg) StringPtrBufferSize() int {
 // Valid values are U8 and Bits.
 //
 // Returns an error if U8 or Bits is not specified.
-func (c *StmtCfg) SetByteSlice(gct GoColumnType) (err error) {
-	err = checkBinOrU8Column(gct)
-	if err == nil {
-		c.byteSlice = gct
+func (c StmtCfg) SetByteSlice(gct GoColumnType) StmtCfg {
+	if err := checkBinOrU8Column(gct); err != nil {
+		c.Err = err
+		return c
 	}
-	return err
+	c.byteSlice = gct
+	return c
 }
 
 // ByteSlice returns a GoColumnType associated to SQL statement []byte parameter.
@@ -230,6 +242,6 @@ func (c *StmtCfg) SetByteSlice(gct GoColumnType) (err error) {
 // requires knowing the destination column type ahead of time. Set ByteSlice to
 // Bits if the destination column is BLOB, RAW or LONG RAW. Set ByteSlice to U8
 // if the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
-func (c *StmtCfg) ByteSlice() GoColumnType {
+func (c StmtCfg) ByteSlice() GoColumnType {
 	return c.byteSlice
 }
