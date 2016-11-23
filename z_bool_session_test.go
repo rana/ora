@@ -116,14 +116,13 @@ var _T_boolGen = map[string](func() interface{}){
 }
 
 func setC1Bool() func() {
-	oCfg := ora.Cfg()
-	old := oCfg.Char1()
-	oCfg.Log.Logger.Infof("setting Char1 from %s to %s.", old, ora.OraB)
-	cfg := oCfg
-	cfg.SetChar1(ora.OraB)
+	cfg := ora.Cfg()
+	old := cfg.Char1()
+	cfg.Log.Logger.Infof("setting Char1 from %s to %s.", old, ora.OraB)
+	ora.SetCfg(cfg.SetChar1(ora.OraB))
 	return func() {
-		ora.Cfg().Log.Logger.Infof("setting Char1 back from %s to %s.", ora.Cfg().Char1(), old)
-		ora.SetCfg(oCfg)
+		cfg.Log.Logger.Infof("setting Char1 back from %s to %s.", ora.Cfg().Char1(), old)
+		ora.SetCfg(cfg)
 	}
 }
 

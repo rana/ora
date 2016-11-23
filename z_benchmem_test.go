@@ -226,12 +226,10 @@ func TestMemoryNumString(t *testing.T) {
 }
 func TestMemoryNumStringI64(t *testing.T) {
 	cfg := ora.Cfg()
-	oCfg := cfg
-	cfg.RsetCfg.SetNumberBigInt(ora.I64)
-	cfg.RsetCfg.SetNumberBigFloat(ora.I64)
-	defer func() {
-		ora.SetCfg(oCfg)
-	}()
+	defer ora.SetCfg(cfg)
+	ora.SetCfg(cfg.
+		SetNumberBigInt(ora.I64).
+		SetNumberBigFloat(ora.I64))
 	n := 1000
 	benchMem(t, n, 1801, `SELECT
 		TO_NUMBER('123456789012345678') bn01

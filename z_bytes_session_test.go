@@ -164,12 +164,10 @@ var _T_bytesGen = map[string](func() interface{}){
 
 func TestBindDefine_bytes_blob_size(t *testing.T) {
 	sc := ora.NewStmtCfg()
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
-	cfg := oCfg
-	cfg.SetLobBufferSize(1024)
-	ora.SetCfg(cfg)
-	lbs := cfg.LobBufferSize()
+	cfg := ora.Cfg()
+	defer ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetLobBufferSize(1024))
+	lbs := ora.Cfg().LobBufferSize()
 	for _, size := range []int{
 		lbs - 1,
 		lbs,

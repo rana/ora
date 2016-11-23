@@ -508,7 +508,7 @@ func ExampleStmt_Exe_insert_fetch_byteSlice() {
 	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
 	defer stmt.Close()
 	stmtCfg := stmt.Cfg()
-	stmtCfg.SetByteSlice(ora.U8)
+	stmtCfg = stmtCfg.SetByteSlice(ora.U8)
 	stmt.SetCfg(stmtCfg)
 	rowsAffected, _ := stmt.Exe(a)
 	fmt.Println(rowsAffected)
@@ -537,7 +537,7 @@ func ExampleStmt_Qry() {
 
 	cfg := ses.Cfg()
 	defer ses.SetCfg(cfg)
-	cfg.SetChar1(ora.B)
+	cfg = cfg.SetChar1(ora.B)
 	ses.SetCfg(cfg)
 
 	// create table

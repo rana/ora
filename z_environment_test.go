@@ -89,13 +89,12 @@ func TestEnv_SrvCfg(t *testing.T) {
 	defer srv.Close()
 	srvCfg := srv.Cfg()
 	old := srvCfg.NumberBigFloat()
-	defer srvCfg.SetNumberBigFloat(old)
 
 	x := ora.F64
-	srvCfg.SetNumberBigFloat(x)
+	srvCfg.StmtCfg = srvCfg.StmtCfg.SetNumberBigFloat(x)
 	srv.SetCfg(srvCfg)
 	if y := srvCfg.NumberBigFloat(); y != x {
-		t.Fatalf("srvCfg: wanted %s, got %s", x, y)
+		t.Fatalf("srvCfg: wanted %s, got %s (%v)", x, y, srvCfg.Err)
 	}
 	sesCfg := testSesCfg
 	sesCfg.StmtCfg = srvCfg.StmtCfg

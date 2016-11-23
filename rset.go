@@ -229,6 +229,7 @@ func (rset *Rset) beginRow() (err error) {
 
 	rset.Lock()
 	defer rset.Unlock()
+	rset.stmt.RLock()
 	rset.finished = false
 	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
@@ -238,6 +239,7 @@ func (rset *Rset) beginRow() (err error) {
 		C.OCI_FETCH_NEXT,             //ub2         orientation,
 		C.sb4(0),                     //sb4         fetchOffset,
 		C.OCI_DEFAULT)                //ub4         mode );
+	rset.stmt.RUnlock()
 	if r == C.OCI_ERROR {
 		err := rset.stmt.ses.srv.env.ociError()
 		return err

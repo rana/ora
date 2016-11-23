@@ -295,11 +295,9 @@ func Test_db(t *testing.T) {
 		}
 	}
 
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
-	cfg := oCfg
-	cfg.SetChar1(ora.B)
-	ora.SetCfg(cfg)
+	cfg := ora.Cfg()
+	defer ora.SetCfg(cfg)
+	ora.SetCfg(cfg.SetChar1(ora.B))
 	for _, ctName := range []string{
 		"charB1", "charB1Null",
 		"charC1", "charC1Null",
