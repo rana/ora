@@ -175,9 +175,7 @@ var testWorkloadColumnCount int
 var testSes *ora.Ses
 var testDb *sql.DB
 
-const tableNameBase = "test_"
-
-var tableNamePrefix = fmt.Sprintf(tableNameBase+"%d_", os.Getpid())
+var tableNamePrefix = fmt.Sprintf("test_%d_", os.Getpid())
 
 func init() {
 	testSrvCfg = ora.SrvCfg{
@@ -228,7 +226,7 @@ func init() {
 	fmt.Println("Dropping previous tables...")
 	stmt, err := testSes.Prep(`
 BEGIN
-	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE UPPER('` + tableNameBase + `')||'%') LOOP
+	FOR c IN (SELECT table_name FROM user_tables WHERE TABLE_NAME LIKE UPPER('` + tableNamePrefix + `')||'%') LOOP
 		EXECUTE IMMEDIATE ('DROP TABLE ' || c.table_name || ' CASCADE CONSTRAINTS');
 	END LOOP;
 END;`)
@@ -2631,8 +2629,9 @@ func TestFils(t *testing.T) {
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'nam e': u'h_wt_pct', 'nullable': True
 	// https://gist.github.com/fils/ffb99e48bc3e994d54f1
 
-	testDb.Exec(`DROP TABLE test_janus`)
-	if _, err := testDb.Exec(`CREATE TABLE test_janus (
+	tableName := tableName()
+	testDb.Exec(`DROP TABLE ` + tableName)
+	if _, err := testDb.Exec(`CREATE TABLE ` + tableName + ` (
 		leg NUMBER(5),
 		site NUMBER(6),
 		hole VARCHAR2(1),
@@ -2653,7 +2652,7 @@ func TestFils(t *testing.T) {
 	)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	if _, err := testDb.Exec(`INSERT INTO ` + tableName + ` (
 		leg, site, hole, core, core_type, section_number,
 		section_type, top_cm, bot_cm, depth_mbsf,
 		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
@@ -2665,7 +2664,7 @@ func TestFils(t *testing.T) {
 
 	//enableLogging(t)
 
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	if _, err := testDb.Exec(`INSERT INTO ` + tableName + ` (
 		leg, site, hole, core, core_type, section_number,
 		section_type, top_cm, bot_cm, depth_mbsf,
 		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
@@ -2688,7 +2687,7 @@ func TestFils(t *testing.T) {
 	 , sul_wt_pct
 	 , h_wt_pct
 	FROM
-	   test_janus
+	   ` + tableName + `
 	WHERE
 	       leg = 171
 	    AND site = 1049
@@ -2739,10 +2738,25 @@ func TestFils(t *testing.T) {
 }
 
 func TestFilsIssue36(t *testing.T) {
-	testDb.Exec(`DROP TABLE test_janus`)
-	testDb.Exec(`DROP VIEW test_janus_v`)
+	tableName := tableName()
+	testDb.Exec(`DROP TABLE ` + tableName)
+	testDb.Exec(`DROP VIEW ` + tableName + `_v`)
 
-	if _, err := testDb.Exec(`CREATE TABLE test_janus (
+	checkErr := func(err error, qry string) {
+		if err == nil {
+			return
+		}
+		errS := err.Error()
+		if qry != "" {
+			err = errors.Wrap(err, qry)
+		}
+		if strings.Contains(errS, "ORA-01031:") {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+
+	qry := `CREATE TABLE ` + tableName + ` (
 		leg NUMBER(5),
 		site NUMBER(6),
 		hole VARCHAR2(1),
@@ -2760,41 +2774,48 @@ func TestFilsIssue36(t *testing.T) {
 		nit_wt_pct NUMBER NULL,
 		sul_wt_pct NUMBER NULL,
 		h_wt_pct NUMBER(6,3) NULL
-	)`); err != nil {
-		t.Fatal(err)
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		checkErr(err, qry)
 	}
 
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	qry = `INSERT INTO ` + tableName + ` (
 		leg, site, hole, core, core_type, section_number,
 		section_type, top_cm, bot_cm, depth_mbsf,
 		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
 		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (207, 1259, 'C', 3, 'B', 4, '@', 5.2, NULL, 7.6, 8., 9., 10., 11., NULL , 13., 14.)`,
-	); err != nil {
-		t.Fatal(err)
+	VALUES (207, 1259, 'C', 3, 'B', 4, '@', 5.2, NULL, 7.6, 8., 9., 10., 11., NULL , 13., 14.)`
+	if _, err := testDb.Exec(qry); err != nil {
+		checkErr(err, qry)
 	}
 
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	qry = `INSERT INTO ` + tableName + ` (
 		leg, site, hole, core, core_type, section_number,
 		section_type, top_cm, bot_cm, depth_mbsf,
 		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
 		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (171, 1049, 'B', 3, 'B', 4.2, '@', NULL, 6.12, 7.12, 8, 9.99, NULL, 11., NULL , 0.8, 0.42)`,
-	); err != nil {
-		t.Fatal(err)
+	VALUES (171, 1049, 'B', 3, 'B', 4.2, '@', NULL, 6.12, 7.12, 8, 9.99, NULL, 11., NULL , 0.8, 0.42)`
+	if _, err := testDb.Exec(qry); err != nil {
+		checkErr(err, qry)
 	}
 
-	if _, err := testDb.Exec(`CREATE VIEW test_janus_v AS SELECT * FROM test_janus`); err != nil {
-		t.Fatal(err)
+	qry = `CREATE VIEW ` + tableName + `_v AS SELECT * FROM ` + tableName + ``
+	if _, err := testDb.Exec(qry); err != nil {
+		checkErr(err, qry)
 	}
 
-	testDb.Exec(`DROP TABLE ocd_hole_test`)
-	testDb.Exec(`DROP TABLE ocd_section_test`)
-	testDb.Exec(`DROP TABLE ocd_sample_test`)
-	testDb.Exec(`DROP TABLE ocd_chem_carb_sample_test`)
-	testDb.Exec(`DROP TABLE ocd_chem_carb_analysis_test`)
+	ocdHole := tableName + "_h"
+	ocdSection := tableName + "_s"
+	ocdSample := tableName + "_sm"
+	ocdChemCarbSample := tableName + "_ccs"
+	ocdChemCarbAnalysis := tableName + "_cca"
+	testDb.Exec(`DROP TABLE ` + ocdHole)
+	testDb.Exec(`DROP TABLE ` + ocdSection)
+	testDb.Exec(`DROP TABLE ` + ocdSample)
+	testDb.Exec(`DROP TABLE ` + ocdChemCarbSample)
+	testDb.Exec(`DROP TABLE ` + ocdChemCarbAnalysis)
 
-	if _, err := testDb.Exec(`CREATE TABLE ocd_hole_test (
+	if _, err := testDb.Exec(`CREATE TABLE ` + ocdHole + ` (
  LEG    NUMBER(5) NOT NULL,
  SITE   NUMBER(6) NOT NULL,
  HOLE   VARCHAR2(1) NOT NULL
@@ -2802,7 +2823,7 @@ func TestFilsIssue36(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := testDb.Exec(`CREATE TABLE ocd_section_test (
+	if _, err := testDb.Exec(`CREATE TABLE ` + ocdSection + ` (
  SECTION_ID       NUMBER(7) NOT NULL,
  SECTION_NUMBER   NUMBER(2) NOT NULL,
  SECTION_TYPE     VARCHAR2(2),
@@ -2815,7 +2836,7 @@ func TestFilsIssue36(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := testDb.Exec(`CREATE TABLE ocd_sample_test (
+	if _, err := testDb.Exec(`CREATE TABLE ` + ocdSample + ` (
  SAMPLE_ID               NUMBER(9) NOT NULL,
  LOCATION                VARCHAR2(3) NOT NULL,
  SAM_SECTION_ID          NUMBER(7),
@@ -2825,7 +2846,7 @@ func TestFilsIssue36(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := testDb.Exec(`CREATE TABLE ocd_chem_carb_sample_test (
+	if _, err := testDb.Exec(`CREATE TABLE ` + ocdChemCarbSample + ` (
  RUN_ID                  NUMBER(9) NOT NULL,
  SAMPLE_ID               NUMBER(9) NOT NULL,
  LOCATION                VARCHAR2(3) NOT NULL
@@ -2833,7 +2854,7 @@ func TestFilsIssue36(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := testDb.Exec(`CREATE TABLE ocd_chem_carb_analysis_test (
+	if _, err := testDb.Exec(`CREATE TABLE ` + ocdChemCarbAnalysis + ` (
  RUN_ID                  NUMBER(9) NOT NULL,
  ANALYSIS_CODE           VARCHAR2(15) NOT NULL,
  METHOD_CODE             VARCHAR2(10) NOT NULL,
@@ -2844,8 +2865,8 @@ func TestFilsIssue36(t *testing.T) {
 
 	// create the views
 
-	testDb.Exec(`DROP PUBLIC SYNONYM ocd_chem_carb_test`)
-	testDb.Exec(`DROP VIEW ocd_chem_carb_test_v`)
+	testDb.Exec(`DROP PUBLIC SYNONYM ` + ocdChemCarbSample)
+	testDb.Exec(`DROP VIEW ` + ocdChemCarbSample + `_v`)
 
 	for i, line := range []struct {
 		id               int
@@ -3106,8 +3127,9 @@ func TestFilsIssue36(t *testing.T) {
 		{8176, "TMX", "RE", 445},
 		{8176, "TOC", "RE", 0.06},
 	} {
-		if _, err := testDb.Exec(`INSERT INTO ocd_chem_carb_analysis_test (RUN_ID,ANALYSIS_CODE,METHOD_CODE,ANALYSIS_RESULT) VALUES (:1, :2, :3, :4)`, line.id, line.analysis, line.method, line.result); err != nil {
-			t.Fatalf("INSERT INTO ocd_chem_carb_analysis_test, line %d: %v", i, err)
+		qry := `INSERT INTO ` + ocdChemCarbAnalysis + ` (RUN_ID,ANALYSIS_CODE,METHOD_CODE,ANALYSIS_RESULT) VALUES (:1, :2, :3, :4)`
+		if _, err := testDb.Exec(qry, line.id, line.analysis, line.method, line.result); err != nil {
+			t.Fatalf("%q, line %d: %v", qry, i, err)
 		}
 	}
 
@@ -3145,15 +3167,17 @@ func TestFilsIssue36(t *testing.T) {
 		{8171, 227155, "SHI"},
 		{8176, 227154, "SHI"},
 	} {
-		if _, err := testDb.Exec(`INSERT INTO ocd_chem_carb_sample_test (RUN_ID,SAMPLE_ID,LOCATION) VALUES (:1, :2, :3)`, line.id, line.sample, line.location); err != nil {
-			t.Fatalf("INSERT INTO ocd_chem_carb_sample_test line %d: %v", i, err)
+		qry := `INSERT INTO ` + ocdChemCarbSample + ` (RUN_ID,SAMPLE_ID,LOCATION) VALUES (:1, :2, :3)`
+		if _, err := testDb.Exec(qry, line.id, line.sample, line.location); err != nil {
+			t.Fatalf("%q line %d: %v", qry, i, err)
 		}
 	}
 
 	/////
 
-	if _, err := testDb.Exec(`Insert into OCD_HOLE_TEST (LEG,SITE,HOLE) values (171,1049,'B')`); err != nil {
-		t.Fatal(err)
+	qry = `Insert into ` + ocdHole + ` (LEG,SITE,HOLE) values (171,1049,'B')`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatalf("%q: %v", qry, err)
 	}
 
 	for i, line := range []struct {
@@ -3174,9 +3198,10 @@ func TestFilsIssue36(t *testing.T) {
 		{227154, "SHI", 42830, 0.205, 0.22},
 		{227155, "SHI", 42830, 0.19, 0.205},
 	} {
-		if _, err := testDb.Exec(`INSERT INTO ocd_sample_test (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) VALUES (:1, :2, :3, :4, :5)`,
+		qry := `INSERT INTO ` + ocdSample + ` (SAMPLE_ID,LOCATION,SAM_SECTION_ID,TOP_INTERVAL,BOTTOM_INTERVAL) VALUES (:1, :2, :3, :4, :5)`
+		if _, err := testDb.Exec(qry,
 			line.id, line.location, line.section, line.top, line.bottom); err != nil {
-			t.Fatalf("INSERT INTO ocd_sample_test line %d: %v", i, err)
+			t.Fatalf("%q line %d: %v", qry, i, err)
 		}
 	}
 
@@ -3218,13 +3243,14 @@ func TestFilsIssue36(t *testing.T) {
 		{42830, 3, "C", 171, 1049, "B", 11, "X"},
 		{42830, 3, "C", 171, 1049, "B", 11, "X"},
 	} {
-		if _, err := testDb.Exec(`INSERT INTO ocd_section_test (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
+		qry := `INSERT INTO ` + ocdSection + ` (SECTION_ID,SECTION_NUMBER,SECTION_TYPE,LEG,SITE,HOLE,CORE,CORE_TYPE) VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`
+		if _, err := testDb.Exec(qry,
 			line.id, line.number, line.typ, line.leg, line.site, line.hole, line.core, line.core_typ); err != nil {
-			t.Fatalf("INSERT INTO ocd_section_test line %d: %v", i, err)
+			t.Fatalf("%q line %d: %v", qry, i, err)
 		}
 	}
 
-	if _, err := testDb.Exec(`CREATE VIEW ocd_chem_carb_test_v AS
+	if _, err := testDb.Exec(`CREATE VIEW ` + ocdChemCarbSample + `_v AS
 SELECT
     x.leg, x.site, x.hole
   , x.core, x.core_type
@@ -3239,8 +3265,8 @@ SELECT
   , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
   , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
 FROM
-    ocd_hole_test h, ocd_section_test x, ocd_sample_test s
-  , ocd_chem_carb_sample_test ccs, ocd_chem_carb_analysis_test cca
+    ` + ocdHole + ` h, ` + ocdSection + ` x, ` + ocdSample + ` s
+  , ` + ocdChemCarbSample + ` ccs, ` + ocdChemCarbAnalysis + ` cca
 WHERE
         h.leg = x.leg
     AND h.site = x.site
@@ -3255,7 +3281,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
 		t.Fatal(err)
 	}
 
-	testDb.Exec(`DROP TABLE ocd_chem_carb_test_table`)
+	testDb.Exec(`DROP TABLE ` + ocdChemCarbSample)
 
 	qry3 := `SELECT
             x.leg, x.site, x.hole
@@ -3271,7 +3297,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
           , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
           , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
         FROM
-            ocd_hole_test h, ocd_section_test x, ocd_sample_test s
+            ` + ocdHole + ` h, ` + ocdSection + ` x, ocd_sample_test s
           , ocd_chem_carb_sample_test ccs, ocd_chem_carb_analysis_test cca
         WHERE
                 h.leg = x.leg
@@ -3341,7 +3367,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
 }
 
 func TestLobSelect(t *testing.T) {
-	tbl := "test_lob"
+	tbl := tableName()
 	testDb.Exec("DROP TABLE " + tbl)
 	qry := "CREATE TABLE " + tbl + " (content BLOB)"
 	if _, err := testDb.Exec(qry); err != nil {
@@ -3410,7 +3436,7 @@ func TestLobSelect(t *testing.T) {
 }
 
 func TestLobSelectString(t *testing.T) {
-	tbl := "test_lob"
+	tbl := tableName()
 	testDb.Exec("DROP TABLE " + tbl)
 	qry := "CREATE TABLE " + tbl + " (content CLOB)"
 	if _, err := testDb.Exec(qry); err != nil {
@@ -3476,7 +3502,7 @@ func TestLobSelectString(t *testing.T) {
 }
 
 func TestUnderflow(t *testing.T) {
-	tbl := "test_underflow"
+	tbl := tableName()
 	testDb.Exec(`DROP VIEW ` + tbl + `_view`)
 	testDb.Exec(`DROP TABLE ` + tbl)
 	qry := `CREATE TABLE ` + tbl + ` (
@@ -3584,7 +3610,7 @@ func TestUnderflow(t *testing.T) {
 
 // TestIntFloat: see https://github.com/rana/ora/issues/57#issuecomment-185473949
 func TestIntFloat(t *testing.T) {
-	tbl := "test_intfloat"
+	tbl := tableName()
 	testDb.Exec(`DROP TABLE ` + tbl)
 	qry := `CREATE TABLE ` + tbl + ` (
 			  NUMBER_SIMPLE  NUMBER,
@@ -3678,12 +3704,13 @@ func TestSetDrvCfg(t *testing.T) {
 }
 
 func TestStringSpaces(t *testing.T) {
-	testDb.Exec("DROP TABLE test_string_space")
-	qry := "CREATE TABLE test_string_space (text VARCHAR2(1024) NOT NULL)"
+	tbl := tableName()
+	testDb.Exec("DROP TABLE " + tbl)
+	qry := "CREATE TABLE " + tbl + " (text VARCHAR2(1024) NOT NULL)"
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	insQry := "INSERT INTO test_string_space (text) VALUES (:1)"
+	insQry := "INSERT INTO " + tbl + " (text) VALUES (:1)"
 	texts := []string{"nospace", "onespace ", "twospaces  ", "   "}
 	//enableLogging(t)
 	for i, text := range texts {
@@ -3691,7 +3718,7 @@ func TestStringSpaces(t *testing.T) {
 			t.Fatalf("%d. insert (%q): %v", i, text, err)
 		}
 		var got, dump string
-		if err := testDb.QueryRow("SELECT text, dump(text) FROM test_string_space WHERE text LIKE :1", text[0:]).Scan(&got, &dump); err != nil {
+		if err := testDb.QueryRow("SELECT text, dump(text) FROM "+tbl+" WHERE text LIKE :1", text[0:]).Scan(&got, &dump); err != nil {
 			t.Errorf("%d. select %q: %v", i, text, err)
 			continue
 		}

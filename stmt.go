@@ -83,7 +83,9 @@ func (stmt *Stmt) Cfg() StmtCfg {
 	if c != nil {
 		cfg = c.(StmtCfg)
 	}
+	stmt.RLock()
 	env := stmt.ses.srv.env
+	stmt.RUnlock()
 	if env.isPkgEnv {
 		cfg = env.Cfg()
 	} else if cfg.IsZero() {
@@ -137,7 +139,8 @@ func (stmt *Stmt) close() (err error) {
 		// free ocistmt to release cursor on server
 		// OCIStmtRelease must be called with OCIStmtPrepare2
 		// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
-		stmt.RLock()
+		stmt.Lock()
+		stmt.ses.RLock()
 		r := C.OCIStmtRelease(
 			stmt.ocistmt,            // OCIStmt        *stmthp
 			stmt.ses.srv.env.ocierr, // OCIError       *errhp,
@@ -145,7 +148,8 @@ func (stmt *Stmt) close() (err error) {
 			C.ub4(0),      // ub4 keylen
 			C.OCI_DEFAULT, // ub4 mode
 		)
-		stmt.RUnlock()
+		stmt.ses.RUnlock()
+		stmt.Unlock()
 		if r == C.OCI_ERROR {
 			errs.PushBack(errE(stmt.ses.srv.env.ociError()))
 		}
@@ -328,23 +332,22 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	stmt.RLock()
-	ses := stmt.ses
-	ocisvcctx := ses.ocisvcctx
-	env := ses.srv.env
-
 	// Query statement on Oracle server
+	stmt.RLock()
+	stmt.ses.RLock()
+	env := stmt.ses.srv.env
 	r := C.OCIStmtExecute(
 		//stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
-		ocisvcctx,    //OCISvcCtx           *svchp,
-		stmt.ocistmt, //OCIStmt             *stmtp,
+		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
+		stmt.ocistmt,       //OCIStmt             *stmtp,
 		//stmt.ses.srv.env.ocierr, //OCIError            *errhp,
-		env.ocierr,    //OCIError            *errhp,
-		C.ub4(0),      //ub4                 iters,
-		C.ub4(0),      //ub4                 rowoff,
-		nil,           //const OCISnapshot   *snap_in,
-		nil,           //OCISnapshot         *snap_out,
-		C.OCI_DEFAULT) //ub4                 mode );
+		stmt.ses.srv.env.ocierr, //OCIError            *errhp,
+		C.ub4(0),                //ub4                 iters,
+		C.ub4(0),                //ub4                 rowoff,
+		nil,                     //const OCISnapshot   *snap_in,
+		nil,                     //OCISnapshot         *snap_out,
+		C.OCI_DEFAULT)           //ub4                 mode );
+	stmt.ses.RUnlock()
 	hasPtrBind := stmt.hasPtrBind
 	stmt.RUnlock()
 	if r == C.OCI_ERROR {
@@ -1432,15 +1435,14 @@ func (stmt *Stmt) attr(attrSize C.ub4, attrType C.ub4) (unsafe.Pointer, error) {
 // setAttr sets an attribute on the statement handle. No locking occurs.
 func (stmt *Stmt) setAttr(attrValue uint32, attrType C.ub4) error {
 	stmt.RLock()
-	ocistmt := unsafe.Pointer(stmt.ocistmt)
-	stmt.RUnlock()
 	r := C.OCIAttrSet(
-		ocistmt,                    //void        *trgthndlp,
-		C.OCI_HTYPE_STMT,           //ub4         trghndltyp,
-		unsafe.Pointer(&attrValue), //void        *attributep,
+		unsafe.Pointer(stmt.ocistmt), //void        *trgthndlp,
+		C.OCI_HTYPE_STMT,             //ub4         trghndltyp,
+		unsafe.Pointer(&attrValue),   //void        *attributep,
 		4,                       //ub4         size,
 		attrType,                //ub4         attrtype,
 		stmt.ses.srv.env.ocierr) //OCIError    *errhp );
+	stmt.RUnlock()
 	if r == C.OCI_ERROR {
 		return errE(stmt.ses.srv.env.ociError())
 	}

@@ -170,8 +170,9 @@ func TestBindSlice_numeric(t *testing.T) {
 			v := gen()
 			t.Run(valName+"_"+ctName, func(t *testing.T) {
 				t.Parallel()
+				sc := sc
 				if valName == "uint8Slice" {
-					sc.SetByteSlice(ora.U8)
+					sc = sc.SetByteSlice(ora.U8)
 				}
 				testBindDefine(v, ct, t, sc)
 			})

@@ -157,7 +157,6 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
 
-	enableLogging(t)
 	cfg := ora.Cfg()
 	cfg.Log.Tx.Commit, cfg.Log.Tx.Rollback = true, true
 	ora.SetCfg(cfg)
