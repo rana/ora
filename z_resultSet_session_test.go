@@ -44,7 +44,7 @@ func Test_cursor1_session(t *testing.T) {
 	_, err = testSes.PrepAndExe(fmt.Sprintf("create or replace procedure proc1(p1 out sys_refcursor) as begin open p1 for select c1, c2 from %v order by c2; end proc1;", tableName))
 	testErr(err, t)
 
-	enableLogging(t)
+	//enableLogging(t)
 	// call proc
 	stmt, err := testSes.Prep("call proc1(:1)")
 	testErr(err, t)

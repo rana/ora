@@ -140,7 +140,7 @@ func TestStmt_Exe_select(t *testing.T) {
 	cfg := oCfg
 	cfg.Log.Rset.Next = true
 	ora.SetCfg(cfg)
-	enableLogging(t)
+	//enableLogging(t)
 
 	stmt, err = testSes.Prep(qry)
 	testErr(errors.Wrap(err, qry), t)
