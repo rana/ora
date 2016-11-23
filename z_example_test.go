@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"gopkg.in/rana/ora.v4"
 )
 
@@ -136,29 +138,38 @@ func ExampleDrvStmt_Exec_Query() {
 	for rows.Next() {
 		var c1 int64
 		var c2 string
-		var c3 bool
+		var c3 string
 		rows.Scan(&c1, &c2, &c3)
 		fmt.Printf("%v %v %v", c1, c2, c3)
 	}
-	// Output: 9 channel true
+	// Output: 9 channel 1
 }
 
 // TODO: Fix QueryRow
-//func ExampleDrvStmt_Exec_QueryRow() {
-//	db, _ := sql.Open("ora", testConStr)
-//	defer db.Close()
+func ExampleDrvStmt_Exec_QueryRow() {
+	db, _ := sql.Open("ora", testConStr)
+	defer db.Close()
 
-//	tableName := tableName()
-//	db.Exec(fmt.Sprintf("create table %v (c1 c1 number, c2 varchar2(48 char))", tableName))
-//	db.Exec(fmt.Sprintf("insert into %v (c1) values (9, 'go')", tableName))
+	tableName := tableName()
+	qry := fmt.Sprintf("create table %v (c1 number, c2 varchar2(48 char))", tableName)
+	if _, err := db.Exec(qry); err != nil {
+		log.Fatal(errors.Wrap(err, qry))
+	}
+	qry = fmt.Sprintf("insert into %v (c1, c2) values (9, 'go')", tableName)
+	if _, err := db.Exec(qry); err != nil {
+		log.Fatal(errors.Wrap(err, qry))
+	}
 
-//	// placeholder ':p' is bound by position; ':p' may be any name
-//	var c1 int64 = 9
-//	var c2 string
-//	db.QueryRow(fmt.Sprintf("select c2 from %v where c1 = :p", tableName), c1).Scan(&c2)
-//	fmt.Println(c2)
-//	// Output: go
-//}
+	// placeholder ':p' is bound by position; ':p' may be any name
+	var c1 int64 = 9
+	var c2 string
+	qry = fmt.Sprintf("select c2 from %v where c1 = :p", tableName)
+	if err := db.QueryRow(qry, c1).Scan(&c2); err != nil {
+		log.Fatal(errors.Wrap(err, qry))
+	}
+	fmt.Println(c2)
+	// Output: go
+}
 
 func ExampleStmt_Exe_insert() {
 	// setup
@@ -706,7 +717,7 @@ func ExampleRset_NextRow() {
 	rset, _ := stmt.Qry()
 	row := rset.NextRow()
 	fmt.Printf("%v %v %v", row[0], row[1], row[2])
-	// Output: 7 go true
+	// Output: 7 go 1
 }
 
 func ExampleRset_cursor_single() {
@@ -746,7 +757,9 @@ func ExampleRset_cursor_single() {
 	stmt, _ = ses.Prep("call proc1(:1)")
 	defer stmt.Close()
 	rset := &ora.Rset{}
-	stmt.Exe(rset)
+	if _, err := stmt.Exe(rset); err != nil {
+		log.Fatal(err)
+	}
 	if rset.IsOpen() {
 		for rset.Next() {
 			fmt.Println(rset.Row[0], rset.Row[1])

@@ -79,7 +79,9 @@ func NewLogRsetCfg() LogRsetCfg {
 type Rset struct {
 	sync.RWMutex
 
-	id        uint64
+	id uint64
+	// cached
+	env       *Env
 	stmt      *Stmt
 	ocistmt   *C.OCIStmt
 	defs      []def
@@ -131,8 +133,8 @@ func (rset *Rset) IsOpen() bool {
 	if rset == nil {
 		return false
 	}
-	rset.RLock()
-	defer rset.RUnlock()
+	//rset.RLock()
+	//defer rset.RUnlock()
 	return rset.stmt != nil
 }
 
@@ -161,11 +163,9 @@ func (rset *Rset) close() (err error) {
 		return er("Rset is closed.")
 	}
 	errs := _drv.listPool.Get().(*list.List)
-	rset.RLock()
-	defs := rset.defs
-	rset.RUnlock()
-	if len(defs) > 0 { // close defines
-		for _, def := range defs {
+	rset.Lock()
+	if len(rset.defs) > 0 { // close defines
+		for _, def := range rset.defs {
 			if def != nil {
 				err0 := def.close()
 				if err0 != nil {
@@ -174,7 +174,7 @@ func (rset *Rset) close() (err error) {
 			}
 		}
 	}
-	rset.Lock()
+	rset.env = nil
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
@@ -229,22 +229,18 @@ func (rset *Rset) beginRow() (err error) {
 		}
 	}
 
-	rset.stmt.RLock()
-	rset.stmt.ses.RLock()
 	rset.finished = false
 	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
-		rset.ocistmt,                 //OCIStmt     *stmthp,
-		rset.stmt.ses.srv.env.ocierr, //OCIError    *errhp,
-		C.ub4(rset.fetchLen),         //ub4         nrows,
-		C.OCI_FETCH_NEXT,             //ub2         orientation,
-		C.sb4(0),                     //sb4         fetchOffset,
-		C.OCI_DEFAULT)                //ub4         mode );
-	rset.stmt.ses.RUnlock()
-	rset.stmt.RUnlock()
+		rset.ocistmt,         //OCIStmt     *stmthp,
+		rset.env.ocierr,      //OCIError    *errhp,
+		C.ub4(rset.fetchLen), //ub4         nrows,
+		C.OCI_FETCH_NEXT,     //ub2         orientation,
+		C.sb4(0),             //sb4         fetchOffset,
+		C.OCI_DEFAULT)        //ub4         mode );
 	rset.Unlock()
 	if r == C.OCI_ERROR {
-		err := rset.stmt.ses.srv.env.ociError()
+		err := rset.env.ociError()
 		return err
 	} else if r == C.OCI_NO_DATA {
 		rset.log(_drv.Cfg().Log.Rset.BeginRow, "OCI_NO_DATA")
@@ -308,7 +304,7 @@ func (rset *Rset) Exhaust() {
 		return
 	}
 	rset.RLock()
-	closed := rset.stmt == nil || rset.ocistmt == nil
+	closed := rset.stmt == nil || rset.ocistmt == nil || rset.env == nil
 	rset.RUnlock()
 	if closed {
 		return
@@ -364,16 +360,17 @@ func (rset *Rset) Next() bool {
 	}
 	// populate column values
 	rset.Lock()
-	defer rset.Unlock()
 	for n, define := range rset.defs {
 		value, err := define.value(int(rset.offset))
 		//rset.logF(_drv.Cfg().Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
 		if err != nil {
+			rset.Unlock()
 			erase(err)
 			return false
 		}
 		rset.Row[n] = value
 	}
+	rset.Unlock()
 	//rset.logF(_drv.Cfg().Log.Rset.Next, "Row=%#v", rset.Row)
 	return true
 }
@@ -414,17 +411,17 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.log(logCfg.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	r := C.OCIStmtExecute(
-		rset.stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
-		rset.ocistmt,                 //OCIStmt             *stmtp,
-		rset.stmt.ses.srv.env.ocierr, //OCIError            *errhp,
-		C.ub4(1),                     //ub4                 iters,
-		C.ub4(0),                     //ub4                 rowoff,
-		nil,                          //const OCISnapshot   *snap_in,
-		nil,                          //OCISnapshot         *snap_out,
-		C.OCI_DESCRIBE_ONLY)          //ub4                 mode );
+		rset.stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
+		rset.ocistmt,            //OCIStmt             *stmtp,
+		rset.env.ocierr,         //OCIError            *errhp,
+		C.ub4(1),                //ub4                 iters,
+		C.ub4(0),                //ub4                 rowoff,
+		nil,                     //const OCISnapshot   *snap_in,
+		nil,                     //OCISnapshot         *snap_out,
+		C.OCI_DESCRIBE_ONLY)     //ub4                 mode );
 	rset.Unlock()
 	if r == C.OCI_ERROR {
-		return rset.stmt.ses.srv.env.ociError()
+		return rset.env.ociError()
 	}
 	// get the parameter count
 	var paramCount C.ub4
@@ -474,12 +471,12 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		r := C.OCIParamGet(
 			unsafe.Pointer(rset.ocistmt),                        //const void        *hndlp,
 			C.OCI_HTYPE_STMT,                                    //ub4               htype,
-			rset.stmt.ses.srv.env.ocierr,                        //OCIError          *errhp,
+			rset.env.ocierr,                                     //OCIError          *errhp,
 			(*unsafe.Pointer)(unsafe.Pointer(&params[n].param)), //void              **parmdpp,
 			C.ub4(n+1)) //ub4               pos );
 		rset.RUnlock()
 		if r == C.OCI_ERROR {
-			return rset.stmt.ses.srv.env.ociError()
+			return rset.env.ociError()
 		}
 		ocipar := params[n].param
 		// Get column size in bytes
@@ -950,14 +947,14 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 		attrSizep = new(C.ub4)
 	}
 	r := C.OCIAttrGet(
-		unsafe.Pointer(ocipar),       //const void     *trgthndlp,
-		C.OCI_DTYPE_PARAM,            //ub4            trghndltyp,
-		attrup,                       //void           *attributep,
-		attrSizep,                    //ub4            *sizep,
-		attrType,                     //ub4            attrtype,
-		rset.stmt.ses.srv.env.ocierr) //OCIError       *errhp );
+		unsafe.Pointer(ocipar), //const void     *trgthndlp,
+		C.OCI_DTYPE_PARAM,      //ub4            trghndltyp,
+		attrup,                 //void           *attributep,
+		attrSizep,              //ub4            *sizep,
+		attrType,               //ub4            attrtype,
+		rset.env.ocierr)        //OCIError       *errhp );
 	if r == C.OCI_ERROR {
-		return rset.stmt.ses.srv.env.ociError()
+		return rset.env.ociError()
 	}
 	return nil
 }
@@ -971,11 +968,11 @@ func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) er
 		attrup,                       //void           *attributep,
 		&attrSize,                    //ub4            *sizep,
 		attrType,                     //ub4            attrtype,
-		rset.stmt.ses.srv.env.ocierr) //OCIError       *errhp );
+		rset.env.ocierr)              //OCIError       *errhp );
 	rset.RUnlock()
 	if r == C.OCI_ERROR {
 		rset.RLock()
-		err := rset.stmt.ses.srv.env.ociError()
+		err := rset.env.ociError()
 		rset.RUnlock()
 		return err
 	}

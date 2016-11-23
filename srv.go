@@ -270,6 +270,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
 	ses.Lock()
+	ses.env = srv.env
 	ses.srv = srv
 	ses.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	ses.ocises = (*C.OCISession)(ocises)

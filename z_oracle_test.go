@@ -2822,6 +2822,7 @@ func TestFilsIssue36(t *testing.T) {
 )`); err != nil {
 		t.Fatal(err)
 	}
+	defer testDb.Exec(`DROP TABLE ` + ocdHole)
 
 	if _, err := testDb.Exec(`CREATE TABLE ` + ocdSection + ` (
  SECTION_ID       NUMBER(7) NOT NULL,
@@ -2835,6 +2836,7 @@ func TestFilsIssue36(t *testing.T) {
 )`); err != nil {
 		t.Fatal(err)
 	}
+	defer testDb.Exec(`DROP TABLE ` + ocdSection)
 
 	if _, err := testDb.Exec(`CREATE TABLE ` + ocdSample + ` (
  SAMPLE_ID               NUMBER(9) NOT NULL,
@@ -2845,6 +2847,7 @@ func TestFilsIssue36(t *testing.T) {
 )`); err != nil {
 		t.Fatal(err)
 	}
+	defer testDb.Exec(`DROP TABLE ` + ocdSample)
 
 	if _, err := testDb.Exec(`CREATE TABLE ` + ocdChemCarbSample + ` (
  RUN_ID                  NUMBER(9) NOT NULL,
@@ -2853,6 +2856,7 @@ func TestFilsIssue36(t *testing.T) {
 )`); err != nil {
 		t.Fatal(err)
 	}
+	defer testDb.Exec(`DROP TABLE ` + ocdChemCarbSample)
 
 	if _, err := testDb.Exec(`CREATE TABLE ` + ocdChemCarbAnalysis + ` (
  RUN_ID                  NUMBER(9) NOT NULL,
@@ -2862,6 +2866,7 @@ func TestFilsIssue36(t *testing.T) {
 )`); err != nil {
 		t.Fatal(err)
 	}
+	defer testDb.Exec(`DROP TABLE ` + ocdChemCarbAnalysis)
 
 	// create the views
 
@@ -3280,8 +3285,7 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
 `); err != nil {
 		t.Fatal(err)
 	}
-
-	testDb.Exec(`DROP TABLE ` + ocdChemCarbSample)
+	testDb.Exec(`DROP VIEW ` + ocdChemCarbSample + `_v`)
 
 	qry3 := `SELECT
             x.leg, x.site, x.hole
@@ -3297,8 +3301,8 @@ ORDER BY x.leg, x.site, x.hole, x.core, x.core_type, x.section_number, s.top_int
           , AVG(DECODE(cca.analysis_code,'SUL',   cca.analysis_result)) SUL_wt_pct
           , AVG(DECODE(cca.analysis_code,'H',     cca.analysis_result)) H_wt_pct
         FROM
-            ` + ocdHole + ` h, ` + ocdSection + ` x, ocd_sample_test s
-          , ocd_chem_carb_sample_test ccs, ocd_chem_carb_analysis_test cca
+            ` + ocdHole + ` h, ` + ocdSection + ` x, ` + ocdSample + ` s
+          , ` + ocdChemCarbSample + ` ccs, ` + ocdChemCarbAnalysis + ` cca
         WHERE
                 h.leg = x.leg
             AND h.site = x.site
@@ -3676,7 +3680,7 @@ func TestIntFloat(t *testing.T) {
 func TestSetDrvCfg(t *testing.T) {
 	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
 
-	enableLogging(t)
+	//enableLogging(t)
 	cfg := ora.Cfg()
 	defer ora.SetCfg(cfg)
 
@@ -3757,7 +3761,7 @@ func TestLOBRead(t *testing.T) {
 	); err != nil {
 		t.Skipf("create function: %v", err)
 	}
-	enableLogging(t)
+	//enableLogging(t)
 	stmt, err := testSes.Prep("CALL test_get_json(:1)", ora.OraBin)
 	lob := ora.Lob{C: true}
 	if _, err := stmt.Exe(&lob); err != nil {

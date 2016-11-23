@@ -58,12 +58,12 @@ func (bnd *bndRset) setPtr() error {
 	err := bnd.value.open(bnd.stmt, bnd.ocistmt[0])
 	bnd.ocistmt[0] = nil
 	if err != nil {
-		if cerr, ok := err.(interface {
-			Code() int
-		}); ok && cerr.Code() == 24337 { // statement is not prepared
-			bnd.value = nil
-			return nil
-		}
+		//if cerr, ok := err.(interface {
+		//Code() int
+		//}); ok && cerr.Code() == 24337 { // statement is not prepared
+		//bnd.value = nil
+		//return nil
+		//}
 		return err
 	}
 	// open result set is successful; will be freed by Rset

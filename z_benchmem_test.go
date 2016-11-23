@@ -108,7 +108,7 @@ func TestSelectOrder(t *testing.T) {
 	t.Logf("%s rowcount=%d (%s)", tbl, cnt, time.Since(start))
 	if cnt == 0 {
 		cnt = 10
-		tbl = "(SELECT 1 FROM DUAL" + strings.Repeat("UNION ALL SELECT 1 FROM DUAL", int(cnt)-1) + ")"
+		tbl = "(SELECT 1 FROM DUAL " + strings.Repeat("\nUNION ALL SELECT 1 FROM DUAL ", int(cnt)-1) + ")"
 	}
 	qry := "SELECT ROWNUM FROM " + tbl
 	for i := cnt; i < limit; i *= cnt {
