@@ -142,7 +142,7 @@ func TestSelectOrder(t *testing.T) {
 func BenchmarkSelectDate(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; {
-		rows, err := testDb.Query("SELECT CAST(TO_DATE('2006-01-02 15:04:05', 'YYYY-MM-DD HH24:MI:SS') AS DATE) dt FROM all_objects")
+		rows, err := testDb.Query("SELECT CAST(TO_DATE('2006-01-02 15:04:05', 'YYYY-MM-DD HH24:MI:SS') AS DATE) dt FROM user_objects, (select 1 from dual)")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -183,7 +183,7 @@ func BenchmarkSelect(b *testing.B) {
 }
 
 func BenchmarkPrepare(b *testing.B) {
-	rows, err := testDb.Query("SELECT A.object_name from all_objects A")
+	rows, err := testDb.Query("SELECT A.object_name from user_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func BenchmarkPrepare(b *testing.B) {
 
 func BenchmarkIter(b *testing.B) {
 	b.StopTimer()
-	rows, err := testDb.Query("SELECT A.object_name from all_objects A")
+	rows, err := testDb.Query("SELECT A.object_name from user_objects A")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -222,7 +222,8 @@ func TestMemoryNumString(t *testing.T) {
 		, TO_NUMBER('823456789012345678') bn08
 		, TO_NUMBER('923456789012345678') bn09
 		, TO_NUMBER('023456789012345678') bn10
-	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
+	FROM user_OBJECTS B, user_objects A, (SELECT 1 FROM DUAL) AA
+	WHERE ROWNUM <= :1`)
 }
 func TestMemoryNumStringI64(t *testing.T) {
 	cfg := ora.Cfg()
@@ -242,7 +243,8 @@ func TestMemoryNumStringI64(t *testing.T) {
 		, TO_NUMBER('823456789012345678') bn08
 		, TO_NUMBER('923456789012345678') bn09
 		, TO_NUMBER('023456789012345678') bn10
-	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
+	FROM user_OBJECTS B, user_objects A, (select 1 from dual)
+	WHERE ROWNUM <= :1`)
 }
 
 func TestMemoryString(t *testing.T) {
@@ -258,7 +260,8 @@ func TestMemoryString(t *testing.T) {
 		, '823456789012345678' bs08
 		, '923456789012345678' bs09
 		, '023456789012345678' bs10
-	FROM ALL_OBJECTS B, all_objects A WHERE ROWNUM <= :1`)
+	FROM user_OBJECTS B, user_objects A, (select 1 from dual)
+	WHERE ROWNUM <= :1`)
 }
 
 func benchMem(tb testing.TB, n int, maxBytesPerRun uint64, qry string) {
