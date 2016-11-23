@@ -9,7 +9,7 @@ package ora
 // Assign values to StmtCfg prior to calling Stmt.Exe
 // and Stmt.Qry for the configuration values to take effect.
 //
-// StmtCfg is not modifyable, so every Set method returns a new
+// StmtCfg is immutable, so every Set method returns a new
 // instance, maybe with Err set, too.
 type StmtCfg struct {
 	prefetchRowCount    uint32
@@ -118,11 +118,15 @@ func (c StmtCfg) SetLongBufferSize(size uint32) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		c.Err = errNew("long buffer size too large")
+		if c.Err == nil {
+			c.Err = errNew("long buffer size too large")
+		}
 		return c
 	}
 	if size < 1 {
-		c.Err = errNew("SetLongBufferSize parameter 'size' must be greater than zero")
+		if c.Err == nil {
+			c.Err = errNew("SetLongBufferSize parameter 'size' must be greater than zero")
+		}
 		return c
 	}
 	c.longBufferSize = size
@@ -149,7 +153,9 @@ func (c StmtCfg) SetLongRawBufferSize(size uint32) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		c.Err = errNew("long raw buffer size too large")
+		if c.Err == nil {
+			c.Err = errNew("long raw buffer size too large")
+		}
 		return c
 	}
 	c.longRawBufferSize = size
@@ -176,7 +182,9 @@ func (c StmtCfg) SetLobBufferSize(size int) StmtCfg {
 	// OCI-22140: given size must be in the range of 0 to [2147483643]
 	// Subtact one to account for the offset made within function stringDefine.bind.
 	if size > 2147483642 {
-		c.Err = errNew("lob buffer size too large")
+		if c.Err == nil {
+			c.Err = errNew("lob buffer size too large")
+		}
 		return c
 	}
 	c.lobBufferSize = size
@@ -198,7 +206,9 @@ func (c StmtCfg) LobBufferSize() int {
 // *string parameter binding and []*string parameter binding in a SQL statement.
 func (c StmtCfg) SetStringPtrBufferSize(size int) StmtCfg {
 	if size < 1 {
-		c.Err = errNew("SetStringPtrBufferSize parameter 'size' must be greater than zero")
+		if c.Err == nil {
+			c.Err = errNew("SetStringPtrBufferSize parameter 'size' must be greater than zero")
+		}
 		return c
 	}
 	c.stringPtrBufferSize = size
@@ -225,7 +235,9 @@ func (c StmtCfg) StringPtrBufferSize() int {
 // Returns an error if U8 or Bits is not specified.
 func (c StmtCfg) SetByteSlice(gct GoColumnType) StmtCfg {
 	if err := checkBinOrU8Column(gct); err != nil {
-		c.Err = err
+		if c.Err == nil {
+			c.Err = err
+		}
 		return c
 	}
 	c.byteSlice = gct
@@ -244,4 +256,54 @@ func (c StmtCfg) SetByteSlice(gct GoColumnType) StmtCfg {
 // if the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
 func (c StmtCfg) ByteSlice() GoColumnType {
 	return c.byteSlice
+}
+
+func (c StmtCfg) SetNumberInt(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetNumberInt(gct)
+	return c
+}
+func (c StmtCfg) SetNumberBigInt(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetNumberBigInt(gct)
+	return c
+}
+func (c StmtCfg) SetNumberFloat(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetNumberFloat(gct)
+	return c
+}
+func (c StmtCfg) SetNumberBigFloat(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetNumberBigFloat(gct)
+	return c
+}
+func (c StmtCfg) SetBinaryDouble(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetBinaryDouble(gct)
+	return c
+}
+func (c StmtCfg) SetBinaryFloat(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetBinaryFloat(gct)
+	return c
+}
+func (c StmtCfg) SetFloat(gct GoColumnType) StmtCfg { c.RsetCfg = c.RsetCfg.SetFloat(gct); return c }
+func (c StmtCfg) SetDate(gct GoColumnType) StmtCfg  { c.RsetCfg = c.RsetCfg.SetDate(gct); return c }
+func (c StmtCfg) SetTimestamp(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetTimestamp(gct)
+	return c
+}
+func (c StmtCfg) SetTimestampTz(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetTimestampTz(gct)
+	return c
+}
+func (c StmtCfg) SetTimestampLtz(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetTimestampLtz(gct)
+	return c
+}
+func (c StmtCfg) SetChar1(gct GoColumnType) StmtCfg   { c.RsetCfg = c.RsetCfg.SetChar1(gct); return c }
+func (c StmtCfg) SetChar(gct GoColumnType) StmtCfg    { c.RsetCfg = c.RsetCfg.SetChar(gct); return c }
+func (c StmtCfg) SetVarchar(gct GoColumnType) StmtCfg { c.RsetCfg = c.RsetCfg.SetVarchar(gct); return c }
+func (c StmtCfg) SetLong(gct GoColumnType) StmtCfg    { c.RsetCfg = c.RsetCfg.SetLong(gct); return c }
+func (c StmtCfg) SetClob(gct GoColumnType) StmtCfg    { c.RsetCfg = c.RsetCfg.SetClob(gct); return c }
+func (c StmtCfg) SetBlob(gct GoColumnType) StmtCfg    { c.RsetCfg = c.RsetCfg.SetBlob(gct); return c }
+func (c StmtCfg) SetRaw(gct GoColumnType) StmtCfg     { c.RsetCfg = c.RsetCfg.SetRaw(gct); return c }
+func (c StmtCfg) SetLongRaw(gct GoColumnType) StmtCfg {
+	c.RsetCfg = c.RsetCfg.SetLongRaw(gct)
+	return c
 }

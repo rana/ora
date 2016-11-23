@@ -33,6 +33,86 @@ type SesCfg struct {
 func (c SesCfg) IsZero() bool { return false } //c.StmtCfg.IsZero() }
 func NewSesCfg() SesCfg       { return SesCfg{} }
 
+func (cfg SesCfg) SetStmtCfg(stmtCfg StmtCfg) SesCfg {
+	cfg.StmtCfg = stmtCfg
+	return cfg
+}
+
+func (c SesCfg) SetPrefetchRowCount(prefetchRowCount uint32) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetPrefetchRowCount(prefetchRowCount)
+	return c
+}
+func (c SesCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetPrefetchMemorySize(prefetchMemorySize)
+	return c
+}
+func (c SesCfg) SetLongBufferSize(size uint32) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetLongBufferSize(size)
+	return c
+}
+func (c SesCfg) SetLongRawBufferSize(size uint32) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetLongRawBufferSize(size)
+	return c
+}
+func (c SesCfg) SetLobBufferSize(size int) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetLobBufferSize(size)
+	return c
+}
+func (c SesCfg) SetStringPtrBufferSize(size int) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetStringPtrBufferSize(size)
+	return c
+}
+func (c SesCfg) SetByteSlice(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetByteSlice(gct)
+	return c
+}
+func (c SesCfg) SetNumberInt(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberInt(gct)
+	return c
+}
+func (c SesCfg) SetNumberBigInt(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberBigInt(gct)
+	return c
+}
+func (c SesCfg) SetNumberFloat(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberFloat(gct)
+	return c
+}
+func (c SesCfg) SetNumberBigFloat(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberBigFloat(gct)
+	return c
+}
+func (c SesCfg) SetBinaryDouble(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetBinaryDouble(gct)
+	return c
+}
+func (c SesCfg) SetBinaryFloat(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetBinaryFloat(gct)
+	return c
+}
+func (c SesCfg) SetFloat(gct GoColumnType) SesCfg { c.StmtCfg = c.StmtCfg.SetFloat(gct); return c }
+func (c SesCfg) SetDate(gct GoColumnType) SesCfg  { c.StmtCfg = c.StmtCfg.SetDate(gct); return c }
+func (c SesCfg) SetTimestamp(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestamp(gct)
+	return c
+}
+func (c SesCfg) SetTimestampTz(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestampTz(gct)
+	return c
+}
+func (c SesCfg) SetTimestampLtz(gct GoColumnType) SesCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestampLtz(gct)
+	return c
+}
+func (c SesCfg) SetChar1(gct GoColumnType) SesCfg   { c.StmtCfg = c.StmtCfg.SetChar1(gct); return c }
+func (c SesCfg) SetChar(gct GoColumnType) SesCfg    { c.StmtCfg = c.StmtCfg.SetChar(gct); return c }
+func (c SesCfg) SetVarchar(gct GoColumnType) SesCfg { c.StmtCfg = c.StmtCfg.SetVarchar(gct); return c }
+func (c SesCfg) SetLong(gct GoColumnType) SesCfg    { c.StmtCfg = c.StmtCfg.SetLong(gct); return c }
+func (c SesCfg) SetClob(gct GoColumnType) SesCfg    { c.StmtCfg = c.StmtCfg.SetClob(gct); return c }
+func (c SesCfg) SetBlob(gct GoColumnType) SesCfg    { c.StmtCfg = c.StmtCfg.SetBlob(gct); return c }
+func (c SesCfg) SetRaw(gct GoColumnType) SesCfg     { c.StmtCfg = c.StmtCfg.SetRaw(gct); return c }
+func (c SesCfg) SetLongRaw(gct GoColumnType) SesCfg { c.StmtCfg = c.StmtCfg.SetLongRaw(gct); return c }
+
 type SessionMode uint8
 
 const (

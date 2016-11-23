@@ -9,6 +9,8 @@ package ora
 //
 // Though it is unlucky, an empty RsetCfg is unusable!
 // Please use NewRsetCfg().
+//
+// RsetCfg is immutable, so all Set... methods returns a new copy!
 type RsetCfg struct {
 	numberInt      GoColumnType
 	numberBigInt   GoColumnType
@@ -34,6 +36,9 @@ type RsetCfg struct {
 	//
 	// The is default is '1'.
 	TrueRune rune
+
+	// Err is the error from the last Set... method.
+	Err error
 }
 
 func (c RsetCfg) IsZero() bool { return c.numberInt == 0 }
@@ -75,7 +80,9 @@ func NewRsetCfg() RsetCfg {
 // Returns an error if a non-numeric GoColumnType is specified.
 func (c RsetCfg) SetNumberInt(gct GoColumnType) RsetCfg {
 	if err := checkNumericColumn(gct, ""); err != nil {
-		c.Err = err
+		if c.Err == nil {
+			c.Err = err
+		}
 		return c
 	}
 	c.numberInt = gct
@@ -104,12 +111,15 @@ func (c RsetCfg) NumberInt() GoColumnType {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberBigInt(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.numberBigInt = gct
+func (c RsetCfg) SetNumberBigInt(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.numberBigInt = gct
+	return c
 }
 
 // NumberBigInt returns a GoColumnType associated to an Oracle select-list
@@ -134,12 +144,15 @@ func (c RsetCfg) NumberBigInt() GoColumnType {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.numberFloat = gct
+func (c RsetCfg) SetNumberFloat(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.numberFloat = gct
+	return c
 }
 
 // NumberFloat returns a GoColumnType associated to an Oracle select-list
@@ -164,12 +177,15 @@ func (c RsetCfg) NumberFloat() GoColumnType {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetNumberBigFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.numberBigFloat = gct
+func (c RsetCfg) SetNumberBigFloat(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.numberBigFloat = gct
+	return c
 }
 
 // NumberBigFloat returns a GoColumnType associated to an Oracle select-list
@@ -194,12 +210,15 @@ func (c RsetCfg) NumberBigFloat() GoColumnType {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetBinaryDouble(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.binaryDouble = gct
+func (c RsetCfg) SetBinaryDouble(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.binaryDouble = gct
+	return c
 }
 
 // BinaryDouble returns a GoColumnType associated to an Oracle select-list
@@ -224,12 +243,15 @@ func (c RsetCfg) BinaryDouble() GoColumnType {
 // Num, OraNum.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetBinaryFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.binaryFloat = gct
+func (c RsetCfg) SetBinaryFloat(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.binaryFloat = gct
+	return c
 }
 
 // BinaryFloat returns a GoColumnType associated to an Oracle select-list
@@ -256,12 +278,15 @@ func (c RsetCfg) BinaryFloat() GoColumnType {
 // N, OraN.
 //
 // Returns an error if a non-numeric GoColumnType is specified.
-func (c *RsetCfg) SetFloat(gct GoColumnType) (err error) {
-	err = checkNumericColumn(gct, "")
-	if err == nil {
-		c.float = gct
+func (c RsetCfg) SetFloat(gct GoColumnType) RsetCfg {
+	if err := checkNumericColumn(gct, ""); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.float = gct
+	return c
 }
 
 // Float returns a GoColumnType associated to an Oracle select-list
@@ -284,12 +309,15 @@ func (c RsetCfg) Float() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetCfg) SetDate(gct GoColumnType) (err error) {
-	err = checkTimeColumn(gct)
-	if err == nil {
-		c.date = gct
+func (c RsetCfg) SetDate(gct GoColumnType) RsetCfg {
+	if err := checkTimeColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.date = gct
+	return c
 }
 
 // Date returns a GoColumnType associated to an Oracle select-list
@@ -312,12 +340,15 @@ func (c RsetCfg) Date() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetCfg) SetTimestamp(gct GoColumnType) (err error) {
-	err = checkTimeColumn(gct)
-	if err == nil {
+func (c RsetCfg) SetTimestamp(gct GoColumnType) RsetCfg {
+	if err := checkTimeColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 		c.timestamp = gct
 	}
-	return err
+	return c
 }
 
 // Timestamp returns a GoColumnType associated to an Oracle select-list
@@ -340,12 +371,15 @@ func (c RsetCfg) Timestamp() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetCfg) SetTimestampTz(gct GoColumnType) (err error) {
-	err = checkTimeColumn(gct)
-	if err == nil {
-		c.timestampTz = gct
+func (c RsetCfg) SetTimestampTz(gct GoColumnType) RsetCfg {
+	if err := checkTimeColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.timestampTz = gct
+	return c
 }
 
 // TimestampTz returns a GoColumnType associated to an Oracle select-list
@@ -368,12 +402,15 @@ func (c RsetCfg) TimestampTz() GoColumnType {
 // Valid values are T and OraT.
 //
 // Returns an error if a non-time GoColumnType is specified.
-func (c *RsetCfg) SetTimestampLtz(gct GoColumnType) (err error) {
-	err = checkTimeColumn(gct)
-	if err == nil {
-		c.timestampLtz = gct
+func (c RsetCfg) SetTimestampLtz(gct GoColumnType) RsetCfg {
+	if err := checkTimeColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.timestampLtz = gct
+	return c
 }
 
 // TimestampLtz returns a GoColumnType associated to an Oracle select-list
@@ -396,13 +433,15 @@ func (c RsetCfg) TimestampLtz() GoColumnType {
 // Valid values are B, OraB, S and OraS.
 //
 // Returns an error if a non-bool or non-string GoColumnType is specified.
-func (c *RsetCfg) SetChar1(gct GoColumnType) (err error) {
-	if err = checkBoolOrStringColumn(gct); err != nil {
-		return err
+func (c RsetCfg) SetChar1(gct GoColumnType) RsetCfg {
+	if err := checkBoolOrStringColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	Cfg().Log.Logger.Infof("%p.Set Char1 to %s (%x).", c, gct, gct)
 	c.char1 = gct
-	return nil
+	return c
 }
 
 // Char1 returns a GoColumnType associated to an Oracle select-list
@@ -425,12 +464,15 @@ func (c RsetCfg) Char1() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetChar(gct GoColumnType) (err error) {
-	err = checkStringColumn(gct)
-	if err == nil {
-		c.char = gct
+func (c RsetCfg) SetChar(gct GoColumnType) RsetCfg {
+	if err := checkStringColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.char = gct
+	return c
 }
 
 // Char returns a GoColumnType associated to an Oracle select-list
@@ -453,12 +495,15 @@ func (c RsetCfg) Char() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetVarchar(gct GoColumnType) (err error) {
-	err = checkStringColumn(gct)
-	if err == nil {
-		c.varchar = gct
+func (c RsetCfg) SetVarchar(gct GoColumnType) RsetCfg {
+	if err := checkStringColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.varchar = gct
+	return c
 }
 
 // Varchar returns a GoColumnType associated to an Oracle select-list
@@ -481,12 +526,15 @@ func (c RsetCfg) Varchar() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetLong(gct GoColumnType) (err error) {
-	err = checkStringColumn(gct)
-	if err == nil {
-		c.long = gct
+func (c RsetCfg) SetLong(gct GoColumnType) RsetCfg {
+	if err := checkStringColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.long = gct
+	return c
 }
 
 // Long returns a GoColumnType associated to an Oracle select-list
@@ -509,14 +557,17 @@ func (c RsetCfg) Long() GoColumnType {
 // Valid values are S and OraS.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetClob(gct GoColumnType) (err error) {
+func (c RsetCfg) SetClob(gct GoColumnType) RsetCfg {
 	if gct != D {
-		if err = checkStringColumn(gct); err != nil {
-			return err
+		if err := checkStringColumn(gct); err != nil {
+			if c.Err == nil {
+				c.Err = err
+			}
+			return c
 		}
 	}
 	c.clob = gct
-	return nil
+	return c
 }
 
 // Clob returns a GoColumnType associated to an Oracle select-list
@@ -539,14 +590,17 @@ func (c RsetCfg) Clob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetBlob(gct GoColumnType) (err error) {
+func (c RsetCfg) SetBlob(gct GoColumnType) RsetCfg {
 	if gct != D {
-		if err = checkBinColumn(gct); err != nil {
-			return err
+		if err := checkBinColumn(gct); err != nil {
+			if c.Err == nil {
+				c.Err = err
+			}
+			return c
 		}
 	}
 	c.blob = gct
-	return nil
+	return c
 }
 
 // Blob returns a GoColumnType associated to an Oracle select-list
@@ -569,12 +623,15 @@ func (c RsetCfg) Blob() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetRaw(gct GoColumnType) (err error) {
-	err = checkBinColumn(gct)
-	if err == nil {
-		c.raw = gct
+func (c RsetCfg) SetRaw(gct GoColumnType) RsetCfg {
+	if err := checkBinColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.raw = gct
+	return c
 }
 
 // Raw returns a GoColumnType associated to an Oracle select-list
@@ -597,12 +654,15 @@ func (c RsetCfg) Raw() GoColumnType {
 // Valid values are Bits and OraBits.
 //
 // Returns an error if a non-string GoColumnType is specified.
-func (c *RsetCfg) SetLongRaw(gct GoColumnType) (err error) {
-	err = checkBinColumn(gct)
-	if err == nil {
-		c.longRaw = gct
+func (c RsetCfg) SetLongRaw(gct GoColumnType) RsetCfg {
+	if err := checkBinColumn(gct); err != nil {
+		if c.Err == nil {
+			c.Err = err
+		}
+		return c
 	}
-	return err
+	c.longRaw = gct
+	return c
 }
 
 // LongRaw returns a GoColumnType associated to an Oracle select-list

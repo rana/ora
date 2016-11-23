@@ -605,22 +605,24 @@ nullable Go types by default:
 
 	sc := &ora.SrvCfg{Dblink: "orcl"}
 	sc.Dblink = "orcl"
-	sc.StmtCfg.Rset.SetNumberInt(ora.OraI64)
-	sc.StmtCfg.Rset.SetNumberFloat(ora.OraF64)
-	sc.StmtCfg.Rset.SetBinaryDouble(ora.OraF64)
-	sc.StmtCfg.Rset.SetBinaryFloat(ora.OraF64)
-	sc.StmtCfg.Rset.SetFloat(ora.OraF64)
-	sc.StmtCfg.Rset.SetDate(ora.OraT)
-	sc.StmtCfg.Rset.SetTimestamp(ora.OraT)
-	sc.StmtCfg.Rset.SetTimestampTz(ora.OraT)
-	sc.StmtCfg.Rset.SetTimestampLtz(ora.OraT)
-	sc.StmtCfg.Rset.SetChar1(ora.OraS)
-	sc.StmtCfg.Rset.SetVarchar(ora.OraS)
-	sc.StmtCfg.Rset.SetLong(ora.OraS)
-	sc.StmtCfg.Rset.SetClob(ora.OraS)
-	sc.StmtCfg.Rset.SetBlob(ora.OraBin)
-	sc.StmtCfg.Rset.SetRaw(ora.OraBin)
-	sc.StmtCfg.Rset.SetLongRaw(ora.OraBin)
+	cfg := NewStmtCfg().
+		SetNumberInt(ora.OraI64).
+		SetNumberFloat(ora.OraF64).
+		SetBinaryDouble(ora.OraF64).
+		SetBinaryFloat(ora.OraF64).
+		SetFloat(ora.OraF64).
+		SetDate(ora.OraT).
+		SetTimestamp(ora.OraT).
+		SetTimestampTz(ora.OraT).
+		SetTimestampLtz(ora.OraT).
+		SetChar1(ora.OraS).
+		SetVarchar(ora.OraS).
+		SetLong(ora.OraS).
+		SetClob(ora.OraS).
+		SetBlob(ora.OraBin).
+		SetRaw(ora.OraBin).
+		SetLongRaw(ora.OraBin)
+	sc.StmtCfg = cfg
 	srv, err := env.OpenSrv(sc)
 	// any new SesCfg.StmtCfg, StmtCfg.Cfg will receive this StmtCfg
 	// any new Rset will receive the StmtCfg.Rset configuration

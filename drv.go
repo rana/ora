@@ -27,6 +27,86 @@ func NewDrvCfg() DrvCfg {
 	return DrvCfg{StmtCfg: NewStmtCfg(), Log: NewLogDrvCfg()}
 }
 
+func (cfg DrvCfg) SetStmtCfg(stmtCfg StmtCfg) DrvCfg {
+	cfg.StmtCfg = stmtCfg
+	return cfg
+}
+
+func (c DrvCfg) SetPrefetchRowCount(prefetchRowCount uint32) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetPrefetchRowCount(prefetchRowCount)
+	return c
+}
+func (c DrvCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetPrefetchMemorySize(prefetchMemorySize)
+	return c
+}
+func (c DrvCfg) SetLongBufferSize(size uint32) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetLongBufferSize(size)
+	return c
+}
+func (c DrvCfg) SetLongRawBufferSize(size uint32) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetLongRawBufferSize(size)
+	return c
+}
+func (c DrvCfg) SetLobBufferSize(size int) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetLobBufferSize(size)
+	return c
+}
+func (c DrvCfg) SetStringPtrBufferSize(size int) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetStringPtrBufferSize(size)
+	return c
+}
+func (c DrvCfg) SetByteSlice(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetByteSlice(gct)
+	return c
+}
+func (c DrvCfg) SetNumberInt(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberInt(gct)
+	return c
+}
+func (c DrvCfg) SetNumberBigInt(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberBigInt(gct)
+	return c
+}
+func (c DrvCfg) SetNumberFloat(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberFloat(gct)
+	return c
+}
+func (c DrvCfg) SetNumberBigFloat(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetNumberBigFloat(gct)
+	return c
+}
+func (c DrvCfg) SetBinaryDouble(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetBinaryDouble(gct)
+	return c
+}
+func (c DrvCfg) SetBinaryFloat(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetBinaryFloat(gct)
+	return c
+}
+func (c DrvCfg) SetFloat(gct GoColumnType) DrvCfg { c.StmtCfg = c.StmtCfg.SetFloat(gct); return c }
+func (c DrvCfg) SetDate(gct GoColumnType) DrvCfg  { c.StmtCfg = c.StmtCfg.SetDate(gct); return c }
+func (c DrvCfg) SetTimestamp(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestamp(gct)
+	return c
+}
+func (c DrvCfg) SetTimestampTz(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestampTz(gct)
+	return c
+}
+func (c DrvCfg) SetTimestampLtz(gct GoColumnType) DrvCfg {
+	c.StmtCfg = c.StmtCfg.SetTimestampLtz(gct)
+	return c
+}
+func (c DrvCfg) SetChar1(gct GoColumnType) DrvCfg   { c.StmtCfg = c.StmtCfg.SetChar1(gct); return c }
+func (c DrvCfg) SetChar(gct GoColumnType) DrvCfg    { c.StmtCfg = c.StmtCfg.SetChar(gct); return c }
+func (c DrvCfg) SetVarchar(gct GoColumnType) DrvCfg { c.StmtCfg = c.StmtCfg.SetVarchar(gct); return c }
+func (c DrvCfg) SetLong(gct GoColumnType) DrvCfg    { c.StmtCfg = c.StmtCfg.SetLong(gct); return c }
+func (c DrvCfg) SetClob(gct GoColumnType) DrvCfg    { c.StmtCfg = c.StmtCfg.SetClob(gct); return c }
+func (c DrvCfg) SetBlob(gct GoColumnType) DrvCfg    { c.StmtCfg = c.StmtCfg.SetBlob(gct); return c }
+func (c DrvCfg) SetRaw(gct GoColumnType) DrvCfg     { c.StmtCfg = c.StmtCfg.SetRaw(gct); return c }
+func (c DrvCfg) SetLongRaw(gct GoColumnType) DrvCfg { c.StmtCfg = c.StmtCfg.SetLongRaw(gct); return c }
+
 // LogDrvCfg represents package-level logging configuration values.
 type LogDrvCfg struct {
 	// Logger writes log messages.

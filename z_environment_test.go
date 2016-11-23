@@ -142,7 +142,7 @@ func TestEnv_SesCfg(t *testing.T) {
 	x := ora.F64
 	sesCfg := old
 	enableLogging(t)
-	if err := sesCfg.SetNumberBigFloat(x); err != nil {
+	if sesCfg = sesCfg.SetNumberBigFloat(x); sesCfg.Err != nil {
 		t.Fatal(err)
 	}
 	ses.SetCfg(sesCfg)
