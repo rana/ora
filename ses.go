@@ -886,24 +886,26 @@ func (ses *Ses) SetAction(module, action string) error {
 
 // log writes a message with an Ses system name and caller info.
 func (ses *Ses) log(enabled bool, v ...interface{}) {
-	if !_drv.Cfg().Log.IsEnabled(enabled) {
+	Log := _drv.Cfg().Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.Cfg().Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+		Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.Cfg().Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
+		Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Ses system name and caller info.
 func (ses *Ses) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.Cfg().Log.IsEnabled(enabled) {
+	Log := _drv.Cfg().Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.Cfg().Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
+		Log.Logger.Infof("%v %v", ses.sysName(), callInfo(2))
 	} else {
-		_drv.Cfg().Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
+		Log.Logger.Infof("%v %v %v", ses.sysName(), callInfo(2), fmt.Sprintf(format, v...))
 	}
 }

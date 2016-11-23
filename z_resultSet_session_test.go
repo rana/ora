@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"gopkg.in/rana/ora.v4"
-	"gopkg.in/rana/ora.v4/lg"
 )
 
 func Test_cursor1_session(t *testing.T) {
@@ -81,15 +80,7 @@ END;`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	oCfg := ora.Cfg()
-	defer ora.SetCfg(oCfg)
-
-	cfg := oCfg
-	cfg.Log.Rset.BeginRow = true
-	cfg.Log.Rset.OpenDefs = true
-	cfg.Log.Rset.Open = true
-	cfg.Log.Rset.Next = true
-	cfg.Log.Logger = lg.Log // log to stderr - in case of panic, we'll have that
+	//enableLogging(t)
 	ora.SetCfg(cfg)
 	stmt, err := testSes.Prep("call proc2(:1)")
 	testErr(err, t)

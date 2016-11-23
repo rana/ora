@@ -324,25 +324,27 @@ func (env *Env) sysName() string {
 
 // log writes a message with an Env system name and caller info.
 func (env *Env) log(enabled bool, v ...interface{}) {
-	if !_drv.Cfg().Log.IsEnabled(enabled) {
+	Log := _drv.Cfg().Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.Cfg().Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
 	} else {
-		_drv.Cfg().Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
+		Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprint(v...))
 	}
 }
 
 // log writes a formatted message with an Env system name and caller info.
 func (env *Env) logF(enabled bool, format string, v ...interface{}) {
-	if !_drv.Cfg().Log.IsEnabled(enabled) {
+	Log := _drv.Cfg().Log
+	if !Log.IsEnabled(enabled) {
 		return
 	}
 	if len(v) == 0 {
-		_drv.Cfg().Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
+		Log.Logger.Infof("%v %v", env.sysName(), callInfo(1))
 	} else {
-		_drv.Cfg().Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
+		Log.Logger.Infof("%v %v %v", env.sysName(), callInfo(1), fmt.Sprintf(format, v...))
 	}
 }
 
