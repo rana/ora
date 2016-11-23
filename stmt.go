@@ -175,11 +175,9 @@ func (stmt *Stmt) close() (err error) {
 		errs.Init()
 		_drv.listPool.Put(errs)
 	}()
-	stmt.RLock()
-	bnds := stmt.bnds
-	stmt.RUnlock()
 	// close binds
-	for _, bind := range bnds {
+	stmt.Lock()
+	for _, bind := range stmt.bnds {
 		if bind == nil {
 			continue
 		}
@@ -188,9 +186,8 @@ func (stmt *Stmt) close() (err error) {
 			errs.PushBack(errE(err))
 		}
 	}
-	stmt.RLock()
 	openRsets := stmt.openRsets
-	stmt.RUnlock()
+	stmt.Unlock()
 	//fmt.Println("closeAll " + stmt.sysName())
 	openRsets.closeAll(errs)
 

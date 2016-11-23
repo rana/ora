@@ -1434,7 +1434,7 @@ func ExampleIntervalYM() {
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
-	// Output: {false 1 1}, {false 99 9}, {true 0 0}, {false -1 -1}, {false -99 -9},
+	// Output: 0001-01, 0099-09, , -001--1, -099--9,
 }
 
 func ExampleIntervalYM_ShiftTime() {
@@ -1477,7 +1477,8 @@ func ExampleIntervalDS() {
 	for rset.Next() {
 		fmt.Printf("%v, ", rset.Row[0])
 	}
-	// Output: {false 1 1 1 1 123457000}, {false 59 59 59 59 123457000}, {true 0 0 0 0 0}, {false -1 -1 -1 -1 -123457000}, {false -59 -59 -59 -59 -123457000},
+	// {false 1 1 1 1 123457000}, {false 59 59 59 59 123457000}, {true 0 0 0 0 0}, {false -1 -1 -1 -1 -123457000}, {false -59 -59 -59 -59 -123457000},
+	// Output: 01d 01:01:01.123457000, 59d 59:59:59.123457000, , -1d -1:-1:-1.-123457000, -59d -59:-59:-59.-123457000,
 }
 
 func ExampleIntervalDS_ShiftTime() {
