@@ -2,6 +2,14 @@
 
 ## master ##
 
+## v4.0.0##
+  * Rewrite the tests to run parallel
+  * Rewrite the tests to use subtests
+  * Add RWMutex everywhere where needed to be -race-free
+  * Change the configuration to use immutable structures (StmtCfg and RsetCfg).
+    This means cfg.Set... methods returns a copy, does not change the original -
+	you have to call drv/env/srv/ses/stmt/rset.SetCfg(cfg)!
+
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.
   * Change default column types for BLOB and CLOB: Bin and S, instead of D and D.

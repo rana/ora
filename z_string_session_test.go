@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 var _T_stringGen = map[string](func() interface{}){

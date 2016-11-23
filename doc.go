@@ -1,7 +1,50 @@
+//go:generate go get github.com/robertkrimen/godocdown/godocdown
+//go:generate godocdown -output README.md
+
 /*
 Package ora implements an Oracle database driver.
 
-An Oracle database may be accessed through the database/sql package or through the
+
+### Golang Oracle Database Driver ###
+
+#### TL;DR; just use it ####
+
+	import (
+		"database/sql"
+
+		_ "gopkg.in/rana/ora.v4"
+	)
+
+	func main() {
+		db, err := sql.Open("ora", "user/passw@host:port/sid")
+		defer db.Close()
+	}
+
+Call stored procedure with OUT parameters:
+
+	import (
+		"gopkg.in/rana/ora.v4"
+	)
+
+	func main() {
+		env, srv, ses, err := ora.NewEnvSrvSes("user/passw@host:port/sid")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer env.Close()
+		defer srv.Close()
+		defer ses.Close()
+
+		var user string
+		if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &res, "SESSION_USER"); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("user: %q", user)
+	}
+
+Background
+
+An Oracle database may be accessed through the [database/sql](http://golang.org/pkg/database/sql) package or through the
 ora package directly. database/sql offers connection pooling, thread safety,
 a consistent API to multiple database technologies and a common set of Go types.
 The ora package offers additional features including pointers, slices, nullable
@@ -14,8 +57,25 @@ application communication and driver communication with Oracle databases.
 
 The ora package has been verified to work with:
 
-	Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
-	Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+  * Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
+  * Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+
+---
+
+* [Installation](https://github.com/rana/ora#installation)
+* [Data Types](https://github.com/rana/ora#data-types)
+* [SQL Placeholder Syntax](https://github.com/rana/ora#sql-placeholder-syntax)
+* [Working With The Sql Package](https://github.com/rana/ora#working-with-the-sql-package)
+* [Working With The Oracle Package Directly](https://github.com/rana/ora#working-with-the-oracle-package-directly)
+* [Logging](https://github.com/rana/ora#logging)
+* [Test Database Setup](https://github.com/rana/ora#test-database-setup)
+* [Limitations](https://github.com/rana/ora#limitations)
+* [License](https://github.com/rana/ora#license)
+* [API Reference](http://godoc.org/github.com/rana/ora#pkg-index)
+* [Examples](./examples)
+
+---
+
 
 Installation
 
@@ -33,7 +93,7 @@ in `$PKG_CONFIG_PATH` or a system folder, such as
 The ora package has no external Go dependencies and is available on GitHub and
 gopkg.in:
 
-	go get gopkg.in/rana/ora.v3
+	go get gopkg.in/rana/ora.v4
 
 Data Types
 
@@ -66,6 +126,17 @@ characters, prefixed with a colon (:). For example:
 Placeholders within a SQL statement are bound by position. The actual name is not
 used by the ora package driver e.g., placeholder names :c1, :1, or :xyz are
 treated equally.
+*/
+//
+// LastInsertId
+//
+// The `database/sql` package provides a LastInsertId method to return the
+// last inserted row's id. Oracle does not provide such functionality,
+// but if you append `... RETURNING col /*LastInsertId*/` to your SQL, then it will
+// be presented as LastInsertId. Note that you have to mark with a `/*LastInsertId*/`
+// (case insensitive) your `RETURNING` part, to allow ora to return the last column
+// as `LastInsertId()`. That column must fit in `int64`, though!
+/*
 
 Working With The Sql Package
 
@@ -114,15 +185,15 @@ types. The Go-to-Oracle type mapping for database/sql is:
 	true is mapped to the one rune '1'.
 
 The "ora" driver is automatically registered for use with sql.Open, but you can
-call ora.SetDrvCfg to set the used configuration options including
+call ora.SetCfg to set the used configuration options including
 statement configuration and Rset configuration.
 
     func init() {
-		drvCfg := ora.NewDrvCfg()
-		drvCfg.Env.StmtCfg.FalseRune = 'N'
-		drvCfg.Env.StmtCfg.TrueRune = 'Y'
-		drvCfg.Env.StmtCfg.Rset.TrueRune = 'Y'
-		ora.SetDrvCfg(drvCfg)
+		drvCfg := ora.Cfg()
+		drvCfg.FalseRune = 'N'
+		drvCfg.TrueRune = 'Y'
+		drvCfg.TrueRune = 'Y'
+		ora.SetCfg(drvCfg)
 	}
 
 When configuring the driver for use with database/sql, keep in mind that
@@ -213,7 +284,7 @@ An example of using the ora package directly:
 
 	import (
 		"fmt"
-		"gopkg.in/rana/ora.v3"
+		"gopkg.in/rana/ora.v4"
 	)
 
 	func main() {
@@ -465,7 +536,7 @@ nullable Strings and select nullable Strings:
 		fmt.Println(rset.Row[0])
 	}
 
-The Stmt.Prep method is variadic accepting zero or more GoColumnType
+The `Stmt.Prep` method is variadic accepting zero or more `GoColumnType`
 which define a Go return type for a select-list column. For example, a Prep
 call can be configured to return an int64 and a nullable Int64 from the same
 column:
@@ -920,8 +991,7 @@ to Version requires an open Ses:
 		fmt.Println("Received version from server")
 	}
 
-Further code examples are available in the example file, test files and samples
-folder.
+Further code examples are available in the [example file](https://github.com/rana/ora/blob/master/z_example_test.go), test files and [samples folder](https://github.com/rana/ora/tree/master/samples).
 
 Logging
 
@@ -938,8 +1008,8 @@ ora driver methods. For example:
 To use the standard Go log package:
 
 	import (
-		"gopkg.in/rana/ora.v3"
-		"gopkg.in/rana/ora.v3/lg"
+		"gopkg.in/rana/ora.v4"
+		"gopkg.in/rana/ora.v4/lg"
 	)
 
 	func main() {
@@ -970,8 +1040,8 @@ To use the glog package:
 
 	import (
 		"flag"
-		"gopkg.in/rana/ora.v3"
-		"gopkg.in/rana/ora.v3/glg"
+		"gopkg.in/rana/ora.v4"
+		"gopkg.in/rana/ora.v4/glg"
 	)
 
 	func main() {
@@ -981,7 +1051,9 @@ To use the glog package:
 		flag.Parse()
 
 		// use the optional glog package for ora logging
-		ora.Cfg().Log.Logger = glg.Log
+		cfg := ora.Cfg()
+		cfg.Log.Logger = glg.Log
+		ora.SetCfg(cfg)
 	}
 
 which produces a sample log of:
@@ -1002,12 +1074,14 @@ which produces a sample log of:
 To use the log15 package:
 
 	import (
-		"gopkg.in/rana/ora.v3"
-		"gopkg.in/rana/ora.v3/lg15"
+		"gopkg.in/rana/ora.v4"
+		"gopkg.in/rana/ora.v4/lg15"
 	)
 	func main() {
 		// use the optional log15 package for ora logging
-		ora.Cfg().Log.Logger = lg15.Log
+		cfg := ora.Cfg()
+		cfg.Log.Logger = lg15.Log
+		ora.SetCfg(cfg)
 	}
 
 which produces a sample log of:
@@ -1111,11 +1185,20 @@ Limitations
 
 database/sql method Stmt.QueryRow is not supported.
 
+Go 1.6 introduced stricter cgo (call C from Go) rules, and introduced runtime checks.
+This is good, as the possibility of C code corrupting Go code is almost completely eliminated,
+but it also means a severe call overhead grow.
+[Sometimes](https://groups.google.com/forum/#!topic/golang-nuts/ccMkPG6Bi5k)
+this can be 22x the go 1.5.3 call time!
+
+So if you need performance more than correctness, start your programs with
+"GODEBUG=cgocheck=0" environment setting.
+
 License
 
-Copyright 2015 Rana Ian. All rights reserved.
+Copyright 2016 Rana Ian, Tamás Gulácsi. All rights reserved.
 Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 
 */
-package ora // import "gopkg.in/rana/ora.v3"
+package ora // import "gopkg.in/rana/ora.v4"

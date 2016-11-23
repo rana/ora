@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/rana/ora.v3"
-	"gopkg.in/rana/ora.v3/lg"
+	"gopkg.in/rana/ora.v4"
+	"gopkg.in/rana/ora.v4/lg"
 )
 
 func Test_cursor1_session(t *testing.T) {

@@ -40,8 +40,8 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/rana/ora.v3/date"
-	"gopkg.in/rana/ora.v3/num"
+	"gopkg.in/rana/ora.v4/date"
+	"gopkg.in/rana/ora.v4/num"
 )
 
 // When a parent handle is freed, all child handles associated with it are also

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	ora "gopkg.in/rana/ora.v3"
+	ora "gopkg.in/rana/ora.v4"
 
 	"github.com/pkg/errors"
 )

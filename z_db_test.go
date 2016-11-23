@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 func Test_open_cursors_db(t *testing.T) {

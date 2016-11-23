@@ -137,7 +137,7 @@ func (bnd *bndInt8Slice) setPtr() error {
 			r := C.OCINumberToInt(
 				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 				&number,                     //const OCINumber     *number,
-				byteWidth8,                  //uword               rsl_length,
+				byteWidth8,                 //uword               rsl_length,
 				C.OCI_NUMBER_SIGNED,         //uword               rsl_flag,
 				unsafe.Pointer(&ints[i]))    //void                *rsl );
 			if r == C.OCI_ERROR {

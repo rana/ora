@@ -13,7 +13,7 @@ import "C"
 import (
 	"unsafe"
 
-	"gopkg.in/rana/ora.v3/num"
+	"gopkg.in/rana/ora.v4/num"
 )
 
 type defOCINum struct {

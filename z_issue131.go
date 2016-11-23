@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	_ "gopkg.in/rana/ora.v3"
+	_ "gopkg.in/rana/ora.v4"
 )
 
 var db *sql.DB

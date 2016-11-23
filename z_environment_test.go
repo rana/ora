@@ -7,7 +7,7 @@ package ora_test
 import (
 	"testing"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 func TestEnv_OpenClose(t *testing.T) {

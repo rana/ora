@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 func Test_open_cursors(t *testing.T) {

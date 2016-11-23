@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 const (
@@ -138,7 +138,7 @@ func TestSelectOrder(t *testing.T) {
 	}
 }
 
-// go test -c && ./ora.v3.test -test.run=^$ -test.bench=Date -test.cpuprofile=/tmp/cpu.prof && go tool pprof ora.v3.test /tmp/cpu.prof
+// go test -c && ./ora.v4.test -test.run=^$ -test.bench=Date -test.cpuprofile=/tmp/cpu.prof && go tool pprof ora.v4.test /tmp/cpu.prof
 func BenchmarkSelectDate(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; {
@@ -208,7 +208,7 @@ func BenchmarkIter(b *testing.B) {
 
 // BenchmarkMemory usage for querying rows.
 //
-// go test -c && ./ora.v3.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v3.test /tmp/mem.prof
+// go test -c && ./ora.v4.test -test.run=^$ -test.bench=Memory -test.memprofilerate=1 -test.memprofile=/tmp/mem.prof && go tool pprof --alloc_space ora.v4.test /tmp/mem.prof
 func TestMemoryNumString(t *testing.T) {
 	n := 1000
 	benchMem(t, n, 1870, `SELECT

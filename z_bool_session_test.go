@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 )
 
 //// string or bool

@@ -28,8 +28,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"gopkg.in/rana/ora.v3"
-	"gopkg.in/rana/ora.v3/tstlg"
+	"gopkg.in/rana/ora.v4"
+	"gopkg.in/rana/ora.v4/tstlg"
 )
 
 type oracleColumnType string
@@ -3788,7 +3788,7 @@ func TestGetDriverName(t *testing.T) {
 		if err := rows.Scan(&sid, &program, &module, &action, &clientInfo); err != nil {
 			t.Fatal(err)
 		}
-		if strings.HasPrefix(program, "ora.v3.test") {
+		if strings.HasPrefix(program, "ora.v4.test") {
 			t.Logf("%d: %s/%s/%s/%s", sid, program, module, action, clientInfo)
 		}
 	}
