@@ -1881,8 +1881,8 @@ func Example() {
 		for procRset.Next() {
 			fmt.Println(procRset.Row[0], emptyString(procRset.Row[1].(string)))
 		}
-		if procRset.Err != nil {
-			panic(procRset.Err)
+		if procRset.Err() != nil {
+			panic(procRset.Err())
 		}
 		fmt.Println(procRset.Len())
 	}

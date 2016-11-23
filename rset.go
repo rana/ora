@@ -133,9 +133,9 @@ func (rset *Rset) IsOpen() bool {
 	if rset == nil {
 		return false
 	}
-	//rset.RLock()
-	//defer rset.RUnlock()
-	return rset.stmt != nil
+	rset.RLock()
+	defer rset.RUnlock()
+	return rset.stmt != nil && rset.ocistmt != nil && rset.env != nil
 }
 
 // closeWithRemove releases allocated resources and removes the Rset from the
@@ -303,10 +303,7 @@ func (rset *Rset) Exhaust() {
 	if rset == nil {
 		return
 	}
-	rset.RLock()
-	closed := rset.stmt == nil || rset.ocistmt == nil || rset.env == nil
-	rset.RUnlock()
-	if closed {
+	if !rset.IsOpen() {
 		return
 	}
 	for {
