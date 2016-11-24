@@ -174,6 +174,7 @@ var testTableID uint32
 var testWorkloadColumnCount int
 var testSes *ora.Ses
 var testDb *sql.DB
+var testSesPool *ora.Pool
 
 var tableNamePrefix = fmt.Sprintf("test_%d_", os.Getpid())
 
@@ -207,8 +208,8 @@ func init() {
 		panic(fmt.Sprintf("initError: %v", err))
 	}
 
-	pool := testEnv.NewPool(testSrvCfg, testSesCfg, 4)
-	testSes, err = pool.Get()
+	testSesPool = testEnv.NewPool(testSrvCfg, testSesCfg, 4)
+	testSes, err = testSesPool.Get()
 	if err != nil {
 		panic(fmt.Sprintf("initError: %v", err))
 	}

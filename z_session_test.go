@@ -118,34 +118,34 @@ func TestSession_PrepCloseStmt(t *testing.T) {
 
 func TestSession_Tx_StartCommit(t *testing.T) {
 	t.Parallel()
-	tableName, err := createTable(1, numberP38S0, testSes)
+	ses, err := testSesPool.Get()
 	testErr(err, t)
-	defer dropTable(tableName, testSes, t)
+	tableName, err := createTable(1, numberP38S0, ses)
+	testErr(err, t)
+	defer dropTable(tableName, ses, t)
 
-	tx, err := testSes.StartTx()
-	testErr(err, t)
-
-	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
-	testErr(err, t)
-	_, err = stmt.Exe()
+	defer ses.Close()
+	tx, err := ses.StartTx()
 	testErr(err, t)
 
-	stmt, err = testSes.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
+	stmt, err := ses.Prep(fmt.Sprintf("insert into %v (c1) values (:1)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exe()
+	_, err = stmt.Exe(int64(9))
+	testErr(err, t)
+	_, err = stmt.Exe(int64(11))
 	testErr(err, t)
 
 	err = tx.Commit()
 	testErr(err, t)
 
-	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, err = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
 	rset, err := stmt.Qry()
 	testErr(err, t)
 
 	for rset.Next() {
-
+		t.Log("Row=%v", rset.Row)
 	}
 	if 2 != rset.Len() {
 		t.Fatalf("row count: expected(%v), actual(%v)", 2, rset.Len())
@@ -154,30 +154,33 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 
 func TestSession_Tx_StartRollback(t *testing.T) {
 	t.Parallel()
-	tableName, err := createTable(1, numberP38S0, testSes)
+	ses, err := testSesPool.Get()
 	testErr(err, t)
-	defer dropTable(tableName, testSes, t)
+	defer ses.Close()
+
+	tableName, err := createTable(1, numberP38S0, ses)
+	testErr(err, t)
+	defer dropTable(tableName, ses, t)
 
 	cfg := ora.Cfg()
 	cfg.Log.Tx.Commit, cfg.Log.Tx.Rollback = true, true
 	ora.SetCfg(cfg)
-	tx, err := testSes.StartTx()
+
+	tx, err := ses.StartTx()
 	testErr(err, t)
 
-	stmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	enableLogging(t)
+	stmt, err := ses.Prep(fmt.Sprintf("insert into %v (c1) values (:1)", tableName))
 	testErr(err, t)
-	_, err = stmt.Exe()
+	_, err = stmt.Exe(int64(9))
 	testErr(err, t)
-
-	stmt, err = testSes.Prep(fmt.Sprintf("insert into %v (c1) values (11)", tableName))
-	testErr(err, t)
-	_, err = stmt.Exe()
+	_, err = stmt.Exe(int64(11))
 	testErr(err, t)
 
 	err = tx.Rollback()
 	testErr(err, t)
 
-	stmt, err = testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
+	stmt, err = ses.Prep(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 
 	rset, err := stmt.Qry()
@@ -196,7 +199,11 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 
 func TestSession_PrepAndExe(t *testing.T) {
 	t.Parallel()
-	rowsAffected, err := testSes.PrepAndExe(fmt.Sprintf("create table %v (c1 number)", tableName()))
+	ses, err := testSesPool.Get()
+	testErr(err, t)
+	defer ses.Close()
+
+	rowsAffected, err := ses.PrepAndExe(fmt.Sprintf("create table %v (c1 number)", tableName()))
 	testErr(err, t)
 
 	if rowsAffected != 0 {
@@ -206,9 +213,13 @@ func TestSession_PrepAndExe(t *testing.T) {
 
 func TestSession_PrepAndExe_Insert(t *testing.T) {
 	t.Parallel()
-	tableName, err := createTable(1, numberP38S0, testSes)
+	ses, err := testSesPool.Get()
 	testErr(err, t)
-	defer dropTable(tableName, testSes, t)
+	defer ses.Close()
+
+	tableName, err := createTable(1, numberP38S0, ses)
+	testErr(err, t)
+	defer dropTable(tableName, ses, t)
 
 	values := make([]int64, 1000000)
 	for n, _ := range values {
@@ -219,7 +230,7 @@ func TestSession_PrepAndExe_Insert(t *testing.T) {
 		values = values[:2000]
 		t.Logf("GODEBUG=%d so limiting slice to %d", cgc, len(values))
 	}
-	rowsAffected, err := testSes.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (:C1)", tableName), values)
+	rowsAffected, err := ses.PrepAndExe(fmt.Sprintf("INSERT INTO %v (C1) VALUES (:C1)", tableName), values)
 	testErr(err, t)
 
 	if rowsAffected != uint64(len(values)) {
@@ -229,17 +240,21 @@ func TestSession_PrepAndExe_Insert(t *testing.T) {
 
 func TestSession_PrepAndQry(t *testing.T) {
 	t.Parallel()
-	tableName, err := createTable(1, numberP38S0, testSes)
+	ses, err := testSesPool.Get()
 	testErr(err, t)
-	defer dropTable(tableName, testSes, t)
+	defer ses.Close()
+
+	tableName, err := createTable(1, numberP38S0, ses)
+	testErr(err, t)
+	defer dropTable(tableName, ses, t)
 
 	// insert one row
-	stmtIns, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
+	stmtIns, err := ses.Prep(fmt.Sprintf("insert into %v (c1) values (9)", tableName))
 	testErr(err, t)
 	_, err = stmtIns.Exe()
 	testErr(err, t)
 
-	rset, err := testSes.PrepAndQry(fmt.Sprintf("select c1 from %v", tableName))
+	rset, err := ses.PrepAndQry(fmt.Sprintf("select c1 from %v", tableName))
 	testErr(err, t)
 	if rset == nil {
 		t.Fatalf("expected non-nil rset")
@@ -311,12 +326,16 @@ func benchmarkSession_PrepAndExe_Insert(b *testing.B) {
 
 func TestSessionCallPkg(t *testing.T) {
 	t.Parallel()
-	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE PACKAGE mypkg AS
+	ses, err := testSesPool.Get()
+	testErr(err, t)
+	defer ses.Close()
+
+	if _, err := ses.PrepAndExe(`CREATE OR REPLACE PACKAGE mypkg AS
   FUNCTION myproc(user IN VARCHAR2, pass IN VARCHAR2) RETURN PLS_INTEGER;
 END mypkg;`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE PACKAGE BODY mypkg AS
+	if _, err := ses.PrepAndExe(`CREATE OR REPLACE PACKAGE BODY mypkg AS
   FUNCTION myproc(user IN VARCHAR2, pass IN VARCHAR2) RETURN PLS_INTEGER IS
   BEGIN
     RETURN NVL(LENGTH(user), 0) + NVL(LENGTH(pass), 0);
@@ -325,7 +344,7 @@ END mypkg;`); err != nil {
 		t.Fatal(err)
 	}
 	rc := int64(-100)
-	if _, err := testSes.PrepAndExe("BEGIN :1 := MYPKG.MYPROC(:2, :3); END;", &rc, "a", "bc"); err != nil {
+	if _, err := ses.PrepAndExe("BEGIN :1 := MYPKG.MYPROC(:2, :3); END;", &rc, "a", "bc"); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%d", rc)
@@ -336,7 +355,11 @@ END mypkg;`); err != nil {
 
 func TestIssue59(t *testing.T) {
 	t.Parallel()
-	if _, err := testSes.PrepAndExe(`CREATE OR REPLACE
+	ses, err := testSesPool.Get()
+	testErr(err, t)
+	defer ses.Close()
+
+	if _, err := ses.PrepAndExe(`CREATE OR REPLACE
 PROCEDURE test_59(theoutput OUT VARCHAR2, param1 IN VARCHAR2, param2 IN VARCHAR2, param3 IN VARCHAR2) IS
   TYPE vc_tab_typ IS TABLE OF VARCHAR2(32767) INDEX BY PLS_INTEGER;
   rows vc_tab_typ;
@@ -355,7 +378,7 @@ END test_59;`,
 	); err != nil {
 		t.Fatal(err)
 	}
-	ces, err := GetCompileErrors(testSes, false)
+	ces, err := GetCompileErrors(ses, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +389,7 @@ END test_59;`,
 	}
 
 	res := strings.Repeat("\x00", 32768)
-	if _, err := testSes.PrepAndExe("CALL test_59(:1, :2, :3, :4)", &res, "a", "b", "c"); err != nil {
+	if _, err := ses.PrepAndExe("CALL test_59(:1, :2, :3, :4)", &res, "a", "b", "c"); err != nil {
 		t.Error(err)
 	}
 	t.Logf("res=%q", res)
