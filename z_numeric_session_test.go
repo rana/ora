@@ -88,24 +88,26 @@ func TestBindDefine_numeric(t *testing.T) {
 			if gen == nil {
 				continue
 			}
+			gen := gen
 			if !strings.Contains(valName, "int") && !strings.Contains(valName, "Int") && !strings.HasSuffix(valName, "Trunc") {
 				continue
 			}
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
-			v := gen()
 			//t.Logf("v=%T (%#v)", v, gen)
 			t.Run(valName+"_"+ctName, func(t *testing.T) {
 				t.Parallel()
+				v := gen()
 				testBindDefine(v, ct, t, sc)
 			})
-			vName := fmt.Sprintf("%T", v)
+			vName := fmt.Sprintf("%T", gen())
 			if len(vName) >= 3 && strings.EqualFold(vName[:3], "ora") {
 				continue
 			}
 			t.Run(valName+"_"+ctName+"Ptr", func(t *testing.T) {
 				t.Parallel()
+				v := gen()
 				//enableLogging(t)
 				testBindPtr(v, ct, t)
 			})
@@ -162,14 +164,15 @@ func TestBindSlice_numeric(t *testing.T) {
 		if gen == nil {
 			continue
 		}
+		gen := gen
 		for _, ctName := range _T_numericCols {
 			if strings.HasSuffix(valName, "Null") && !strings.HasSuffix(ctName, "Null") {
 				continue
 			}
 			ct := _T_colType[ctName]
-			v := gen()
 			t.Run(valName+"_"+ctName, func(t *testing.T) {
 				t.Parallel()
+				v := gen()
 				sc := sc
 				if valName == "uint8Slice" {
 					sc = sc.SetByteSlice(ora.U8)

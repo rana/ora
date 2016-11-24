@@ -6,7 +6,6 @@ package ora_test
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -60,43 +59,44 @@ func testRowid(isUrowid bool, t *testing.T) {
 		hasRow := rset.Next()
 		testErr(rset.Err(), t)
 		if !hasRow {
-			t.Fatalf("no row returned")
+			t.Fatalf("%d. no row returned", n)
 		} else if len(rset.Row) != 1 {
-			t.Fatalf("select column count: expected(%v), actual(%v)", 1, len(rset.Row))
-		} else {
-			rowid, ok := rset.Row[0].(string)
-			if !ok {
-				t.Fatalf("Expected string rowid. (%v, %v)", reflect.TypeOf(rset.Row[0]).Name(), rset.Row[0])
-			}
-			if rowid == "" {
-				t.Fatalf("Expected non-empty rowid string. (%v)", rowid)
-			}
-			//fmt.Printf("rowid (%v)\n", rowid)
+			t.Fatalf("%d. select column count: expected(%v), actual(%v)", n, 1, len(rset.Row))
+		}
 
-			updateStmt, err := testSes.Prep(fmt.Sprintf("update %v set c1 = 'go go go' where rowid = :1", tableName))
-			defer updateStmt.Close()
-			testErr(err, t)
-			rowsAffected, err = updateStmt.Exe(rowid)
-			testErr(err, t)
-			if rowsAffected != 1 {
-				t.Fatalf("update rows affected: expected(%v), actual(%v)", 1, rowsAffected)
-			}
+		rowid, ok := rset.Row[0].(string)
+		if !ok {
+			t.Fatalf("%d. Expected string rowid. (%T, %v)", n, rset.Row[0], rset.Row[0])
+		}
+		if rowid == "" {
+			t.Fatalf("%d. Expected non-empty rowid string. (%v)", n, rowid)
+		}
+		//fmt.Printf("rowid (%v)\n", rowid)
 
-			stmtSelect2, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
-			defer stmtSelect2.Close()
-			testErr(err, t)
-			rset2, err := stmtSelect2.Qry()
-			testErr(err, t)
-			rset2.Next()
-			testErr(rset2.Err(), t)
-			c1, ok := rset2.Row[0].(string)
-			if !ok {
-				t.Fatalf("Expected string for c1 column. (%s, %v)", reflect.TypeOf(rset2.Row[0]).Name(), rset2.Row[0])
-			}
-			//fmt.Printf("c1 (%v)\n", c1)
-			if c1 != "go go go" {
-				t.Fatalf("Expected 'go go go' string. (%v)", c1)
-			}
+		want := "go go go"
+		updateStmt, err := testSes.Prep(fmt.Sprintf("update %v set c1 = :1 where rowid = :2", tableName))
+		defer updateStmt.Close()
+		testErr(err, t)
+		rowsAffected, err = updateStmt.Exe(want, rowid)
+		testErr(err, t)
+		if rowsAffected != 1 {
+			t.Fatalf("%d. update rows affected: expected(%v), actual(%v)", n, 1, rowsAffected)
+		}
+
+		stmtSelect2, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName))
+		defer stmtSelect2.Close()
+		testErr(err, t)
+		rset2, err := stmtSelect2.Qry()
+		testErr(err, t)
+		rset2.Next()
+		testErr(rset2.Err(), t)
+		c1, ok := rset2.Row[0].(string)
+		if !ok {
+			t.Fatalf("%d. Expected string for c1 column. (%T, %v)", n, rset2.Row[0], rset2.Row[0])
+		}
+		//fmt.Printf("c1 (%v)\n", c1)
+		if c1 != want {
+			t.Fatalf("%d. Got %q, wanted %q.", n, c1, want)
 		}
 	}
 }

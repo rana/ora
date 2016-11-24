@@ -234,25 +234,31 @@ END;`)
 		fmt.Println("initError: ", err)
 	}
 	defer stmt.Close()
+	start := time.Now()
 	_, err = stmt.Exe()
 	if err != nil {
 		fmt.Println("initError: ", err)
 	}
-	fmt.Println("Tables dropped.")
+	fmt.Printf("Tables dropped (%s).\n", time.Since(start))
 
 	// setup test db
+
+	start = time.Now()
 	testDb, err = sql.Open(ora.Name, testConStr)
 	if err != nil {
 		fmt.Println("initError: ", err)
+	} else {
+		fmt.Printf("Connected to %q (%s).\n", testConStr, time.Since(start))
 	}
 
-	go func() {
-		addr := "localhost:8642"
-		fmt.Println("blockprofile: go tool pprof http://" + addr + "/debug/pprof/block")
-		runtime.SetBlockProfileRate(1)
-		fmt.Println(http.ListenAndServe(addr, nil))
-	}()
-
+	if os.Getenv("BLOCKPROFILE") == "1" {
+		go func() {
+			addr := "localhost:8642"
+			fmt.Println("blockprofile: go tool pprof http://" + addr + "/debug/pprof/block")
+			runtime.SetBlockProfileRate(1)
+			fmt.Println(http.ListenAndServe(addr, nil))
+		}()
+	}
 }
 
 func enableLogging(t *testing.T) {
@@ -772,39 +778,43 @@ func compare2(expected interface{}, actual interface{}, t *testing.T) {
 
 func createTable(multiple int, oct oracleColumnType, ses *ora.Ses) (string, error) {
 	tableName := fmt.Sprintf("%v_%v", tableName(), multiple)
-	stmt, err := ses.Prep(createTableSql(tableName, multiple, oct))
+	qry := createTableSql(tableName, multiple, oct)
+	stmt, err := ses.Prep(qry)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, qry)
 	}
 	defer stmt.Close()
 	_, err = stmt.Exe()
-	return tableName, err
+	return tableName, errors.Wrap(err, qry)
 }
 
 func dropTable(tableName string, ses *ora.Ses, t testing.TB) {
-	stmt, err := ses.Prep(fmt.Sprintf("drop table %v", tableName))
+	qry := fmt.Sprintf("drop table %v", tableName)
+	stmt, err := ses.Prep(qry)
 	defer stmt.Close()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 	_, err = stmt.Exe()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 }
 
 func createTableDB(db *sql.DB, t *testing.T, octs ...oracleColumnType) string {
 	tableName := tableName()
-	stmt, err := db.Prepare(createTableSql(tableName, 1, octs...))
+	qry := createTableSql(tableName, 1, octs...)
+	stmt, err := db.Prepare(qry)
 	defer stmt.Close()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 	_, err = stmt.Exec()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 	return tableName
 }
 
 func dropTableDB(db *sql.DB, t *testing.T, tableName string) {
-	stmt, err := db.Prepare(fmt.Sprintf("drop table %v", tableName))
+	qry := fmt.Sprintf("drop table %v", tableName)
+	stmt, err := db.Prepare(qry)
 	defer stmt.Close()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 	_, err = stmt.Exec()
-	testErr(err, t)
+	testErr(errors.Wrap(err, qry), t)
 }
 
 func createTableSql(tableName string, multiple int, columns ...oracleColumnType) string {

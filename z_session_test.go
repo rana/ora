@@ -183,6 +183,9 @@ func TestSession_Tx_StartRollback(t *testing.T) {
 	rset, err := stmt.Qry()
 	testErr(err, t)
 
+	if 0 != rset.Len() {
+		t.Fatalf("row count BEFORE execute: expected(%v), actual(%v)", 0, rset.Len())
+	}
 	for rset.Next() {
 		t.Logf("Row=%v", rset.Row)
 	}
