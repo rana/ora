@@ -2,6 +2,7 @@
 ## Go
 #################
 *.exe
+ora.v?.test
 
 #################
 ## Eclipse
@@ -219,3 +220,6 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#
+env.sh

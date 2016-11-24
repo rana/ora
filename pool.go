@@ -146,6 +146,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 	// try to get srv from the srv pool
 	if p.sesCfg.IsZero() {
 		p.sesCfg = NewSesCfg()
+		p.sesCfg.StmtCfg = Cfg().StmtCfg
 	}
 	for {
 		x := p.srv.Get()
@@ -202,7 +203,7 @@ func (s sesSrvPB) Close() error {
 		s.Ses.RUnlock()
 	}
 	err := s.Ses.Close()
-	if srv != nil && srv.NumSes() == 0 {
+	if srv != nil { // there's only one ses per srv, so this should be safe
 		s.p.Put(srv)
 	}
 	return err
