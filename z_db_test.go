@@ -296,16 +296,15 @@ func Test_db(t *testing.T) {
 		}
 	}
 
-	cfg := ora.Cfg()
-	defer ora.SetCfg(cfg)
-	ora.SetCfg(cfg.SetChar1(ora.B))
 	for _, ctName := range []string{
 		"charB1", "charB1Null",
 		"charC1", "charC1Null",
 	} {
 		ct := _T_colType[ctName]
 		t.Run(ctName+"_bool", func(t *testing.T) {
-			t.Parallel()
+			cfg := ora.Cfg()
+			defer ora.SetCfg(cfg)
+			ora.SetCfg(cfg.SetChar1(ora.B))
 			//enableLogging(t)
 			testBindDefineDB(gen_boolTrue(), t, ct)
 		})
