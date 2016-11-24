@@ -840,7 +840,7 @@ func testErr(err error, t testing.TB, expectedErrs ...error) {
 	done := make(chan struct{})
 	go func() {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(30 * time.Second):
 			fmt.Printf("\n\nPRINT TIMEOUT\n%v: %s\n", err, getStack(1))
 		case <-done:
 		}
