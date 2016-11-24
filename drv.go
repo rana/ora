@@ -197,12 +197,7 @@ func (c LogDrvCfg) IsEnabled(enabled bool) bool {
 type Drv struct {
 	sync.RWMutex
 
-	cfg      atomic.Value
-	insMu    sync.Mutex
-	updMu    sync.Mutex
-	delMu    sync.Mutex
-	selMu    sync.Mutex
-	addTblMu sync.Mutex
+	cfg atomic.Value
 
 	envId  Id
 	srvId  Id
@@ -212,16 +207,16 @@ type Drv struct {
 	stmtId Id
 	rsetId Id
 
-	listPool *pool
-	envPool  *pool
-	conPool  *pool
-	srvPool  *pool
-	sesPool  *pool
-	stmtPool *pool
-	txPool   *pool
-	rsetPool *pool
-	bndPools []*pool
-	defPools []*pool
+	listPool *sync.Pool
+	envPool  *sync.Pool
+	conPool  *sync.Pool
+	srvPool  *sync.Pool
+	sesPool  *sync.Pool
+	stmtPool *sync.Pool
+	txPool   *sync.Pool
+	rsetPool *sync.Pool
+	bndPools []*sync.Pool
+	defPools []*sync.Pool
 
 	locationsMu sync.RWMutex
 	locations   map[string]*time.Location

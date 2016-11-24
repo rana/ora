@@ -41,6 +41,7 @@ func NewLogTxCfg() LogTxCfg {
 type Tx struct {
 	sync.RWMutex
 
+	cmu sync.Mutex
 	id  uint64
 	ses *Ses
 }
@@ -70,6 +71,8 @@ func (tx *Tx) closeWithRemove() (err error) {
 
 // close releases allocated resources.
 func (tx *Tx) close() (err error) {
+	tx.cmu.Lock()
+	defer tx.cmu.Unlock()
 	var ok bool
 	tx.Lock()
 	if tx.ses != nil {

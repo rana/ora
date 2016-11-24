@@ -15,6 +15,7 @@ import (
 	"container/list"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -48,7 +49,7 @@ func init() {
 	_drv.rsetPool = newPool(func() interface{} { return &Rset{genByPool: true} })
 
 	// init bind pools
-	_drv.bndPools = make([]*pool, bndIdxNil+1)
+	_drv.bndPools = make([]*sync.Pool, bndIdxNil+1)
 	_drv.bndPools[bndIdxInt64] = newPool(func() interface{} { return &bndInt64{} })
 	_drv.bndPools[bndIdxInt32] = newPool(func() interface{} { return &bndInt32{} })
 	_drv.bndPools[bndIdxInt16] = newPool(func() interface{} { return &bndInt16{} })
@@ -108,7 +109,7 @@ func init() {
 	_drv.bndPools[bndIdxNil] = newPool(func() interface{} { return &bndNil{} })
 
 	// init def pools
-	_drv.defPools = make([]*pool, defIdxRset+1)
+	_drv.defPools = make([]*sync.Pool, defIdxRset+1)
 	_drv.defPools[defIdxInt64] = newPool(func() interface{} { return &defInt64{} })
 	_drv.defPools[defIdxInt32] = newPool(func() interface{} { return &defInt32{} })
 	_drv.defPools[defIdxInt16] = newPool(func() interface{} { return &defInt16{} })
@@ -229,3 +230,5 @@ func Cfg() DrvCfg {
 func Register(cfg DrvCfg) {
 	SetCfg(cfg)
 }
+
+func newPool(f func() interface{}) *sync.Pool { return &sync.Pool{New: f} }

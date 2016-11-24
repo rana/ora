@@ -677,39 +677,53 @@ func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (rset *Rset, err
 	return rset, nil
 }
 
-// StartTx starts an Oracle transaction returning a *Tx and possible error.
-func (ses *Ses) StartTx() (tx *Tx, err error) {
-	return ses.StartTxWithFlags(0)
+type TxOption func(*txOption)
+type txOption struct {
+	flags   uint32
+	timeout time.Duration
 }
 
-func (ses *Ses) StartTxWithFlags(flags C.ub4) (tx *Tx, err error) {
+func TxFlags(flags uint32) TxOption            { return func(o *txOption) { o.flags = flags } }
+func TxTimeout(timeout time.Duration) TxOption { return func(o *txOption) { o.timeout = timeout } }
+
+// StartTx starts an Oracle transaction returning a *Tx and possible error.
+func (ses *Ses) StartTx(opts ...TxOption) (tx *Tx, err error) {
 	ses.log(_drv.Cfg().Log.Ses.StartTx)
 	err = ses.checkClosed()
 	if err != nil {
 		return nil, errE(err)
 	}
+
+	var o txOption
+	for _, opt := range opts {
+		opt(&o)
+	}
 	// start transaction
 	// the number of seconds the transaction can be inactive
 	// before it is automatically terminated by the system.
-	// TODO: add timeout config value
 	var timeout = C.uword(60)
+	if o.timeout > 0 {
+		timeout = C.uword(o.timeout / time.Second)
+	}
 	ses.RLock()
 	r := C.OCITransStart(
-		ses.ocisvcctx,         //OCISvcCtx    *svchp,
-		ses.env.ocierr,        //OCIError     *errhp,
-		timeout,               //uword        timeout,
-		C.OCI_TRANS_NEW|flags) //ub4          flags );
+		ses.ocisvcctx,  //OCISvcCtx    *svchp,
+		ses.env.ocierr, //OCIError     *errhp,
+		timeout,        //uword        timeout,
+		C.OCI_TRANS_NEW|C.ub4(o.flags)) //ub4          flags );
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errE(ses.env.ociError())
 	}
 	tx = _drv.txPool.Get().(*Tx) // set *Tx
+	tx.cmu.Lock()
 	tx.Lock()
 	tx.ses = ses
 	if tx.id == 0 {
 		tx.id = _drv.txId.nextId()
 	}
 	tx.Unlock()
+	tx.cmu.Unlock()
 	ses.openTxs.add(tx)
 
 	return tx, nil
