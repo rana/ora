@@ -81,7 +81,6 @@ END;`)
 		t.Fatal(err)
 	}
 	//enableLogging(t)
-	ora.SetCfg(cfg)
 	stmt, err := testSes.Prep("call proc2(:1)")
 	testErr(err, t)
 	//enableLogging(t)

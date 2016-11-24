@@ -372,6 +372,7 @@ func (srv *Srv) log(enabled bool, v ...interface{}) {
 
 // log writes a formatted message with an Srv system name and caller info.
 func (srv *Srv) logF(enabled bool, format string, v ...interface{}) {
+	Log := _drv.Cfg().Log
 	if !Log.IsEnabled(enabled) {
 		return
 	}
