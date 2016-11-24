@@ -340,7 +340,7 @@ PROCEDURE test_59(theoutput OUT VARCHAR2, param1 IN VARCHAR2, param2 IN VARCHAR2
 BEGIN
   SELECT ROWNUM||';'||A.object_name||';'||B.object_type||';'||param1||';'||param2||';'||param3
     BULK COLLECT INTO rows
-    FROM all_objects B, all_objects A
+    FROM user_objects B, user_objects A, (SELECT 1 FROM DUAL)
 	WHERE ROWNUM < 1000;
   FOR i IN 1..rows.COUNT LOOP
     res := SUBSTR(res||CHR(10)||rows(i), 1, 32767);

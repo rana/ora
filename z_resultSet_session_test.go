@@ -75,7 +75,7 @@ func Test_nested_rset(t *testing.T) {
 	_, err := testSes.PrepAndExe(`CREATE OR REPLACE PROCEDURE proc2(p_cur OUT SYS_REFCURSOR) IS
 BEGIN
   OPEN p_cur FOR
-    SELECT CURSOR(SELECT * FROM all_objects) cur FROM DUAL;
+    SELECT CURSOR(SELECT A.* FROM user_objects A, (SELECT 1 FROM DUAL)) cur FROM DUAL;
 END;`)
 	if err != nil {
 		t.Fatal(err)
