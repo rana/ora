@@ -80,6 +80,8 @@ type Rset struct {
 	sync.RWMutex
 
 	id uint64
+	// protects that open/close should not happen at once
+	cmu sync.Mutex
 	// cached
 	env       *Env
 	stmt      *Stmt
@@ -150,6 +152,9 @@ func (rset *Rset) closeWithRemove() (err error) {
 // close releases allocated resources.
 func (rset *Rset) close() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.Close)
+
+	rset.cmu.Lock()
+	defer rset.cmu.Unlock()
 
 	defer func() {
 		if value := recover(); value != nil {
@@ -329,8 +334,8 @@ func (rset *Rset) Next() bool {
 		rset.err = err
 		rset.Row = nil
 		autoClose := rset.autoClose
-		// closing the Stmt will close this (and all) Rsets under it!
 		rset.Unlock()
+		// closing the Stmt will close this (and all) Rsets under it!
 		if autoClose {
 			rset.RLock()
 			stmt := rset.stmt
@@ -356,17 +361,23 @@ func (rset *Rset) Next() bool {
 		return false
 	}
 	// populate column values
-	rset.Lock()
-	for n, define := range rset.defs {
-		value, err := define.value(int(rset.offset))
+	rset.RLock()
+	Row := rset.Row
+	defs := rset.defs
+	offset := rset.offset
+	rset.RUnlock()
+	for n, define := range defs {
+		value, err := define.value(int(offset))
 		//rset.logF(_drv.Cfg().Log.Rset.Next, "value[%d]=%v (%v)", n, value, err)
 		if err != nil {
-			rset.Unlock()
 			erase(err)
 			return false
 		}
-		rset.Row[n] = value
+		Row[n] = value
 	}
+	rset.Lock()
+	rset.defs = defs
+	rset.Row = Row
 	rset.Unlock()
 	//rset.logF(_drv.Cfg().Log.Rset.Next, "Row=%#v", rset.Row)
 	return true
@@ -395,6 +406,9 @@ func (rset *Rset) putDef(idx int, def def) {
 
 // Open defines select-list columns.
 func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
+	rset.cmu.Lock()
+	defer rset.cmu.Unlock()
+
 	logCfg := _drv.Cfg().Log
 	rset.Lock()
 	rset.stmt = stmt
@@ -405,18 +419,20 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.finished = false
 	rset.err = nil
 	defs, Columns, Row := rset.defs, rset.Columns, rset.Row
+	rset.Unlock()
+
 	rset.log(logCfg.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
+	//fmt.Fprintf(os.Stdout, "stmt=%#v rset=%#v\n", stmt, rset)
 	r := C.OCIStmtExecute(
-		rset.stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
-		rset.ocistmt,            //OCIStmt             *stmtp,
-		rset.env.ocierr,         //OCIError            *errhp,
-		C.ub4(1),                //ub4                 iters,
-		C.ub4(0),                //ub4                 rowoff,
-		nil,                     //const OCISnapshot   *snap_in,
-		nil,                     //OCISnapshot         *snap_out,
-		C.OCI_DESCRIBE_ONLY)     //ub4                 mode );
-	rset.Unlock()
+		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
+		ocistmt,             //OCIStmt             *stmtp,
+		rset.env.ocierr,     //OCIError            *errhp,
+		C.ub4(1),            //ub4                 iters,
+		C.ub4(0),            //ub4                 rowoff,
+		nil,                 //const OCISnapshot   *snap_in,
+		nil,                 //OCISnapshot         *snap_out,
+		C.OCI_DESCRIBE_ONLY) //ub4                 mode );
 	if r == C.OCI_ERROR {
 		return rset.env.ociError()
 	}

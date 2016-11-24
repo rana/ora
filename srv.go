@@ -61,6 +61,7 @@ type Srv struct {
 	sync.RWMutex
 
 	id     uint64
+	cmu    sync.Mutex
 	cfg    atomic.Value
 	env    *Env
 	ocisrv *C.OCIServer
@@ -123,6 +124,9 @@ func (srv *Srv) close() (err error) {
 	if err != nil {
 		return errE(err)
 	}
+	srv.cmu.Lock()
+	defer srv.cmu.Unlock()
+
 	srv.RLock()
 	openSess := srv.openSess
 	srv.RUnlock()
@@ -269,6 +273,8 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	}
 
 	ses = _drv.sesPool.Get().(*Ses) // set *Ses
+	ses.cmu.Lock()
+	defer ses.cmu.Unlock()
 	ses.Lock()
 	ses.env = srv.env
 	ses.srv = srv

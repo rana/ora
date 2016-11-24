@@ -33,6 +33,7 @@ func (def *defRset) define(position int, rset *Rset) error {
 			result.id = _drv.rsetId.nextId()
 		}
 		result.autoClose = false
+		result.env = def.rset.env
 		result.stmt = rset.stmt
 		result.ocistmt = rset.ocistmt
 		def.result[i] = result

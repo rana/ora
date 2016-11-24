@@ -51,6 +51,7 @@ type Env struct {
 	sync.RWMutex
 
 	id       uint64
+	cmu      sync.Mutex
 	cfg      atomic.Value
 	ocienv   *C.OCIEnv
 	ocierr   *C.OCIError
@@ -92,6 +93,10 @@ func (env *Env) Close() (err error) {
 	}
 	_drv.Unlock()
 	errs := _drv.listPool.Get().(*list.List)
+
+	env.cmu.Lock()
+	defer env.cmu.Unlock()
+
 	env.RLock()
 	openSrvs, openCons := env.openSrvs, env.openCons
 	env.RUnlock()
@@ -168,6 +173,8 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
+	srv.cmu.Lock()
+	defer srv.cmu.Unlock()
 	srv.Lock()
 	srv.env = env
 	srv.ocisrv = (*C.OCIServer)(ocisrv)

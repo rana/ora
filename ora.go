@@ -168,6 +168,8 @@ func OpenEnv() (env *Env, err error) {
 	// OCI_OBJECT   - Uses object features such as OCINumber, OCINumberToInt, OCINumberFromInt. These are used in oracle-go type conversions.
 	_drv.RLock()
 	env = _drv.envPool.Get().(*Env) // set *Env
+	env.cmu.Lock()
+	defer env.cmu.Unlock()
 	r := C.OCIEnvNlsCreate(
 		&env.ocienv, //OCIEnv        **envhpp,
 		C.OCI_DEFAULT|C.OCI_OBJECT|C.OCI_THREADED, //ub4           mode,

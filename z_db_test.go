@@ -24,13 +24,14 @@ func Test_open_cursors_db(t *testing.T) {
 	// SELECT A.STATISTIC#, A.NAME, B.VALUE
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
-	stmt, err := testDb.Prepare("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
+	qry := "SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5"
+	stmt, err := testDb.Prepare(qry)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%q: %v", qry, err)
 	}
 	var before, after int
 	if err = stmt.QueryRow().Scan(&before); err != nil {
-		t.Skip(err)
+		t.Skipf("%q: %v", qry, err)
 	}
 	rounds := 100
 	for i := 0; i < rounds; i++ {

@@ -59,7 +59,9 @@ func NewLogStmtCfg() LogStmtCfg {
 type Stmt struct {
 	sync.RWMutex
 
-	id                  uint64
+	id uint64
+	// protects that open/close should not happen at once
+	cmu                 sync.Mutex
 	cfg                 atomic.Value
 	env                 *Env // we need to cache the env here
 	ses                 *Ses
@@ -127,6 +129,10 @@ func (stmt *Stmt) close() (err error) {
 	if err != nil {
 		return errE(err)
 	}
+
+	stmt.cmu.Lock()
+	defer stmt.cmu.Unlock()
+
 	errs := _drv.listPool.Get().(*list.List)
 	defer func() {
 		if value := recover(); value != nil {
@@ -1268,6 +1274,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			bnd := stmt.getBnd(bndIdxRset).(*bndRset)
 			bnds[n] = bnd
 			value.env = stmt.env
+			value.stmt = stmt
 			err = bnd.bind(value, n+1, stmt)
 			if err != nil {
 				return iterations, err

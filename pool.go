@@ -118,8 +118,10 @@ func (p *Pool) Get() (ses *Ses, err error) {
 	p.Lock()
 	defer p.Unlock()
 
+	// Instead of closing the session, put it back to the session pool.
 	Instead := func(ses *Ses) error {
 		ses.insteadClose = nil // one-shot
+		// if the session is to be evicted, its srv should go to the srv pool.
 		p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
 		return nil
 	}
@@ -187,17 +189,23 @@ type sesSrvPB struct {
 	p *idlePool
 }
 
+// Close: after closing the session, put its srv into the pool,
+// if it does not have more open sessions.
 func (s sesSrvPB) Close() error {
 	if s.Ses == nil {
 		return nil
 	}
+	var srv *Srv
 	if s.p != nil {
-		//s.Ses.mu.Lock()
-		srv := s.Ses.srv
-		//s.Ses.mu.Unlock()
+		s.Ses.RLock()
+		srv = s.Ses.srv
+		s.Ses.RUnlock()
+	}
+	err := s.Ses.Close()
+	if srv != nil && srv.NumSes() == 0 {
 		s.p.Put(srv)
 	}
-	return s.Ses.Close()
+	return err
 }
 
 // NewSrvPool returns a connection pool, which evicts the idle connections in every minute.

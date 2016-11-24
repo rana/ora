@@ -198,6 +198,8 @@ type Ses struct {
 	sync.RWMutex
 
 	cfg atomic.Value
+	// protects that open/close should not happen at once
+	cmu sync.Mutex
 	id  uint64
 	// cached
 	env       *Env
@@ -269,8 +271,9 @@ func (ses *Ses) closeWithRemove() error {
 // close ends a session on an Oracle server, without holding the lock.
 // does not remove Ses from Srv.openSess
 func (ses *Ses) close() (err error) {
-	//ses.mu.Lock()
-	//defer ses.mu.Unlock()
+	ses.cmu.Lock()
+	defer ses.cmu.Unlock()
+
 	ses.log(_drv.Cfg().Log.Ses.Close)
 	err = ses.checkClosed()
 	if err != nil {
@@ -446,6 +449,8 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt = _drv.stmtPool.Get().(*Stmt)
 	stmtCfg := ses.Cfg().StmtCfg
 	stmt.SetCfg(StmtCfg{}) // reset - always inherit from ses.Cfg().
+	stmt.cmu.Lock()
+	defer stmt.cmu.Unlock()
 	stmt.Lock()
 	stmt.env = ses.env
 	stmt.ses = ses

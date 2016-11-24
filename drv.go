@@ -254,7 +254,11 @@ func (drv *Drv) SetCfg(cfg DrvCfg) {
 // Open is a member of the driver.Driver interface.
 func (drv *Drv) Open(conStr string) (driver.Conn, error) {
 	log(true)
-	con, err := drv.sqlPkgEnv.OpenCon(conStr)
+
+	drv.RLock()
+	env := drv.sqlPkgEnv
+	drv.RUnlock()
+	con, err := env.OpenCon(conStr)
 	if err != nil {
 		return nil, maybeBadConn(err)
 	}

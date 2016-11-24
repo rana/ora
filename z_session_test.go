@@ -39,9 +39,10 @@ func Test_open_cursors(t *testing.T) {
 	}
 	defer ses.Close()
 
-	rset, err := ses.PrepAndQry("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
+	qry := "SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5"
+	rset, err := ses.PrepAndQry(qry)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("%q: %v", qry, err)
 	}
 	toNum := func(a interface{}) int {
 		switch x := a.(type) {
