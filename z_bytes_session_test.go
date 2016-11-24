@@ -112,7 +112,9 @@ func TestWorkload_bytes(t *testing.T) {
 	for _, ctName := range []string{"raw2000", "raw2000Null", "blob", "blobNull"} {
 		ct := _T_colType[ctName]
 		t.Run(ctName, func(t *testing.T) {
-			t.Parallel()
+			if !strings.Contains(ctName, "lob") {
+				t.Parallel()
+			}
 			//if strings.Contains(ctName, "blob") {
 			//enableLogging(t)
 			//}
