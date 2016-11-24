@@ -435,7 +435,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	}
 	stmt.Lock()
 	stmt.bnds = bnds
-	stmt.Unlock()
+	defer stmt.Unlock()
 	for n = range params {
 		//stmt.logF(_drv.Cfg().Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := params[n].(type) {
@@ -1456,9 +1456,7 @@ func (stmt *Stmt) setAttr(attrValue uint32, attrType C.ub4) error {
 // setNilBind sets a nil bind. No locking occurs.
 func (stmt *Stmt) setNilBind(index int, sqlt C.ub2) (err error) {
 	bnd := _drv.bndPools[bndIdxNil].Get().(*bndNil)
-	stmt.Lock()
 	stmt.bnds[index] = bnd
-	stmt.Unlock()
 	err = bnd.bind(index+1, sqlt, stmt)
 	return err
 }
