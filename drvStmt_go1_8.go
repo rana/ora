@@ -91,5 +91,5 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 		}
 		return nil, err
 	}
-	return &DrvQueryResult{rset: rset}, err.Wait()
+	return &DrvQueryResult{rset: rset}, grp.Wait()
 }

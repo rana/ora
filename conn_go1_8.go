@@ -74,7 +74,7 @@ func (con *Con) BeginContext(ctx context.Context) (driver.Tx, error) {
 	var tx *Tx
 	grp.Go(func() error {
 		var err error
-		tx, err = con.ses.StartTxWithFlags(flags)
+		tx, err = con.ses.StartTx(TxFlags(uint32(flags)))
 		return err
 	})
 	<-ctx.Done()
