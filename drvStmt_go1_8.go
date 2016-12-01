@@ -35,7 +35,7 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(func() error {
 		var err error
-		res.rowsAffected, res.lastInsertId, err = ds.stmt.exe(params, false)
+		res.rowsAffected, res.lastInsertId, err = ds.stmt.exeC(ctx, params, false)
 		if err != nil {
 			return errE(err)
 		}
@@ -78,7 +78,7 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 	grp, ctx := errgroup.WithContext(ctx)
 	grp.Go(func() error {
 		var err error
-		rset, err = ds.stmt.qry(params)
+		rset, err = ds.stmt.qryC(ctx, params)
 		if err != nil {
 			return errE(err)
 		}

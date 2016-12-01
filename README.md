@@ -1,6 +1,6 @@
 # ora
 --
-    import "gopkg.in/rana/ora.v3"
+    import "gopkg.in/rana/ora.v4"
 
 Package ora implements an Oracle database driver.
 
@@ -11,18 +11,24 @@ Package ora implements an Oracle database driver.
     import (
     	"database/sql"
 
-    	_ "gopkg.in/rana/ora.v3"
+    	_ "gopkg.in/rana/ora.v4"
     )
 
     func main() {
     	db, err := sql.Open("ora", "user/passw@host:port/sid")
     	defer db.Close()
+
+    	// Set timeout (Go 1.8)
+    	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    	// Set prefetch count (Go 1.8)
+    	ctx = ora.WithStmtCfg(ctx, ora.Cfg().StmtCfg.SetPrefetchCount(50000))
+    	rows, err := db.QueryContext(ctx, "SELECT * FROM user_objects")
     }
 
 Call stored procedure with OUT parameters:
 
     import (
-    	"gopkg.in/rana/ora.v3"
+    	"gopkg.in/rana/ora.v4"
     )
 
     func main() {
@@ -95,7 +101,7 @@ your system, maybe tailored to your specific locations) to a folder in
 The ora package has no external Go dependencies and is available on GitHub and
 gopkg.in:
 
-    go get gopkg.in/rana/ora.v3
+    go get gopkg.in/rana/ora.v4
 
 
 ### Data Types
@@ -1015,8 +1021,8 @@ ora driver methods. For example:
 To use the standard Go log package:
 
     import (
-    	"gopkg.in/rana/ora.v3"
-    	"gopkg.in/rana/ora.v3/lg"
+    	"gopkg.in/rana/ora.v4"
+    	"gopkg.in/rana/ora.v4/lg"
     )
 
     func main() {
@@ -1047,8 +1053,8 @@ To use the glog package:
 
     import (
     	"flag"
-    	"gopkg.in/rana/ora.v3"
-    	"gopkg.in/rana/ora.v3/glg"
+    	"gopkg.in/rana/ora.v4"
+    	"gopkg.in/rana/ora.v4/glg"
     )
 
     func main() {
@@ -1081,8 +1087,8 @@ which produces a sample log of:
 To use the log15 package:
 
     import (
-    	"gopkg.in/rana/ora.v3"
-    	"gopkg.in/rana/ora.v3/lg15"
+    	"gopkg.in/rana/ora.v4"
+    	"gopkg.in/rana/ora.v4/lg15"
     )
     func main() {
     	// use the optional log15 package for ora logging

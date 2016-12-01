@@ -13,6 +13,7 @@ import "C"
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -219,8 +220,14 @@ var spcRpl = strings.NewReplacer("\t", " ", "   ", " ", "  ", " ")
 
 // exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
 func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uint64, lastInsertId int64, err error) {
+	return stmt.exeC(context.Background(), params, isAssocArray)
+}
+func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray bool) (rowsAffected uint64, lastInsertId int64, err error) {
 	if stmt == nil {
 		return 0, 0, er("stmt may not be nil.")
+	}
+	if err = ctx.Err(); err != nil {
+		return
 	}
 	defer func() {
 		if value := recover(); value != nil {
@@ -231,6 +238,9 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 	err = stmt.checkClosed()
 	if err != nil {
 		return 0, 0, errE(err)
+	}
+	if cfg, ok := ctxStmtCfg(ctx); ok {
+		stmt.SetCfg(cfg)
 	}
 	// for case of inserting and returning identity for database/sql package
 	stmt.RLock()
@@ -316,12 +326,21 @@ func (stmt *Stmt) Qry(params ...interface{}) (*Rset, error) {
 
 // qry runs a SQL query on an Oracle server returning a *Rset and possible error.
 func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
+	return stmt.qryC(context.Background(), params)
+}
+func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, err error) {
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
 		}
 	}()
 	stmt.log(_drv.Cfg().Log.Stmt.Qry)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if cfg, ok := ctxStmtCfg(ctx); ok {
+		stmt.SetCfg(cfg)
+	}
 	err = stmt.checkClosed()
 	if err != nil {
 		return nil, errE(err)

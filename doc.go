@@ -18,6 +18,13 @@ Package ora implements an Oracle database driver.
 	func main() {
 		db, err := sql.Open("ora", "user/passw@host:port/sid")
 		defer db.Close()
+
+		// Set timeout (Go 1.8)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Set prefetch count (Go 1.8)
+		ctx = ora.WithStmtCfg(ctx, ora.Cfg().StmtCfg.SetPrefetchCount(50000))
+		rows, err := db.QueryContext(ctx, "SELECT * FROM user_objects")
+		defer rows.Close()
 	}
 
 Call stored procedure with OUT parameters:
