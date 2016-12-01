@@ -41,7 +41,6 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 		}
 		return nil
 	})
-	<-ctx.Done()
 	if err := ctx.Err(); err != nil {
 		if isCanceled(err) {
 			ds.stmt.ses.Break()
@@ -84,12 +83,12 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 		}
 		return nil
 	})
-	<-ctx.Done()
 	if err := ctx.Err(); err != nil {
 		if isCanceled(err) {
 			ds.stmt.ses.Break()
 		}
 		return nil, err
 	}
-	return &DrvQueryResult{rset: rset}, grp.Wait()
+	err := grp.Wait()
+	return &DrvQueryResult{rset: rset}, err
 }

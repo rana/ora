@@ -31,6 +31,9 @@ type DrvQueryResult struct {
 //
 // Next is a member of the driver.Rows interface.
 func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
+	if qr.rset == nil {
+		return er("empty Rset")
+	}
 	err = qr.rset.beginRow()
 	defer qr.rset.endRow()
 	if err != nil {
@@ -59,6 +62,9 @@ func (qr *DrvQueryResult) NextResultSet() error { return io.EOF }
 //
 // Columns is a member of the driver.Rows interface.
 func (qr *DrvQueryResult) Columns() []string {
+	if qr.rset == nil {
+		return nil
+	}
 	names := make([]string, len(qr.rset.Columns))
 	for i, c := range qr.rset.Columns {
 		names[i] = c.Name
