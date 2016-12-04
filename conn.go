@@ -157,9 +157,7 @@ func (con *Con) Ping(ctx context.Context) error {
 	grp.Go(func() error {
 		return maybeBadConn(con.ses.Ping())
 	})
-	<-ctx.Done()
-	err := ctx.Err()
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		if isCanceled(err) {
 			con.ses.Break()
 		}

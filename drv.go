@@ -107,6 +107,8 @@ func (c DrvCfg) SetBlob(gct GoColumnType) DrvCfg    { c.StmtCfg = c.StmtCfg.SetB
 func (c DrvCfg) SetRaw(gct GoColumnType) DrvCfg     { c.StmtCfg = c.StmtCfg.SetRaw(gct); return c }
 func (c DrvCfg) SetLongRaw(gct GoColumnType) DrvCfg { c.StmtCfg = c.StmtCfg.SetLongRaw(gct); return c }
 
+func (c DrvCfg) SetLogger(lgr Logger) DrvCfg { c.Log.Logger = lgr; return c }
+
 // LogDrvCfg represents package-level logging configuration values.
 type LogDrvCfg struct {
 	// Logger writes log messages.
