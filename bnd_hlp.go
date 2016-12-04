@@ -16,6 +16,51 @@ import (
 	"unsafe"
 )
 
+func (stmt *Stmt) ociBind(ocibndp **C.OCIBind, position int, placeholder string,
+	valuep unsafe.Pointer, valueSize int, dataType C.ub2,
+	np unsafe.Pointer, alenp *C.ACTUAL_LENGTH_TYPE, rcodep *C.ub2, maxarrLen C.ub4, curlenp *C.ub4,
+) error {
+	var r C.sword
+	if placeholder == "" {
+		r = C.OCIBINDBYPOS(
+			stmt.ocistmt,            //OCIStmt      *stmtp,
+			ocibndp,                 //OCIBind      **bindpp,
+			stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+			C.ub4(position),         //ub4          position,
+			valuep,                  //void         *valuep,
+			C.LENGTH_TYPE(valueSize), //sb8          value_sz,
+			dataType,                 //ub2          dty,
+			np,                       //void         *indp,
+			alenp,                    //ub2          *alenp,
+			rcodep,                   //ub2          *rcodep,
+			maxarrLen,                //ub4          maxarr_len,
+			curlenp,                  //ub4          *curelep,
+			C.OCI_DEFAULT)            //ub4          mode );
+	} else {
+		ph := C.CString(placeholder)
+		defer C.free(unsafe.Pointer(ph))
+		r = C.OCIBINDBYNAME(
+			stmt.ocistmt,            //OCIStmt      *stmtp,
+			ocibndp,                 //OCIBind      **bindpp,
+			stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+			(*C.OraText)(unsafe.Pointer(ph)),
+			C.sb4(len(placeholder)),
+			valuep, //void         *valuep,
+			C.LENGTH_TYPE(valueSize), //sb8          value_sz,
+			dataType,                 //ub2          dty,
+			np,                       //void         *indp,
+			alenp,                    //ub2          *alenp,
+			rcodep,                   //ub2          *rcodep,
+			maxarrLen,                //ub4          maxarr_len,
+			curlenp,                  //ub4          *curelep,
+			C.OCI_DEFAULT)            //ub4          mode );
+	}
+	if r == C.OCI_ERROR {
+		return stmt.ses.srv.env.ociError()
+	}
+	return nil
+}
+
 type nullp struct {
 	p []C.sb2
 }

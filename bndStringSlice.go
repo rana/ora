@@ -80,24 +80,22 @@ func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAs
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
 		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
-		&bnd.ocibnd,                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
-		C.ub4(position),                  //ub4          position,
+	if err := bnd.stmt.ociBind(
+		&bnd.ocibnd, //OCIBind      **bindpp,
+		position,    //ub4          position,
+		"",
 		unsafe.Pointer(&bnd.bytes[0]),    //void         *valuep,
-		C.LENGTH_TYPE(bnd.maxLen),        //sb8          value_sz,
+		bnd.maxLen,                       //sb8          value_sz,
 		C.SQLT_CHR,                       //ub2          dty,
 		unsafe.Pointer(&bnd.nullInds[0]), //void         *indp,
 		&bnd.alen[0],                     //ub4          *alenp,
 		&bnd.rcode[0],                    //ub2          *rcodep,
 		getMaxarrLen(C, isAssocArray),    //ub4          maxarr_len,
-		curlenp,       //ub4          *curelep,
-		C.OCI_DEFAULT) //ub4          mode );
-	if r == C.OCI_ERROR {
-		return iterations, bnd.stmt.ses.srv.env.ociError()
+		curlenp, //ub4          *curelep,
+	); err != nil {
+		return iterations, err
 	}
-	r = C.OCIBindArrayOfStruct(
+	r := C.OCIBindArrayOfStruct(
 		bnd.ocibnd,
 		bnd.stmt.ses.srv.env.ocierr,
 		C.ub4(bnd.maxLen),                  //ub4         pvskip,
