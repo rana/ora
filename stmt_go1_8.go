@@ -10,5 +10,14 @@ package ora
 //
 // This returns a constant -1, as named params can be less, then positional params.
 func (stmt *Stmt) NumInput() int {
+	if bindNames, _, duplicates, err := stmt.getBindInfo(); err == nil {
+		n := len(bindNames)
+		for _, d := range duplicates {
+			if d {
+				n--
+			}
+		}
+		return n
+	}
 	return -1
 }

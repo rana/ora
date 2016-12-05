@@ -1330,6 +1330,51 @@ func (stmt *Stmt) NumRset() int {
 	return stmt.openRsets.len()
 }
 
+func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool, err error) {
+	const arrSize = 128
+
+	startLoc := C.ub4(1)
+	var found C.sb4
+	var bndNms, indNms [arrSize]*C.OraText
+	var bndNmLens, indNmLens, dups [arrSize]C.ub1
+	var binds [arrSize]*C.OCIBind
+	for {
+		if r := C.OCIStmtGetBindInfo(
+			stmt.ocistmt,        // OCIStmt      *stmtp,
+			stmt.ses.env.ocierr, // OCIError     *errhp,
+			C.ub4(arrSize),      // ub4          size,
+			startLoc,            // ub4          startloc,
+			&found,              // sb4          *found,
+			&bndNms[0],          // OraText      *bvnp[],
+			&bndNmLens[0],       // ub1          bvnl[],
+			&indNms[0],          // OraText      *invp[],
+			&indNmLens[0],       // ub1          inpl[],
+			&dups[0],            // ub1          dupl[],
+			&binds[0],           // OCIBind      *hndl[]
+		); r == C.OCI_ERROR {
+			err = stmt.ses.srv.env.ociError()
+			return
+		}
+		n := int(found)
+		if n < 0 {
+			n = -n
+		}
+		for i := 0; i < n; i++ {
+			bindNames = append(bindNames, C.GoStringN((*C.char)(bndNms[i]), C.int(bndNmLens[i])))
+			indNames = append(indNames, C.GoStringN((*C.char)(indNms[i]), C.int(indNmLens[i])))
+			duplicates = append(duplicates, dups[i] > 0)
+		}
+		// The expression abs(found) gives the total number of bind variables
+		// in the statement irrespective of the start position.a
+		// Positive value if the number of bind variables returned is less than
+		// the size provided, otherwise negative.
+		if found >= 0 {
+			return
+		}
+		startLoc += C.ub4(-found)
+	}
+}
+
 // SetGcts sets a slice of GoColumnType used in a Stmt.Qry *ora.Rset.
 //
 // SetGcts is optional.
