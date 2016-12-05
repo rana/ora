@@ -1,4 +1,56 @@
 #include <oci.h>
+#include "version.h"
+
+sword
+bindByNameOrPos(
+	OCIStmt       *stmtp,
+	OCIBind       **bindpp,
+	OCIError      *errhp,
+	ub4           position,
+	const OraText *placeholder,
+	sb4           placeholder_length,
+	void          *valuep,
+	LENGTH_TYPE   value_sz,
+	ub2           dty,
+	void          *indp,
+	ACTUAL_LENGTH_TYPE *alenp,
+	ub2           *rcodep,
+	ub4           maxarr_len,
+	ub4           *curelep, 
+	ub4           mode
+) {
+	if( placeholder != NULL && placeholder_length > 0 ) {
+		return OCIBINDBYNAME(
+			stmtp,
+			bindpp,
+			errhp,
+			placeholder,
+			placeholder_length,
+			valuep,
+			value_sz,
+			dty,
+			indp,
+			alenp,
+			rcodep,
+			maxarr_len,
+			curelep,
+			mode);
+	}
+	return OCIBINDBYPOS(
+		stmtp,
+		bindpp,
+		errhp,
+		position,
+		valuep,
+		value_sz,
+		dty,
+		indp,
+		alenp,
+		rcodep,
+		maxarr_len,
+		curelep,
+		mode);
+}
 
 sword
 numberFromIntSlice(
