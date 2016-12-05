@@ -6,6 +6,12 @@
 
 package ora
 
+/*
+#include <oci.h>
+#include <stdlib.h>
+*/
+import "C"
+
 // NumInput returns the number of placeholders in a sql statement.
 func (stmt *Stmt) NumInput() int {
 	bc, err := stmt.attr(4, C.OCI_ATTR_BIND_COUNT)
@@ -15,4 +21,8 @@ func (stmt *Stmt) NumInput() int {
 	bindCount := int(*((*C.ub4)(bc)))
 	C.free(bc)
 	return bindCount
+}
+
+func nameAndValue(v interface{}) (string, interface{}) {
+	return "", v
 }

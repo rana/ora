@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"container/list"
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -457,11 +456,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	stmt.bnds = bnds
 	defer stmt.Unlock()
 	for n = range params {
-		v := params[n]
-		var name string
-		if nv, ok := v.(driver.NamedValue); ok {
-			v, name = nv.Value, nv.Name
-		}
+		name, v := nameAndValue(params[n])
 		pos := namedPos{Ordinal: n + 1, Name: name}
 		//stmt.logF(_drv.Cfg().Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := v.(type) {
@@ -1333,6 +1328,7 @@ func (stmt *Stmt) NumRset() int {
 func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool, err error) {
 	const arrSize = 128
 
+	cfg := _drv.Cfg()
 	startLoc := C.ub4(1)
 	var found C.sb4
 	var bndNms, indNms [arrSize]*C.OraText
@@ -1355,13 +1351,14 @@ func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool
 			err = stmt.ses.srv.env.ociError()
 			return
 		}
+		stmt.logF(cfg.Log.Stmt.Bind, "start=%d found=%d", startLoc, found)
 		n := int(found)
 		if n < 0 {
 			n = -n
 		}
 		for i := 0; i < n; i++ {
-			bindNames = append(bindNames, C.GoStringN((*C.char)(bndNms[i]), C.int(bndNmLens[i])))
-			indNames = append(indNames, C.GoStringN((*C.char)(indNms[i]), C.int(indNmLens[i])))
+			bindNames = append(bindNames, C.GoStringN((*C.char)(unsafe.Pointer(bndNms[i])), C.int(bndNmLens[i])))
+			indNames = append(indNames, C.GoStringN((*C.char)(unsafe.Pointer(indNms[i])), C.int(indNmLens[i])))
 			duplicates = append(duplicates, dups[i] > 0)
 		}
 		// The expression abs(found) gives the total number of bind variables

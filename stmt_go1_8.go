@@ -6,11 +6,17 @@
 
 package ora
 
+import (
+	"database/sql/driver"
+	"fmt"
+)
+
 // NumInput returns the number of placeholders in a sql statement.
 //
 // This returns a constant -1, as named params can be less, then positional params.
 func (stmt *Stmt) NumInput() int {
 	if bindNames, _, duplicates, err := stmt.getBindInfo(); err == nil {
+		fmt.Println(bindNames, duplicates)
 		n := len(bindNames)
 		for _, d := range duplicates {
 			if d {
@@ -20,4 +26,11 @@ func (stmt *Stmt) NumInput() int {
 		return n
 	}
 	return -1
+}
+
+func nameAndValue(v interface{}) (string, interface{}) {
+	if nv, ok := v.(driver.NamedValue); ok {
+		return nv.Name, nv.Value
+	}
+	return "", v
 }
