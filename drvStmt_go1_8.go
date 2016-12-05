@@ -9,7 +9,6 @@ package ora
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -23,10 +22,7 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	}
 	params := make([]interface{}, len(values))
 	for n, v := range values {
-		if v.Name != "" {
-			return nil, errors.New("named values are not supported!")
-		}
-		params[n] = v.Value
+		params[n] = v
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -65,10 +61,7 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 	}
 	params := make([]interface{}, len(values))
 	for n, v := range values {
-		if v.Name != "" {
-			return nil, errors.New("named values are not supported!")
-		}
-		params[n] = v.Value
+		params[n] = v
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

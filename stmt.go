@@ -458,13 +458,11 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 	defer stmt.Unlock()
 	for n = range params {
 		v := params[n]
-		nv, ok := v.(driver.NamedValue)
-		if ok {
-			v = nv.Value
-		} else {
-			nv = driver.NamedValue{Ordinal: n + 1, Value: v}
+		var name string
+		if nv, ok := v.(driver.NamedValue); ok {
+			v, name = nv.Value, nv.Name
 		}
-		pos := namedPos{Ordinal: nv.Ordinal, Name: nv.Name}
+		pos := namedPos{Ordinal: n + 1, Name: name}
 		//stmt.logF(_drv.Cfg().Log.Stmt.Bind, "params[%d]=(%v %T)", n, params[n], params[n])
 		switch value := v.(type) {
 		case int64:
@@ -1330,17 +1328,6 @@ func (stmt *Stmt) NumRset() int {
 	stmt.RLock()
 	defer stmt.RUnlock()
 	return stmt.openRsets.len()
-}
-
-// NumInput returns the number of placeholders in a sql statement.
-func (stmt *Stmt) NumInput() int {
-	bc, err := stmt.attr(4, C.OCI_ATTR_BIND_COUNT)
-	if err != nil {
-		return 0
-	}
-	bindCount := int(*((*C.ub4)(bc)))
-	C.free(bc)
-	return bindCount
 }
 
 // SetGcts sets a slice of GoColumnType used in a Stmt.Qry *ora.Rset.
