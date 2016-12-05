@@ -21,7 +21,7 @@ type bndNumStringSlice struct {
 	arrHlp
 }
 
-func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndNumStringSlice) bindOra(values []OraNum, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	stringValues := make([]Num, len(values))
 	if cap(bnd.nullInds) < len(values) {
 		bnd.nullInds = make([]C.sb2, len(values))
@@ -38,7 +38,7 @@ func (bnd *bndNumStringSlice) bindOra(values []OraNum, position int, stmt *Stmt,
 	return bnd.bind(stringValues, bnd.nullInds, position, stmt, isAssocArray)
 }
 
-func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
 	if nullInds != nil {
@@ -57,11 +57,17 @@ func (bnd *bndNumStringSlice) bind(values []Num, nullInds []C.sb2, position int,
 			return iterations, err
 		}
 	}
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
-		C.ub4(position),                    //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,

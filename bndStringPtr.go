@@ -22,7 +22,7 @@ type bndStringPtr struct {
 	nullp
 }
 
-func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize int, stmt *Stmt) error {
+func (bnd *bndStringPtr) bind(value *string, position namedPos, stringPtrBufferSize int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
 	if stringPtrBufferSize < 2 {
@@ -73,12 +73,18 @@ func (bnd *bndStringPtr) bind(value *string, position int, stringPtrBufferSize i
 		bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
-	r := C.OCIBINDBYPOS(
+		"%p pos=%s cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                     //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.buf[0]),         //void         *valuep,
 		C.LENGTH_TYPE(cap(bnd.buf)),         //sb8          value_sz,
 		C.SQLT_CHR,                          //ub2          dty,

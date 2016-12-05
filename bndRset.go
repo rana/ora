@@ -21,7 +21,7 @@ type bndRset struct {
 	nullp
 }
 
-func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
+func (bnd *bndRset) bind(value *Rset, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
 	// Allocate a statement handle
@@ -30,11 +30,17 @@ func (bnd *bndRset) bind(value *Rset, position int, stmt *Stmt) error {
 	if err != nil {
 		return err
 	}
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,     //OCIError     *errhp,
-		C.ub4(position),                 //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ocistmt[0]), //void         *valuep,
 		0,                                   //sb8          value_sz,
 		C.SQLT_RSET,                         //ub2          dty,

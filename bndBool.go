@@ -21,7 +21,7 @@ type bndBool struct {
 	cString *C.char
 }
 
-func (bnd *bndBool) bind(value bool, position int, c StmtCfg, stmt *Stmt) (err error) {
+func (bnd *bndBool) bind(value bool, position namedPos, c StmtCfg, stmt *Stmt) (err error) {
 	//Log.Infof("%s.bind(%t, %d)", bnd, value, position)
 	bnd.stmt = stmt
 	var str string
@@ -34,11 +34,17 @@ func (bnd *bndBool) bind(value bool, position int, c StmtCfg, stmt *Stmt) (err e
 		return err
 	}
 	bnd.cString = C.CString(str)
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
-		C.ub4(position),             //ub4          position,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(bnd.cString), //void         *valuep,
 		C.LENGTH_TYPE(1),            //sb8          value_sz,
 		C.SQLT_AFC,                  //ub2          dty,

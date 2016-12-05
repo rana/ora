@@ -21,7 +21,7 @@ type bndBoolSlice struct {
 	bytes  []byte
 }
 
-func (bnd *bndBoolSlice) bindOra(values []Bool, position int, falseRune rune, trueRune rune, stmt *Stmt) error {
+func (bnd *bndBoolSlice) bindOra(values []Bool, position namedPos, falseRune rune, trueRune rune, stmt *Stmt) error {
 	boolValues := make([]bool, len(values))
 	nullInds := make([]C.sb2, len(values))
 	for n := range values {
@@ -34,7 +34,7 @@ func (bnd *bndBoolSlice) bindOra(values []Bool, position int, falseRune rune, tr
 	return bnd.bind(boolValues, nullInds, position, falseRune, trueRune, stmt)
 }
 
-func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, falseRune rune, trueRune rune, stmt *Stmt) (err error) {
+func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position namedPos, falseRune rune, trueRune rune, stmt *Stmt) (err error) {
 	bnd.stmt = stmt
 	if nullInds == nil {
 		nullInds = make([]C.sb2, len(values))
@@ -58,11 +58,17 @@ func (bnd *bndBoolSlice) bind(values []bool, nullInds []C.sb2, position int, fal
 	}
 	bnd.bytes = bnd.buf.Bytes()
 
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,   //OCIError     *errhp,
-		C.ub4(position),               //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.bytes[0]), //void         *valuep,
 		C.LENGTH_TYPE(maxLen),         //sb8          value_sz,
 		C.SQLT_CHR,                    //ub2          dty,

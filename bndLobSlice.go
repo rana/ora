@@ -23,7 +23,7 @@ type bndLobSlice struct {
 	arrHlp
 }
 
-func (bnd *bndLobSlice) bindOra(values []Lob, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndLobSlice) bindOra(values []Lob, position namedPos, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	L, C := len(values), cap(values)
 	if cap(bnd.readers) < C {
 		bnd.readers = make([]io.Reader, L, C)
@@ -45,7 +45,7 @@ func (bnd *bndLobSlice) bindOra(values []Lob, position int, lobBufferSize int, s
 	return bnd.bindReaders(bnd.readers, position, lobBufferSize, stmt, isAssocArray)
 }
 
-func (bnd *bndLobSlice) bindReaders(values []io.Reader, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndLobSlice) bindReaders(values []io.Reader, position namedPos, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
 	L, C := len(values), cap(values)
@@ -92,11 +92,17 @@ func (bnd *bndLobSlice) bindReaders(values []io.Reader, position int, lobBufferS
 		}
 	}
 
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,                         //OCIError     *errhp,
-		C.ub4(position),                                     //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociLobLocators[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociLobLocators[0])), //sb8          value_sz,
 		C.SQLT_BLOB,                      //ub2          dty,

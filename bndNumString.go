@@ -85,18 +85,24 @@ func (env *Env) numberFromText(dest *C.OCINumber, value string) error {
 	return nil
 }
 
-func (bnd *bndNumString) bind(value Num, position int, stmt *Stmt) error {
+func (bnd *bndNumString) bind(value Num, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	cstr := (*C.oratext)(unsafe.Pointer(C.CString(string(value))))
 	defer C.free(unsafe.Pointer(cstr))
 	if err := bnd.stmt.ses.srv.env.numberFromText(&bnd.ociNumber[0], string(value)); err != nil {
 		return err
 	}
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,       //OCIError     *errhp,
-		C.ub4(position),                   //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociNumber[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber), //sb8          value_sz,
 		C.SQLT_VNU,                        //ub2          dty,

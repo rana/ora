@@ -20,7 +20,7 @@ type bndUint16Ptr struct {
 	nullp
 }
 
-func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
+func (bnd *bndUint16Ptr) bind(value *uint16, position namedPos, stmt *Stmt) error {
 	//bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
@@ -30,13 +30,19 @@ func (bnd *bndUint16Ptr) bind(value *uint16, position int, stmt *Stmt) error {
 			return err
 		}
 		bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-			"Uint16Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
+			"Uint16Ptr.bind(%s) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                     //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociNumber[0]),   //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),   //sb8          value_sz,
 		C.SQLT_VNU,                          //ub2          dty,

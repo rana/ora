@@ -35,7 +35,7 @@ type bndLob struct {
 //
 // None of the chunks can be empty, so we have to pre-read the next chunk,
 // before sending the actual, to know whether this is the last or not.
-func (bnd *bndLob) bindReader(rdr io.Reader, position int, lobBufferSize int, sqlt C.ub2, stmt *Stmt) (err error) {
+func (bnd *bndLob) bindReader(rdr io.Reader, position namedPos, lobBufferSize int, sqlt C.ub2, stmt *Stmt) (err error) {
 	bnd.stmt = stmt
 	bnd.sqlt = sqlt
 	if lobBufferSize <= 0 {
@@ -103,12 +103,18 @@ func (bnd *bndLob) allocTempLob() (finish func(), err error) {
 	return
 }
 
-func (bnd *bndLob) bindByPos(position int) error {
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
-		&bnd.ocibnd,                               //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
-		C.ub4(position),                           //ub4          position,
+func (bnd *bndLob) bindByPos(position namedPos) error {
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void         *valuep,
 		C.LENGTH_TYPE(bnd.lobLocatorp.Size()),     //sb8          value_sz,
 		bnd.sqlt,      //ub2          dty,

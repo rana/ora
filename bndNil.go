@@ -18,17 +18,23 @@ type bndNil struct {
 	ocibnd *C.OCIBind
 }
 
-func (bnd *bndNil) bind(position int, sqlt C.ub2, stmt *Stmt) error {
+func (bnd *bndNil) bind(position namedPos, sqlt C.ub2, stmt *Stmt) error {
 	bnd.stmt = stmt
 	indp := C.sb2(-1)
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
 		&bnd.ocibnd,                 //OCIBind      **bindpp,
 		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
-		C.ub4(position),             //ub4          position,
-		nil,                         //void         *valuep,
-		0,                           //sb8          value_sz,
-		sqlt,                        //C.SQLT_CHR,                                          //ub2          dty,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
+		nil,  //void         *valuep,
+		0,    //sb8          value_sz,
+		sqlt, //C.SQLT_CHR,                                          //ub2          dty,
 		unsafe.Pointer(&indp), //void         *indp,
 		nil,           //ub2          *alenp,
 		nil,           //ub2          *rcodep,

@@ -19,7 +19,7 @@ type bndIntervalYM struct {
 	intervalp
 }
 
-func (bnd *bndIntervalYM) bind(value IntervalYM, position int, stmt *Stmt) error {
+func (bnd *bndIntervalYM) bind(value IntervalYM, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	r := C.OCIDescriptorAlloc(
 		unsafe.Pointer(bnd.stmt.ses.srv.env.ocienv),                //CONST dvoid   *parenth,
@@ -41,11 +41,17 @@ func (bnd *bndIntervalYM) bind(value IntervalYM, position int, stmt *Stmt) error
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
-	r = C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r = C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,             //OCIError     *errhp,
-		C.ub4(position),                         //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(bnd.intervalp.Pointer()), //void         *valuep,
 		C.LENGTH_TYPE(bnd.intervalp.Size()),     //sb8          value_sz,
 		C.SQLT_INTERVAL_YM,                      //ub2          dty,

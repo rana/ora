@@ -29,7 +29,7 @@ type bndTimeSlice struct {
 	arrHlp
 }
 
-func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndTimeSlice) bindOra(values []Time, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	bnd.values = values
 	if cap(bnd.times) < cap(values) {
 		bnd.times = make([]time.Time, len(values), cap(values))
@@ -52,7 +52,7 @@ func (bnd *bndTimeSlice) bindOra(values []Time, position int, stmt *Stmt, isAsso
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
-func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndTimeSlice) bind(values []time.Time, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
@@ -96,14 +96,20 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position int, stmt *Stmt, isAs
 	}
 
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
+		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
 		bnd, position, cap(bnd.ociDateTimes), len(bnd.ociDateTimes), bnd.curlen, curlenp,
 		valueSz, bnd.alen)
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                                  //OCIStmt      *stmtp,
-		&bnd.ocibnd,                                       //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
-		C.ub4(position),                                   //ub4          position,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociDateTimes[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociDateTimes[0])), //sb8          value_sz,
 		C.SQLT_TIMESTAMP_TZ,                               //ub2          dty,

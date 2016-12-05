@@ -25,7 +25,7 @@ type bndBfile struct {
 	lobLocatorp
 }
 
-func (bnd *bndBfile) bind(value Bfile, position int, stmt *Stmt) error {
+func (bnd *bndBfile) bind(value Bfile, position namedPos, stmt *Stmt) error {
 	// DirectoryAlias must be specified to avoid error "ORA-24801: illegal parameter value in OCI lob function"
 	// Raising a driver error clarifies the user error
 	if value.DirectoryAlias == "" {
@@ -66,11 +66,18 @@ func (bnd *bndBfile) bind(value Bfile, position int, stmt *Stmt) error {
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
-	r = C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                          //OCIStmt      *stmtp,
-		&bnd.ocibnd,                               //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,               //OCIError     *errhp,
-		C.ub4(position),                           //ub4          position,
+
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r = C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(bnd.lobLocatorp.Pointer()), //void         *valuep,
 		C.LENGTH_TYPE(bnd.lobLocatorp.Size()),     //sb8          value_sz,
 		C.SQLT_FILE,                               //ub2          dty,

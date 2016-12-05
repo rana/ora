@@ -18,7 +18,7 @@ type bndBinSlice struct {
 	arrHlp
 }
 
-func (bnd *bndBinSlice) bindOra(values []Raw, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndBinSlice) bindOra(values []Raw, position namedPos, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	binValues := make([][]byte, len(values))
 	nullInds := make([]C.sb2, len(values))
 	for i := range values {
@@ -31,7 +31,7 @@ func (bnd *bndBinSlice) bindOra(values []Raw, position int, lobBufferSize int, s
 	return bnd.bind(binValues, nullInds, position, lobBufferSize, stmt, isAssocArray)
 }
 
-func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position namedPos, lobBufferSize int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	L, C := len(values), cap(values)
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
@@ -59,11 +59,17 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position int, lo
 		copy(bnd.buf[i*maxLen:], b)
 		bnd.alen[i] = C.ACTUAL_LENGTH_TYPE(len(b))
 	}
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
-		&bnd.ocibnd,                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
-		C.ub4(position),                  //ub4          position,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.buf[0]),      //void         *valuep,
 		C.LENGTH_TYPE(maxLen),            //sb8          value_sz,
 		C.SQLT_LBI,                       //ub2          dty,

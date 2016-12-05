@@ -21,16 +21,22 @@ type bndTime struct {
 	dateTimep
 }
 
-func (bnd *bndTime) bind(value time.Time, position int, stmt *Stmt) error {
+func (bnd *bndTime) bind(value time.Time, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	if err := bnd.dateTimep.Set(bnd.stmt.ses.srv.env, value); err != nil {
 		return err
 	}
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                        //OCIStmt      *stmtp,
-		&bnd.ocibnd,                             //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,             //OCIError     *errhp,
-		C.ub4(position),                         //ub4          position,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(bnd.dateTimep.Pointer()), //void         *valuep,
 		C.LENGTH_TYPE(bnd.dateTimep.Size()),     //sb8          value_sz,
 		C.SQLT_TIMESTAMP_TZ,                     //ub2          dty,

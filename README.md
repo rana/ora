@@ -23,6 +23,7 @@ Package ora implements an Oracle database driver.
     	// Set prefetch count (Go 1.8)
     	ctx = ora.WithStmtCfg(ctx, ora.Cfg().StmtCfg.SetPrefetchCount(50000))
     	rows, err := db.QueryContext(ctx, "SELECT * FROM user_objects")
+    	defer rows.Close()
     }
 
 Call stored procedure with OUT parameters:

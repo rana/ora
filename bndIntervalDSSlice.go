@@ -20,7 +20,7 @@ type bndIntervalDSSlice struct {
 	arrHlp
 }
 
-func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
 	L, C := len(values), cap(values)
@@ -67,11 +67,17 @@ func (bnd *bndIntervalDSSlice) bind(values []IntervalDS, position int, stmt *Stm
 			return iterations, bnd.stmt.ses.srv.env.ociError()
 		}
 	}
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,                       //OCIError     *errhp,
-		C.ub4(position),                                   //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociIntervals[0]),              //void         *valuep,
 		C.LENGTH_TYPE(unsafe.Sizeof(bnd.ociIntervals[0])), //sb8          value_sz,
 		C.SQLT_INTERVAL_DS,                                //ub2          dty,

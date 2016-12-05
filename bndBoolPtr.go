@@ -10,6 +10,7 @@ package ora
 */
 import "C"
 import (
+	"bytes"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -23,7 +24,7 @@ type bndBoolPtr struct {
 	nullp
 }
 
-func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt) error {
+func (bnd *bndBoolPtr) bind(value *bool, position namedPos, trueRune rune, stmt *Stmt) error {
 	//Log.Infof("%v.bind(%t, %d)", bnd, value, position)
 	bnd.stmt = stmt
 	bnd.value = value
@@ -31,12 +32,22 @@ func (bnd *bndBoolPtr) bind(value *bool, position int, trueRune rune, stmt *Stmt
 	if cap(bnd.buf) < 2 {
 		bnd.buf = make([]byte, 2)
 	}
-	// FIXME(tgulacsi): bnd.buf should be populated with *value!
-	r := C.OCIBINDBYPOS(
+	if value != nil && *value {
+		if _, err := bytes.NewBuffer(bnd.buf).WriteRune(trueRune); err != nil {
+			return err
+		}
+	}
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                     //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.buf[0]),         //void         *valuep,
 		C.LENGTH_TYPE(len(bnd.buf)),         //sb8          value_sz,
 		C.SQLT_CHR,                          //ub2          dty,

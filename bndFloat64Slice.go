@@ -25,7 +25,7 @@ type bndFloat64Slice struct {
 	arrHlp
 }
 
-func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	var V []float64
 	if bnd.floats == nil {
@@ -56,7 +56,7 @@ func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position int, stmt *Stmt,
 	return bnd.bind(bnd.floats, position, stmt, isAssocArray)
 }
 
-func (bnd *bndFloat64Slice) bind(values *[]float64, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndFloat64Slice) bind(values *[]float64, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	// ensure we have at least 1 slot in the slice
 	var V []float64
@@ -93,12 +93,18 @@ func (bnd *bndFloat64Slice) bind(values *[]float64, position int, stmt *Stmt, is
 		}
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
-	r := C.OCIBINDBYPOS(
+		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
-		C.ub4(position),                    //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,

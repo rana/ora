@@ -20,7 +20,7 @@ type bndUint8Slice struct {
 	arrHlp
 }
 
-func (bnd *bndUint8Slice) bindOra(values *[]Uint8, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndUint8Slice) bindOra(values *[]Uint8, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	var ints []uint8
 	if bnd.ints == nil {
@@ -52,7 +52,7 @@ func (bnd *bndUint8Slice) bindOra(values *[]Uint8, position int, stmt *Stmt, isA
 	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
-func (bnd *bndUint8Slice) bind(values *[]uint8, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndUint8Slice) bind(values *[]uint8, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	V := *values
 	L, C := len(V), cap(V)
@@ -84,11 +84,17 @@ func (bnd *bndUint8Slice) bind(values *[]uint8, position int, stmt *Stmt, isAsso
 		}
 	}
 
-	r := C.OCIBINDBYPOS(
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
 		bnd.stmt.ocistmt, //OCIStmt      *stmtp,
 		&bnd.ocibnd,
-		bnd.stmt.ses.srv.env.ocierr,        //OCIError     *errhp,
-		C.ub4(position),                    //ub4          position,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociNumbers[0]), //void         *valuep,
 		C.LENGTH_TYPE(C.sizeof_OCINumber),  //sb8          value_sz,
 		C.SQLT_VNU,                         //ub2          dty,

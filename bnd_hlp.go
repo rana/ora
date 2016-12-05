@@ -16,6 +16,19 @@ import (
 	"unsafe"
 )
 
+type namedPos struct {
+	Ordinal int
+	Name    string
+}
+
+func (np namedPos) CString() (cstring *C.OraText, length C.sb4, free func()) {
+	if np.Name == "" {
+		return
+	}
+	cstring = (*C.OraText)(unsafe.Pointer(C.CString(np.Name)))
+	return cstring, C.sb4(len(np.Name)), func() { C.free(unsafe.Pointer(cstring)) }
+}
+
 type nullp struct {
 	p []C.sb2
 }

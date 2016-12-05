@@ -32,7 +32,7 @@ type bndDateSlice struct {
 	arrHlp
 }
 
-func (bnd *bndDateSlice) bindOra(values *[]Date, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndDateSlice) bindOra(values *[]Date, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	if values == nil {
 		values = &[]Date{}
 	}
@@ -67,7 +67,7 @@ func (bnd *bndDateSlice) bindOra(values *[]Date, position int, stmt *Stmt, isAss
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
-func (bnd *bndDateSlice) bind(values *[]time.Time, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndDateSlice) bind(values *[]time.Time, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	if bnd.timezone, err = bnd.stmt.ses.Timezone(); err != nil {
 		return iterations, err
@@ -98,14 +98,20 @@ func (bnd *bndDateSlice) bind(values *[]time.Time, position int, stmt *Stmt, isA
 	}
 
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
+		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
 		bnd, position, cap(bnd.ociDates), len(bnd.ociDates), bnd.curlen, curlenp,
 		valueSz, bnd.alen)
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
-		&bnd.ocibnd,                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
-		C.ub4(position),                  //ub4          position,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ociDates[0]), //void         *valuep,
 		C.LENGTH_TYPE(valueSz),           //sb8          value_sz,
 		C.SQLT_DAT,                       //ub2          dty,

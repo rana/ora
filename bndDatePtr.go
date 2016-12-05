@@ -25,7 +25,7 @@ type bndDatePtr struct {
 	nullp
 }
 
-func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
+func (bnd *bndDatePtr) bind(value *Date, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil || value.IsNull())
@@ -33,11 +33,17 @@ func (bnd *bndDatePtr) bind(value *Date, position int, stmt *Stmt) error {
 		bnd.ocidate[0] = value.Date
 	}
 	//bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "bind val=%#v null?=%t datep=%#v (%v)\n", bnd.value, bnd.nullp.IsNull(), bnd.datep, bnd.datep.Get())
-	r := C.OCIBINDBYPOS(
-		bnd.stmt.ocistmt,                    //OCIStmt      *stmtp,
-		&bnd.ocibnd,                         //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,         //OCIError     *errhp,
-		C.ub4(position),                     //ub4          position,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,
+		phLen,
 		unsafe.Pointer(&bnd.ocidate[0]),     //void         *valuep,
 		C.LENGTH_TYPE(7),                    //sb8          value_sz,
 		C.SQLT_DAT,                          //ub2          dty,

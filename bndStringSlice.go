@@ -21,7 +21,7 @@ type bndStringSlice struct {
 	arrHlp
 }
 
-func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, isAssocArray bool) (uint32, error) {
+func (bnd *bndStringSlice) bindOra(values *[]String, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	L, C := len(*values), cap(*values)
 	if bnd.strings == nil {
 		s := make([]string, L, C)
@@ -49,7 +49,7 @@ func (bnd *bndStringSlice) bindOra(values *[]String, position int, stmt *Stmt, i
 	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
 }
 
-func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
+func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt, isAssocArray bool) (iterations uint32, err error) {
 	bnd.stmt = stmt
 	if values == nil {
 		values = &[]string{}
@@ -78,15 +78,20 @@ func (bnd *bndStringSlice) bind(values *[]string, position int, stmt *Stmt, isAs
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%d cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
+		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
 		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
-		r := C.bindByNameOrPos(
-		bnd.stmt.ocistmt,                 //OCIStmt      *stmtp,
-		&bnd.ocibnd,                      //OCIBind      **bindpp,
-		bnd.stmt.ses.srv.env.ocierr,      //OCIError     *errhp,
-		C.ub4(position),                  //ub4          position,
-		nil,                  //const OraText          *placeholder,
-		0,                               //sb4          placeholder_length,
+	ph, phLen, phFree := position.CString()
+	if ph != nil {
+		defer phFree()
+	}
+
+	r := C.bindByNameOrPos(
+		bnd.stmt.ocistmt,            //OCIStmt      *stmtp,
+		&bnd.ocibnd,                 //OCIBind      **bindpp,
+		bnd.stmt.ses.srv.env.ocierr, //OCIError     *errhp,
+		C.ub4(position.Ordinal),     //ub4          position,
+		ph,                               //const OraText          *placeholder,
+		phLen,               //sb4          placeholder_length,
 		unsafe.Pointer(&bnd.bytes[0]),    //void         *valuep,
 		C.LENGTH_TYPE(bnd.maxLen),        //sb8          value_sz,
 		C.SQLT_CHR,                       //ub2          dty,
