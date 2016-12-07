@@ -65,18 +65,25 @@ func (qr *DrvQueryResult) Columns() []string {
 	if qr.rset == nil {
 		return nil
 	}
+	qr.rset.RLock()
 	names := make([]string, len(qr.rset.Columns))
 	for i, c := range qr.rset.Columns {
 		names[i] = c.Name
 	}
+	qr.rset.RUnlock()
 	return names
 }
 
 // ColumnTypeDatabaseTypeName returns the database system type name
 // without the length, in uppercase.
 func (qr *DrvQueryResult) ColumnTypeDatabaseTypeName(index int) string {
+	if qr.rset == nil {
+		return ""
+	}
 	// https://docs.oracle.com/cd/E11882_01/appdev.112/e10646/oci03typ.htm#LNOCI16271
+	qr.rset.RLock()
 	x := qr.rset.Columns[index].Type
+	qr.rset.RUnlock()
 	switch x {
 	case C.SQLT_CHR:
 		return "VARCHAR2"
@@ -155,7 +162,12 @@ func (qr *DrvQueryResult) ColumnTypeDatabaseTypeName(index int) string {
 // If length is not limited other than system limits,
 // it should return math.MaxInt64.
 func (qr *DrvQueryResult) ColumnTypeLength(index int) (length int64, ok bool) {
+	if qr.rset == nil {
+		return 0, false
+	}
+	qr.rset.RLock()
 	c := qr.rset.Columns[index]
+	qr.rset.Unlock()
 	if c.Length == 0 {
 		return 0, false
 	}
@@ -172,7 +184,12 @@ func (qr *DrvQueryResult) ColumnTypeNullable(index int) (nullable, ok bool) {
 // ColumnTypePrecisionScale return the precision and scale for decimal types.
 // If not applicable, ok should be false.
 func (qr *DrvQueryResult) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	if qr.rset == nil {
+		return 0, 0, false
+	}
+	qr.rset.RLock()
 	c := qr.rset.Columns[index]
+	qr.rset.RUnlock()
 	if c.Type == C.SQLT_NUM || c.Type == C.SQLT_INT {
 		return int64(c.Precision), int64(c.Scale), true
 	}
@@ -180,7 +197,12 @@ func (qr *DrvQueryResult) ColumnTypePrecisionScale(index int) (precision, scale 
 }
 
 func (qr *DrvQueryResult) ColumnTypeScanType(index int) reflect.Type {
+	if qr.rset == nil {
+		return nil
+	}
+	qr.rset.RLock()
 	x := qr.rset.Columns[index].Type
+	qr.rset.RUnlock()
 	switch x {
 	case C.SQLT_CHR, C.SQLT_STR, C.SQLT_LNG, C.SQLT_VCS, C.SQLT_LVC, C.SQLT_AFC, C.SQLT_AVC, C.SQLT_CLOB, C.SQLT_VST:
 		return reflect.TypeOf("")

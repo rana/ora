@@ -64,7 +64,7 @@ type Stmt struct {
 	// protects that open/close should not happen at once
 	cmu                 sync.Mutex
 	cfg                 atomic.Value
-	env                 *Env // we need to cache the env here
+	env                 atomic.Value // we need to cache the env here
 	ses                 *Ses
 	ocistmt             *C.OCIStmt
 	stmtType            C.ub2
@@ -87,8 +87,8 @@ func (stmt *Stmt) Cfg() StmtCfg {
 	if c != nil {
 		cfg = c.(StmtCfg)
 	}
-	if stmt.env.isPkgEnv {
-		cfg = stmt.env.Cfg()
+	if env := stmt.Env(); env.isPkgEnv {
+		cfg = env.Cfg()
 	} else if cfg.IsZero() {
 		cfg = stmt.ses.Cfg().StmtCfg
 	}
@@ -96,6 +96,14 @@ func (stmt *Stmt) Cfg() StmtCfg {
 }
 func (stmt *Stmt) SetCfg(cfg StmtCfg) {
 	stmt.cfg.Store(cfg)
+}
+
+func (stmt *Stmt) Env() *Env {
+	e := stmt.env.Load()
+	if e == nil {
+		return nil
+	}
+	return e.(*Env)
 }
 
 // Close closes the SQL statement.
@@ -145,22 +153,23 @@ func (stmt *Stmt) close() (err error) {
 		// OCIStmtRelease must be called with OCIStmtPrepare2
 		// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
 		stmt.Lock()
+		env := stmt.Env()
 		r := C.OCIStmtRelease(
-			stmt.ocistmt,    // OCIStmt        *stmthp
-			stmt.env.ocierr, // OCIError       *errhp,
-			nil,             // const OraText  *key
-			C.ub4(0),        // ub4 keylen
-			C.OCI_DEFAULT,   // ub4 mode
+			stmt.ocistmt,  // OCIStmt        *stmthp
+			env.ocierr,    // OCIError       *errhp,
+			nil,           // const OraText  *key
+			C.ub4(0),      // ub4 keylen
+			C.OCI_DEFAULT, // ub4 mode
 		)
 		stmt.Unlock()
 		if r == C.OCI_ERROR {
-			errs.PushBack(errE(stmt.env.ociError()))
+			errs.PushBack(errE(env.ociError()))
 		}
 
 		stmt.SetCfg(StmtCfg{})
 		stmt.Lock()
 		stmt.stringPtrBufferSize = 0
-		stmt.env = nil
+		stmt.env.Store((*Env)(nil))
 		stmt.ses = nil
 		stmt.ocistmt = nil
 		stmt.stmtType = 0
@@ -244,7 +253,7 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	}
 	// for case of inserting and returning identity for database/sql package
 	stmt.RLock()
-	pkgEnvInsert := stmt.env.isPkgEnv && stmt.stmtType == C.OCI_STMT_INSERT
+	pkgEnvInsert := stmt.Env().isPkgEnv && stmt.stmtType == C.OCI_STMT_INSERT
 	stmt.RUnlock()
 	if pkgEnvInsert {
 		lastIndex := strings.LastIndex(stmt.sql, ")")
@@ -277,11 +286,12 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "iterations=%d autoCommit=%t", iterations, autoCommit)
 	// Execute statement on Oracle server
 	stmt.RLock()
+	env := stmt.Env()
 	stmt.ses.RLock()
 	r := C.OCIStmtExecute(
 		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
 		stmt.ocistmt,       //OCIStmt             *stmtp,
-		stmt.env.ocierr,    //OCIError            *errhp,
+		env.ocierr,         //OCIError            *errhp,
 		C.ub4(iterations),  //ub4                 iters,
 		C.ub4(0),           //ub4                 rowoff,
 		nil,                //const OCISnapshot   *snap_in,
@@ -292,7 +302,7 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	stmt.RUnlock()
 	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "returned %d", r)
 	if r == C.OCI_ERROR {
-		return 0, 0, errE(stmt.env.ociError())
+		return 0, 0, errE(env.ociError())
 	}
 	// Get rowsAffected based on statement type
 	switch stmtType {
@@ -306,7 +316,7 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 		//case C.OCI_STMT_CREATE, C.OCI_STMT_DROP, C.OCI_STMT_ALTER, C.OCI_STMT_BEGIN:
 	default:
 		if r == C.OCI_NO_DATA {
-			return 0, 0, errE(stmt.env.ociError())
+			return 0, 0, errE(env.ociError())
 		}
 		//fmt.Printf("stmtType=%d\n", stmt.stmtType)
 	}
@@ -355,8 +365,8 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	}
 	// Query statement on Oracle server
 	stmt.RLock()
+	env := stmt.Env()
 	stmt.ses.RLock()
-	env := stmt.env
 	r := C.OCIStmtExecute(
 		//stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
 		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
@@ -381,7 +391,7 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	}
 	// create result set and open
 	rset = _drv.rsetPool.Get().(*Rset)
-	rset.env = stmt.env
+	rset.env = env
 	if rset.id == 0 {
 		rset.id = _drv.rsetId.nextId()
 	}
@@ -1294,7 +1304,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *Rset:
 			bnd := stmt.getBnd(bndIdxRset).(*bndRset)
 			bnds[n] = bnd
-			value.env = stmt.env
+			value.env = stmt.Env()
 			value.stmt = stmt
 			err = bnd.bind(value, pos, stmt)
 			if err != nil {
@@ -1329,26 +1339,30 @@ func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool
 	const arrSize = 128
 
 	cfg := _drv.Cfg()
+	env := stmt.Env()
 	startLoc := C.ub4(1)
 	var found C.sb4
 	var bndNms, indNms [arrSize]*C.OraText
 	var bndNmLens, indNmLens, dups [arrSize]C.ub1
 	var binds [arrSize]*C.OCIBind
 	for {
-		if r := C.OCIStmtGetBindInfo(
-			stmt.ocistmt,        // OCIStmt      *stmtp,
-			stmt.ses.env.ocierr, // OCIError     *errhp,
-			C.ub4(arrSize),      // ub4          size,
-			startLoc,            // ub4          startloc,
-			&found,              // sb4          *found,
-			&bndNms[0],          // OraText      *bvnp[],
-			&bndNmLens[0],       // ub1          bvnl[],
-			&indNms[0],          // OraText      *invp[],
-			&indNmLens[0],       // ub1          inpl[],
-			&dups[0],            // ub1          dupl[],
-			&binds[0],           // OCIBind      *hndl[]
-		); r == C.OCI_ERROR {
-			err = stmt.ses.srv.env.ociError()
+		stmt.RLock()
+		r := C.OCIStmtGetBindInfo(
+			stmt.ocistmt,   // OCIStmt      *stmtp,
+			env.ocierr,     // OCIError     *errhp,
+			C.ub4(arrSize), // ub4          size,
+			startLoc,       // ub4          startloc,
+			&found,         // sb4          *found,
+			&bndNms[0],     // OraText      *bvnp[],
+			&bndNmLens[0],  // ub1          bvnl[],
+			&indNms[0],     // OraText      *invp[],
+			&indNmLens[0],  // ub1          inpl[],
+			&dups[0],       // ub1          dupl[],
+			&binds[0],      // OCIBind      *hndl[]
+		)
+		stmt.RUnlock()
+		if r == C.OCI_ERROR {
+			err = env.ociError()
 			return
 		}
 		stmt.logF(cfg.Log.Stmt.Bind, "start=%d found=%d", startLoc, found)
@@ -1476,18 +1490,19 @@ func (stmt *Stmt) setPrefetchSize() error {
 func (stmt *Stmt) attr(attrSize C.ub4, attrType C.ub4) (unsafe.Pointer, error) {
 	attrup := C.malloc(C.size_t(attrSize))
 	stmt.RLock()
+	env := stmt.Env()
 	r := C.OCIAttrGet(
 		unsafe.Pointer(stmt.ocistmt), //const void     *trgthndlp,
 		C.OCI_HTYPE_STMT,             //ub4         cfgtrghndltyp,
 		attrup,                       //void           *attributep,
 		&attrSize,                    //ub4            *sizep,
 		attrType,                     //ub4            attrtype,
-		stmt.env.ocierr,              //OCIError       *errhp
+		env.ocierr,                   //OCIError       *errhp
 	)
 	stmt.RUnlock()
 	if r == C.OCI_ERROR {
 		C.free(unsafe.Pointer(attrup))
-		return nil, stmt.env.ociError()
+		return nil, env.ociError()
 	}
 	return attrup, nil
 }
@@ -1495,16 +1510,17 @@ func (stmt *Stmt) attr(attrSize C.ub4, attrType C.ub4) (unsafe.Pointer, error) {
 // setAttr sets an attribute on the statement handle. No locking occurs.
 func (stmt *Stmt) setAttr(attrValue uint32, attrType C.ub4) error {
 	stmt.RLock()
+	env := stmt.Env()
 	r := C.OCIAttrSet(
 		unsafe.Pointer(stmt.ocistmt), //void        *trgthndlp,
 		C.OCI_HTYPE_STMT,             //ub4         trghndltyp,
 		unsafe.Pointer(&attrValue),   //void        *attributep,
-		4,               //ub4         size,
-		attrType,        //ub4         attrtype,
-		stmt.env.ocierr) //OCIError    *errhp );
+		4,          //ub4         size,
+		attrType,   //ub4         attrtype,
+		env.ocierr) //OCIError    *errhp );
 	stmt.RUnlock()
 	if r == C.OCI_ERROR {
-		return errE(stmt.env.ociError())
+		return errE(env.ociError())
 	}
 
 	return nil

@@ -120,7 +120,12 @@ func (p *Pool) Get() (ses *Ses, err error) {
 
 	// Instead of closing the session, put it back to the session pool.
 	Instead := func(ses *Ses) error {
+		if ses == nil {
+			return nil
+		}
+		ses.Lock()
 		ses.insteadClose = nil // one-shot
+		ses.Unlock()
 		// if the session is to be evicted, its srv should go to the srv pool.
 		p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
 		return nil
@@ -154,7 +159,13 @@ func (p *Pool) Get() (ses *Ses, err error) {
 			break
 		}
 		srv = x.(*Srv)
-		if srv == nil || srv.env == nil {
+		if srv == nil {
+			continue
+		}
+		srv.RLock()
+		ok := srv.env != nil
+		srv.RUnlock()
+		if !ok {
 			continue
 		}
 		if ses, err = srv.OpenSes(p.sesCfg); err == nil {

@@ -535,6 +535,9 @@ Loop:
 
 	cfg := rset.stmt.Cfg()
 	//rset.logF(logCfg.Rset.Open, "cfg=%#v", cfg)
+	stmt.RLock()
+	gcts := stmt.gcts
+	stmt.RUnlock()
 	for n := range defs {
 		ocipar := params[n].param
 		ociTypeCode := params[n].typeCode
@@ -557,14 +560,14 @@ Loop:
 			}
 			rset.Columns[n].Precision = precision
 			rset.Columns[n].Scale = scale
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.numericColumnType(int(precision), int(scale))
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
+				err = checkNumericColumn(gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			rset.logF(logCfg.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%s", n+1, precision, scale, GctName(gct))
 			rset.Lock()
@@ -575,14 +578,14 @@ Loop:
 			}
 		case C.SQLT_IBDOUBLE:
 			// BINARY_DOUBLE
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.binaryDouble
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
+				err = checkNumericColumn(gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			rset.Lock()
 			defs[n], err = rset.defineNumeric(n, gct)
@@ -592,14 +595,14 @@ Loop:
 			}
 		case C.SQLT_IBFLOAT:
 			// BINARY_FLOAT
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.binaryFloat
 			} else {
-				err = checkNumericColumn(stmt.gcts[n], rset.Columns[n].Name)
+				err = checkNumericColumn(gcts[n], rset.Columns[n].Name)
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			rset.Lock()
 			defs[n], err = rset.defineNumeric(n, gct)
@@ -609,14 +612,14 @@ Loop:
 			}
 		case C.SQLT_DAT:
 			// DATE
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.date
 			} else {
-				err = checkTimeColumn(stmt.gcts[n])
+				err = checkTimeColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			isNullable := false
 			if gct == OraT {
@@ -630,7 +633,7 @@ Loop:
 			}
 		case C.SQLT_TIMESTAMP, C.SQLT_TIMESTAMP_TZ, C.SQLT_TIMESTAMP_LTZ:
 			// TIMESTAMP, TIMESTAMP WITH TIME ZONE, TIMESTAMP WITH LOCAL TIMEZONE
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				switch ociTypeCode {
 				case C.SQLT_TIMESTAMP:
 					gct = cfg.timestamp
@@ -640,11 +643,11 @@ Loop:
 					gct = cfg.timestampLtz
 				}
 			} else {
-				err = checkTimeColumn(stmt.gcts[n])
+				err = checkTimeColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			isNullable := false
 			if gct == OraT {
@@ -658,14 +661,14 @@ Loop:
 			}
 		case C.SQLT_CHR:
 			// VARCHAR, VARCHAR2, NVARCHAR2
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.varchar
 			} else {
-				err = checkStringColumn(stmt.gcts[n])
+				err = checkStringColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			rset.Lock()
 			defs[n], err = rset.defineString(n, columnSize, gct, false)
@@ -679,15 +682,15 @@ Loop:
 			//Log.Infof("rset AFC size=%d gct=%v", columnSize, gct)
 			// for char(1 char) columns, columnSize is 4 (AL32UTF8 charset)
 			if columnSize == 1 || columnSize == 4 {
-				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+				if gcts == nil || n >= len(gcts) || gcts[n] == D {
 					gct = cfg.char1
 					rset.logF(logCfg.Rset.OpenDefs, "%d. AFC no gct, char1=%s", n+1, gct)
 				} else {
-					err = checkBoolOrStringColumn(stmt.gcts[n])
+					err = checkBoolOrStringColumn(gcts[n])
 					if err != nil {
 						return err
 					}
-					gct = stmt.gcts[n]
+					gct = gcts[n]
 				}
 				rset.logF(logCfg.Rset.OpenDefs, "%d. AFC gct=%s", n+1, gct)
 				switch gct {
@@ -716,14 +719,14 @@ Loop:
 				}
 			} else {
 				// Interpret as string
-				if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+				if gcts == nil || n >= len(gcts) || gcts[n] == D {
 					gct = cfg.char
 				} else {
-					err = checkStringColumn(stmt.gcts[n])
+					err = checkStringColumn(gcts[n])
 					if err != nil {
 						return err
 					}
-					gct = stmt.gcts[n]
+					gct = gcts[n]
 				}
 				rset.Lock()
 				defs[n], err = rset.defineString(n, columnSize, gct, true)
@@ -734,14 +737,14 @@ Loop:
 			}
 		case C.SQLT_LNG:
 			// LONG
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.long
 			} else {
-				err = checkStringColumn(stmt.gcts[n])
+				err = checkStringColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
@@ -753,14 +756,14 @@ Loop:
 			}
 		case C.SQLT_CLOB:
 			// CLOB, NCLOB
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.clob
 			} else {
-				err = checkStringColumn(stmt.gcts[n])
+				err = checkStringColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			// Get character set form
 			var charsetForm C.ub1
@@ -776,14 +779,14 @@ Loop:
 			}
 		case C.SQLT_BLOB:
 			// BLOB
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.blob
 			} else {
-				err = checkBinColumn(stmt.gcts[n])
+				err = checkBinColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			def := rset.getDef(defIdxLob).(*defLob)
 			defs[n] = def
@@ -793,14 +796,14 @@ Loop:
 			}
 		case C.SQLT_BIN:
 			// RAW
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.raw
 			} else {
-				err = checkBinColumn(stmt.gcts[n])
+				err = checkBinColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			isNullable := false
 			if gct == OraBin {
@@ -815,14 +818,14 @@ Loop:
 		case C.SQLT_LBI:
 			//log(true, "LONG RAW")
 			// LONG RAW
-			if stmt.gcts == nil || n >= len(stmt.gcts) || stmt.gcts[n] == D {
+			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.longRaw
 			} else {
-				err = checkBinColumn(stmt.gcts[n])
+				err = checkBinColumn(gcts[n])
 				if err != nil {
 					return err
 				}
-				gct = stmt.gcts[n]
+				gct = gcts[n]
 			}
 			isNullable := false
 			if gct == OraBin {
@@ -959,6 +962,7 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 	if attrSizep == nil {
 		attrSizep = new(C.ub4)
 	}
+	rset.RLock()
 	r := C.OCIAttrGet(
 		unsafe.Pointer(ocipar), //const void     *trgthndlp,
 		C.OCI_DTYPE_PARAM,      //ub4            trghndltyp,
@@ -966,6 +970,7 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 		attrSizep,              //ub4            *sizep,
 		attrType,               //ub4            attrtype,
 		rset.env.ocierr)        //OCIError       *errhp );
+	rset.RUnlock()
 	if r == C.OCI_ERROR {
 		return rset.env.ociError()
 	}

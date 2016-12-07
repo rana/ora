@@ -276,7 +276,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	ses.cmu.Lock()
 	defer ses.cmu.Unlock()
 	ses.Lock()
-	ses.env = srv.env
+	ses.env.Store(srv.env)
 	ses.srv = srv
 	ses.ocisvcctx = (*C.OCISvcCtx)(ocisvcctx)
 	ses.ocises = (*C.OCISession)(ocises)
@@ -348,11 +348,12 @@ func (srv *Srv) checkClosed() error {
 	}
 	srv.RLock()
 	closed := srv.ocisrv == nil
+	env := srv.env
 	srv.RUnlock()
 	if closed {
 		return er("Srv is closed.")
 	}
-	return srv.env.checkClosed()
+	return env.checkClosed()
 }
 
 // sysName returns a string representing the Ses.

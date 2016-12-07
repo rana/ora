@@ -199,10 +199,9 @@ type Ses struct {
 
 	cfg atomic.Value
 	// protects that open/close should not happen at once
-	cmu sync.Mutex
-	id  uint64
-	// cached
-	env       *Env
+	cmu       sync.Mutex
+	id        uint64
+	env       atomic.Value // cached
 	srv       *Srv
 	ocisvcctx *C.OCISvcCtx
 	ocises    *C.OCISession
@@ -226,8 +225,8 @@ func (ses *Ses) Cfg() SesCfg {
 	if c != nil {
 		cfg = c.(SesCfg)
 	}
-	if ses.env.isPkgEnv {
-		cfg.StmtCfg = ses.env.Cfg()
+	if env := ses.Env(); env.isPkgEnv {
+		cfg.StmtCfg = env.Cfg()
 	} else if cfg.StmtCfg.IsZero() {
 		cfg.StmtCfg = ses.srv.Cfg().StmtCfg
 	}
@@ -235,6 +234,14 @@ func (ses *Ses) Cfg() SesCfg {
 }
 func (ses *Ses) SetCfg(cfg SesCfg) {
 	ses.cfg.Store(cfg)
+}
+
+func (ses *Ses) Env() *Env {
+	e := ses.env.Load()
+	if e == nil {
+		return nil
+	}
+	return e.(*Env)
 }
 
 // Close ends a session on an Oracle server.
@@ -287,7 +294,7 @@ func (ses *Ses) close() (err error) {
 
 		ses.SetCfg(SesCfg{})
 		ses.Lock()
-		ses.env = nil
+		ses.env.Store((*Env)(nil))
 		ses.srv = nil
 		ses.ocisvcctx = nil
 		ses.ocises = nil
@@ -318,14 +325,15 @@ func (ses *Ses) close() (err error) {
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	ses.RLock()
+	env := ses.Env()
 	r := C.OCISessionEnd(
-		ses.ocisvcctx,  //OCISvcCtx       *svchp,
-		ses.env.ocierr, //OCIError        *errhp,
-		ses.ocises,     //OCISession      *usrhp,
-		C.OCI_DEFAULT)  //ub4             mode );
+		ses.ocisvcctx, //OCISvcCtx       *svchp,
+		env.ocierr,    //OCIError        *errhp,
+		ses.ocises,    //OCISession      *usrhp,
+		C.OCI_DEFAULT) //ub4             mode );
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
-		errs.PushBack(errE(ses.env.ociError()))
+		errs.PushBack(errE(env.ociError()))
 	}
 	return nil
 }
@@ -430,10 +438,11 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	ocistmt := (*C.OCIStmt)(nil)
 	cSql := C.CString(sql) // prepare sql text with statement handle
 	ses.RLock()
+	env := ses.Env()
 	r := C.OCIStmtPrepare2(
 		ses.ocisvcctx,                      // OCISvcCtx     *svchp,
 		&ocistmt,                           // OCIStmt       *stmtp,
-		ses.env.ocierr,                     // OCIError      *errhp,
+		env.ocierr,                         // OCIError      *errhp,
 		(*C.OraText)(unsafe.Pointer(cSql)), // const OraText *stmt,
 		C.ub4(len(sql)),                    // ub4           stmt_len,
 		nil,                                // const OraText *key,
@@ -443,7 +452,7 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	ses.RUnlock()
 	C.free(unsafe.Pointer(cSql))
 	if r == C.OCI_ERROR {
-		return nil, errE(ses.env.ociError())
+		return nil, errE(env.ociError())
 	}
 	// set stmt struct
 	stmt = _drv.stmtPool.Get().(*Stmt)
@@ -452,12 +461,14 @@ func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error) {
 	stmt.cmu.Lock()
 	defer stmt.cmu.Unlock()
 	stmt.Lock()
-	stmt.env = ses.env
-	stmt.ses = ses
 	stmt.ocistmt = (*C.OCIStmt)(ocistmt)
+	ses.RLock()
+	stmt.env.Store(env)
+	stmt.ses = ses
 	if ses.srv.IsUTF8() && stmtCfg.stringPtrBufferSize > 1000 {
 		stmt.stringPtrBufferSize = 1000
 	}
+	ses.RUnlock()
 	stmt.sql = sql
 	stmt.gcts = gcts
 	if stmt.id == 0 {
@@ -706,14 +717,15 @@ func (ses *Ses) StartTx(opts ...TxOption) (tx *Tx, err error) {
 		timeout = C.uword(o.timeout / time.Second)
 	}
 	ses.RLock()
+	env := ses.Env()
 	r := C.OCITransStart(
-		ses.ocisvcctx,  //OCISvcCtx    *svchp,
-		ses.env.ocierr, //OCIError     *errhp,
-		timeout,        //uword        timeout,
+		ses.ocisvcctx, //OCISvcCtx    *svchp,
+		env.ocierr,    //OCIError     *errhp,
+		timeout,       //uword        timeout,
 		C.OCI_TRANS_NEW|C.ub4(o.flags)) //ub4          flags );
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
-		return nil, errE(ses.env.ociError())
+		return nil, errE(env.ociError())
 	}
 	tx = _drv.txPool.Get().(*Tx) // set *Tx
 	tx.cmu.Lock()
@@ -742,13 +754,14 @@ func (ses *Ses) Ping() (err error) {
 		return errE(err)
 	}
 	ses.RLock()
+	env := ses.Env()
 	r := C.OCIPing(
-		ses.ocisvcctx,  //OCISvcCtx     *svchp,
-		ses.env.ocierr, //OCIError      *errhp,
-		C.OCI_DEFAULT)  //ub4           mode );
+		ses.ocisvcctx, //OCISvcCtx     *svchp,
+		env.ocierr,    //OCIError      *errhp,
+		C.OCI_DEFAULT) //ub4           mode );
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
-		return errE(ses.env.ociError())
+		return errE(env.ociError())
 	}
 	return nil
 }
@@ -761,12 +774,13 @@ func (ses *Ses) Break() (err error) {
 		return errE(err)
 	}
 	ses.RLock()
+	env := ses.Env()
 	defer ses.RUnlock()
-	if r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), ses.env.ocierr); r == C.OCI_ERROR {
-		return errE(ses.env.ociError())
+	if r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), env.ocierr); r == C.OCI_ERROR {
+		return errE(env.ociError())
 	}
-	if r := C.OCIReset(unsafe.Pointer(ses.ocisvcctx), ses.env.ocierr); r == C.OCI_ERROR {
-		return errE(ses.env.ociError())
+	if r := C.OCIReset(unsafe.Pointer(ses.ocisvcctx), env.ocierr); r == C.OCI_ERROR {
+		return errE(env.ociError())
 	}
 	return nil
 }
@@ -884,7 +898,8 @@ func (ses *Ses) SetAction(module, action string) error {
 	}
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
-	if err := ses.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+	env := ses.Env()
+	if err := env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
 		unsafe.Pointer(cModule), C.ub4(len(module)), C.OCI_ATTR_MODULE,
 	); err != nil {
 		return errE(err)
@@ -895,7 +910,7 @@ func (ses *Ses) SetAction(module, action string) error {
 	}
 	cAction := C.CString(action)
 	defer C.free(unsafe.Pointer(cAction))
-	if err := ses.env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
+	if err := env.setAttr(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION,
 		unsafe.Pointer(cAction), C.ub4(len(action)), C.OCI_ATTR_ACTION,
 	); err != nil {
 		return errE(err)
