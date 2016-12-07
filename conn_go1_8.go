@@ -20,6 +20,19 @@ import (
 */
 import "C"
 
+var (
+	// Ensure that Con implements the needed ...Context interfaces.
+	_ = driver.Conn((*Con)(nil))
+	_ = driver.ConnBeginContext((*Con)(nil))
+	_ = driver.ConnPrepareContext((*Con)(nil))
+	_ = driver.Pinger((*Con)(nil))
+
+	// Ensure that DrvStmt implements the needed ...Context interfaces.
+	_ = driver.Stmt((*DrvStmt)(nil))
+	_ = driver.StmtQueryContext((*DrvStmt)(nil))
+	_ = driver.StmtExecContext((*DrvStmt)(nil))
+)
+
 // PrepareContext returns a prepared statement, bound to this connection.
 // context is for the preparation of the statement,
 // it must not store the context within the statement itself.
