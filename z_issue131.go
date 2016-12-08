@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	_ "net/http/pprof"
+
 	_ "gopkg.in/rana/ora.v4"
 )
 
@@ -56,6 +58,12 @@ func main() {
 	if dur == 0 {
 		dur = 24 * time.Hour
 	}
+
+	go func() {
+		addr := "localhost:6131"
+		log.Println("go tool pprof " + addr + "/debug/pprof/heap")
+		log.Println(http.ListenAndServe(addr, nil))
+	}()
 
 	log.SetPrefix("#131 ")
 	log.Println("starting")
