@@ -448,6 +448,9 @@ type sysNamer struct {
 	name string
 }
 
+// Name sets the name to the result of calc once,
+// then returns that result forever.
+// (Effectively caches the result of calc().)
 func (s *sysNamer) Name(calc func() string) string {
 	s.once.Do(func() { s.name = calc() })
 	return s.name
