@@ -23,7 +23,7 @@ import "C"
 var (
 	// Ensure that Con implements the needed ...Context interfaces.
 	_ = driver.Conn((*Con)(nil))
-	_ = driver.ConnBeginContext((*Con)(nil))
+	_ = driver.ConnBeginTx((*Con)(nil))
 	_ = driver.ConnPrepareContext((*Con)(nil))
 	_ = driver.Pinger((*Con)(nil))
 
@@ -48,36 +48,32 @@ func (con *Con) PrepareContext(ctx context.Context, query string) (driver.Stmt, 
 	return &DrvStmt{stmt: stmt}, err
 }
 
-// BeginContext starts and returns a new transaction.
+// BeginTx starts and returns a new transaction.
 // The provided context should be used to roll the transaction back
 // if it is cancelled.
 //
-// This must call IsolationFromContext to determine if there is a set
-// isolation level. If the driver does not support setting the isolation
+// If the driver does not support setting the isolation
 // level and one is set or if there is a set isolation level
 // but the set level is not supported, an error must be returned.
 //
-// This must also call ReadOnlyFromContext to determine if the read-only
-// value is true to either set the read-only transaction property if supported
+// If the read-only value is true to either
+// set the read-only transaction property if supported
 // or return an error if it is not supported.
-func (con *Con) BeginContext(ctx context.Context) (driver.Tx, error) {
+func (con *Con) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	var flags C.ub4
-	if driver.ReadOnlyFromContext(ctx) {
+	if opts.ReadOnly {
 		flags |= C.OCI_TRANS_READONLY
 	}
-	level, ok := driver.IsolationFromContext(ctx)
-	if ok {
-		switch sql.IsolationLevel(level) {
-		case sql.LevelDefault, sql.LevelReadCommitted:
-			// this is the default level
-		case sql.LevelSerializable:
-			flags |= C.OCI_TRANS_SERIALIZABLE
-		default:
-			return nil, fmt.Errorf("Isolation level %s not supported.", level)
-		}
+	switch level := sql.IsolationLevel(opts.Isolation); level {
+	case sql.LevelDefault, sql.LevelReadCommitted:
+		// this is the default level
+	case sql.LevelSerializable:
+		flags |= C.OCI_TRANS_SERIALIZABLE
+	default:
+		return nil, fmt.Errorf("Isolation level %s not supported.", level)
 	}
 	con.log(_drv.Cfg().Log.Con.Begin)
 	if err := con.checkIsOpen(); err != nil {
