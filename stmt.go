@@ -234,11 +234,11 @@ func (stmt *Stmt) exe(params []interface{}, isAssocArray bool) (rowsAffected uin
 	// Get rowsAffected based on statement type
 	switch stmt.stmtType {
 	case C.OCI_STMT_SELECT, C.OCI_STMT_UPDATE, C.OCI_STMT_DELETE, C.OCI_STMT_INSERT:
-		ra, err := stmt.attr(8, C.OCI_ATTR_UB8_ROW_COUNT)
+		ra, err := stmt.attr(C.ROW_COUNT_LENGTH, C.OCI_ATTR_UB8_ROW_COUNT)
 		if err != nil {
 			return 0, 0, errE(err)
 		}
-		rowsAffected = uint64(*((*C.ub8)(ra)))
+		rowsAffected = uint64(*((*C.ROW_COUNT_TYPE)(ra)))
 		C.free(ra)
 		//case C.OCI_STMT_CREATE, C.OCI_STMT_DROP, C.OCI_STMT_ALTER, C.OCI_STMT_BEGIN:
 	default:

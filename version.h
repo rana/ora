@@ -30,6 +30,9 @@
 	#define MAX_BINARY_BYTES			32767
 	#define LENGTH_TYPE					sb8
 	#define LENGTH_LENGTH				8
+
+	#define ROW_COUNT_TYPE				ub8
+	#define ROW_COUNT_LENGTH			8
 #else
     #define OCIBINDBYNAME               OCIBindByName
     #define OCIBINDBYPOS                OCIBindByPos
@@ -41,6 +44,8 @@
 	#define LENGTH_LENGTH				4
 
 	#define OCI_ATTR_UB8_ROW_COUNT		OCI_ATTR_ROW_COUNT
+	#define ROW_COUNT_TYPE				ub4
+	#define ROW_COUNT_LENGTH			4
 #endif
 
 #if ORACLE_VERSION_HEX >= ORACLE_VERSION(10,1)
