@@ -1,6 +1,7 @@
 # Changelog #
 
 ## master ##
+  * go1.8: remove support, use v4 instead!
 
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.
