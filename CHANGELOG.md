@@ -1,14 +1,14 @@
 # Changelog #
 
 ## master ##
-  * go1.8: remove support, use v4 instead!
 
 ## v3.8.0 ##
-  * go1.8: support additional features, as requested by @kardianos in #127.
+  * go1.8: NO support for additional features, use v4!
   * Change default column types for BLOB and CLOB: Bin and S, instead of D and D.
     With this change the driver will return a string/[]byte from [CB]LOB columns,
 	instead of an io.ReadCloser.
   * Return driver.ErrBadConn for connection errors, to allow database/sql to reconnect.
+  * Fix RowsAffected for Oracle 11 client (#139).
 
 ## v3.7.4 ##
   * Add RTrimChar to StmtCfg, default true. This makes the strip of right padding of CHAR columns configurable.
