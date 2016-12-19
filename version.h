@@ -27,9 +27,12 @@
 	#define OCIDEFINEBYPOS              OCIDefineByPos2
 	#define ACTUAL_LENGTH_TYPE          ub4
 	#define ACTUAL_LENGTH_LENGTH        4
-	#define MAX_BINARY_BYTES	    32767
+	#define MAX_BINARY_BYTES			32767
 	#define LENGTH_TYPE                 sb8
 	#define LENGTH_LENGTH               8
+
+	#define ROW_COUNT_TYPE				ub8
+	#define ROW_COUNT_LENGTH			8
 #else
 	#define OCIBINDBYNAME               OCIBindByName
 	#define OCIBINDBYPOS                OCIBindByPos
@@ -40,7 +43,9 @@
 	#define LENGTH_TYPE                 sb4
 	#define LENGTH_LENGTH               4
 
-	#define OCI_ATTR_UB8_ROW_COUNT      OCI_ATTR_ROW_COUNT
+	#define OCI_ATTR_UB8_ROW_COUNT		OCI_ATTR_ROW_COUNT
+	#define ROW_COUNT_TYPE				ub4
+	#define ROW_COUNT_LENGTH			4
 #endif
 
 #if ORACLE_VERSION_HEX >= ORACLE_VERSION(10,1)
@@ -75,7 +80,7 @@ bindByNameOrPos(
 	ACTUAL_LENGTH_TYPE *alenp,
 	ub2           *rcodep,
 	ub4           maxarr_len,
-	ub4           *curelep, 
+	ub4           *curelep,
 	ub4           mode
 );
 
