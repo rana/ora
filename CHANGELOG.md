@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v.3.8.1 ##
+
 ## v3.8.0 ##
   * go1.8: NO support for additional features, use v4!
   * Change default column types for BLOB and CLOB: Bin and S, instead of D and D.
