@@ -6,6 +6,7 @@
 
 ## v3.8.1 ##
   * Fix #141 (nil panic in ses.Close).
+  * Remove pool from behind database/sql connections (that's double buffering, as database/sql already pools connections).
 
 ## v3.8.0 ##
   * go1.8: NO support for additional features, use v4!

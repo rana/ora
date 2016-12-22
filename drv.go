@@ -149,8 +149,6 @@ type Drv struct {
 
 	sqlPkgEnv *Env // An environment for use by the database/sql package.
 	openEnvs  *envList
-
-	srvSesPools map[string]*Pool
 }
 
 // Open opens a connection to an Oracle server with the database/sql environment.

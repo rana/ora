@@ -59,8 +59,6 @@ type Con struct {
 	env *Env
 	ses *Ses
 
-	pool *Pool
-
 	sysNamer
 }
 
@@ -102,12 +100,13 @@ func (con *Con) close() (err error) {
 			err = errR(value)
 		}
 		con.env = nil
-		con.pool = nil
 		con.ses = nil
 		_drv.conPool.Put(con)
 	}()
 
-	con.pool.Put(con.ses)
+	if ses := con.ses; ses != nil {
+		return ses.close()
+	}
 	return nil
 }
 

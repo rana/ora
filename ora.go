@@ -34,7 +34,6 @@ var _drv *Drv
 func init() {
 	_drv = &Drv{}
 	_drv.locations = make(map[string]*time.Location)
-	_drv.srvSesPools = make(map[string]*Pool)
 	_drv.openEnvs = newEnvList()
 	_drv.cfg = *NewDrvCfg()
 
