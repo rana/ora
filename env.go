@@ -72,6 +72,8 @@ type Env struct {
 	openSrvs *srvList
 	openCons *conList
 
+	pools map[string]*Pool
+
 	sysNamer
 }
 
@@ -90,6 +92,7 @@ func (env *Env) Close() (err error) {
 			errs.PushBack(errR(value))
 		}
 		_drv.openEnvs.remove(env)
+		env.pools = nil
 		env.ocienv = nil
 		env.ocierr = nil
 		env.openSrvs.clear()
@@ -105,6 +108,11 @@ func (env *Env) Close() (err error) {
 	}()
 	env.openCons.closeAll(errs)
 	env.openSrvs.closeAll(errs)
+	if ps := env.pools; ps != nil {
+		for _, p := range ps {
+			p.Close()
+		}
+	}
 
 	// Free oci environment handle and all oci child handles
 	// The oci error handle is released as a child of the environment handle
@@ -188,20 +196,29 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		return nil, errE(err)
 	}
 	dsn = strings.TrimSpace(dsn)
-	var srvCfg SrvCfg
-	sesCfg := SesCfg{Mode: DSNMode(dsn)}
-	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	srv, err := env.OpenSrv(&srvCfg)
-	if err != nil {
-		return nil, errE(err)
+	env.mu.Lock()
+	p := env.pools[dsn]
+	if p == nil {
+		var err error
+		if p, err = NewPool(dsn, 2); err != nil {
+			env.mu.Unlock()
+			return nil, err
+		}
+		if env.pools == nil {
+			env.pools = make(map[string]*Pool, 4)
+		}
+		env.pools[dsn] = p
 	}
-	ses, err := srv.OpenSes(&sesCfg)
+	env.mu.Unlock()
+
+	ses, err := p.Get()
 	if err != nil {
 		return nil, errE(err)
 	}
 
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
+	con.pool = p
 	con.ses = ses
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
@@ -216,8 +233,9 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		ses.mu.Unlock()
 	}
 
+	_, _, dblink := SplitDSN(dsn)
 	conCharsetMu.Lock()
-	cs, ok := conCharset[srvCfg.Dblink]
+	cs, ok := conCharset[dblink]
 	conCharsetMu.Unlock()
 
 	if ok {
@@ -234,7 +252,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
 			conCharsetMu.Lock()
-			conCharset[srvCfg.Dblink] = cs
+			conCharset[dblink] = cs
 			conCharsetMu.Unlock()
 			setUTF8(cs)
 		}
