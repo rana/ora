@@ -147,7 +147,9 @@ func (ses *Ses) Close() (err error) {
 		return err
 	}
 	ses.srv.mu.Lock()
-	ses.srv.openSess.remove(ses)
+	if ses.srv.openSess != nil {
+		ses.srv.openSess.remove(ses)
+	}
 	ses.srv.mu.Unlock()
 	defer ses.mu.Unlock()
 	return ses.close()
@@ -193,6 +195,9 @@ func (ses *Ses) close() (err error) {
 	ses.openTxs.closeAll(errs)
 	ses.openStmts.closeAll(errs) // close statements
 
+	if ses.srv == nil || ses.srv.env == nil {
+		return nil
+	}
 	// close session
 	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	r := C.OCISessionEnd(
