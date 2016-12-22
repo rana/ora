@@ -83,15 +83,6 @@ func (env *Env) Close() (err error) {
 	if err != nil {
 		return errE(err)
 	}
-	_drv.Lock()
-	for k, p := range _drv.srvSesPools {
-		if p == nil || p.env != env {
-			continue
-		}
-		p.Close()
-		delete(_drv.srvSesPools, k)
-	}
-	_drv.Unlock()
 	errs := _drv.listPool.Get().(*list.List)
 
 	env.cmu.Lock()
@@ -215,26 +206,20 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		return nil, errE(err)
 	}
 	dsn = strings.TrimSpace(dsn)
-	_drv.RLock()
-	p := _drv.srvSesPools[dsn]
-	_drv.RUnlock()
-	if p == nil {
-		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
-		sesCfg := SesCfg{Mode: DSNMode(dsn)}
-		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-		p = env.NewPool(srvCfg, sesCfg, 0)
-		_drv.Lock()
-		_drv.srvSesPools[dsn] = p
-		_drv.Unlock()
-	}
-	ses, err := p.Get()
+	srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
+	sesCfg := SesCfg{Mode: DSNMode(dsn)}
+	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
 		return nil, errE(err)
 	}
-	srvCfg := p.srvCfg
+	ses, err := srv.OpenSes(sesCfg)
+	if err != nil {
+		return nil, errE(err)
+	}
+
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
-	con.pool = p
 	con.ses = ses
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()

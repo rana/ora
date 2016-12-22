@@ -225,8 +225,6 @@ type Drv struct {
 
 	sqlPkgEnv *Env // An environment for use by the database/sql package.
 	openEnvs  *envList
-
-	srvSesPools map[string]*Pool
 }
 
 func (drv *Drv) Cfg() DrvCfg {
