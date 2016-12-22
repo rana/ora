@@ -214,30 +214,22 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		return nil, errE(err)
 	}
 	dsn = strings.TrimSpace(dsn)
-	/*
-		srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
-		sesCfg := SesCfg{Mode: DSNMode(dsn)}
-		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-		srv, err := env.OpenSrv(srvCfg)
-		if err != nil {
-			return nil, errE(err)
-		}
-		ses, err := srv.OpenSes(sesCfg)
-	*/
+
 	env.Lock()
 	p := env.pools[dsn]
 	if p == nil {
-		var err error
-		if p, err = NewPool(dsn, 2); err != nil {
-			env.Unlock()
-			return nil, err
-		}
+		srvCfg := SrvCfg{StmtCfg: env.Cfg()}
+		sesCfg := SesCfg{Mode: DSNMode(dsn)}
+		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+		sesCfg.Mode = DSNMode(dsn)
+		p = env.NewPool(srvCfg, sesCfg, runtime.NumCPU())
 		if env.pools == nil {
 			env.pools = make(map[string]*Pool, 4)
 		}
 		env.pools[dsn] = p
 	}
 	env.Unlock()
+
 	ses, err := p.Get()
 	if err != nil {
 		return nil, errE(err)
