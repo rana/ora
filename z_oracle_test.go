@@ -3689,7 +3689,7 @@ func TestIntFloat(t *testing.T) {
 }
 
 func TestSetDrvCfg(t *testing.T) {
-	qry := "SELECT CAST('S' AS CHAR(1)) FROM DUAL"
+	qry := "SELECT CAST('1' AS CHAR(1)) FROM DUAL"
 
 	//enableLogging(t)
 	cfg := ora.Cfg()
@@ -3712,9 +3712,9 @@ func TestSetDrvCfg(t *testing.T) {
 	if err := testDb.QueryRow(qry).Scan(&s); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	t.Logf("S=%v", s)
-	if s != "S" {
-		t.Errorf("got %q, awaited 'S'", s)
+	t.Logf("1=%v", s)
+	if s != "1" {
+		t.Errorf("got %q, awaited '1'", s)
 	}
 }
 
