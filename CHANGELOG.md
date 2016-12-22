@@ -9,7 +9,6 @@
   * Change the configuration to use immutable structures (StmtCfg and RsetCfg).
     This means cfg.Set... methods returns a copy, does not change the original -
 	you have to call drv/env/srv/ses/stmt/rset.SetCfg(cfg)!
-  * Remove pool from behind database/sql connections (that's double buffering, as database/sql already pools connections).
 
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.
