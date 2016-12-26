@@ -3,10 +3,10 @@
 ## master ##
 
 ## v3.8.2 ##
+  * Remove connection pooling from Con.
 
 ## v3.8.1 ##
   * Fix #141 (nil panic in ses.Close).
-  * Remove connection pooling from Con.
 
 ## v3.8.0 ##
   * go1.8: NO support for additional features, use v4!
