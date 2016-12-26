@@ -62,8 +62,6 @@ type Env struct {
 	openSrvs *srvList
 	openCons *conList
 
-	pools map[string]*Pool
-
 	sysNamer
 }
 
@@ -102,7 +100,6 @@ func (env *Env) Close() (err error) {
 		env.SetCfg(StmtCfg{})
 		env.Lock()
 		env.isPkgEnv = false
-		env.pools = nil
 		env.ocienv = nil
 		env.ocierr = nil
 		env.Unlock()
@@ -119,11 +116,6 @@ func (env *Env) Close() (err error) {
 	}()
 	openCons.closeAll(errs)
 	openSrvs.closeAll(errs)
-	if ps := env.pools; ps != nil {
-		for _, p := range ps {
-			p.Close()
-		}
-	}
 
 	// Free oci environment handle and all oci child handles
 	// The oci error handle is released as a child of the environment handle
@@ -215,29 +207,21 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	}
 	dsn = strings.TrimSpace(dsn)
 
-	env.Lock()
-	p := env.pools[dsn]
-	if p == nil {
-		srvCfg := SrvCfg{StmtCfg: env.Cfg()}
-		sesCfg := SesCfg{Mode: DSNMode(dsn)}
-		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-		sesCfg.Mode = DSNMode(dsn)
-		p = env.NewPool(srvCfg, sesCfg, runtime.NumCPU())
-		if env.pools == nil {
-			env.pools = make(map[string]*Pool, 4)
-		}
-		env.pools[dsn] = p
-	}
-	env.Unlock()
-
-	ses, err := p.Get()
+	srvCfg := SrvCfg{StmtCfg: env.Cfg()}
+	sesCfg := SesCfg{Mode: DSNMode(dsn)}
+	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
+	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
+		return nil, errE(err)
+	}
+	ses, err := srv.OpenSes(sesCfg)
+	if err != nil {
+		srv.Close()
 		return nil, errE(err)
 	}
 
 	con = _drv.conPool.Get().(*Con) // set *Con
 	con.env = env
-	con.pool = p
 	con.ses = ses
 	if con.id == 0 {
 		con.id = _drv.conId.nextId()
@@ -250,9 +234,8 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		atomic.StoreInt32(&ses.srv.isUTF8, isUTF8)
 	}
 
-	_, _, dblink := SplitDSN(dsn)
 	conCharsetMu.Lock()
-	cs, ok := conCharset[dblink]
+	cs, ok := conCharset[srvCfg.Dblink]
 	conCharsetMu.Unlock()
 
 	if ok {
@@ -269,7 +252,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 		//	env.id, con.id, ses.id, rset.Row[0])
 		if cs, ok := rset.Row[0].(string); ok {
 			conCharsetMu.Lock()
-			conCharset[dblink] = cs
+			conCharset[srvCfg.Dblink] = cs
 			conCharsetMu.Unlock()
 			setUTF8(cs)
 		}

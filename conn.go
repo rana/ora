@@ -59,8 +59,6 @@ type Con struct {
 	env *Env
 	ses *Ses
 
-	pool *Pool
-
 	sysNamer
 }
 
@@ -102,17 +100,18 @@ func (con *Con) close() (err error) {
 			err = errR(value)
 		}
 		con.env = nil
-		con.pool = nil
 		con.ses = nil
 		_drv.conPool.Put(con)
 	}()
 
+	// Close the session, and its srv, too!
 	if ses := con.ses; ses != nil {
-		if p := con.pool; p != nil {
-			p.Put(ses)
-			return nil
+		srv := ses.srv
+		err := ses.Close()
+		if srv != nil {
+			srv.Close()
 		}
-		return ses.Close()
+		return err
 	}
 	return nil
 }
