@@ -1,3 +1,16 @@
+version: 1.0.{build}
+
+platform: x64
+
+branches:
+  only:
+  - v4
+
+clone_depth: 1
+
+build:
+  verbosity: detailed
+
 clone_folder: c:\gopath\src\golang.org\rana\ora.v4
 
 environment:
@@ -12,3 +25,18 @@ install:
 
 build_script:
   - go install -v .
+
+artifacts:
+  - path: c:\gopath\pkg\windows_amd64\gopkg.in\rana\ora.v4
+    name: binary
+
+deploy:
+  release: ora.v4-$(appveyor_build_version)
+  description: 'Release of precompiled windows binaries'
+  provider: GitHub
+  artifact: binary
+  draft: true
+  on:
+    branch: v4
+
+# vim: set filetype=yaml et shiftwidth=2:
