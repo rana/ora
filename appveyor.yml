@@ -1,0 +1,14 @@
+clone_folder: c:\gopath\src\golang.org\rana\ora.v4
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - echo %PATH%
+  - echo %GOPATH%
+  - go version
+  - go env
+  - go get -v -t ./...
+
+build_script:
+  - go install -v .
