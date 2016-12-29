@@ -10,6 +10,7 @@ Package ora implements an Oracle database driver.
 
     import (
     	"database/sql"
+		"log"
 
     	_ "gopkg.in/rana/ora.v4"
     )
@@ -42,7 +43,7 @@ Call stored procedure with OUT parameters:
     	defer ses.Close()
 
     	var user string
-    	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &res, "SESSION_USER"); err != nil {
+    	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &user, "SESSION_USER"); err != nil {
     		log.Fatal(err)
     	}
     	log.Printf("user: %q", user)

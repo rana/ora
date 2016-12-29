@@ -21,6 +21,10 @@ install:
   - echo %GOPATH%
   - go version
   - go env
+  - curl -sS -o c:\gopath\instantclient-sdk-windows.zip https://s3.amazonaws.com/tgulacsi-oracle-instantclient/instantclient-sdk-windows.x64-12.1.0.2.0.zip
+  - 7z x -oc:\ c:\gopath\instantclient-sdk-windows.zip
+  - curl -sS -o c:\gopath\instantclient-basiclite-windows.zip https://s3.amazonaws.com/tgulacsi-oracle-instantclient/instantclient-basiclite-windows.x64-12.1.0.2.0.zip
+  - 7z x -oc:\ c:\gopath\instantclient-basiclite-windows.zip
   - go get -v -t ./...
 
 build_script:
