@@ -18,12 +18,15 @@
 Call stored procedure with OUT parameters:
 
 ```go
+package main
+
 import (
 	"gopkg.in/rana/ora.v3"
+	"log"
 )
 
 func main() {
-	env, srv, ses, err := ora.NewEnvSrvSes("user/passw@host:port/sid")
+	env, srv, ses, err := ora.NewEnvSrvSes("user/passw@host:port/sid", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +35,7 @@ func main() {
 	defer ses.Close()
 
 	var user string
-	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &res, "SESSION_USER"); err != nil {
+	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &user, "SESSION_USER"); err != nil {
 		log.Fatal(err)
 	}
     log.Printf("user: %q", user)
