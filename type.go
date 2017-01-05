@@ -4,29 +4,6 @@
 
 package ora
 
-/*
-#include <oci.h>
-#include <stdlib.h>
-#include <string.h>
-*/
-import "C"
-
-/*
-
-func writeOCINumber(dst *C.OCINumber, src Num) {
-	C.writeOCINumber(
-		dst,
-		(*C.ub1)(unsafe.Pointer(&src.OCINum[0])),
-		C.ub1(len(src.OCINum)),
-	)
-}
-
-void writeOCINumber(OCINumber *dst, ub1 *src, ub1 src_len) {
-	dst->OCINumberPart[0] = src_len;
-	memcpy(dst->OCINumberPart+1, src, src_len);
-}
-*/
-
 import (
 	"bytes"
 	"container/list"

@@ -6,6 +6,7 @@ package ora_test
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -214,5 +215,21 @@ func TestBindDefine_numeric_nil(t *testing.T) {
 			t.Parallel()
 			testBindDefine(nil, ct, t, sc)
 		})
+	}
+}
+
+func TestIssue144(t *testing.T) {
+	var s string
+	var i int64
+	var f float64
+	for tN, dest := range []interface{}{
+		&f,
+		&i,
+		&s,
+	} {
+		if err := testDb.QueryRow("SELECT 123456 FROM DUAL").Scan(dest); err != nil {
+			t.Error("%d. %T: %v", tN, dest, err)
+		}
+		t.Logf("%d. %T: %v", tN, dest, reflect.ValueOf(dest).Elem().Interface())
 	}
 }
