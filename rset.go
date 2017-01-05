@@ -951,6 +951,8 @@ func (rset *Rset) defineNumeric(n int, gct GoColumnType) (def, error) {
 	case OraN:
 		D = rset.getDef(defIdxOCINum).(*defOCINum)
 		nullable = true
+	case S:
+		D = rset.getDef(defIdxNumString).(*defNumString)
 	}
 	return D, D.(interface {
 		define(int, bool, *Rset) error

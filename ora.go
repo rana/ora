@@ -123,6 +123,7 @@ func init() {
 	_drv.defPools[defIdxTime] = newPool(func() interface{} { return &defTime{} })
 	_drv.defPools[defIdxDate] = newPool(func() interface{} { return &defDate{} })
 	_drv.defPools[defIdxString] = newPool(func() interface{} { return &defString{} })
+	_drv.defPools[defIdxNumString] = newPool(func() interface{} { return &defNumString{} })
 	_drv.defPools[defIdxBool] = newPool(func() interface{} { return &defBool{} })
 	_drv.defPools[defIdxLob] = newPool(func() interface{} { return &defLob{} })
 	_drv.defPools[defIdxRaw] = newPool(func() interface{} { return &defRaw{} })

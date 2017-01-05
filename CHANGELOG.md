@@ -10,6 +10,9 @@
     This means cfg.Set... methods returns a copy, does not change the original -
 	you have to call drv/env/srv/ses/stmt/rset.SetCfg(cfg)!
   * Remove pooling from Con - that's already done in database/sql.
+  * Allow setting column type to `S` for numeric columns
+    (with `ora.SetCfg(ora.Cfg().SetNumberFloat(ora.S))`), too.
+	This enables us you to `.Scan` into a `*string`.
 
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.

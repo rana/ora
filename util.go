@@ -13,7 +13,14 @@ import (
 // checkNumericColumn returns nil when the column type is numeric; otherwise, an error.
 func checkNumericColumn(gct GoColumnType, columnName string) error {
 	switch gct {
-	case I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32, OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN:
+	case I64, I32, I16, I8,
+		OraI64, OraI32, OraI16, OraI8,
+		U64, U32, U16, U8,
+		OraU64, OraU32, OraU16, OraU8,
+		F64, F32,
+		OraF64, OraF32,
+		N, OraN,
+		S:
 		return nil
 	}
 	var s string

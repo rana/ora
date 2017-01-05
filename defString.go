@@ -22,6 +22,14 @@ type defString struct {
 	columnSize        int
 }
 
+type defNumString struct {
+	defString
+}
+
+func (def *defNumString) define(position int, isNullable bool, rset *Rset) error {
+	return def.defString.define(position, 40, isNullable, false, rset)
+}
+
 func (def *defString) define(position int, columnSize int, isNullable, rTrim bool, rset *Rset) error {
 	def.rset = rset
 	def.isNullable, def.rTrim = isNullable, rTrim

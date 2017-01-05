@@ -219,6 +219,10 @@ func TestBindDefine_numeric_nil(t *testing.T) {
 }
 
 func TestIssue144(t *testing.T) {
+	oCfg := ora.Cfg()
+	defer ora.SetCfg(oCfg)
+	ora.SetCfg(ora.Cfg().SetNumberFloat(ora.S).SetFloat(ora.S))
+
 	var s string
 	var i int64
 	var f float64
@@ -228,7 +232,7 @@ func TestIssue144(t *testing.T) {
 		&s,
 	} {
 		if err := testDb.QueryRow("SELECT 123456 FROM DUAL").Scan(dest); err != nil {
-			t.Error("%d. %T: %v", tN, dest, err)
+			t.Errorf("%d. %T: %v", tN, dest, err)
 		}
 		t.Logf("%d. %T: %v", tN, dest, reflect.ValueOf(dest).Elem().Interface())
 	}

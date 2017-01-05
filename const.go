@@ -160,6 +160,7 @@ const (
 	defIdxTime
 	defIdxDate
 	defIdxString
+	defIdxNumString
 	defIdxBool
 
 	defIdxLob
