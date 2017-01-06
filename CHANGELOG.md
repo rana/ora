@@ -13,6 +13,7 @@
   * Allow setting column type to `S` for numeric columns
     (with `ora.SetCfg(ora.Cfg().SetNumberFloat(ora.S))`), too.
 	This enables us you to `.Scan` into a `*string`.
+  * Add Stmt.Parse for only parsing the query.
 
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.

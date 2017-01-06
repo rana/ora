@@ -225,6 +225,46 @@ func (stmt *Stmt) ExeP(params ...interface{}) (rowsAffected uint64, err error) {
 	return rowsAffected, err
 }
 
+// Parse the statement, and return the syntax errors - WITHOUT executing it.
+// Rejects ALTER statements, as they're executed anyway by Oracle...
+func (stmt *Stmt) Parse() (err error) {
+	if stmt == nil {
+		return er("stmt may not be nil.")
+	}
+	defer func() {
+		if value := recover(); value != nil {
+			err = errR(value)
+		}
+	}()
+	stmt.log(_drv.Cfg().Log.Stmt.Exe)
+	err = stmt.checkClosed()
+	if err != nil {
+		return errE(err)
+	}
+	if stmt.stmtType == C.OCI_STMT_ALTER || stmt.stmtType == 0 {
+		return er("parsing ALTER statement is perilous!")
+	}
+	// Execute statement on Oracle server
+	stmt.RLock()
+	env := stmt.Env()
+	stmt.ses.RLock()
+	r := C.OCIStmtExecute(
+		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
+		stmt.ocistmt,       //OCIStmt             *stmtp,
+		env.ocierr,         //OCIError            *errhp,
+		C.ub4(1),           //ub4                 iters,
+		C.ub4(0),           //ub4                 rowoff,
+		nil,                //const OCISnapshot   *snap_in,
+		nil,                //OCISnapshot         *snap_out,
+		C.OCI_PARSE_ONLY)   //ub4                 mode );
+	stmt.ses.RUnlock()
+	stmt.RUnlock()
+	if r == C.OCI_ERROR {
+		return errE(env.ociError())
+	}
+	return nil
+}
+
 var spcRpl = strings.NewReplacer("\t", " ", "   ", " ", "  ", " ")
 
 // exe executes a SQL statement on an Oracle server returning rowsAffected, lastInsertId and error.
