@@ -30,7 +30,7 @@ type SesCfg struct {
 	StmtCfg
 }
 
-func (c SesCfg) IsZero() bool { return false } //c.StmtCfg.IsZero() }
+func (c SesCfg) IsZero() bool { return false }
 func NewSesCfg() SesCfg       { return SesCfg{} }
 
 func (cfg SesCfg) SetStmtCfg(stmtCfg StmtCfg) SesCfg {

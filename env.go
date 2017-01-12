@@ -131,7 +131,7 @@ func (env *Env) Close() (err error) {
 // OpenSrv connects to an Oracle server returning a *Srv and possible error.
 func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	if cfg.IsZero() {
-		panic("Parameter 'cfg' may not be nil.")
+		panic("Parameter 'cfg' may not be empty.")
 	}
 	defer func() {
 		if value := recover(); value != nil {
