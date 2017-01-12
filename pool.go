@@ -10,9 +10,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"fmt"
-	"os"
 )
 
 const (
@@ -410,7 +407,7 @@ func NewEnvSrvSes(dsn string) (*Env, *Srv, *Ses, error) {
 	srvCfg := SrvCfg{StmtCfg: env.Cfg()}
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
-	fmt.Fprintf(os.Stderr, "dsn=% => srv=%#v ses=%#v", dsn, srvCfg, sesCfg)
+	//fmt.Fprintf(os.Stderr, "dsn=% => srv=%#v ses=%#v", dsn, srvCfg, sesCfg)
 	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
 		env.Close()
