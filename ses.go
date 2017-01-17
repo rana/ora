@@ -199,7 +199,6 @@ func (ses *Ses) close() (err error) {
 		return nil
 	}
 	// close session
-	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	r := C.OCISessionEnd(
 		ses.ocisvcctx,      //OCISvcCtx       *svchp,
 		ses.srv.env.ocierr, //OCIError        *errhp,
@@ -208,6 +207,15 @@ func (ses *Ses) close() (err error) {
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(ses.srv.env.ociError()))
 	}
+	err = ses.srv.env.freeOciHandle(unsafe.Pointer(ses.ocises), C.OCI_HTYPE_SESSION)
+	if err != nil {
+		return errE(err)
+	}
+	err = ses.srv.env.freeOciHandle(unsafe.Pointer(ses.ocisvcctx), C.OCI_HTYPE_SVCCTX)
+	if err != nil {
+	return errE(err)
+	}
+
 	return nil
 }
 

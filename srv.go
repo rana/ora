@@ -119,8 +119,6 @@ func (srv *Srv) close() (err error) {
 	srv.openSess.closeAll(errs) // close sessions
 
 	// detach server
-	// OCIServerDetach invalidates oci server handle; no need to free server.ocisvr
-	// OCIServerDetach invalidates oci service context handle; no need to free server.ocisvcctx
 	r := C.OCIServerDetach(
 		srv.ocisrv,     //OCIServer   *srvhp,
 		srv.env.ocierr, //OCIError    *errhp,
@@ -128,6 +126,11 @@ func (srv *Srv) close() (err error) {
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(srv.env.ociError()))
 	}
+	err = srv.env.freeOciHandle(unsafe.Pointer(srv.ocisrv), C.OCI_HTYPE_SERVER)
+	if err != nil {
+		return errE(err)
+	}
+
 	return nil
 }
 
