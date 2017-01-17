@@ -118,13 +118,12 @@ func (env *Env) Close() (err error) {
 	openSrvs.closeAll(errs)
 
 	// Free oci environment handle and all oci child handles
-	// The oci error handle is released as a child of the environment handle
 	env.RLock()
-	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+	env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+	// This error handler freeing makes us get
+	// [signal SIGSEGV: segmentation violation code=0x1 addr=0xbfc908 pc=0x7f65bf5ce0d6]
+	//env.freeOciHandle(unsafe.Pointer(env.ocierr), C.OCI_HTYPE_ERROR)
 	env.RUnlock()
-	if err != nil {
-		return errE(err)
-	}
 	return nil
 }
 
@@ -364,6 +363,12 @@ func (env *Env) allocOciHandle(handleType C.ub4) (unsafe.Pointer, error) {
 
 // freeOciHandle deallocates an oci handle. No locking occurs.
 func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error {
+	var err error
+	func() {
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
 	env.ociHndMu.Lock()
 	defer env.ociHndMu.Unlock()
 	// OCIHandleFree returns: OCI_SUCCESS, OCI_INVALID_HANDLE, or OCI_ERROR
@@ -371,11 +376,11 @@ func (env *Env) freeOciHandle(ociHandle unsafe.Pointer, handleType C.ub4) error 
 		ociHandle,  //void      *hndlp,
 		handleType) //ub4       type );
 	if r == C.OCI_INVALID_HANDLE {
-		return er("Unable to free handle")
+		err = er("Unable to free handle")
 	} else if r == C.OCI_ERROR {
-		return errE(env.ociError())
+		err = errE(env.ociError())
 	}
-	return nil
+	return err
 }
 
 // setOciAttribute sets an attribute value on a handle or descriptor. No locking occurs.

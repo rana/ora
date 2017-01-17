@@ -154,17 +154,24 @@ func (srv *Srv) close() (err error) {
 	openSess.closeAll(errs) // close sessions
 
 	// detach server
-	// OCIServerDetach invalidates oci server handle; no need to free server.ocisvr
-	// OCIServerDetach invalidates oci service context handle; no need to free server.ocisvcctx
 	srv.RLock()
+	env := srv.env
 	r := C.OCIServerDetach(
-		srv.ocisrv,     //OCIServer   *srvhp,
-		srv.env.ocierr, //OCIError    *errhp,
-		C.OCI_DEFAULT)  //ub4         mode );
+		srv.ocisrv,    //OCIServer   *srvhp,
+		env.ocierr,    //OCIError    *errhp,
+		C.OCI_DEFAULT) //ub4         mode );
+	ocisrv := srv.ocisrv
 	srv.RUnlock()
 	if r == C.OCI_ERROR {
-		errs.PushBack(errE(srv.env.ociError()))
+		errs.PushBack(errE(env.ociError()))
 	}
+	env.RLock()
+	err = srv.env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
+	env.RUnlock()
+	if err != nil {
+		return errE(err)
+	}
+
 	return nil
 }
 

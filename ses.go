@@ -323,7 +323,6 @@ func (ses *Ses) close() (err error) {
 	openStmts.closeAll(errs) // close statements
 
 	// close session
-	// OCISessionEnd invalidates oci session handle; no need to free session.ocises
 	ses.RLock()
 	env := ses.Env()
 	r := C.OCISessionEnd(
@@ -331,10 +330,23 @@ func (ses *Ses) close() (err error) {
 		env.ocierr,    //OCIError        *errhp,
 		ses.ocises,    //OCISession      *usrhp,
 		C.OCI_DEFAULT) //ub4             mode );
+	ocises, ocisvcctx := ses.ocises, ses.ocisvcctx
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(env.ociError()))
 	}
+	env.RLock()
+	err = env.freeOciHandle(unsafe.Pointer(ocises), C.OCI_HTYPE_SESSION)
+	if err != nil {
+		env.RUnlock()
+		return errE(err)
+	}
+	err = env.freeOciHandle(unsafe.Pointer(ocisvcctx), C.OCI_HTYPE_SVCCTX)
+	env.RUnlock()
+	if err != nil {
+		return errE(err)
+	}
+
 	return nil
 }
 
