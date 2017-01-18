@@ -107,8 +107,11 @@ func (env *Env) Close() (err error) {
 	env.openSrvs.closeAll(errs)
 
 	// Free oci environment handle and all oci child handles
-	// The oci error handle is released as a child of the environment handle
 	err = env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
+	if err != nil {
+		return errE(err)
+	}
+	err = env.freeOciHandle(unsafe.Pointer(env.ocierr), C.OCI_HTYPE_ERROR)
 	if err != nil {
 		return errE(err)
 	}
