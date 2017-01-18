@@ -119,10 +119,8 @@ func (env *Env) Close() (err error) {
 
 	// Free oci environment handle and all oci child handles
 	env.RLock()
+	env.freeOciHandle(unsafe.Pointer(env.ocierr), C.OCI_HTYPE_ERROR)
 	env.freeOciHandle(unsafe.Pointer(env.ocienv), C.OCI_HTYPE_ENV)
-	// This error handler freeing makes us get
-	// [signal SIGSEGV: segmentation violation code=0x1 addr=0xbfc908 pc=0x7f65bf5ce0d6]
-	//env.freeOciHandle(unsafe.Pointer(env.ocierr), C.OCI_HTYPE_ERROR)
 	env.RUnlock()
 	return nil
 }
