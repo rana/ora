@@ -2,7 +2,10 @@
 
 ## master ##
 
-## v3.8.2 ##
+## v3.8.4 ##
+
+## v3.8.3 ##
+  * Fix open/close memory leak by adding more handle freeing - see #148.
 
 ## v3.8.1 ##
   * Fix #141 (nil panic in ses.Close).
