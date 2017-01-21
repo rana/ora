@@ -1,6 +1,6 @@
 // +build go1.8
 
-// Copyright 2016 Tamás Gulácsi. All rights reserved.
+// Copyright 2017 Tamás Gulácsi. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
@@ -11,8 +11,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-
-	"golang.org/x/sync/errgroup"
 )
 
 /*
@@ -79,19 +77,24 @@ func (con *Con) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, 
 	if err := con.checkIsOpen(); err != nil {
 		return nil, err
 	}
-	grp, ctx := errgroup.WithContext(ctx)
 	var tx *Tx
-	grp.Go(func() error {
+	done := make(chan error)
+	go func() {
+		defer close(done)
 		var err error
 		tx, err = con.ses.StartTx(TxFlags(uint32(flags)))
-		return err
-	})
-	<-ctx.Done()
-	if err := ctx.Err(); err != nil {
-		if isCanceled(err) {
+		done <- err
+	}()
+	var err error
+	select {
+	case <-ctx.Done():
+		if err = ctx.Err(); isCanceled(err) {
 			con.ses.Break()
 		}
-		return nil, err
+	case err = <-done:
+		return tx, err
 	}
-	return tx, grp.Wait()
+	return nil, err
 }
+
+// vim: set fileencoding=utf-8 noet:

@@ -1,6 +1,6 @@
 // +build go1.8
 
-// Copyright 2016 Tamás Gulácsi. All rights reserved.
+// Copyright 2017 Tamás Gulácsi. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
@@ -9,8 +9,6 @@ package ora
 import (
 	"context"
 	"database/sql/driver"
-
-	"golang.org/x/sync/errgroup"
 )
 
 // ExecContext enhances the Stmt interface by providing Exec with context.
@@ -28,22 +26,26 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 		return nil, err
 	}
 	var res DrvExecResult
-	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(func() error {
+	done := make(chan error)
+	go func() {
+		defer close(done)
 		var err error
 		res.rowsAffected, res.lastInsertId, err = ds.stmt.exeC(ctx, params, false)
 		if err != nil {
-			return errE(err)
+			done <- errE(err)
+			return
 		}
-		return nil
-	})
-	if err := ctx.Err(); err != nil {
-		if isCanceled(err) {
+		done <- nil
+	}()
+	var err error
+	select {
+	case <-ctx.Done():
+		if err = ctx.Err(); isCanceled(err) {
 			ds.stmt.ses.Break()
 		}
-		return nil, err
+	case err = <-done:
 	}
-	if err := grp.Wait(); err != nil {
+	if err != nil {
 		return nil, err
 	}
 	if res.rowsAffected == 0 {
@@ -67,21 +69,27 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 		return nil, err
 	}
 	var rset *Rset
-	grp, ctx := errgroup.WithContext(ctx)
-	grp.Go(func() error {
+	done := make(chan error)
+	go func() {
+		defer close(done)
 		var err error
 		rset, err = ds.stmt.qryC(ctx, params)
 		if err != nil {
-			return errE(err)
+			done <- errE(err)
+			return
 		}
-		return nil
-	})
-	if err := ctx.Err(); err != nil {
-		if isCanceled(err) {
+		done <- nil
+	}()
+	var err error
+	select {
+	case <-ctx.Done():
+		if err = ctx.Err(); isCanceled(err) {
 			ds.stmt.ses.Break()
 		}
 		return nil, err
+	case err = <-done:
 	}
-	err := grp.Wait()
 	return &DrvQueryResult{rset: rset}, err
 }
+
+// vim: set fileencoding=utf-8 noet:
