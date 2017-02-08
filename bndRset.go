@@ -1,4 +1,4 @@
-// Copyright 2014 Rana Ian. All rights reserved.
+// Copyright 2017 The Ora Authors. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
@@ -22,6 +22,8 @@ type bndRset struct {
 }
 
 func (bnd *bndRset) bind(value *Rset, position namedPos, stmt *Stmt) error {
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "%p pos=%s", bnd, position)
+
 	bnd.stmt = stmt
 	bnd.value = value
 	// Allocate a statement handle
@@ -64,12 +66,12 @@ func (bnd *bndRset) setPtr() error {
 	err := bnd.value.open(bnd.stmt, bnd.ocistmt[0])
 	bnd.ocistmt[0] = nil
 	if err != nil {
-		//if cerr, ok := err.(interface {
-		//Code() int
-		//}); ok && cerr.Code() == 24337 { // statement is not prepared
-		//bnd.value = nil
-		//return nil
-		//}
+		if cerr, ok := err.(interface {
+			Code() int
+		}); ok && cerr.Code() == 24337 { // statement is not prepared
+			bnd.value = nil
+			return nil
+		}
 		return err
 	}
 	// open result set is successful; will be freed by Rset

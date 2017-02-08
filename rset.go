@@ -1,4 +1,4 @@
-// Copyright 2014 Rana Ian. All rights reserved.
+// Copyright 2017 The Ora Authors. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 
