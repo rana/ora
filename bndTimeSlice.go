@@ -29,6 +29,8 @@ type bndTimeSlice struct {
 	arrHlp
 }
 
+// FIXME(tgulacsi): somewhere here we leak a lot of memory!!!
+
 func (bnd *bndTimeSlice) bindOra(values []Time, position namedPos, stmt *Stmt, isAssocArray bool) (uint32, error) {
 	bnd.values = values
 	if cap(bnd.times) < cap(values) {
