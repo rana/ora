@@ -73,6 +73,7 @@ type Stmt struct {
 	bnds                []bnd
 	hasPtrBind          bool
 	stringPtrBufferSize int
+	bindInfo
 
 	openRsets *rsetList
 
@@ -177,6 +178,7 @@ func (stmt *Stmt) close() (err error) {
 		stmt.gcts = nil
 		stmt.bnds = nil
 		stmt.hasPtrBind = false
+		stmt.bindInfo = bindInfo{}
 		stmt.openRsets.clear()
 		_drv.stmtPool.Put(stmt)
 		stmt.Unlock()
@@ -1375,7 +1377,19 @@ func (stmt *Stmt) NumRset() int {
 	return stmt.openRsets.len()
 }
 
+type bindInfo struct {
+	BindNames, IndNames []string
+	Duplicates          []bool
+}
+
 func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool, err error) {
+	stmt.RLock()
+	bi := stmt.bindInfo
+	stmt.RUnlock()
+	if bi.BindNames != nil {
+		return bi.BindNames, bi.IndNames, bi.Duplicates, nil
+	}
+
 	const arrSize = 128
 
 	cfg := _drv.Cfg()
@@ -1407,22 +1421,29 @@ func (stmt *Stmt) getBindInfo() (bindNames, indNames []string, duplicates []bool
 		}
 		stmt.logF(cfg.Log.Stmt.Bind, "start=%d found=%d", startLoc, found)
 		n := int(found)
+		// The expression abs(found) gives the total number of bind variables
+		// in the statement irrespective of the start position.a
+		// Positive value if the number of bind variables returned is less than
+		// the size provided, otherwise negative.
 		if n < 0 {
 			n = -n
+		}
+		n -= int(startLoc - 1)
+		if n > arrSize {
+			n = arrSize
 		}
 		for i := 0; i < n; i++ {
 			bindNames = append(bindNames, C.GoStringN((*C.char)(unsafe.Pointer(bndNms[i])), C.int(bndNmLens[i])))
 			indNames = append(indNames, C.GoStringN((*C.char)(unsafe.Pointer(indNms[i])), C.int(indNmLens[i])))
 			duplicates = append(duplicates, dups[i] > 0)
 		}
-		// The expression abs(found) gives the total number of bind variables
-		// in the statement irrespective of the start position.a
-		// Positive value if the number of bind variables returned is less than
-		// the size provided, otherwise negative.
 		if found >= 0 {
+			stmt.Lock()
+			stmt.bindInfo = bindInfo{BindNames: bindNames, IndNames: indNames, Duplicates: duplicates}
+			stmt.Unlock()
 			return
 		}
-		startLoc += C.ub4(-found)
+		startLoc += C.ub4(n)
 	}
 }
 
