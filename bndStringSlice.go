@@ -26,8 +26,7 @@ func (bnd *bndStringSlice) bindOra(values *[]String, position namedPos, stmt *St
 	if bnd.strings == nil {
 		s := make([]string, L, C)
 		bnd.strings = &s
-	}
-	if cap(*bnd.strings) < C {
+	} else if cap(*bnd.strings) < C {
 		*bnd.strings = make([]string, L, C)
 	} else {
 		*bnd.strings = (*bnd.strings)[:L]
@@ -68,13 +67,12 @@ func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt,
 		}
 	}
 	if cap(bnd.bytes) < bnd.maxLen*C {
-		//bnd.bytes = make([]byte, bnd.maxLen*L, bnd.maxLen*C)
 		bnd.bytes = bytesPool.Get(bnd.maxLen * C)[:bnd.maxLen*L]
 	} else {
 		bnd.bytes = bnd.bytes[:bnd.maxLen*L]
 	}
 	for m, str := range *values {
-		copy(bnd.bytes[m*bnd.maxLen:], []byte(str))
+		copy(bnd.bytes[m*bnd.maxLen:], str)
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
