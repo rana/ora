@@ -9,7 +9,9 @@ package ora
 #include "version.h"
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type bndBinSlice struct {
 	stmt   *Stmt
@@ -43,6 +45,9 @@ func (bnd *bndBinSlice) bind(values [][]byte, nullInds []C.sb2, position namedPo
 		if len(b) > maxLen {
 			maxLen = len(b)
 		}
+	}
+	if maxLen == 0 {
+		maxLen = 1
 	}
 	n := maxLen * L
 	if cap(bnd.buf) < n {
