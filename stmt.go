@@ -310,9 +310,11 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	if err != nil {
 		return 0, 0, errE(err)
 	}
-	err = stmt.setPrefetchSize() // set prefetch size
-	if err != nil {
-		return 0, 0, errE(err)
+	if stmt.stmtType == C.OCI_STMT_SELECT {
+		err = stmt.setPrefetchSize() // set prefetch size
+		if err != nil {
+			return 0, 0, errE(err)
+		}
 	}
 	mode := C.ub4(C.OCI_DEFAULT) // determine auto-commit state; don't auto-comit if there's an explicit user transaction occuring
 	var autoCommit bool
