@@ -130,11 +130,8 @@ func (p *Pool) Get() (ses *Ses, err error) {
 		if ses == nil {
 			continue
 		}
-		if err = ses.Ping(); err == nil {
-			ses.insteadClose = Instead
-			return ses, nil
-		}
-		ses.Close()
+		ses.insteadClose = Instead
+		return ses, nil
 	}
 
 	var srv *Srv
