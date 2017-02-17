@@ -467,7 +467,7 @@ var bytesPool bytesArena
 
 const (
 	bytesArenaOffset       = 10
-	bytesArenaMaxPoolCount = 10
+	bytesArenaMaxPoolCount = 16
 )
 
 type bytesArena struct {
@@ -476,7 +476,13 @@ type bytesArena struct {
 }
 
 func (bp *bytesArena) Get(n int) []byte {
-	return bp.poolOf(boundingPower(n)).Get().([]byte)[:n]
+	p := bp.poolOf(boundingPower(n))
+	b := p.Get().([]byte)
+	if cap(b) >= n {
+		return b[:n]
+	}
+	p.Put(b)
+	return make([]byte, n)
 }
 
 func (bp *bytesArena) Put(p []byte) {
