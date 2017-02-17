@@ -465,7 +465,10 @@ func (s *sysNamer) Name(calc func() string) string {
 
 var bytesPool bytesArena
 
-const bytesArenaOffset = 10
+const (
+	bytesArenaOffset       = 10
+	bytesArenaMaxPoolCount = 10
+)
 
 type bytesArena struct {
 	sync.Mutex
@@ -493,6 +496,8 @@ func (bp *bytesArena) poolOf(j int) *sync.Pool {
 	j -= bytesArenaOffset
 	if j < 0 {
 		j = 0
+	} else if j > bytesArenaMaxPoolCount {
+		j = bytesArenaMaxPoolCount
 	}
 	bp.Lock()
 	defer bp.Unlock()
