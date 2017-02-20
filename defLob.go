@@ -124,11 +124,12 @@ func (def *defLob) Reader(offset int) (io.Reader, error) {
 	return lr, nil
 }
 
-func (def *defLob) value(offset int) (interface{}, error) {
+func (def *defLob) value(offset int) (result interface{}, err error) {
 	//lob := def.ociLobLocator
 	//Log.Infof("value %p null=%d", lob, def.null)
 	isNull := def.nullInds[offset] <= -1
 
+	//defer func() { fmt.Printf("%d gct=%v null=%v =>%#v\n", offset, def.gct, isNull, result) }()
 	switch def.gct {
 	case Bin:
 		if isNull {
@@ -157,7 +158,7 @@ func (def *defLob) value(offset int) (interface{}, error) {
 
 	default:
 		if isNull {
-			return nil, nil
+			return Lob{}, nil
 		}
 		r, err := def.Reader(offset)
 		return Lob{Reader: r}, err

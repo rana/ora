@@ -765,6 +765,7 @@ Loop:
 				}
 				gct = gcts[n]
 			}
+
 			// Get character set form
 			var charsetForm C.ub1
 			err = rset.paramAttr(ocipar, unsafe.Pointer(&charsetForm), nil, C.OCI_ATTR_CHARSET_FORM)

@@ -235,15 +235,19 @@ func TestLobIssue156(t *testing.T) {
 	qry = `INSERT INTO ` + tbl + `
   (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)
   VALUES
-  (1, 'emnekode', 'ver', 'infokode', 'sprakkode', 'term', 2, 'min', 3, NULL, NULL, 4)`
+  (1, 'emnekode', 'ver', 'infokode', 'sprakkode', 'term', 2, 'min', 3, '', '', 4)`
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatal(qry, err)
 	}
 
+	cfg := testSes.Cfg()
+	defer testSes.SetCfg(cfg)
+	testSes.SetCfg(testSes.Cfg().SetClob(ora.D))
+
 	qry = "SELECT * FROM " + tbl
 	stmt, err := testSes.Prep(qry,
 		ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-		ora.OraI64, ora.OraS, ora.OraI64, ora.OraS, ora.OraS, ora.OraI64)
+		ora.OraI64, ora.OraS, ora.OraI64, ora.D, ora.D, ora.OraI64)
 	if err != nil {
 		t.Fatal(qry, err)
 	}
@@ -261,8 +265,8 @@ func TestLobIssue156(t *testing.T) {
 		ArstallFra         ora.Int64  `json:"versjonskode"`
 		TerminKodeTil      ora.String `json:"versjonskode"`
 		ArstallTil         ora.Int64  `json:"versjonskode"`
-		InfoTekst          ora.String `json:"versjonskode"`
-		InfoTekstOriginal  ora.String `json:"versjonskode"`
+		InfoTekst          ora.Lob    `json:"versjonskode"`
+		InfoTekstOriginal  ora.Lob    `json:"versjonskode"`
 		InstitusjonsNrEier ora.Int64  `json:"versjonskode"`
 	}
 
@@ -278,8 +282,8 @@ func TestLobIssue156(t *testing.T) {
 			ArstallFra:         rst.Row[6].(ora.Int64),
 			TerminKodeTil:      rst.Row[7].(ora.String),
 			ArstallTil:         rst.Row[8].(ora.Int64),
-			InfoTekst:          rst.Row[9].(ora.String),  //rst.Row[9].(ora.Lob),
-			InfoTekstOriginal:  rst.Row[10].(ora.String), //rst.Row[10].(ora.Lob),
+			InfoTekst:          rst.Row[9].(ora.Lob),
+			InfoTekstOriginal:  rst.Row[10].(ora.Lob),
 			InstitusjonsNrEier: rst.Row[11].(ora.Int64),
 		})
 	}
