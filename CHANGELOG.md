@@ -14,6 +14,7 @@
     (with `ora.SetCfg(ora.Cfg().SetNumberFloat(ora.S))`), too.
 	This enables us you to `.Scan` into a `*string`.
   * Add Stmt.Parse for only parsing the query.
+  * Fix open/close memory leak by adding more handle freeing - see #148.
 
 ## v3.8.0 ##
   * go1.8: support additional features, as requested by @kardianos in #127.

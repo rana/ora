@@ -210,3 +210,78 @@ END test_get_json;`,
 		}
 	}
 }
+
+func TestLobIssue156(t *testing.T) {
+	tbl := tableName()
+	qry := `CREATE TABLE ` + tbl + `
+	(
+	"INSTITUSJONSNR" NUMBER(8,0) NOT NULL ENABLE,
+	"EMNEKODE" VARCHAR2(12 CHAR) NOT NULL ENABLE,
+	"VERSJONSKODE" VARCHAR2(3 CHAR) NOT NULL ENABLE,
+	"INFOTYPEKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"SPRAKKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"TERMINKODE_FRA" VARCHAR2(4 CHAR) NOT NULL ENABLE,
+	"ARSTALL_FRA" NUMBER(4,0) NOT NULL ENABLE,
+	"TERMINKODE_TIL" VARCHAR2(4 CHAR),
+	"ARSTALL_TIL" NUMBER(4,0),
+	"INFOTEKST" CLOB,
+	"INFOTEKST_ORIGINAL" CLOB,
+	"INSTITUSJONSNR_EIER" NUMBER(8,0) NOT NULL ENABLE
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(qry, err)
+	}
+	defer testDb.Exec("DROP TABLE " + tbl)
+	qry = `INSERT INTO ` + tbl + `
+  (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)
+  VALUES
+  (1, 'emnekode', 'ver', 'infokode', 'sprakkode', 'term', 2, 'min', 3, NULL, NULL, 4)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(qry, err)
+	}
+
+	qry = "SELECT * FROM " + tbl
+	stmt, err := testSes.Prep(qry,
+		ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+		ora.OraI64, ora.OraS, ora.OraI64, ora.OraS, ora.OraS, ora.OraI64)
+	if err != nil {
+		t.Fatal(qry, err)
+	}
+	rst, err := stmt.Qry()
+	if err != nil {
+		t.Fatal(qry, err)
+	}
+	type EmneInfo struct {
+		InstitusjonsNr     ora.Int64  `json:"institusjonsnr"`
+		EmneKode           ora.String `json:"emnekode"`
+		VersjonsKode       ora.String `json:"versjonskode"`
+		InfoTypeKode       ora.String `json:"versjonskode"`
+		SprakKode          ora.String `json:"versjonskode"`
+		TerminKodeFra      ora.String `json:"versjonskode"`
+		ArstallFra         ora.Int64  `json:"versjonskode"`
+		TerminKodeTil      ora.String `json:"versjonskode"`
+		ArstallTil         ora.Int64  `json:"versjonskode"`
+		InfoTekst          ora.String `json:"versjonskode"`
+		InfoTekstOriginal  ora.String `json:"versjonskode"`
+		InstitusjonsNrEier ora.Int64  `json:"versjonskode"`
+	}
+
+	results := make([]EmneInfo, 0)
+	for rst.Next() {
+		results = append(results, EmneInfo{
+			InstitusjonsNr:     rst.Row[0].(ora.Int64),
+			EmneKode:           rst.Row[1].(ora.String),
+			VersjonsKode:       rst.Row[2].(ora.String),
+			InfoTypeKode:       rst.Row[3].(ora.String),
+			SprakKode:          rst.Row[4].(ora.String),
+			TerminKodeFra:      rst.Row[5].(ora.String),
+			ArstallFra:         rst.Row[6].(ora.Int64),
+			TerminKodeTil:      rst.Row[7].(ora.String),
+			ArstallTil:         rst.Row[8].(ora.Int64),
+			InfoTekst:          rst.Row[9].(ora.String),  //rst.Row[9].(ora.Lob),
+			InfoTekstOriginal:  rst.Row[10].(ora.String), //rst.Row[10].(ora.Lob),
+			InstitusjonsNrEier: rst.Row[11].(ora.Int64),
+		})
+	}
+	t.Log(results)
+}
