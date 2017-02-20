@@ -3762,33 +3762,44 @@ func TestPLSErr(t *testing.T) {
 }
 
 func TestLOBRead(t *testing.T) {
-	want := `{"message":"this is a json object"}`
-	if _, err := testDb.Exec(`CREATE OR REPLACE PROCEDURE test_get_json(p_clob OUT CLOB) IS
-	text VARCHAR2(1000) := '` + want + `';
-  BEGIN
-    DBMS_LOB.createtemporary(p_clob, TRUE);
-	DBMS_LOB.writeappend(p_clob, LENGTH(text), text);
-  END test_get_json;`,
+	if _, err := testDb.Exec(`CREATE OR REPLACE
+PROCEDURE test_get_json(p_clob OUT CLOB, p_text in VARCHAR2) IS
+BEGIN
+  DBMS_LOB.createtemporary(p_clob, TRUE);
+  IF p_text IS NULL THEN
+    RETURN;
+  END IF;
+  DBMS_LOB.writeappend(p_clob, LENGTH(p_text), p_text);
+END test_get_json;`,
 	); err != nil {
 		t.Skipf("create function: %v", err)
 	}
 	//enableLogging(t)
-	stmt, err := testSes.Prep("CALL test_get_json(:1)", ora.OraBin)
-	lob := ora.Lob{C: true}
-	if _, err := stmt.Exe(&lob); err != nil {
-		if strings.Contains(err.Error(), "ORA-06575:") {
-			ce, err2 := ora.GetCompileErrors(testSes, false)
-			t.Fatalf("%v\n%v (%v)", err, ce, err2)
-		}
+	stmt, err := testSes.Prep("CALL test_get_json(:1, :2)", ora.OraBin, ora.S)
+	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadAll(lob)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("got %s", b)
-	if string(b) != want {
-		t.Errorf("got %q, wanted %q.", b, want)
+
+	for name, want := range map[string]string{
+		"empty": "",
+		"json":  `{"message":"this is a json object"}`,
+	} {
+		lob := ora.Lob{C: true}
+		if _, err := stmt.Exe(&lob, want); err != nil {
+			if strings.Contains(err.Error(), "ORA-06575:") {
+				ce, err2 := ora.GetCompileErrors(testSes, false)
+				t.Fatalf("%s: %v\n%v (%v)", name, err, ce, err2)
+			}
+			t.Fatal(name, err)
+		}
+		b, err := ioutil.ReadAll(lob)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+		t.Logf("%s: got %s", name, b)
+		if string(b) != want {
+			t.Errorf("%s: got %q, wanted %q.", name, b, want)
+		}
 	}
 }
 func TestGetDriverName(t *testing.T) {

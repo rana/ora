@@ -242,7 +242,7 @@ func (lr *lobReader) Close() error {
 
 // Read into p, the next chunk.
 func (lr *lobReader) Read(p []byte) (n int, err error) {
-	if lr.ociLobLocator == nil {
+	if lr.ociLobLocator == nil || lr.Length == 0 {
 		return 0, io.EOF
 	}
 	defer func() {
