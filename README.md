@@ -1,5 +1,7 @@
 ### Golang Oracle Database Driver ###
 
+v3 is in maintenance mode, use v4 tags or master branch, if possible!
+
 #### TL;DR; just use it ####
 
 ```go
