@@ -137,7 +137,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 			break
 		}
 		ses = x.(sesSrvPB).Ses
-		if ses == nil {
+		if ses == nil || !ses.IsOpen() {
 			continue
 		}
 		ses.insteadClose = Instead
