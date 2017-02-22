@@ -55,7 +55,7 @@ func TestLobSelect(t *testing.T) {
 	}
 
 	//enableLogging(t)
-	ora.SetCfg(cfg.SetBlob(ora.D))
+	ora.SetCfg(cfg.SetBlob(ora.L))
 
 	// SELECT into io.ReadCloser
 	for name, want := range testCases {
@@ -79,6 +79,11 @@ func TestLobSelect(t *testing.T) {
 				}
 				t.Fatalf("%s: wanted io.ReadCloser for LOB, got %T - cfg.Rset.SetBlob ineffective?", name, v)
 			}
+			if rc == nil && want == nil {
+				continue
+			}
+			buf.Reset()
+			//fmt.Printf("rc=%#v\n", rc)
 			_, err := io.Copy(&buf, rc)
 			rc.Close()
 			if err != nil {
@@ -88,7 +93,6 @@ func TestLobSelect(t *testing.T) {
 			if !bytes.Equal(want, buf.Bytes()) {
 				t.Errorf("%s: got %v, wanted %v.", name, buf.Bytes(), want)
 			}
-			buf.Reset()
 		}
 	}
 }
@@ -112,7 +116,7 @@ func TestLobSelectString(t *testing.T) {
 	cfg := ora.Cfg()
 	defer ora.SetCfg(cfg)
 
-	ora.SetCfg(cfg.SetClob(ora.D))
+	ora.SetCfg(cfg.SetClob(ora.L))
 
 	for name, want := range testCases {
 		rows, err := testDb.Query("SELECT content FROM "+tbl+" WHERE name = :1", name)
@@ -240,14 +244,10 @@ func TestLobIssue156(t *testing.T) {
 		t.Fatal(qry, err)
 	}
 
-	cfg := testSes.Cfg()
-	defer testSes.SetCfg(cfg)
-	testSes.SetCfg(testSes.Cfg().SetClob(ora.D))
-
 	qry = "SELECT * FROM " + tbl
 	stmt, err := testSes.Prep(qry,
 		ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-		ora.OraI64, ora.OraS, ora.OraI64, ora.D, ora.D, ora.OraI64)
+		ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
 	if err != nil {
 		t.Fatal(qry, err)
 	}

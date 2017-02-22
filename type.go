@@ -607,10 +607,17 @@ type Lob struct {
 }
 
 func (this Lob) Close() error {
-	if this.Closer != nil {
-		return this.Closer.Close()
+	if this.Closer == nil {
+		return nil
 	}
-	return nil
+	return this.Closer.Close()
+}
+
+func (this Lob) Read(p []byte) (int, error) {
+	if this.Reader == nil {
+		return 0, io.EOF
+	}
+	return this.Reader.Read(p)
 }
 
 // Equals returns true when the receiver and specified Lob are both null,

@@ -558,7 +558,7 @@ func (c RsetCfg) Long() GoColumnType {
 //
 // Returns an error if a non-string GoColumnType is specified.
 func (c RsetCfg) SetClob(gct GoColumnType) RsetCfg {
-	if gct != D {
+	if gct != D && gct != L {
 		if err := checkStringColumn(gct); err != nil {
 			if c.Err == nil {
 				c.Err = err
@@ -591,7 +591,7 @@ func (c RsetCfg) Clob() GoColumnType {
 //
 // Returns an error if a non-string GoColumnType is specified.
 func (c RsetCfg) SetBlob(gct GoColumnType) RsetCfg {
-	if gct != D {
+	if gct != D && gct != L {
 		if err := checkBinColumn(gct); err != nil {
 			if c.Err == nil {
 				c.Err = err

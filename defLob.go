@@ -156,7 +156,7 @@ func (def *defLob) value(offset int) (result interface{}, err error) {
 		b, err := def.Bytes(offset)
 		return String{Value: string(b)}, err
 
-	default:
+	default: // D or L
 		if isNull {
 			return Lob{}, nil
 		}
@@ -243,7 +243,7 @@ func (lr *lobReader) Close() error {
 
 // Read into p, the next chunk.
 func (lr *lobReader) Read(p []byte) (n int, err error) {
-	if lr.ociLobLocator == nil || lr.Length == 0 {
+	if lr == nil || lr.ociLobLocator == nil || lr.Length == 0 {
 		return 0, io.EOF
 	}
 	defer func() {

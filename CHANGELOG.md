@@ -2,7 +2,10 @@
 
 ## master ##
 
-## v4.0.0##
+## v4.0.1 ##
+  * Add an ora.L type to specify ora.Lob as column type in Qry and Prep.
+
+## v4.0.0 ##
   * Rewrite the tests to run parallel
   * Rewrite the tests to use subtests
   * Add RWMutex everywhere where needed to be -race-free

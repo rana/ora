@@ -758,6 +758,8 @@ Loop:
 			// CLOB, NCLOB
 			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.clob
+			} else if gcts[n] == L {
+				gct = L
 			} else {
 				err = checkStringColumn(gcts[n])
 				if err != nil {
@@ -782,6 +784,8 @@ Loop:
 			// BLOB
 			if gcts == nil || n >= len(gcts) || gcts[n] == D {
 				gct = cfg.blob
+			} else if gcts[n] == L {
+				gct = L
 			} else {
 				err = checkBinColumn(gcts[n])
 				if err != nil {
