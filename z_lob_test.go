@@ -196,7 +196,7 @@ END test_get_json;`,
 		"empty": "",
 		"json":  `{"message":"this is a json object"}`,
 	} {
-		lob := ora.Lob{C: true}
+		lob := &ora.Lob{C: true}
 		if _, err := stmt.Exe(&lob, want); err != nil {
 			if strings.Contains(err.Error(), "ORA-06575:") {
 				ce, err2 := ora.GetCompileErrors(testSes, false)
@@ -265,8 +265,8 @@ func TestLobIssue156(t *testing.T) {
 		ArstallFra         ora.Int64  `json:"versjonskode"`
 		TerminKodeTil      ora.String `json:"versjonskode"`
 		ArstallTil         ora.Int64  `json:"versjonskode"`
-		InfoTekst          ora.Lob    `json:"versjonskode"`
-		InfoTekstOriginal  ora.Lob    `json:"versjonskode"`
+		InfoTekst          *ora.Lob   `json:"versjonskode"`
+		InfoTekstOriginal  *ora.Lob   `json:"versjonskode"`
 		InstitusjonsNrEier ora.Int64  `json:"versjonskode"`
 	}
 
@@ -282,8 +282,8 @@ func TestLobIssue156(t *testing.T) {
 			ArstallFra:         rst.Row[6].(ora.Int64),
 			TerminKodeTil:      rst.Row[7].(ora.String),
 			ArstallTil:         rst.Row[8].(ora.Int64),
-			InfoTekst:          rst.Row[9].(ora.Lob),
-			InfoTekstOriginal:  rst.Row[10].(ora.Lob),
+			InfoTekst:          rst.Row[9].(*ora.Lob),
+			InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
 			InstitusjonsNrEier: rst.Row[11].(ora.Int64),
 		})
 	}

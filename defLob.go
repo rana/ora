@@ -158,10 +158,10 @@ func (def *defLob) value(offset int) (result interface{}, err error) {
 
 	default: // D or L
 		if isNull {
-			return Lob{}, nil
+			return (*Lob)(nil), nil
 		}
 		r, err := def.Reader(offset)
-		return Lob{Reader: r}, err
+		return &Lob{Reader: r}, err
 	}
 }
 

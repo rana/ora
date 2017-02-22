@@ -606,15 +606,15 @@ type Lob struct {
 	C bool
 }
 
-func (this Lob) Close() error {
-	if this.Closer == nil {
+func (this *Lob) Close() error {
+	if this == nil || this.Closer == nil {
 		return nil
 	}
 	return this.Closer.Close()
 }
 
-func (this Lob) Read(p []byte) (int, error) {
-	if this.Reader == nil {
+func (this *Lob) Read(p []byte) (int, error) {
+	if this == nil || this.Reader == nil {
 		return 0, io.EOF
 	}
 	return this.Reader.Read(p)
@@ -622,7 +622,7 @@ func (this Lob) Read(p []byte) (int, error) {
 
 // Equals returns true when the receiver and specified Lob are both null,
 // or when they both not null and share the same Reader.
-func (this Lob) Equals(other Lob) bool {
+func (this *Lob) Equals(other Lob) bool {
 	return this.Reader == other.Reader // this is a quite strict equality...
 }
 

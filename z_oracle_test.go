@@ -1702,12 +1702,6 @@ func compare_string(expected interface{}, actual interface{}, t *testing.T) {
 		a = *x
 	case ora.String:
 		a = x.Value
-	case ora.Lob:
-		b, err := ioutil.ReadAll(x)
-		if err != nil {
-			t.Errorf("read %v: %v", x, err)
-		}
-		a = string(b)
 	case *ora.Lob:
 		b, err := ioutil.ReadAll(x)
 		if err != nil {
