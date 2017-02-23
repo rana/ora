@@ -71,8 +71,14 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 
 	// Allocate []byte the length of the lob
 	value = make([]byte, int(lobLength))
-	for off, byteAmtp := 0, lobLength; byteAmtp > 0; byteAmtp = lobLength - C.oraub8(off) {
+	var off int
+	for {
 		//Log.Infof("LobRead2 off=%d amt=%d", off, byteAmtp)
+		byteAmtp := lobLength - C.oraub8(off)
+		if byteAmtp <= 0 {
+			break
+		}
+		//fmt.Printf("off=%d amt=%d length=%d\n", off, byteAmtp, lobLength)
 		r := C.OCILobRead2(
 			def.rset.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
@@ -147,6 +153,7 @@ func (def *defLob) value(offset int) (result interface{}, err error) {
 		if isNull {
 			return "", nil
 		}
+		//fmt.Printf("offset=%d\n", offset)
 		b, err := def.Bytes(offset)
 		return string(b), err
 	case OraS:

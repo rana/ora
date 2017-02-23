@@ -104,7 +104,11 @@ func TestLobSelectString(t *testing.T) {
 	if _, err := testDb.Exec(qry); err != nil {
 		t.Fatalf("%s: %v", qry, err)
 	}
-	testCases := map[string]string{"xml": "<xml></xml>", "empty": ""}
+	testCases := map[string]string{
+		"empty": "",
+		"xml":   "<xml></xml>",
+		"long":  strings.Repeat("0123456789", 100000),
+	}
 
 	qry = "INSERT INTO " + tbl + " (name, content) VALUES (:1, :2)"
 	for name, want := range testCases {
@@ -173,7 +177,7 @@ func TestLobSelectString(t *testing.T) {
 	}
 }
 
-func TestLOBRead(t *testing.T) {
+func TestLobRead(t *testing.T) {
 	if _, err := testDb.Exec(`CREATE OR REPLACE
 PROCEDURE test_get_json(p_clob OUT CLOB, p_text in VARCHAR2) IS
 BEGIN
@@ -197,7 +201,7 @@ END test_get_json;`,
 		"json":  `{"message":"this is a json object"}`,
 	} {
 		lob := &ora.Lob{C: true}
-		if _, err := stmt.Exe(&lob, want); err != nil {
+		if _, err := stmt.Exe(lob, want); err != nil {
 			if strings.Contains(err.Error(), "ORA-06575:") {
 				ce, err2 := ora.GetCompileErrors(testSes, false)
 				t.Fatalf("%s: %v\n%v (%v)", name, err, ce, err2)
