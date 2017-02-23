@@ -745,6 +745,25 @@ an Oracle RAW or LONG RAW. ora.Lob may represent an Oracle BLOB or Oracle CLOB.
 And ora.Bfile represents an Oracle BFILE. ROWID columns are returned as strings
 and don't have a unique Go type.
 
+
+#### LOBs
+The default for SELECTing [BC]LOB columns is a safe Bin or S,
+which means all the contents of the LOB is slurped into memory and returned
+as a []byte or string.
+
+If you want more control, you can use ora.L in Prep, Qry or
+`ses.SetCfg(ses.Cfg().SetBlob(ora.L))`. But keep in mind that Oracle restricts
+the use of LOBs: it is forbidden to do ANYTHING while reading the LOB!
+No another query, no exec, no close of the Rset - even *advance* to the next record
+in the result set is forbidden!
+
+Failing to adhere these rules results in "Invalid handle" and ORA-03127 errors.
+
+For examples, see [z_lob_test.go](z_lob_test.go).
+
+
+#### Rset
+
 Rset is used to obtain Go values from a SQL select statement. Methods Rset.Next,
 Rset.NextRow, and Rset.Len are available. Fields Rset.Row, Rset.Err, Rset.Index,
 and Rset.ColumnNames are also available. The Next method attempts to load data

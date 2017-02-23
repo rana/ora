@@ -267,20 +267,22 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 	}
 
 	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
+
+	// LOB
 	{
 		type EmneInfo struct {
-			InstitusjonsNr     ora.Int64  `json:"institusjonsnr"`
-			EmneKode           ora.String `json:"emnekode"`
-			VersjonsKode       ora.String `json:"versjonskode"`
-			InfoTypeKode       ora.String `json:"versjonskode"`
-			SprakKode          ora.String `json:"versjonskode"`
-			TerminKodeFra      ora.String `json:"versjonskode"`
-			ArstallFra         ora.Int64  `json:"versjonskode"`
-			TerminKodeTil      ora.String `json:"versjonskode"`
-			ArstallTil         ora.Int64  `json:"versjonskode"`
-			InfoTekst          *ora.Lob   `json:"versjonskode"`
-			InfoTekstOriginal  *ora.Lob   `json:"versjonskode"`
-			InstitusjonsNrEier ora.Int64  `json:"versjonskode"`
+			InstitusjonsNr     ora.Int64
+			EmneKode           ora.String
+			VersjonsKode       ora.String
+			InfoTypeKode       ora.String
+			SprakKode          ora.String
+			TerminKodeFra      ora.String
+			ArstallFra         ora.Int64
+			TerminKodeTil      ora.String
+			ArstallTil         ora.Int64
+			InfoTekst          *ora.Lob
+			InfoTekstOriginal  *ora.Lob
+			InstitusjonsNrEier ora.Int64
 		}
 		for nm, _ := range testCases {
 			stmt, err := testSes.Prep(qry,
@@ -294,9 +296,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 				t.Fatal(nm, qry, err)
 			}
 
-			results := make([]EmneInfo, 0)
+			results := make([]string, 0, 1)
 			for rst.Next() {
-				results = append(results, EmneInfo{
+				info := EmneInfo{
 					InstitusjonsNr:     rst.Row[0].(ora.Int64),
 					EmneKode:           rst.Row[1].(ora.String),
 					VersjonsKode:       rst.Row[2].(ora.String),
@@ -309,28 +311,34 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 					InfoTekst:          rst.Row[9].(*ora.Lob),
 					InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
 					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
-				})
+				}
+				b, err := json.Marshal(info)
+				if err != nil {
+					t.Fatal(nm, info, err)
+				}
+				results = append(results, string(b))
 			}
-			b, err := json.Marshal(results)
-			t.Log(nm, string(b), err)
+			t.Log(nm, results)
 		}
 	}
+
+	// string
 	{
 		type EmneInfo struct {
-			InstitusjonsNr     ora.Int64  `json:"institusjonsnr"`
-			EmneKode           ora.String `json:"emnekode"`
-			VersjonsKode       ora.String `json:"versjonskode"`
-			InfoTypeKode       ora.String `json:"versjonskode"`
-			SprakKode          ora.String `json:"versjonskode"`
-			TerminKodeFra      ora.String `json:"versjonskode"`
-			ArstallFra         ora.Int64  `json:"versjonskode"`
-			TerminKodeTil      ora.String `json:"versjonskode"`
-			ArstallTil         ora.Int64  `json:"versjonskode"`
-			InfoTekst          ora.String `json:"versjonskode"`
-			InfoTekstOriginal  ora.String `json:"versjonskode"`
-			InstitusjonsNrEier ora.Int64  `json:"versjonskode"`
+			InstitusjonsNr     ora.Int64
+			EmneKode           ora.String
+			VersjonsKode       ora.String
+			InfoTypeKode       ora.String
+			SprakKode          ora.String
+			TerminKodeFra      ora.String
+			ArstallFra         ora.Int64
+			TerminKodeTil      ora.String
+			ArstallTil         ora.Int64
+			InfoTekst          ora.String
+			InfoTekstOriginal  ora.String
+			InstitusjonsNrEier ora.Int64
 		}
-		for nm, _ := range testCases {
+		for nm, want := range testCases {
 			stmt, err := testSes.Prep(qry,
 				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
 				ora.OraI64, ora.OraS, ora.OraI64, ora.OraS, ora.OraS, ora.OraI64)
@@ -342,7 +350,7 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 				t.Fatal(nm, qry, err)
 			}
 
-			results := make([]EmneInfo, 0)
+			results := make([]EmneInfo, 0, 1)
 			for rst.Next() {
 				results = append(results, EmneInfo{
 					InstitusjonsNr:     rst.Row[0].(ora.Int64),
@@ -358,9 +366,26 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 					InfoTekstOriginal:  rst.Row[10].(ora.String),
 					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
 				})
+				if got := results[len(results)-1].InfoTekst; !stringEqualNonUnicode(got.Value, want) {
+					t.Errorf("%s: got %q, wanted %q.", nm, got, want)
+				}
 			}
 			b, err := json.Marshal(results)
 			t.Log(nm, string(b), err)
+			//t.Logf("%s: %#v", nm, results)
 		}
 	}
+}
+
+func stringEqualNonUnicode(a, b string) bool {
+	if a == b {
+		return true
+	}
+	bRunes := []rune(b)
+	for i, r := range a {
+		if r == '?' {
+			bRunes[i] = '?'
+		}
+	}
+	return a == string(bRunes)
 }
