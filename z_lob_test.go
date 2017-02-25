@@ -245,11 +245,11 @@ func TestLobIssue156(t *testing.T) {
 		"empty": "",
 		"a": `Pedagogiske metoder:
 
-Veiledet praksis. Veiledning individuelt og i grupper. Refleksjonsgrupper.
+		Veiledet praksis. Veiledning individuelt og i grupper. Refleksjonsgrupper.
 
-Obligatoriske arbeidskrav:
+		Obligatoriske arbeidskrav:
 
-Obligatorisk frammøte tilsvarer 90 % av studietid i praksis.`,
+		Obligatorisk frammøte tilsvarer 90 % av studietid i praksis.`,
 		"b": `Godkjente arbeidskrav.Se undervisningsplan for praksisstudier 3. studieår
 
 Læringsutbytte - Kunnskap:
@@ -418,11 +418,11 @@ Veiledet praksis. Veiledning individuelt og i grupper. Refleksjonsgrupper.
 Obligatoriske arbeidskrav:
 
 Obligatorisk frammøte tilsvarer 90 % av studietid i praksis.`,
-		"b": `Godkjente arbeidskrav.Se undervisningsplan for praksisstudier 3. studieaar
+		"b": `Godkjente arbeidskrav.Se undervisningsplan for praksisstudier 3. studieår
 
-Laeringsutbytte - Kunnskap:
+Læringsutbytte - Kunnskap:
 
-Laeringsutbyttet defineres i forhold til omraader for kunnskap, ferdigheter og holdninger - se Undervisningsplan for praksissstudier 3. studieaar`,
+Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og holdninger - se Undervisningsplan for praksissstudier 3. studieår`,
 	}
 	qry = `INSERT INTO ` + tbl + `
   (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)

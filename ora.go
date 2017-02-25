@@ -16,6 +16,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -146,6 +147,8 @@ func init() {
 	sql.Register(Name, _drv)
 }
 
+var csIDAl32UTF8 uint32
+
 // OpenEnv opens an Oracle environment.
 //
 // Optionally specify a cfg parameter. If cfg is nil, default cfg values are
@@ -153,16 +156,17 @@ func init() {
 func OpenEnv() (env *Env, err error) {
 	cfg := _drv.Cfg()
 	log(cfg.Log.OpenEnv)
-	var csIDAl32UTF8 C.ub2
-	if csIDAl32UTF8 == 0 { // Get the code for AL32UTF8
+	csid := C.ub2(atomic.LoadUint32(&csIDAl32UTF8))
+	if csid == 0 { // Get the code for AL32UTF8
 		var ocienv *C.OCIEnv
 		r := C.OCIEnvCreate(&ocienv, C.OCI_DEFAULT|C.OCI_THREADED, nil, nil, nil, nil, 0, nil)
 		if r == C.OCI_ERROR {
 			return nil, errF("Unable to create environment handle (Return code = %d).", r)
 		}
 		csName := []byte("AL32UTF8\x00") // http://docs.oracle.com/cd/B10501_01/server.920/a96529/ch8.htm#14284
-		csIDAl32UTF8 = C.OCINlsCharSetNameToId(unsafe.Pointer(ocienv), (*C.oratext)(&csName[0]))
+		csid = C.OCINlsCharSetNameToId(unsafe.Pointer(ocienv), (*C.oratext)(&csName[0]))
 		C.OCIHandleFree(unsafe.Pointer(ocienv), C.OCI_HTYPE_ENV)
+		atomic.StoreUint32(&csIDAl32UTF8, uint32(csid))
 	}
 	// OCI_DEFAULT  - The default value, which is non-UTF-16 encoding.
 	// OCI_THREADED - Uses threaded environment. Internal data structures not exposed to the user are protected from concurrent accesses by multiple threads.
@@ -174,14 +178,14 @@ func OpenEnv() (env *Env, err error) {
 	r := C.OCIEnvNlsCreate(
 		&env.ocienv, //OCIEnv        **envhpp,
 		C.OCI_DEFAULT|C.OCI_OBJECT|C.OCI_THREADED, //ub4           mode,
-		nil,          //void          *ctxp,
-		nil,          //void          *(*malocfp)
-		nil,          //void          *(*ralocfp)
-		nil,          //void          (*mfreefp)
-		0,            //size_t        xtramemsz,
-		nil,          //void          **usrmempp
-		csIDAl32UTF8, //ub2           charset,
-		csIDAl32UTF8) //ub2           ncharset );
+		nil,  //void          *ctxp,
+		nil,  //void          *(*malocfp)
+		nil,  //void          *(*ralocfp)
+		nil,  //void          (*mfreefp)
+		0,    //size_t        xtramemsz,
+		nil,  //void          **usrmempp
+		csid, //ub2           charset,
+		csid) //ub2           ncharset );
 	_drv.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errF("Unable to create environment handle (Return code = %d).", r)

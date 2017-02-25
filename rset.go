@@ -768,15 +768,9 @@ Loop:
 				gct = gcts[n]
 			}
 
-			// Get character set form
-			var charsetForm C.ub1
-			err = rset.paramAttr(ocipar, unsafe.Pointer(&charsetForm), nil, C.OCI_ATTR_CHARSET_FORM)
-			if err != nil {
-				return err
-			}
 			def := rset.getDef(defIdxLob).(*defLob)
 			defs[n] = def
-			err = def.define(n+1, charsetForm, C.SQLT_CLOB, gct, rset)
+			err = def.define(n+1, C.SQLT_CLOB, gct, rset)
 			if err != nil {
 				return err
 			}
@@ -795,7 +789,7 @@ Loop:
 			}
 			def := rset.getDef(defIdxLob).(*defLob)
 			defs[n] = def
-			err = def.define(n+1, C.SQLCS_IMPLICIT, C.SQLT_BLOB, gct, rset)
+			err = def.define(n+1, C.SQLT_BLOB, gct, rset)
 			if err != nil {
 				return err
 			}
