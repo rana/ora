@@ -314,9 +314,16 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 				}
 				b, err := json.Marshal(info)
 				if err != nil {
+					if strings.Contains(err.Error(), "ORA-24804") {
+						t.Log(nm, err)
+						continue
+					}
 					t.Fatal(nm, info, err)
 				}
 				results = append(results, string(b))
+			}
+			if err := rst.Err(); err != nil {
+				t.Fatal(err)
 			}
 			t.Log(nm, results)
 		}
@@ -366,9 +373,13 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 					InfoTekstOriginal:  rst.Row[10].(ora.String),
 					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
 				})
-				if got := results[len(results)-1].InfoTekst; !stringEqualNonUnicode(got.Value, want) {
-					t.Errorf("%s: got %q, wanted %q.", nm, got, want)
+				got := results[len(results)-1].InfoTekst
+				if d := stringEqualNonUnicode(got.Value, want); d != "" {
+					t.Errorf("%s: got %q, wanted %q (diff: %v).", nm, got, want, d)
 				}
+			}
+			if err := rst.Err(); err != nil {
+				t.Fatal(err)
 			}
 			b, err := json.Marshal(results)
 			t.Log(nm, string(b), err)
@@ -377,15 +388,224 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 	}
 }
 
-func stringEqualNonUnicode(a, b string) bool {
-	if a == b {
-		return true
+func TestLobIssue159(t *testing.T) {
+	tbl := tableName()
+	qry := `CREATE TABLE ` + tbl + `
+	(
+	"INSTITUSJONSNR" NUMBER(8,0) NOT NULL ENABLE,
+	"EMNEKODE" VARCHAR2(12 CHAR) NOT NULL ENABLE,
+	"VERSJONSKODE" VARCHAR2(3 CHAR) NOT NULL ENABLE,
+	"INFOTYPEKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"SPRAKKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"TERMINKODE_FRA" VARCHAR2(4 CHAR) NOT NULL ENABLE,
+	"ARSTALL_FRA" NUMBER(4,0) NOT NULL ENABLE,
+	"TERMINKODE_TIL" VARCHAR2(4 CHAR),
+	"ARSTALL_TIL" NUMBER(4,0),
+	"INFOTEKST" CLOB,
+	"INFOTEKST_ORIGINAL" CLOB,
+	"INSTITUSJONSNR_EIER" NUMBER(8,0) NOT NULL ENABLE
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(qry, err)
 	}
-	bRunes := []rune(b)
-	for i, r := range a {
+	defer testDb.Exec("DROP TABLE " + tbl)
+	testCases := map[string]string{
+		"empty": "",
+		"a": `Pedagogiske metoder:
+
+Veiledet praksis. Veiledning individuelt og i grupper. Refleksjonsgrupper.
+
+Obligatoriske arbeidskrav:
+
+Obligatorisk frammøte tilsvarer 90 % av studietid i praksis.`,
+		"b": `Godkjente arbeidskrav.Se undervisningsplan for praksisstudier 3. studieaar
+
+Laeringsutbytte - Kunnskap:
+
+Laeringsutbyttet defineres i forhold til omraader for kunnskap, ferdigheter og holdninger - se Undervisningsplan for praksissstudier 3. studieaar`,
+	}
+	qry = `INSERT INTO ` + tbl + `
+  (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)
+  VALUES
+  (1, :1, 'ver', 'infokode', 'sprakkode', 'term', 2, 'min', 3, :2, :3, 4)`
+	for nm, want := range testCases {
+		if _, err := testDb.Exec(qry, nm, want, reverseString(want)); err != nil {
+			t.Fatal(nm, qry, err)
+		}
+	}
+
+	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
+
+	// string
+	{
+		type EmneInfo struct {
+			InstitusjonsNr     ora.Int64
+			EmneKode           ora.String
+			VersjonsKode       ora.String
+			InfoTypeKode       ora.String
+			SprakKode          ora.String
+			TerminKodeFra      ora.String
+			ArstallFra         ora.Int64
+			TerminKodeTil      ora.String
+			ArstallTil         ora.Int64
+			InfoTekst          string
+			InfoTekstOriginal  string
+			InstitusjonsNrEier ora.Int64
+		}
+		for nm, want := range testCases {
+			tnaw := reverseString(want)
+			stmt, err := testSes.Prep(qry,
+				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+				ora.OraI64, ora.OraS, ora.OraI64, ora.S, ora.S, ora.OraI64)
+			if err != nil {
+				t.Fatal(nm, qry, err)
+			}
+			rst, err := stmt.Qry(nm)
+			if err != nil {
+				t.Fatal(nm, qry, err)
+			}
+
+			results := make([]EmneInfo, 0, 1)
+			for rst.Next() {
+				info := EmneInfo{
+					InstitusjonsNr:     rst.Row[0].(ora.Int64),
+					EmneKode:           rst.Row[1].(ora.String),
+					VersjonsKode:       rst.Row[2].(ora.String),
+					InfoTypeKode:       rst.Row[3].(ora.String),
+					SprakKode:          rst.Row[4].(ora.String),
+					TerminKodeFra:      rst.Row[5].(ora.String),
+					ArstallFra:         rst.Row[6].(ora.Int64),
+					TerminKodeTil:      rst.Row[7].(ora.String),
+					ArstallTil:         rst.Row[8].(ora.Int64),
+					InfoTekst:          rst.Row[9].(string),
+					InfoTekstOriginal:  rst.Row[10].(string),
+					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
+				}
+				results = append(results, info)
+				got := info.InfoTekst
+				if d := stringEqualNonUnicode(got, want); d != "" {
+					t.Errorf("%s: got %q, wanted %q (diff: %v).", nm, got, want, d)
+				}
+				tog := info.InfoTekstOriginal
+				if d := stringEqualNonUnicode(tog, tnaw); d != "" {
+					t.Errorf("%s: tog %q, tnawed %q (diff: %v).", nm, tog, tnaw, d)
+				}
+			}
+			if err := rst.Err(); err != nil {
+				t.Fatal(err)
+			}
+			b, err := json.Marshal(results)
+			t.Log(nm, "results:", string(b), "error:", err)
+			//t.Logf("%s: %#v", nm, results)
+		}
+	}
+
+	// LOB
+	{
+		type EmneInfo struct {
+			InstitusjonsNr     ora.Int64
+			EmneKode           ora.String
+			VersjonsKode       ora.String
+			InfoTypeKode       ora.String
+			SprakKode          ora.String
+			TerminKodeFra      ora.String
+			ArstallFra         ora.Int64
+			TerminKodeTil      ora.String
+			ArstallTil         ora.Int64
+			InfoTekst          *ora.Lob
+			InfoTekstOriginal  *ora.Lob
+			InstitusjonsNrEier ora.Int64
+		}
+		for nm, _ := range testCases {
+			stmt, err := testSes.Prep(qry,
+				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+				ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
+			if err != nil {
+				t.Fatal(nm, qry, err)
+			}
+			rst, err := stmt.Qry(nm)
+			if err != nil {
+				t.Fatal(nm, qry, err)
+			}
+
+			results := make([]string, 0, 1)
+			for rst.Next() {
+				info := EmneInfo{
+					InstitusjonsNr:     rst.Row[0].(ora.Int64),
+					EmneKode:           rst.Row[1].(ora.String),
+					VersjonsKode:       rst.Row[2].(ora.String),
+					InfoTypeKode:       rst.Row[3].(ora.String),
+					SprakKode:          rst.Row[4].(ora.String),
+					TerminKodeFra:      rst.Row[5].(ora.String),
+					ArstallFra:         rst.Row[6].(ora.Int64),
+					TerminKodeTil:      rst.Row[7].(ora.String),
+					ArstallTil:         rst.Row[8].(ora.Int64),
+					InfoTekst:          rst.Row[9].(*ora.Lob),
+					InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
+					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
+				}
+				b, err := json.Marshal(info)
+				if err != nil {
+					if strings.Contains(err.Error(), "ORA-24804") {
+						t.Log(err)
+						continue
+					}
+					t.Fatal(nm, info, err)
+				}
+				results = append(results, string(b))
+			}
+			if err := rst.Err(); err != nil {
+				t.Fatal(err)
+			}
+			t.Log(nm, results)
+		}
+	}
+
+}
+
+func stringEqualNonUnicode(a, b string) string {
+	if a == b {
+		return ""
+	}
+	aRunes, bRunes := []rune(a), []rune(b)
+	for i, r := range aRunes {
 		if r == '?' {
 			bRunes[i] = '?'
 		}
 	}
-	return a == string(bRunes)
+	if string(aRunes) == string(bRunes) {
+		return ""
+	}
+	for i, r := range aRunes {
+		if len(bRunes) == i {
+			return fmt.Sprintf("extra: %q", string(aRunes[i:]))
+		}
+		if r != bRunes[i] {
+			k := i
+			j := i + 5
+			if j > len(aRunes) {
+				j = len(aRunes)
+			}
+			if j > len(bRunes) {
+				j = len(bRunes)
+			}
+
+			i -= 5
+			if i < 0 {
+				i = 0
+			}
+			return fmt.Sprintf("@%d %q != %q", k, string(aRunes[i:j]), string(bRunes[i:j]))
+		}
+	}
+	return ""
+}
+
+func reverseString(s string) string {
+	runes := []rune(s)
+	j := len(runes) - 1
+	for i := 0; i < j; i++ {
+		runes[i], runes[j] = runes[j], runes[i]
+		j--
+	}
+	return string(runes)
 }

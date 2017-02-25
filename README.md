@@ -1,6 +1,5 @@
 # ora
 --
-    import "gopkg.in/rana/ora.v4"
 
 Package ora implements an Oracle database driver.
 
@@ -10,7 +9,6 @@ Package ora implements an Oracle database driver.
 
     import (
     	"database/sql"
-		"log"
 
     	_ "gopkg.in/rana/ora.v4"
     )
@@ -43,7 +41,7 @@ Call stored procedure with OUT parameters:
     	defer ses.Close()
 
     	var user string
-    	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &user, "SESSION_USER"); err != nil {
+    	if _, err = ses.PrepAndExe("BEGIN :1 := SYS_CONTEXT('USERENV', :2); END;", &res, "SESSION_USER"); err != nil {
     		log.Fatal(err)
     	}
     	log.Printf("user: %q", user)
@@ -745,22 +743,21 @@ an Oracle RAW or LONG RAW. ora.Lob may represent an Oracle BLOB or Oracle CLOB.
 And ora.Bfile represents an Oracle BFILE. ROWID columns are returned as strings
 and don't have a unique Go type.
 
-
 #### LOBs
-The default for SELECTing [BC]LOB columns is a safe Bin or S,
-which means all the contents of the LOB is slurped into memory and returned
-as a []byte or string.
+
+The default for SELECTing [BC]LOB columns is a safe Bin or S, which means all
+the contents of the LOB is slurped into memory and returned as a []byte or
+string.
 
 If you want more control, you can use ora.L in Prep, Qry or
 `ses.SetCfg(ses.Cfg().SetBlob(ora.L))`. But keep in mind that Oracle restricts
-the use of LOBs: it is forbidden to do ANYTHING while reading the LOB!
-No another query, no exec, no close of the Rset - even *advance* to the next record
+the use of LOBs: it is forbidden to do ANYTHING while reading the LOB! No
+another query, no exec, no close of the Rset - even *advance* to the next record
 in the result set is forbidden!
 
 Failing to adhere these rules results in "Invalid handle" and ORA-03127 errors.
 
 For examples, see [z_lob_test.go](z_lob_test.go).
-
 
 #### Rset
 
