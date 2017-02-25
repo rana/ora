@@ -72,7 +72,7 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 	// Allocate []byte the length of the lob
 	value = make([]byte, int(lobLength))
 
-	var byteAmt, charAmt C.oraub8
+	var byteAmt C.oraub8
 	// When using polling mode, be sure to specify the char_amtp and byte_amtp and offset parameters only in the first call to OCILobRead2().
 	// On subsequent polling calls these parameters are ignored.
 	// If both byte_amtp and char_amtp are set to point to zero and OCI_FIRST_PIECE is passed
@@ -84,7 +84,7 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 		def.lobs[offset],                 //OCILobLocator      *locp,
 		&byteAmt,                         //oraub8             *byte_amtp,
-		&charAmt,                         //oraub8             *char_amtp,
+		nil,                              //oraub8             *char_amtp,
 		1,                                //oraub8             offset, offset is 1-based, and it is in character for (N)CLOBs!
 		unsafe.Pointer(&value[0]), //void               *bufp,
 		C.oraub8(len(value)),      //oraub8             bufl,
@@ -100,18 +100,18 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 		}
 		return value, def.rset.stmt.ses.srv.env.ociError()
 	}
-	//fmt.Printf("amt0=%d:%d\n", byteAmt, charAmt)
+	//fmt.Printf("amt0=%d\n", byteAmt)
 	off := int(byteAmt)
 	for off < len(value) {
 		//Log.Infof("LobRead2 off=%d amt=%d", off, byteAmtp)
-		byteAmt, charAmt = 0, 0
+		byteAmt = 0
 		if r := C.OCILobRead2(
 			def.rset.stmt.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 			def.rset.stmt.ses.srv.env.ocierr, //OCIError           *errhp,
 			def.lobs[offset],                 //OCILobLocator      *locp,
 			&byteAmt,                         //oraub8             *byte_amtp,
-			&charAmt,                         //oraub8             *char_amtp,
-			1,                                //oraub8             offset, offset is 1-based, and it is in character for (N)CLOBs!
+			nil,                              //oraub8             *char_amtp,
+			1,                                //oraub8             offset, ignored for NEXT_PIECE
 			unsafe.Pointer(&value[off]), //void               *bufp,
 			C.oraub8(len(value)-off),    //oraub8             bufl,
 			C.OCI_NEXT_PIECE,            //ub1                pe e,
@@ -125,8 +125,8 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 			}
 			return value, def.rset.stmt.ses.srv.env.ociError()
 		}
-		// byteAmtp represents the amount copied into buffer by oci
-		//fmt.Printf("off=%d amt=%d:%d\n", off, byteAmt, charAmt)
+		// byteAmt represents the amount copied into buffer by oci
+		//fmt.Printf("off=%d amt=%d\n", off, byteAmt)
 		if byteAmt > C.oraub8(len(value)-off) {
 			break
 		}
@@ -292,14 +292,14 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		}
 	}()
 
-	var byteAmt, charAmt C.oraub8 // zero
+	var byteAmt C.oraub8 // zero
 	//Log.Infof("LobRead2 piece=%d off=%d amt=%d", lr.piece, lr.off, len(p))
 	r := C.OCILobRead2(
 		lr.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		lr.ses.srv.env.ocierr, //OCIError           *errhp,
 		lr.ociLobLocator,      //OCILobLocator      *locp,
 		&byteAmt,              //oraub8             *byteAmtp,
-		&charAmt,              //oraub8             *char_amtp,
+		nil,                   //oraub8             *char_amtp,
 		lr.off+1,              //oraub8             offset, offset is 1-based
 		unsafe.Pointer(&p[0]), //void               *bufp,
 		C.oraub8(len(p)),      //oraub8             bufl,
@@ -309,7 +309,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		C.ub2(0),              //ub2                csid,
 		lr.charsetForm,        //ub1                csfrm );
 	)
-	//Log.Infof("LobRead2 returned %d amt=%d/%d", r, byteAmt, charAmt)
+	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmt)
 	switch r {
 	case C.OCI_ERROR:
 		lr.interrupted = true
@@ -319,7 +319,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	case C.OCI_INVALID_HANDLE:
 		return 0, fmt.Errorf("Invalid handle %v", lr.ociLobLocator)
 	}
-	// byteAmtp represents the amount copied into buffer by oci
+	// byteAmt represents the amount copied into buffer by oci
 	if byteAmt != 0 {
 		lr.off += byteAmt
 		if lr.off == lr.Length {
@@ -340,7 +340,7 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 		}
 	}()
 
-	var byteAmtp C.oraub8 // zero
+	var byteAmt C.oraub8 // zero
 	arr := lobChunkPool.Get().([lobChunkSize]byte)
 	defer lobChunkPool.Put(arr)
 	buf := arr[:]
@@ -352,7 +352,7 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 			lr.ses.ocisvcctx,        //OCISvcCtx          *svchp,
 			lr.ses.srv.env.ocierr,   //OCIError           *errhp,
 			lr.ociLobLocator,        //OCILobLocator      *locp,
-			&byteAmtp,               //oraub8             *byteAmtp,
+			&byteAmt,                //oraub8             *byteAmtp,
 			nil,                     //oraub8             *char_amtp,
 			lr.off+1,                //oraub8             offset, offset is 1-based
 			unsafe.Pointer(&buf[0]), //void               *bufp,
@@ -363,7 +363,7 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 			C.ub2(0),                //ub2                csid,
 			lr.charsetForm,          //ub1                csfrm );
 		)
-		//Log.Infof("WriteTo LobRead2 returned %d amt=%d piece=%d", r, byteAmtp, lr.piece)
+		//Log.Infof("WriteTo LobRead2 returned %d amt=%d piece=%d", r, byteAmt, lr.piece)
 		switch r {
 		case C.OCI_SUCCESS:
 		case C.OCI_NO_DATA:
@@ -371,11 +371,11 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 		default:
 			return 0, lr.ses.srv.env.ociError()
 		}
-		// byteAmtp represents the amount copied into buffer by oci
-		lr.off += byteAmtp
+		// byteAmt represents the amount copied into buffer by oci
+		lr.off += byteAmt
 
-		if byteAmtp != 0 {
-			if k, err = w.Write(buf[:int(byteAmtp)]); err != nil {
+		if byteAmt != 0 {
+			if k, err = w.Write(buf[:int(byteAmt)]); err != nil {
 				return n, err
 			}
 			n += int64(k)
@@ -432,13 +432,13 @@ func (lrw *lobReadWriter) Truncate(length int64) error {
 
 // ReadAt reads into p, starting from off.
 func (lrw *lobReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
-	byteAmtp := C.oraub8(len(p))
+	byteAmt := C.oraub8(len(p))
 	//Log.Infof("LobRead2 off=%d amt=%d", off, len(p))
 	r := C.OCILobRead2(
 		lrw.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		lrw.ses.srv.env.ocierr, //OCIError           *errhp,
 		lrw.ociLobLocator,      //OCILobLocator      *locp,
-		&byteAmtp,              //oraub8             *byteAmtp,
+		&byteAmt,               //oraub8             *byteAmtp,
 		nil,                    //oraub8             *char_amtp,
 		C.oraub8(off)+1,        //oraub8             offset, offset is 1-based
 		unsafe.Pointer(&p[0]),  //void               *bufp,
@@ -449,28 +449,28 @@ func (lrw *lobReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
 		C.ub2(0),               //ub2                csid,
 		lrw.charsetForm,        //ub1                csfrm );
 	)
-	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmtp)
+	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmt)
 	switch r {
 	case C.OCI_ERROR:
 		return 0, lrw.ses.srv.env.ociError()
 	case C.OCI_NO_DATA:
-		return int(byteAmtp), io.EOF
+		return int(byteAmt), io.EOF
 	case C.OCI_INVALID_HANDLE:
 		return 0, fmt.Errorf("Invalid handle %v", lrw.ociLobLocator)
 	}
-	return int(byteAmtp), nil
+	return int(byteAmt), nil
 }
 
 // WriteAt writes data in p into the LOB, starting at off.
 func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	//Log.Infof("LobWrite2 off=%d len=%d", off, n)
-	byteAmtp := C.oraub8(len(p))
+	byteAmt := C.oraub8(len(p))
 	// Write to Oracle
 	if C.OCILobWrite2(
 		lrw.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		lrw.ses.srv.env.ocierr, //OCIError           *errhp,
 		lrw.ociLobLocator,      //OCILobLocator      *locp,
-		&byteAmtp,              //oraub8          *byteAmtp,
+		&byteAmt,               //oraub8          *byteAmtp,
 		nil,                    //oraub8          *char_amtp,
 		C.oraub8(off)+1,        //oraub8          offset, starting position is 1
 		unsafe.Pointer(&p[0]),  //void            *bufp,
@@ -485,10 +485,10 @@ func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 		return 0, lrw.ses.srv.env.ociError()
 	}
 	//fmt.Printf("r %v, current %v, buffer %v\n", r, current, buffer)
-	if C.oraub8(off)+byteAmtp > lrw.size {
-		lrw.size = C.oraub8(off) + byteAmtp
+	if C.oraub8(off)+byteAmt > lrw.size {
+		lrw.size = C.oraub8(off) + byteAmt
 	}
-	return int(byteAmtp), nil
+	return int(byteAmt), nil
 }
 
 func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
