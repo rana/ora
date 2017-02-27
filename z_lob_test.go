@@ -315,10 +315,6 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 				}
 				b, err := json.Marshal(info)
 				if err != nil {
-					if strings.Contains(err.Error(), "ORA-24804") {
-						t.Log(nm, err)
-						continue
-					}
 					t.Fatal(nm, info, err)
 				}
 				results = append(results, string(b))
@@ -546,11 +542,8 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 					InstitusjonsNrEier: rst.Row[11].(ora.Int64),
 				}
 				b, err := json.Marshal(info)
+				t.Log("info:", string(b))
 				if err != nil {
-					if strings.Contains(err.Error(), "ORA-24804") {
-						t.Log(err)
-						continue
-					}
 					t.Fatal(nm, info, err)
 				}
 				results = append(results, string(b))
