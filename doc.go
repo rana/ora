@@ -757,7 +757,7 @@ in the result set is forbidden!
 Failing to adhere these rules results in "Invalid handle" and ORA-03127 errors.
 
 You cannot start reading another LOB till you haven't finished reading the previous
-LOB, not even in the same row! Failing this results in ORA-24894!
+LOB, not even in the same row! Failing this results in ORA-24804!
 
 For examples, see [z_lob_test.go](z_lob_test.go).
 

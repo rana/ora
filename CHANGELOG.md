@@ -2,6 +2,13 @@
 
 ## master ##
 
+## v4.1.3 ##
+  * Open LOBs for reading only at the first read - this eliminates the error
+    ORA-24804 when the Row contains more than one LOB.
+
+## v4.1.2 ##
+  * Fix LOB reading with ora.S by simplifying reading code and using AL32UTF8 explicitly.
+
 ## v4.0.1 ##
   * Add an ora.L type to specify ora.Lob as column type in Qry and Prep.
 

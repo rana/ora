@@ -52,17 +52,29 @@ func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset
 }
 
 func (def *defLob) Bytes(offset int) (value []byte, err error) {
-	r, err := def.Reader(offset)
-	if err != nil {
-		return nil, err
-	}
+	r := def.Reader(offset)
 	defer r.Close()
-	length := r.(*lobReader).Length
+	lr := r.(*lobReader)
+
+	arr := lobChunkPool.Get().([lobChunkSize]byte)
+	defer lobChunkPool.Put(arr)
+	var buf bytes.Buffer
+
+	n, err := r.Read(arr[:])
+	length := lr.Length
+	if length == 0 {
+		if n == 0 {
+			return nil, err
+		}
+		buf.Grow(n)
+		buf.Write(arr[:n])
+		return buf.Bytes(), err
+	}
 	if def.sqlt == C.SQLT_CLOB {
 		length *= 4
 	}
-	var buf bytes.Buffer
 	buf.Grow(int(length))
+	buf.Write(arr[:n])
 	_, err = io.Copy(&buf, r)
 	return buf.Bytes(), err
 }
@@ -76,21 +88,14 @@ func (def *defLob) String(offset int) (value string, err error) {
 
 // Reader returns an io.Reader for the underlying LOB.
 // Also dissociates this def from the LOB!
-func (def *defLob) Reader(offset int) (io.ReadCloser, error) {
-	// Open the lob to obtain length; round-trip to database
-	//Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
-	lobLength, err := lobOpen(def.rset.stmt.ses, def.lobs[offset], C.OCI_LOB_READONLY)
-	if err != nil {
-		return nil, err
-	}
-
+func (def *defLob) Reader(offset int) io.ReadCloser {
 	lr := &lobReader{
 		ses:           def.rset.stmt.ses,
 		ociLobLocator: def.lobs[offset],
 		piece:         C.OCI_FIRST_PIECE,
-		Length:        lobLength,
 	}
-	return lr, nil
+	//fmt.Printf("%p.Reader(%d): %p\n", def, offset, lr)
+	return lr
 }
 
 func (def *defLob) value(offset int) (result interface{}, err error) {
@@ -131,8 +136,8 @@ func (def *defLob) value(offset int) (result interface{}, err error) {
 		if isNull {
 			return (*Lob)(nil), nil
 		}
-		r, err := def.Reader(offset)
-		return &Lob{Reader: r}, err
+		r := def.Reader(offset)
+		return &Lob{Reader: r}, nil
 	}
 }
 
@@ -194,12 +199,16 @@ type lobReader struct {
 	piece         C.ub1
 	off           C.oraub8
 	interrupted   bool
-	Length        C.oraub8
+	opened        bool
+
+	// Length is the underlying LOB's length.
+	// It is 0 before the first Read call!
+	Length C.oraub8
 }
 
 // Close the LOB reader.
 func (lr *lobReader) Close() error {
-	if lr.ociLobLocator == nil {
+	if lr == nil || lr.ociLobLocator == nil {
 		return nil
 	}
 	lob, ses := lr.ociLobLocator, lr.ses
@@ -212,8 +221,22 @@ func (lr *lobReader) Close() error {
 }
 
 // Read into p, the next chunk.
+// Will open the LOB at the first call.
 func (lr *lobReader) Read(p []byte) (n int, err error) {
-	if lr == nil || lr.ociLobLocator == nil || lr.Length == 0 {
+	if lr == nil || lr.ociLobLocator == nil {
+		return 0, io.EOF
+	}
+	if !lr.opened {
+		lr.opened = true
+		// Open the lob to obtain length; round-trip to database
+		//Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
+		//fmt.Printf("lobOpen(%p loc=%p)\n", lr, lr.ociLobLocator)
+		if lr.Length, err = lobOpen(lr.ses, lr.ociLobLocator, C.OCI_LOB_READONLY); err != nil {
+			return 0, err
+		}
+	}
+
+	if lr.Length == 0 {
 		return 0, io.EOF
 	}
 	defer func() {
@@ -391,12 +414,19 @@ func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
+	// reopen
+	_ = C.OCILobClose(
+		ses.ocisvcctx,      //OCISvcCtx          *svchp,
+		ses.srv.env.ocierr, //OCIError           *errhp,
+		lob,                //OCILobLocator      *locp,
+	)
 	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
 	r := C.OCILobOpen(
 		ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		ses.srv.env.ocierr, //OCIError           *errhp,
 		lob,                //OCILobLocator      *locp,
-		mode)               //ub1              mode );
+		mode,               //ub1              mode );
+	)
 	//Log.Infof("OCILobOpen %p returned %d", lob, r)
 	if r != C.OCI_SUCCESS {
 		lobClose(ses, lob)
