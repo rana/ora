@@ -209,7 +209,6 @@ END test_get_json;`,
 			}
 			t.Fatal(name, err)
 		}
-		fmt.Printf("ReadAll(%p)\n", lob)
 		b, err := ioutil.ReadAll(lob)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)

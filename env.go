@@ -403,7 +403,7 @@ func (env *Env) setAttr(
 }
 
 // ociError gets an error returned by an Oracle server.
-func (env *Env) ociError(messages ...string) error {
+func (env *Env) ociError(prefix ...string) error {
 	var errcode C.sb4
 	env.RLock()
 	C.OCIErrorGet(
@@ -415,15 +415,16 @@ func (env *Env) ociError(messages ...string) error {
 		C.OCI_HTYPE_ERROR)
 	msg := C.GoString(&env.errBuf[0])
 	env.RUnlock()
-	if len(messages) > 0 {
-		msg = strings.Join(messages, " ") + ": " + msg
-	}
-	return er(&ORAError{code: int(errcode), message: msg})
+	return er(&ORAError{
+		code:    int(errcode),
+		prefix:  strings.Join(prefix, " "),
+		message: msg,
+	})
 }
 
 type ORAError struct {
-	code    int
-	message string
+	code            int
+	prefix, message string
 }
 
 func (e ORAError) Code() int {
@@ -435,6 +436,9 @@ func (e *ORAError) Error() string {
 		return ""
 	}
 	if e.message != "" {
+		if e.prefix != "" {
+			return e.prefix + ": " + e.message
+		}
 		return e.message
 	}
 	return fmt.Sprintf("ORA-%05d", e.code)
