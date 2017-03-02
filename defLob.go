@@ -153,7 +153,7 @@ func (def *defLob) alloc() error {
 			0,                                                //size_t        xtramem_sz,
 			nil)                                              //dvoid         **usrmempp);
 		if r == C.OCI_ERROR {
-			return def.rset.stmt.ses.srv.env.ociError()
+			return def.rset.stmt.ses.srv.env.ociError("LOB OCIDescriptorAlloc")
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci lob handle during define")
 		}
@@ -214,6 +214,7 @@ func (lr *lobReader) Close() error {
 	lob, ses := lr.ociLobLocator, lr.ses
 	lr.ociLobLocator, lr.ses = nil, nil
 	if lr.interrupted {
+		ses.log(_drv.Cfg().Log.Ses.Close, "lobClose interrupted")
 		ses.Break()
 	}
 	//Log.Infof("lobReader OCILobClose %p", lr.ociLobLocator)
@@ -236,7 +237,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		}
 	}
 
-	if lr.Length == 0 {
+	if lr.Length == 0 || lr.off >= lr.Length {
 		return 0, io.EOF
 	}
 	defer func() {
@@ -246,7 +247,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	}()
 
 	var byteAmt C.oraub8 // zero
-	//fmt.Printf("LobRead2 piece=%d off=%d amt=%d length=%d\n", lr.piece, lr.off, len(p), lr.Length)
+	lr.ses.logF(_drv.Cfg().Log.Ses.Close, "OCILobRead2(%p) piece=%d off=%d amt=%d length=%d\n", lr.ociLobLocator, lr.piece, lr.off, len(p), lr.Length)
 	r := C.OCILobRead2(
 		lr.ses.ocisvcctx,      //OCISvcCtx          *svchp,
 		lr.ses.srv.env.ocierr, //OCIError           *errhp,
@@ -266,7 +267,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	switch r {
 	case C.OCI_ERROR:
 		lr.interrupted = true
-		return 0, lr.ses.srv.env.ociError()
+		return 0, lr.ses.srv.env.ociError("OCILobRead2")
 	case C.OCI_NO_DATA:
 		return int(byteAmt), io.EOF
 	case C.OCI_INVALID_HANDLE:
@@ -418,6 +419,8 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err e
 	ocisvcctx := ses.ocisvcctx
 	env := ses.srv.env
 	ses.RUnlock()
+
+	ses.log(_drv.Cfg().Log.Ses.Prep, "lobOpen")
 	// reopen
 	_ = C.OCILobClose(
 		ocisvcctx,  //OCISvcCtx          *svchp,
@@ -434,7 +437,7 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err e
 	//Log.Infof("OCILobOpen %p returned %d", lob, r)
 	if r != C.OCI_SUCCESS {
 		lobClose(ses, lob)
-		return 0, ses.srv.env.ociError()
+		return 0, ses.srv.env.ociError("OCILobOpen")
 	}
 	// get the length of the lob
 	// For character LOBs, it is the number of characters; for binary LOBs and BFILEs,
@@ -446,7 +449,7 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err e
 		&length,       //oraub8 *lenp)
 	); r == C.OCI_ERROR {
 		lobClose(ses, lob)
-		return length, env.ociError()
+		return length, env.ociError("OCILobGetLength2")
 	}
 	return length, nil
 }
