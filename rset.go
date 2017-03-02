@@ -222,6 +222,10 @@ func (rset *Rset) beginRow() (err error) {
 	}
 	// allocate define descriptor handles
 	rset.Lock()
+	if rset.env == nil {
+		rset.Unlock()
+		return errF("Rset env is closed")
+	}
 	for _, define := range rset.defs {
 		//rset.logF(_drv.Cfg().Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
 		if define == nil {
