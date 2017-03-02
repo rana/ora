@@ -61,8 +61,12 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 	var buf bytes.Buffer
 
 	n, err := r.Read(arr[:])
+	lr.ses.logF(_drv.Cfg().Log.Ses.Prep, "Bytes-1(%p) amt=%d err=%v\n", lr, n, err)
 	length := lr.Length
 	if length == 0 {
+		if err == io.EOF {
+			err = nil
+		}
 		if n == 0 {
 			return nil, err
 		}
@@ -76,6 +80,9 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 	buf.Grow(int(length))
 	buf.Write(arr[:n])
 	_, err = io.Copy(&buf, r)
+	if err == io.EOF {
+		err = nil
+	}
 	return buf.Bytes(), err
 }
 
@@ -264,26 +271,25 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		0, //lr.charsetForm,                          //ub1                csfrm );
 	)
 	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmt)
+	err = nil
 	switch r {
 	case C.OCI_ERROR:
 		lr.interrupted = true
-		return 0, lr.ses.srv.env.ociError("OCILobRead2")
+		err = lr.ses.srv.env.ociError("OCILobRead2")
 	case C.OCI_NO_DATA:
-		return int(byteAmt), io.EOF
+		err = io.EOF
 	case C.OCI_INVALID_HANDLE:
-		return 0, fmt.Errorf("Invalid handle %v", lr.ociLobLocator)
+		err = fmt.Errorf("Invalid handle %v", lr.ociLobLocator)
 	}
+	lr.ses.logF(_drv.Cfg().Log.Ses.Close, "OCILobRead2(%p) off=%d amt=%d err=%v\n", lr.ociLobLocator, lr.off, byteAmt, err)
 	// byteAmt represents the amount copied into buffer by oci
 	if byteAmt != 0 {
 		lr.off += byteAmt
-		if lr.off == lr.Length {
-			return int(byteAmt), io.EOF
-		}
 		if lr.piece == C.OCI_FIRST_PIECE {
 			lr.piece = C.OCI_NEXT_PIECE
 		}
 	}
-	return int(byteAmt), nil
+	return int(byteAmt), err
 }
 
 // WriteTo writes all data from the LOB into the given Writer.
@@ -296,18 +302,17 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 
 	arr := lobChunkPool.Get().([lobChunkSize]byte)
 	defer lobChunkPool.Put(arr)
-	buf := arr[:]
 
 	for {
-		k, err := lr.Read(buf)
+		k, err := lr.Read(arr[:])
 		if k > 0 {
-			if k, err = w.Write(buf[:k]); err != nil {
+			if _, err := w.Write(arr[:k]); err != nil {
 				return n, err
 			}
 		}
 		n += int64(k)
-		if lr.off >= lr.Length {
-			break
+		if err != nil {
+			return n, err
 		}
 	}
 	return n, nil
