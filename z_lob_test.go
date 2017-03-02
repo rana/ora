@@ -269,6 +269,7 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 
 	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
 
+	enableLogging(t)
 	// LOB
 	{
 		type EmneInfo struct {

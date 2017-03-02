@@ -1,6 +1,8 @@
 # Changelog #
 
 ## master ##
+  * Fix LOB reading (issue #159).
+  * Remove ociErrorNL as it does locking, against its name and comment.
 
 ## v4.1.3 ##
   * Open LOBs for reading only at the first read - this eliminates the error
