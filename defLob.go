@@ -414,18 +414,22 @@ func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err error) {
+	ses.RLock()
+	ocisvcctx := ses.ocisvcctx
+	env := ses.srv.env
+	ses.RUnlock()
 	// reopen
 	_ = C.OCILobClose(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
+		ocisvcctx,  //OCISvcCtx          *svchp,
+		env.ocierr, //OCIError           *errhp,
+		lob,        //OCILobLocator      *locp,
 	)
 	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
 	r := C.OCILobOpen(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
-		mode,               //ub1              mode );
+		ses.ocisvcctx, //OCISvcCtx          *svchp,
+		env.ocierr,    //OCIError           *errhp,
+		lob,           //OCILobLocator      *locp,
+		mode,          //ub1              mode );
 	)
 	//Log.Infof("OCILobOpen %p returned %d", lob, r)
 	if r != C.OCI_SUCCESS {
@@ -436,13 +440,13 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (length C.oraub8, err e
 	// For character LOBs, it is the number of characters; for binary LOBs and BFILEs,
 	// it is the number of bytes in the LOB.<Paste>
 	if r = C.OCILobGetLength2(
-		ses.ocisvcctx,      //OCISvcCtx          *svchp,
-		ses.srv.env.ocierr, //OCIError           *errhp,
-		lob,                //OCILobLocator      *locp,
-		&length,            //oraub8 *lenp)
+		ses.ocisvcctx, //OCISvcCtx          *svchp,
+		env.ocierr,    //OCIError           *errhp,
+		lob,           //OCILobLocator      *locp,
+		&length,       //oraub8 *lenp)
 	); r == C.OCI_ERROR {
 		lobClose(ses, lob)
-		return length, ses.srv.env.ociError()
+		return length, env.ociError()
 	}
 	return length, nil
 }
