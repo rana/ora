@@ -30,8 +30,8 @@ func (bnd *bndString) bind(value string, position namedPos, stmt *Stmt) error {
 	bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(value))
 	bnd.nullp.Set(value == "")
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%s alen=%v",
-		bnd, position, bnd.alen)
+		"%p pos=%v alen=%d",
+		bnd, position, bnd.alen[0])
 
 	ph, phLen, phFree := position.CString()
 	if ph != nil {

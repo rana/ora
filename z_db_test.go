@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -291,6 +292,9 @@ func Test_db(t *testing.T) {
 			ct := _T_colType[ctName]
 			t.Run(ctName+"_"+valName, func(t *testing.T) {
 				t.Parallel()
+				if strings.Contains(ctName, "clob") {
+					enableLogging(t)
+				}
 				testBindDefineDB(tc.gen(), t, ct)
 			})
 		}
