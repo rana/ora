@@ -157,7 +157,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	env.RUnlock()
 	C.free(unsafe.Pointer(cDblink))
 	if r == C.OCI_ERROR {
-		return nil, errE(env.ociErrorNL())
+		return nil, errE(env.ociError())
 	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
@@ -402,13 +402,8 @@ func (env *Env) setAttr(
 	return nil
 }
 
-// ociError gets an error returned by an Oracle server. Locks env.mu!
-func (env *Env) ociError() error {
-	return env.ociErrorNL()
-}
-
-// ociError gets an error returned by an Oracle server. No locking occurs.
-func (env *Env) ociErrorNL() error {
+// ociError gets an error returned by an Oracle server.
+func (env *Env) ociError(messages ...string) error {
 	var errcode C.sb4
 	env.RLock()
 	C.OCIErrorGet(
@@ -420,6 +415,9 @@ func (env *Env) ociErrorNL() error {
 		C.OCI_HTYPE_ERROR)
 	msg := C.GoString(&env.errBuf[0])
 	env.RUnlock()
+	if len(messages) > 0 {
+		msg = strings.Join(messages, " ") + ": " + msg
+	}
 	return er(&ORAError{code: int(errcode), message: msg})
 }
 
