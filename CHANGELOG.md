@@ -1,8 +1,13 @@
 # Changelog #
 
 ## master ##
+
+## v4.1.5 ##
+
+## v4.1.4 ##
   * Fix LOB reading (issue #159).
   * Remove ociErrorNL as it does locking, against its name and comment.
+  * Remove all remaining ora.v3 traces.
 
 ## v4.1.3 ##
   * Open LOBs for reading only at the first read - this eliminates the error
