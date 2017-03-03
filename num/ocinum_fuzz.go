@@ -8,7 +8,7 @@ package num
 
 import "strings"
 
-//go:generate go-fuzz-build gopkg.in/rana/ora.v3/num
+//go:generate go-fuzz-build gopkg.in/rana/ora.v4/num
 
 // Fuzz:
 // go-fuzz -bin=./num-fuzz.zip -workdir=/tmp/fuzz

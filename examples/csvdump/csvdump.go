@@ -31,7 +31,7 @@ import (
 	"github.com/tgulacsi/go/orahlp"
 
 	"gopkg.in/errgo.v1"
-	"gopkg.in/rana/ora.v3/examples/connect"
+	"gopkg.in/rana/ora.v4/examples/connect"
 )
 
 func getQuery(table, where string, columns []string) string {

@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"gopkg.in/errgo.v1"
-	"gopkg.in/rana/ora.v3"
+	"gopkg.in/rana/ora.v4"
 
 	"github.com/tgulacsi/go/dber"
 	"github.com/tgulacsi/go/orahlp"

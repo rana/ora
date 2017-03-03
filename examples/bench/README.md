@@ -1,5 +1,5 @@
 # Benchmark ora vs. oci8
-Compile a simple SELECT benchmark with `github.com/mattn/go-oci8` and `gopkg.in/rana/ora.v3`, and compare them:
+Compile a simple SELECT benchmark with `github.com/mattn/go-oci8` and `gopkg.in/rana/ora.v4`, and compare them:
 
 	./run.sh <user/passw@host:port/sid>
 
@@ -40,5 +40,5 @@ Entering interactive mode (type "help" for commands)
          0     0%   100%      110ms   100%  runtime.goexit
          0     0%   100%      110ms   100%  testing.(*B).launch
          0     0%   100%      110ms   100%  testing.(*B).runN
-(pprof) :tgulacsi@tgulacsi-laptop: ~/src/gopkg.in/rana/ora.v3/examples/bench
+(pprof) :tgulacsi@tgulacsi-laptop: ~/src/gopkg.in/rana/ora.v4/examples/bench
 ```
