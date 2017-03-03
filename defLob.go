@@ -451,24 +451,24 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
 	)
 	//Log.Infof("OCILobOpen %p\n%s", lob, getStack(1))
 	r := C.OCILobOpen(
-		ses.ocisvcctx, //OCISvcCtx          *svchp,
-		env.ocierr,    //OCIError           *errhp,
-		lob,           //OCILobLocator      *locp,
-		mode,          //ub1              mode );
+		ocisvcctx,  //OCISvcCtx          *svchp,
+		env.ocierr, //OCIError           *errhp,
+		lob,        //OCILobLocator      *locp,
+		mode,       //ub1              mode );
 	)
 	//Log.Infof("OCILobOpen %p returned %d", lob, r)
 	if r != C.OCI_SUCCESS {
 		lobClose(ses, lob)
-		return 0, csid, csfrm, ses.srv.env.ociError("OCILobOpen")
+		return 0, csid, csfrm, env.ociError("OCILobOpen")
 	}
 	// get the length of the lob
 	// For character LOBs, it is the number of characters; for binary LOBs and BFILEs,
 	// it is the number of bytes in the LOB.<Paste>
 	if r = C.OCILobGetLength2(
-		ses.ocisvcctx, //OCISvcCtx          *svchp,
-		env.ocierr,    //OCIError           *errhp,
-		lob,           //OCILobLocator      *locp,
-		&length,       //oraub8 *lenp)
+		ocisvcctx,  //OCISvcCtx          *svchp,
+		env.ocierr, //OCIError           *errhp,
+		lob,        //OCILobLocator      *locp,
+		&length,    //oraub8 *lenp)
 	); r == C.OCI_ERROR {
 		lobClose(ses, lob)
 		return length, csid, csfrm, env.ociError("OCILobGetLength2")
