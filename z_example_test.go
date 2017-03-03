@@ -835,18 +835,40 @@ func ExampleRset_cursor_multiple() {
 
 func ExampleSrv_Ping() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, err := ora.OpenEnv()
+	if err != nil {
+		panic(err)
+	}
 	defer env.Close()
-	srv, _ := env.OpenSrv(testSrvCfg)
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer srv.Close()
 
 	// open a session before calling Ping
-	ses, _ := srv.OpenSes(testSesCfg)
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer ses.Close()
 
-	err := ses.Ping()
-	if err == nil {
-		fmt.Println("Ping successful")
+	done := make(chan error, 1)
+	go func() {
+		defer close(done)
+		done <- ses.Ping()
+	}()
+
+	select {
+	case <-time.After(10 * time.Second):
+		ses.Break()
+		fmt.Println("Ping timed out!")
+	case err := <-done:
+		if err == nil {
+			fmt.Println("Ping successful")
+		} else {
+			fmt.Println("Ping ERROR:", err)
+		}
 	}
 	// Output: Ping successful
 }
@@ -871,18 +893,32 @@ func ExampleSrv_Version() {
 
 func ExampleInt64() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, err := ora.OpenEnv()
+	if err != nil {
+		panic(err)
+	}
 	defer env.Close()
-	srv, _ := env.OpenSrv(testSrvCfg)
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testSesCfg)
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	if err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
-	stmt.Exe()
+	if _, err := stmt.Exe(); err != nil {
+		panic(err)
+	}
 
 	// insert ora.Int64 slice
 	a := make([]ora.Int64, 5)
@@ -891,16 +927,26 @@ func ExampleInt64() {
 	a[2] = ora.Int64{IsNull: true}
 	a[3] = ora.Int64{Value: 1}
 	a[4] = ora.Int64{Value: 9}
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if stmt, err = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)); err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
 	stmt.Exe(a)
 
 	// Specify ora.OraI64 to Prep method to return nullable ora.Int64 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI64)
-	rset, _ := stmt.Qry()
+	if stmt, err = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI64); err != nil {
+		panic(err)
+	}
+	rset, err := stmt.Qry()
+	if err != nil {
+		panic(err)
+	}
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
+	}
+	if err := rset.Err(); err != nil {
+		panic(err)
 	}
 	// Output:
 	// {false -9}
@@ -912,16 +958,28 @@ func ExampleInt64() {
 
 func ExampleInt32() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, err := ora.OpenEnv()
+	if err != nil {
+		panic(err)
+	}
 	defer env.Close()
-	srv, _ := env.OpenSrv(testSrvCfg)
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testSesCfg)
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	stmt, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(10,0))", tableName))
+	if err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
 	stmt.Exe()
 
@@ -932,16 +990,28 @@ func ExampleInt32() {
 	a[2] = ora.Int32{IsNull: true}
 	a[3] = ora.Int32{Value: 1}
 	a[4] = ora.Int32{Value: 9}
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if stmt, err = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)); err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
-	stmt.Exe(a)
+	if _, err = stmt.Exe(a); err != nil {
+		panic(err)
+	}
 
 	// Specify ora.OraI32 to Prep method to return nullable ora.Int32 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI32)
-	rset, _ := stmt.Qry()
+	if stmt, err = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraI32); err != nil {
+		panic(err)
+	}
+	rset, err := stmt.Qry()
+	if err != nil {
+		panic(err)
+	}
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
+	}
+	if err := rset.Err(); err != nil {
+		panic(err)
 	}
 	// Output:
 	// {false -9}
@@ -1240,18 +1310,32 @@ func ExampleFloat64() {
 
 func ExampleFloat32() {
 	// setup
-	env, _ := ora.OpenEnv()
+	env, err := ora.OpenEnv()
+	if err != nil {
+		panic(err)
+	}
 	defer env.Close()
-	srv, _ := env.OpenSrv(testSrvCfg)
+	srv, err := env.OpenSrv(testSrvCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer srv.Close()
-	ses, _ := srv.OpenSes(testSesCfg)
+	ses, err := srv.OpenSes(testSesCfg)
+	if err != nil {
+		panic(err)
+	}
 	defer ses.Close()
 
 	// create table
 	tableName := tableName()
-	stmt, _ := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
+	stmt, err := ses.Prep(fmt.Sprintf("create table %v (c1 number(16,15))", tableName))
+	if err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
-	stmt.Exe()
+	if _, err := stmt.Exe(); err != nil {
+		panic(err)
+	}
 
 	// insert ora.Float32 slice
 	a := make([]ora.Float32, 5)
@@ -1260,16 +1344,28 @@ func ExampleFloat32() {
 	a[2] = ora.Float32{IsNull: true}
 	a[3] = ora.Float32{Value: float32(3.14159)}
 	a[4] = ora.Float32{Value: float32(6.28318)}
-	stmt, _ = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	if stmt, err = ses.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)); err != nil {
+		panic(err)
+	}
 	defer stmt.Close()
-	stmt.Exe(a)
+	if _, err := stmt.Exe(a); err != nil {
+		panic(err)
+	}
 
 	// Specify ora.OraF32 to Prep method to return nullable ora.Float32 values
 	// fetch records
-	stmt, _ = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraF32)
-	rset, _ := stmt.Qry()
+	if stmt, err = ses.Prep(fmt.Sprintf("select c1 from %v", tableName), ora.OraF32); err != nil {
+		panic(err)
+	}
+	rset, err := stmt.Qry()
+	if err != nil {
+		panic(err)
+	}
 	for rset.Next() {
 		fmt.Println(rset.Row[0])
+	}
+	if err := rset.Err(); err != nil {
+		panic(err)
 	}
 	// Output:
 	// {false -6.28318}
