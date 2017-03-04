@@ -64,21 +64,32 @@ application communication and driver communication with Oracle databases.
 
 The ora package has been verified to work with:
 
-  * Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
-  * Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
+* Oracle Standard 11g (11.2.0.4.0), Linux x86_64 (RHEL6)
+
+* Oracle Enterprise 12c (12.1.0.1.0), Windows 8.1 and AMD64.
 
 ---
 
 * [Installation](https://github.com/rana/ora#installation)
+
 * [Data Types](https://github.com/rana/ora#data-types)
+
 * [SQL Placeholder Syntax](https://github.com/rana/ora#sql-placeholder-syntax)
+
 * [Working With The Sql Package](https://github.com/rana/ora#working-with-the-sql-package)
+
 * [Working With The Oracle Package Directly](https://github.com/rana/ora#working-with-the-oracle-package-directly)
+
 * [Logging](https://github.com/rana/ora#logging)
+
 * [Test Database Setup](https://github.com/rana/ora#test-database-setup)
+
 * [Limitations](https://github.com/rana/ora#limitations)
+
 * [License](https://github.com/rana/ora#license)
+
 * [API Reference](http://godoc.org/github.com/rana/ora#pkg-index)
+
 * [Examples](./examples)
 
 ---
