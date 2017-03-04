@@ -116,24 +116,6 @@ func (con *Con) close() (err error) {
 	return nil
 }
 
-// Prepare readies a sql string for use.
-//
-// Prepare is a member of the driver.Conn interface.
-func (con *Con) Prepare(query string) (driver.Stmt, error) {
-	// TODO(tgulacsi): use
-	// return con.PrepareContext(context.Background(), query)
-
-	con.log(_drv.Cfg().Log.Con.Prepare)
-	if err := con.checkIsOpen(); err != nil {
-		return nil, err
-	}
-	stmt, err := con.ses.Prep(query)
-	if err != nil {
-		return nil, maybeBadConn(err)
-	}
-	return &DrvStmt{stmt: stmt}, err
-}
-
 // Begin starts a transaction.
 //
 // Begin is a member of the driver.Conn interface.
@@ -199,13 +181,16 @@ func maybeBadConn(err error) error {
 	if err == nil {
 		return nil
 	}
+	fmt.Printf("err=%#v %T\n", err, err)
 	// database/sql API expect driver.ErrBadConn to reconnect to the database
 	if cd, ok := err.(interface {
 		Code() int
 	}); ok {
 		switch cd.Code() {
-		case 3114, 12545:
+		case 3113, 3114, 12528, 12545:
+			// ORA-03113: end-of-file on communication channel
 			// ORA-03114: not connected to ORACLE
+			// ORA-12528: TNS:listener: all appropriate instances are blocking new connections
 			// ORA-12545: Connect failed because target host or object does not exist
 			return driver.ErrBadConn
 		}

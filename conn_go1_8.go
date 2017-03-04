@@ -31,6 +31,13 @@ var (
 	_ = driver.StmtExecContext((*DrvStmt)(nil))
 )
 
+// Prepare readies a sql string for use.
+//
+// Prepare is a member of the driver.Conn interface.
+func (con *Con) Prepare(query string) (driver.Stmt, error) {
+	return con.PrepareContext(context.Background(), query)
+}
+
 // PrepareContext returns a prepared statement, bound to this connection.
 // context is for the preparation of the statement,
 // it must not store the context within the statement itself.
@@ -41,7 +48,7 @@ func (con *Con) PrepareContext(ctx context.Context, query string) (driver.Stmt, 
 	}
 	stmt, err := con.ses.Prep(query)
 	if err != nil {
-		return nil, err
+		return nil, maybeBadConn(err)
 	}
 	return &DrvStmt{stmt: stmt}, err
 }
@@ -94,7 +101,7 @@ func (con *Con) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, 
 	case err = <-done:
 		return tx, err
 	}
-	return nil, err
+	return nil, maybeBadConn(err)
 }
 
 // vim: set fileencoding=utf-8 noet:
