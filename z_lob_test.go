@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	ora "gopkg.in/rana/ora.v4"
@@ -285,13 +287,15 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			InfoTekstOriginal  *ora.Lob
 			InstitusjonsNrEier ora.Int64
 		}
+		stmt, err := testSes.Prep(qry,
+			ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+			ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
+		if err != nil {
+			t.Fatal(qry, err)
+		}
+		defer stmt.Close()
+
 		for nm, _ := range testCases {
-			stmt, err := testSes.Prep(qry,
-				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-				ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
-			if err != nil {
-				t.Fatal(nm, qry, err)
-			}
 			rst, err := stmt.Qry(nm)
 			if err != nil {
 				t.Fatal(nm, qry, err)
@@ -322,6 +326,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			if err := rst.Err(); err != nil {
 				t.Fatal(err)
 			}
+			if len(results) == 0 {
+				t.Fatal(nm, "no rows found!")
+			}
 			t.Log(nm, results)
 		}
 	}
@@ -342,13 +349,15 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			InfoTekstOriginal  ora.String
 			InstitusjonsNrEier ora.Int64
 		}
+		stmt, err := testSes.Prep(qry,
+			ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+			ora.OraI64, ora.OraS, ora.OraI64, ora.OraS, ora.OraS, ora.OraI64)
+		if err != nil {
+			t.Fatal(qry, err)
+		}
+		defer stmt.Close()
+
 		for nm, want := range testCases {
-			stmt, err := testSes.Prep(qry,
-				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-				ora.OraI64, ora.OraS, ora.OraI64, ora.OraS, ora.OraS, ora.OraI64)
-			if err != nil {
-				t.Fatal(nm, qry, err)
-			}
 			rst, err := stmt.Qry(nm)
 			if err != nil {
 				t.Fatal(nm, qry, err)
@@ -378,11 +387,137 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			if err := rst.Err(); err != nil {
 				t.Fatal(err)
 			}
+			if len(results) == 0 {
+				t.Fatal(nm, "no rows found!")
+			}
 			b, err := json.Marshal(results)
 			t.Log(nm, string(b), err)
 			//t.Logf("%s: %#v", nm, results)
 		}
 	}
+}
+
+func TestLobIssue159Stress(t *testing.T) {
+	tbl := tableName()
+	qry := `CREATE TABLE ` + tbl + `
+	(
+	"INSTITUSJONSNR" NUMBER(8,0) NOT NULL ENABLE,
+	"EMNEKODE" VARCHAR2(12 CHAR) NOT NULL ENABLE,
+	"VERSJONSKODE" VARCHAR2(3 CHAR) NOT NULL ENABLE,
+	"INFOTYPEKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"SPRAKKODE" VARCHAR2(10 CHAR) NOT NULL ENABLE,
+	"TERMINKODE_FRA" VARCHAR2(4 CHAR) NOT NULL ENABLE,
+	"ARSTALL_FRA" NUMBER(4,0) NOT NULL ENABLE,
+	"TERMINKODE_TIL" VARCHAR2(4 CHAR),
+	"ARSTALL_TIL" NUMBER(4,0),
+	"INFOTEKST" CLOB,
+	"INFOTEKST_ORIGINAL" CLOB,
+	"INSTITUSJONSNR_EIER" NUMBER(8,0) NOT NULL ENABLE
+	)`
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(qry, err)
+	}
+	defer testDb.Exec("DROP TABLE " + tbl)
+	testCases := map[string]string{
+		"empty": "",
+		"a": `Pedagogiske metoder:
+
+Veiledet praksis. Veiledning individuelt og i grupper. Refleksjonsgrupper.
+
+Obligatoriske arbeidskrav:
+
+Obligatorisk frammøte tilsvarer 90 % av studietid i praksis.`,
+		"b": `Godkjente arbeidskrav.Se undervisningsplan for praksisstudier 3. studieår
+
+Læringsutbytte - Kunnskap:
+
+Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og holdninger - se Undervisningsplan for praksissstudier 3. studieår`,
+	}
+	qry = `INSERT INTO ` + tbl + `
+  (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)
+  VALUES
+  (1, :1, 'ver', 'infokode', 'sprakkode', 'term', 2, 'min', 3, :2, :3, 4)`
+	for nm, want := range testCases {
+		if _, err := testDb.Exec(qry, nm, want, reverseString(want)); err != nil {
+			t.Fatal(nm, qry, err)
+		}
+	}
+
+	type EmneInfo struct {
+		InstitusjonsNr     ora.Int64
+		EmneKode           ora.String
+		VersjonsKode       ora.String
+		InfoTypeKode       ora.String
+		SprakKode          ora.String
+		TerminKodeFra      ora.String
+		ArstallFra         ora.Int64
+		TerminKodeTil      ora.String
+		ArstallTil         ora.Int64
+		InfoTekst          *ora.Lob
+		InfoTekstOriginal  *ora.Lob
+		InstitusjonsNrEier ora.Int64
+	}
+
+	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU()+1; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			t.Log("START", i)
+			defer t.Log("END", i)
+
+			stmt, err := testSes.Prep(qry,
+				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+				ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
+			if err != nil {
+				t.Fatal(qry, err)
+			}
+			defer stmt.Close()
+
+			// LOB
+			for nm, _ := range testCases {
+				rst, err := stmt.Qry(nm)
+				if err != nil {
+					t.Fatal(nm, qry, err)
+				}
+				nm = fmt.Sprintf("%d.%s", i, nm)
+
+				results := make([]string, 0, 1)
+				for rst.Next() {
+					info := EmneInfo{
+						InstitusjonsNr:     rst.Row[0].(ora.Int64),
+						EmneKode:           rst.Row[1].(ora.String),
+						VersjonsKode:       rst.Row[2].(ora.String),
+						InfoTypeKode:       rst.Row[3].(ora.String),
+						SprakKode:          rst.Row[4].(ora.String),
+						TerminKodeFra:      rst.Row[5].(ora.String),
+						ArstallFra:         rst.Row[6].(ora.Int64),
+						TerminKodeTil:      rst.Row[7].(ora.String),
+						ArstallTil:         rst.Row[8].(ora.Int64),
+						InfoTekst:          rst.Row[9].(*ora.Lob),
+						InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
+						InstitusjonsNrEier: rst.Row[11].(ora.Int64),
+					}
+					b, err := json.Marshal(info)
+					//t.Log("info:", string(b))
+					if err != nil {
+						t.Fatal(nm, info, err)
+					}
+					results = append(results, string(b))
+				}
+				if err := rst.Err(); err != nil {
+					t.Fatal(err)
+				}
+				if len(results) == 0 {
+					t.Fatal(nm, "no rows found!")
+				}
+				//t.Log(nm, results)
+			}
+		}(i)
+	}
+	wg.Wait()
+
 }
 
 func TestLobIssue159(t *testing.T) {
@@ -449,14 +584,16 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			InfoTekstOriginal  string
 			InstitusjonsNrEier ora.Int64
 		}
+		stmt, err := testSes.Prep(qry,
+			ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+			ora.OraI64, ora.OraS, ora.OraI64, ora.S, ora.S, ora.OraI64)
+		if err != nil {
+			t.Fatal(qry, err)
+		}
+		defer stmt.Close()
+
 		for nm, want := range testCases {
 			tnaw := reverseString(want)
-			stmt, err := testSes.Prep(qry,
-				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-				ora.OraI64, ora.OraS, ora.OraI64, ora.S, ora.S, ora.OraI64)
-			if err != nil {
-				t.Fatal(nm, qry, err)
-			}
 			rst, err := stmt.Qry(nm)
 			if err != nil {
 				t.Fatal(nm, qry, err)
@@ -492,6 +629,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 				t.Fatal(err)
 			}
 			b, err := json.Marshal(results)
+			if len(results) == 0 {
+				t.Fatal(nm, "no rows found!")
+			}
 			t.Log(nm, "results:", string(b), "error:", err)
 			//t.Logf("%s: %#v", nm, results)
 		}
@@ -513,13 +653,15 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			InfoTekstOriginal  *ora.Lob
 			InstitusjonsNrEier ora.Int64
 		}
+		stmt, err := testSes.Prep(qry,
+			ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
+			ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
+		if err != nil {
+			t.Fatal(qry, err)
+		}
+		defer stmt.Close()
+
 		for nm, _ := range testCases {
-			stmt, err := testSes.Prep(qry,
-				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
-				ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
-			if err != nil {
-				t.Fatal(nm, qry, err)
-			}
 			rst, err := stmt.Qry(nm)
 			if err != nil {
 				t.Fatal(nm, qry, err)
@@ -550,6 +692,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			}
 			if err := rst.Err(); err != nil {
 				t.Fatal(err)
+			}
+			if len(results) == 0 {
+				t.Fatal(nm, "no rows found!")
 			}
 			t.Log(nm, results)
 		}
