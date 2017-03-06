@@ -467,7 +467,12 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			t.Log("START", i)
 			defer t.Log("END", i)
 
-			stmt, err := testSes.Prep(qry,
+			ses, err := testSesPool.Get()
+			if err != nil {
+				t.Fatal(i, err)
+			}
+			defer ses.Close()
+			stmt, err := ses.Prep(qry,
 				ora.OraI64, ora.OraS, ora.OraS, ora.OraS, ora.OraS, ora.OraS,
 				ora.OraI64, ora.OraS, ora.OraI64, ora.L, ora.L, ora.OraI64)
 			if err != nil {
@@ -475,42 +480,44 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			}
 			defer stmt.Close()
 
-			// LOB
-			for nm, _ := range testCases {
-				rst, err := stmt.Qry(nm)
-				if err != nil {
-					t.Fatal(nm, qry, err)
-				}
-				nm = fmt.Sprintf("%d.%s", i, nm)
-
-				results := make([]string, 0, 1)
-				for rst.Next() {
-					info := EmneInfo{
-						InstitusjonsNr:     rst.Row[0].(ora.Int64),
-						EmneKode:           rst.Row[1].(ora.String),
-						VersjonsKode:       rst.Row[2].(ora.String),
-						InfoTypeKode:       rst.Row[3].(ora.String),
-						SprakKode:          rst.Row[4].(ora.String),
-						TerminKodeFra:      rst.Row[5].(ora.String),
-						ArstallFra:         rst.Row[6].(ora.Int64),
-						TerminKodeTil:      rst.Row[7].(ora.String),
-						ArstallTil:         rst.Row[8].(ora.Int64),
-						InfoTekst:          rst.Row[9].(*ora.Lob),
-						InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
-						InstitusjonsNrEier: rst.Row[11].(ora.Int64),
-					}
-					b, err := json.Marshal(info)
-					//t.Log("info:", string(b))
+			results := make([]string, 0, 1)
+			for j := 0; j < 10; j++ {
+				for nm, _ := range testCases {
+					rst, err := stmt.Qry(nm)
 					if err != nil {
-						t.Fatal(nm, info, err)
+						t.Fatal(fmt.Sprintf("%d.%s", i, nm), qry, err)
 					}
-					results = append(results, string(b))
-				}
-				if err := rst.Err(); err != nil {
-					t.Fatal(err)
-				}
-				if len(results) == 0 {
-					t.Fatal(nm, "no rows found!")
+					nm := fmt.Sprintf("%d:%d.%s", i, j, nm)
+
+					results = results[:0]
+					for rst.Next() {
+						info := EmneInfo{
+							InstitusjonsNr:     rst.Row[0].(ora.Int64),
+							EmneKode:           rst.Row[1].(ora.String),
+							VersjonsKode:       rst.Row[2].(ora.String),
+							InfoTypeKode:       rst.Row[3].(ora.String),
+							SprakKode:          rst.Row[4].(ora.String),
+							TerminKodeFra:      rst.Row[5].(ora.String),
+							ArstallFra:         rst.Row[6].(ora.Int64),
+							TerminKodeTil:      rst.Row[7].(ora.String),
+							ArstallTil:         rst.Row[8].(ora.Int64),
+							InfoTekst:          rst.Row[9].(*ora.Lob),
+							InfoTekstOriginal:  rst.Row[10].(*ora.Lob),
+							InstitusjonsNrEier: rst.Row[11].(ora.Int64),
+						}
+						b, err := json.Marshal(info)
+						//t.Log(nm, "info:", string(b))
+						if err != nil {
+							t.Fatal(nm, info, err)
+						}
+						results = append(results, string(b))
+					}
+					if err := rst.Err(); err != nil {
+						t.Fatal(nm, err)
+					}
+					if len(results) == 0 {
+						t.Fatal(nm, "no rows found!")
+					}
 				}
 				//t.Log(nm, results)
 			}
