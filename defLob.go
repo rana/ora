@@ -35,25 +35,33 @@ type defLob struct {
 	gct  GoColumnType
 	sqlt C.ub2
 	lobs []*C.OCILobLocator
+	sync.Mutex
 }
 
 func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset) error {
+	def.Lock()
+	defer def.Unlock()
 	def.rset = rset
 	def.gct = gct
 	def.sqlt = sqlt
 	if def.lobs != nil {
 		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
-	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
+	rset.RLock()
+	fetchLen := rset.fetchLen
+	env := rset.stmt.ses.srv.env
+	rset.RUnlock()
+	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(fetchLen) * C.sof_LobLocatorp))))[:fetchLen]
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
 	prefetchLength := C.boolean(C.TRUE)
-	return def.rset.stmt.ses.srv.env.setAttr(unsafe.Pointer(def.ocidef), C.OCI_HTYPE_DEFINE,
+	return env.setAttr(unsafe.Pointer(def.ocidef), C.OCI_HTYPE_DEFINE,
 		unsafe.Pointer(&prefetchLength), 0, C.OCI_ATTR_LOBPREFETCH_LENGTH)
 }
 
 func (def *defLob) Bytes(offset int) (value []byte, err error) {
+
 	r := def.Reader(offset)
 	defer r.Close()
 	lr := r.(*lobReader)
@@ -98,11 +106,15 @@ func (def *defLob) String(offset int) (value string, err error) {
 // Reader returns an io.Reader for the underlying LOB.
 // Also dissociates this def from the LOB!
 func (def *defLob) Reader(offset int) io.ReadCloser {
+	def.Lock()
+	def.rset.RLock()
 	lr := &lobReader{
 		ses:           def.rset.stmt.ses,
 		ociLobLocator: def.lobs[offset],
 		piece:         C.OCI_FIRST_PIECE,
 	}
+	def.rset.RUnlock()
+	def.Unlock()
 	//fmt.Printf("%p.Reader(%d): %p\n", def, offset, lr)
 	return lr
 }
@@ -110,10 +122,13 @@ func (def *defLob) Reader(offset int) io.ReadCloser {
 func (def *defLob) value(offset int) (result interface{}, err error) {
 	//lob := def.ociLobLocator
 	//Log.Infof("value %p null=%d", lob, def.null)
+	def.Lock()
 	isNull := def.nullInds[offset] <= -1
+	gct := def.gct
+	def.Unlock()
 
 	//defer func() { fmt.Printf("%d gct=%v null=%v =>%#v\n", offset, def.gct, isNull, result) }()
-	switch def.gct {
+	switch gct {
 	case Bin:
 		if isNull {
 			return nil, nil
@@ -154,15 +169,21 @@ func (def *defLob) alloc() error {
 	// Allocate lob locator handle
 	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	// OCI_DTYPE_LOB is for a BLOB or CLOB
+	def.Lock()
+	defer def.Unlock()
+	//def.rset.RLock()
+	env := def.rset.stmt.ses.srv.env
+	//def.rset.RUnlock()
+	ocienv := env.ocienv
 	for i := range def.lobs {
 		r := C.OCIDescriptorAlloc(
-			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
-			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])),  //dvoid         **descpp,
-			C.OCI_DTYPE_LOB,                                  //ub4           type,
-			0,                                                //size_t        xtramem_sz,
-			nil)                                              //dvoid         **usrmempp);
+			unsafe.Pointer(ocienv),                          //CONST dvoid   *parenth,
+			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])), //dvoid         **descpp,
+			C.OCI_DTYPE_LOB,                                 //ub4           type,
+			0,                                               //size_t        xtramem_sz,
+			nil)                                             //dvoid         **usrmempp);
 		if r == C.OCI_ERROR {
-			return def.rset.stmt.ses.srv.env.ociError("LOB OCIDescriptorAlloc")
+			return env.ociError("LOB OCIDescriptorAlloc")
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci lob handle during define")
 		}
@@ -171,12 +192,15 @@ func (def *defLob) alloc() error {
 }
 
 func (def *defLob) free() {
+	def.Lock()
+	defer def.Unlock()
+	ses := def.rset.stmt.ses
 	for i, lob := range def.lobs {
 		if lob == nil {
 			continue
 		}
 		def.lobs[i] = nil
-		lobClose(def.rset.stmt.ses, lob)
+		lobClose(ses, lob)
 		C.OCIDescriptorFree(
 			unsafe.Pointer(lob), //void     *descp,
 			C.OCI_DTYPE_LOB)     //ub4      type );
@@ -186,14 +210,15 @@ func (def *defLob) free() {
 func (def *defLob) close() (err error) {
 	//Log.Infof("defLob close %p", def.ociLobLocator)
 	def.free()
-	if def.lobs != nil {
-		C.free(unsafe.Pointer(unsafe.Pointer(&def.lobs[0])))
-		def.lobs = nil
-	}
+
+	def.Lock()
 	rset := def.rset
+	def.lobs = nil
 	def.rset = nil
 	def.ocidef = nil
 	def.arrHlp.close()
+	def.Unlock()
+
 	rset.putDef(defIdxLob, def)
 
 	return nil
@@ -203,6 +228,7 @@ var _ = io.Reader((*lobReader)(nil))
 var _ = io.WriterTo((*lobReader)(nil))
 
 type lobReader struct {
+	sync.Mutex
 	ses           *Ses
 	ociLobLocator *C.OCILobLocator
 	piece, csfrm  C.ub1
@@ -221,12 +247,14 @@ func (lr *lobReader) Close() error {
 	if lr == nil || lr.ociLobLocator == nil {
 		return nil
 	}
+	lr.Lock()
 	lob, ses := lr.ociLobLocator, lr.ses
 	lr.ociLobLocator, lr.ses = nil, nil
 	if lr.interrupted {
 		ses.log(_drv.Cfg().Log.Ses.Close, "lobClose interrupted")
 		ses.Break()
 	}
+	lr.Unlock()
 	//Log.Infof("lobReader OCILobClose %p", lr.ociLobLocator)
 	return lobClose(ses, lob)
 }
@@ -234,6 +262,8 @@ func (lr *lobReader) Close() error {
 // Read into p, the next chunk.
 // Will open the LOB at the first call.
 func (lr *lobReader) Read(p []byte) (n int, err error) {
+	lr.Lock()
+	defer lr.Unlock()
 	if lr == nil || lr.ociLobLocator == nil {
 		return 0, io.EOF
 	}
