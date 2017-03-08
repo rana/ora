@@ -6,6 +6,7 @@ package ora_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -433,6 +434,12 @@ Læringsutbytte - Kunnskap:
 
 Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og holdninger - se Undervisningsplan for praksissstudier 3. studieår`,
 	}
+
+	for i := 0; i < 100; i++ {
+		nm := fmt.Sprintf("RND-%04d", i)
+		testCases[nm] = strings.Repeat(base64.URLEncoding.EncodeToString([]byte(nm)), i+1)
+	}
+
 	qry = `INSERT INTO ` + tbl + `
   (INSTITUSJONSNR, EMNEKODE, VERSJONSKODE, INFOTYPEKODE, SPRAKKODE, TERMINKODE_FRA, ARSTALL_FRA, TERMINKODE_TIL, ARSTALL_TIL, INFOTEKST, INFOTEKST_ORIGINAL, INSTITUSJONSNR_EIER)
   VALUES
@@ -442,6 +449,8 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 			t.Fatal(nm, qry, err)
 		}
 	}
+
+	testDb.Exec("CREATE UNIQUE INDEX K_" + tbl + " ON " + tbl + "(emnekode)")
 
 	type EmneInfo struct {
 		InstitusjonsNr     ora.Int64
@@ -458,9 +467,11 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 		InstitusjonsNrEier ora.Int64
 	}
 
+	//enableLogging(t)
+
 	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
 	var wg sync.WaitGroup
-	for i := 0; i < runtime.NumCPU()+1; i++ {
+	for i := 0; i < runtime.NumCPU()+2; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -508,12 +519,13 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 						b, err := json.Marshal(info)
 						//t.Log(nm, "info:", string(b))
 						if err != nil {
-							t.Fatal(nm, info, err)
+							rst.Exhaust()
+							t.Fatalf("%s: %#v: %v", nm, info, err)
 						}
 						results = append(results, string(b))
 					}
 					if err := rst.Err(); err != nil {
-						t.Fatal(nm, err)
+						t.Fatal(nm, "rst.Err:", err)
 					}
 					if len(results) == 0 {
 						t.Fatal(nm, "no rows found!")
