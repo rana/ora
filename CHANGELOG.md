@@ -4,6 +4,7 @@
 
 ## v4.1.5 ##
   * Fix reconnection when disconnected from Oracle (return driver.ErrBadConn).
+  * Fix LOB reading error happening only spuriously, under pressure - issue 159.
 
 ## v4.1.4 ##
   * Fix LOB reading (issue #159).
