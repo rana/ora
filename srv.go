@@ -23,9 +23,28 @@ type SrvCfg struct {
 	// or a service point.
 	Dblink string
 
+	Pool PoolCfg
+
 	// StmtCfg configures new Stmts.
 	StmtCfg
 }
+
+type PoolCfg struct {
+	Type           PoolType
+	Name           string
+	Username       string
+	Password       string
+	Min, Max, Incr uint32
+}
+
+type PoolType uint8
+
+const (
+	NoPool = PoolType(iota)
+	CPool
+	SPool
+	DRCPool
+)
 
 func (c SrvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
 
@@ -66,6 +85,13 @@ type Srv struct {
 	env    *Env
 	ocisrv *C.OCIServer
 	isUTF8 int32
+
+	cDblink        *C.OraText
+	cDblinkLen     C.ub4
+	ocipool        unsafe.Pointer
+	ociPoolName    *C.OraText
+	ociPoolNameLen C.ub4
+	poolType       PoolType
 
 	openSess *sesList
 
@@ -247,6 +273,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 		return nil, errE(err)
 	}
 
+	if srv.poolType == NoPool {
 	mode := C.ub4(C.OCI_DEFAULT)
 	switch cfg.Mode {
 	case SysDba:
@@ -256,12 +283,20 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	}
 	// begin session
 	srv.RLock()
-	r := C.OCISessionBegin(
-		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
+	r := C.OCISessionGet(
+		srv.env.ocienv,            //OCIEnv    *envhp,
 		srv.env.ocierr,            //OCIError      *errhp,
-		(*C.OCISession)(ocises),   //OCISession    *usrhp,
-		credentialType,            //ub4           credt,
-		mode)                      //ub4           mode );
+		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
+		authInfo,                  //OCIAuthInfo       *authInfop,
+		srv.cDblink,               //                      OraText           *dbName,
+		srv.cDblinkLen,            //							                        ub4               dbName_len,
+		0,                         //												                      CONST OraText     *tagInfo,
+		0,                         //																                        ub4               tagInfo_len,
+		0,                         //																								                      OraText           **retTagInfo,
+		0,                         //																												                        ub4               *retTagInfo_len,
+		0,                         //																																	                      boolean           *found,
+		mode,
+	) //ub4           mode );
 	srv.RUnlock()
 	if r == C.OCI_ERROR {
 		return nil, errE(srv.env.ociError())
