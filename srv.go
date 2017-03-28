@@ -86,8 +86,6 @@ type Srv struct {
 	ocisrv *C.OCIServer
 	isUTF8 int32
 
-	cDblink        *C.OraText
-	cDblinkLen     C.ub4
 	ocipool        unsafe.Pointer
 	ociPoolName    *C.OraText
 	ociPoolNameLen C.ub4
@@ -166,6 +164,10 @@ func (srv *Srv) close() (err error) {
 		srv.Lock()
 		srv.env = nil
 		srv.ocisrv = nil
+		srv.ocipool = nil
+		srv.ociPoolName = nil
+		srv.ociPoolNameLen = 0
+		srv.poolType = NoPool
 		srv.Unlock()
 		_drv.srvPool.Put(srv)
 
@@ -215,26 +217,67 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 		return nil, er("srv may not be nil.")
 	}
 	srv.log(_drv.Cfg().Log.Srv.OpenSes)
-	err = srv.checkClosed()
-	if err != nil {
-		return nil, errE(err)
-	}
-	// allocate session handle
-	ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
-	if err != nil {
-		return nil, errE(err)
-	}
+
 	credentialType := C.ub4(C.OCI_CRED_EXT)
+
+	var ocises, authInfo unsafe.Pointer
+	poolType := NoPool
+	if (srv.poolType == CPool && cfg.Mode != SysDba && cfg.Mode != SysOper) ||
+		((srv.poolType == DRCPool || srv.poolType == SPool) && cfg.Mode != SysOper) {
+		poolType = srv.poolType
+		authInfo, err := srv.env.allocOciHandle(C.OCI_HTYPE_AUTHINFO)
+		if err != nil {
+			return nil, errE(err)
+		}
+		credentialType = C.OCI_SESSGET_CREDEXT
+		ocises = authInfo
+	} else {
+		err = srv.checkClosed()
+		if err != nil {
+			return nil, errE(err)
+		}
+		// allocate session handle
+		ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
+		if err != nil {
+			return nil, errE(err)
+		}
+
+		//srv.logF(true, "CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
+		// set driver name on the session handle
+		// driver name is specified to aid diagnostics; max 9 single-byte characters
+		// driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO as CLIENT_DRIVER
+		drvName := fmt.Sprintf("GO%s", Version)
+		cDrvName := C.CString(drvName)
+		defer C.free(unsafe.Pointer(cDrvName))
+		if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
+			unsafe.Pointer(cDrvName), C.ub4(len(drvName)), C.OCI_ATTR_DRIVER_NAME,
+		); err != nil {
+			return nil, errE(err)
+		}
+		// http://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
+		// Set LOB prefetch size to chunk size
+		lobPrefetchSize := C.ub4(lobChunkSize)
+		if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
+			unsafe.Pointer(&lobPrefetchSize), C.ub4(0), C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE,
+		); err != nil {
+			return nil, errE(err)
+		}
+	}
+
 	if cfg.Username != "" || cfg.Password != "" {
 		credentialType = C.OCI_CRED_RDBMS
-		// set username on session handle
+		if poolType != NoPool {
+			credentialType = C.OCI_DEFAULT
+		}
+
+		// set username on session handle (authInfo)
 		cUsername := C.CString(cfg.Username)
 		defer C.free(unsafe.Pointer(cUsername))
 		err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cUsername), C.ub4(len(cfg.Username)), C.OCI_ATTR_USERNAME)
 		if err != nil {
 			return nil, errE(err)
 		}
-		// set password on session handle
+		// set password on session handle (authInfo)
 		cPassword := C.CString(cfg.Password)
 		defer C.free(unsafe.Pointer(cPassword))
 		err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION, unsafe.Pointer(cPassword), C.ub4(len(cfg.Password)), C.OCI_ATTR_PASSWORD)
@@ -242,6 +285,7 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 			return nil, errE(err)
 		}
 	}
+
 	// allocate service context handle
 	ocisvcctx, err := srv.env.allocOciHandle(C.OCI_HTYPE_SVCCTX)
 	if err != nil {
@@ -252,59 +296,76 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	if err != nil {
 		return nil, errE(err)
 	}
-	//srv.logF(true, "CRED_EXT? %t username=%q", credentialType == C.OCI_CRED_EXT, username)
-	// set driver name on the session handle
-	// driver name is specified to aid diagnostics; max 9 single-byte characters
-	// driver name will be visible in V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO as CLIENT_DRIVER
-	drvName := fmt.Sprintf("GO%s", Version)
-	cDrvName := C.CString(drvName)
-	defer C.free(unsafe.Pointer(cDrvName))
-	if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
-		unsafe.Pointer(cDrvName), C.ub4(len(drvName)), C.OCI_ATTR_DRIVER_NAME,
-	); err != nil {
-		return nil, errE(err)
-	}
-	// http://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
-	// Set LOB prefetch size to chunk size
-	lobPrefetchSize := C.ub4(lobChunkSize)
-	if err = srv.env.setAttr(ocises, C.OCI_HTYPE_SESSION,
-		unsafe.Pointer(&lobPrefetchSize), C.ub4(0), C.OCI_ATTR_DEFAULT_LOBPREFETCH_SIZE,
-	); err != nil {
-		return nil, errE(err)
+
+	mode := C.ub4(C.OCI_DEFAULT)
+
+	var r C.sword
+	// begin session
+	switch poolType {
+	case CPool:
+		mode = C.OCI_DEFAULT | C.OCI_SESSGET_CPOOL | credentialType
+	case DRCPool, SPool:
+		mode = C.OCI_DEFAULT | C.OCI_SESSGET_SPOOL | credentialType
+		if cfg.Mode == SysDba {
+			mode |= C.OCI_SESSGET_SYSDBA
+		}
+	default:
+		switch cfg.Mode {
+		case SysDba:
+			mode |= C.OCI_SYSDBA
+		case SysOper:
+			mode |= C.OCI_SYSOPER
+		}
 	}
 
-	if srv.poolType == NoPool {
-	mode := C.ub4(C.OCI_DEFAULT)
-	switch cfg.Mode {
-	case SysDba:
-		mode |= C.OCI_SYSDBA
-	case SysOper:
-		mode |= C.OCI_SYSOPER
-	}
-	// begin session
-	srv.RLock()
-	r := C.OCISessionGet(
-		srv.env.ocienv,            //OCIEnv    *envhp,
-		srv.env.ocierr,            //OCIError      *errhp,
-		(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
-		authInfo,                  //OCIAuthInfo       *authInfop,
-		srv.cDblink,               //                      OraText           *dbName,
-		srv.cDblinkLen,            //							                        ub4               dbName_len,
-		0,                         //												                      CONST OraText     *tagInfo,
-		0,                         //																                        ub4               tagInfo_len,
-		0,                         //																								                      OraText           **retTagInfo,
-		0,                         //																												                        ub4               *retTagInfo_len,
-		0,                         //																																	                      boolean           *found,
-		mode,
-	) //ub4           mode );
-	srv.RUnlock()
-	if r == C.OCI_ERROR {
-		return nil, errE(srv.env.ociError())
-	}
-	// set session handle on service context handle
-	err = srv.env.setAttr(unsafe.Pointer(ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
-	if err != nil {
-		return nil, errE(err)
+	if poolType != NoPool {
+		srv.RLock()
+		r = C.OCISessionGet(
+			srv.env.ocienv,                              //OCIEnv    *envhp,
+			srv.env.ocierr,                              //OCIError      *errhp,
+			(**C.OCISvcCtx)(unsafe.Pointer(&ocisvcctx)), //OCISvcCtx     *svchp,
+			(*C.OCIAuthInfo)(authInfo),                  //OCIAuthInfo       *authInfop,
+			srv.ociPoolName,                             //OraText           *dbName,
+			srv.ociPoolNameLen,                          //ub4               dbName_len,
+			nil,                                         //CONST OraText     *tagInfo,
+			0,                                           //ub4               tagInfo_len,
+			nil,                                         //OraText           **retTagInfo,
+			nil,                                         //ub4               *retTagInfo_len,
+			nil,                                         //boolean           *found,
+			mode,                                        //ub4           mode );
+		)
+		srv.RUnlock()
+		if r == C.OCI_ERROR {
+			return nil, errE(srv.env.ociError())
+		}
+		r = C.OCIAttrGet(
+			ocisvcctx,               //const void     *trgthndlp,
+			C.OCI_HTYPE_SVCCTX,      //ub4            trghndltyp,
+			unsafe.Pointer(&ocises), //void           *attributep,
+			nil,                //ub4            *sizep,
+			C.OCI_ATTR_SESSION, //ub4            attrtype,
+			srv.env.ocierr)     //OCIError       *errhp );
+		if r == C.OCI_ERROR {
+			return nil, errE(srv.env.ociError())
+		}
+	} else {
+		srv.RLock()
+		r = C.OCISessionBegin(
+			(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
+			srv.env.ocierr,            //OCIError      *errhp,
+			(*C.OCISession)(ocises),   //OCISession    *usrhp,
+			credentialType,            //ub4           credt,
+			mode,                      //ub4           mode,
+		)
+		srv.RUnlock()
+		if r == C.OCI_ERROR {
+			return nil, errE(srv.env.ociError())
+		}
+		// set session handle on service context handle
+		err = srv.env.setAttr(unsafe.Pointer(ocisvcctx), C.OCI_HTYPE_SVCCTX, ocises, C.ub4(0), C.OCI_ATTR_SESSION)
+		if err != nil {
+			return nil, errE(err)
+		}
 	}
 	// set stmt cache size to zero
 	// https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655

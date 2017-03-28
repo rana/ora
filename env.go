@@ -258,7 +258,6 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	srv.ocipool = ocipool
 	srv.poolType = cfg.Pool.Type
 	srv.ociPoolName, srv.ociPoolNameLen = poolName, poolNameLen
-	srv.cDblink, srv.cDblinkLen = cDblink, C.ub4(len(cfg.Dblink))
 	srv.Unlock()
 	srv.SetCfg(cfg)
 	if cfg.StmtCfg.IsZero() && !srv.env.Cfg().IsZero() {
