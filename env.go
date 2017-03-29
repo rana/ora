@@ -293,7 +293,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	}
 	dsn = strings.TrimSpace(dsn)
 
-	srvCfg := SrvCfg{StmtCfg: env.Cfg()}
+	srvCfg := SrvCfg{StmtCfg: env.Cfg(), Pool: DSNPool(dsn)}
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	srv, err := env.OpenSrv(srvCfg)
@@ -486,6 +486,7 @@ func (env *Env) setAttr(
 		attributeType, //ub4         attrtype,
 		env.ocierr)    //OCIError    *errhp );
 	if r == C.OCI_ERROR {
+		panic(errE(env.ociError()))
 		return errE(env.ociError())
 	}
 	return nil

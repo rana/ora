@@ -29,23 +29,6 @@ type SrvCfg struct {
 	StmtCfg
 }
 
-type PoolCfg struct {
-	Type           PoolType
-	Name           string
-	Username       string
-	Password       string
-	Min, Max, Incr uint32
-}
-
-type PoolType uint8
-
-const (
-	NoPool = PoolType(iota)
-	CPool
-	SPool
-	DRCPool
-)
-
 func (c SrvCfg) IsZero() bool { return c.StmtCfg.IsZero() }
 
 // LogSrvCfg represents Srv logging configuration values.
@@ -184,10 +167,27 @@ func (srv *Srv) close() (err error) {
 	// detach server
 	srv.RLock()
 	env := srv.env
-	r := C.OCIServerDetach(
-		srv.ocisrv,    //OCIServer   *srvhp,
-		env.ocierr,    //OCIError    *errhp,
-		C.OCI_DEFAULT) //ub4         mode );
+	var r C.sword
+	switch srv.poolType {
+	case CPool:
+		r = C.OCIConnectionPoolDestroy(
+			(*C.OCICPool)(srv.ocipool), //OCICPool     *poolhp,
+			env.ocierr,                 //OCIError     *errhp,
+			C.OCI_DEFAULT,              //ub4          mode );
+		)
+	case SPool, DRCPool:
+		r = C.OCISessionPoolDestroy(
+			(*C.OCISPool)(srv.ocipool), //OCISPool     *spoolhp,
+			env.ocierr,                 //OCIError     *errhp,
+			C.OCI_DEFAULT,              //ub4          mode );
+		)
+	default:
+		r = C.OCIServerDetach(
+			srv.ocisrv,    //OCIServer   *srvhp,
+			env.ocierr,    //OCIError    *errhp,
+			C.OCI_DEFAULT, //ub4         mode );
+		)
+	}
 	ocisrv := srv.ocisrv
 	srv.RUnlock()
 	if r == C.OCI_ERROR {
@@ -225,20 +225,17 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 	if (srv.poolType == CPool && cfg.Mode != SysDba && cfg.Mode != SysOper) ||
 		((srv.poolType == DRCPool || srv.poolType == SPool) && cfg.Mode != SysOper) {
 		poolType = srv.poolType
-		authInfo, err := srv.env.allocOciHandle(C.OCI_HTYPE_AUTHINFO)
-		if err != nil {
+		if authInfo, err = srv.env.allocOciHandle(C.OCI_HTYPE_AUTHINFO); err != nil {
 			return nil, errE(err)
 		}
 		credentialType = C.OCI_SESSGET_CREDEXT
 		ocises = authInfo
 	} else {
-		err = srv.checkClosed()
-		if err != nil {
+		if err = srv.checkClosed(); err != nil {
 			return nil, errE(err)
 		}
 		// allocate session handle
-		ocises, err := srv.env.allocOciHandle(C.OCI_HTYPE_SESSION)
-		if err != nil {
+		if ocises, err = srv.env.allocOciHandle(C.OCI_HTYPE_SESSION); err != nil {
 			return nil, errE(err)
 		}
 
@@ -318,7 +315,8 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 		}
 	}
 
-	if poolType != NoPool {
+	switch poolType {
+	case CPool, SPool, DRCPool:
 		srv.RLock()
 		r = C.OCISessionGet(
 			srv.env.ocienv,                              //OCIEnv    *envhp,
@@ -348,7 +346,8 @@ func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error) {
 		if r == C.OCI_ERROR {
 			return nil, errE(srv.env.ociError())
 		}
-	} else {
+
+	default:
 		srv.RLock()
 		r = C.OCISessionBegin(
 			(*C.OCISvcCtx)(ocisvcctx), //OCISvcCtx     *svchp,
