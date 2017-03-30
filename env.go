@@ -194,6 +194,8 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 		)
 		env.RUnlock()
 		if r == C.OCI_ERROR {
+			err := env.ociError()
+			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("ConnectionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
 			C.free(unsafe.Pointer(cDblink))
 			env.freeOciHandle(ocipool, C.OCI_HTYPE_CPOOL)
 			return nil, errE(err)
@@ -206,6 +208,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 			C.free(unsafe.Pointer(cDblink))
 			return nil, errE(err)
 		}
+
 		env.RLock()
 		r := C.OCISessionPoolCreate(
 			env.ocienv,                               // OCIEnv           *envhp,
@@ -226,6 +229,8 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 		)
 		env.RUnlock()
 		if r == C.OCI_ERROR {
+			err := env.ociError()
+			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("SessionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
 			C.free(unsafe.Pointer(cDblink))
 			env.freeOciHandle(ocipool, C.OCI_HTYPE_SPOOL)
 			return nil, errE(err)
@@ -298,6 +303,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
+		fmt.Printf("OpenSrv(%#v): %+v", srvCfg, err)
 		return nil, errE(err)
 	}
 	ses, err := srv.OpenSes(sesCfg)

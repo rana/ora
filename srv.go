@@ -1,4 +1,4 @@
-// Copyright 2015 Rana Ian. All rights reserved.
+// Copyright 2017 Rana Ian. All rights reserved.
 // Use of this source code is governed by The MIT License
 // found in the accompanying LICENSE file.
 

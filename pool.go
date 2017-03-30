@@ -411,7 +411,9 @@ func DSNMode(str string) SessionMode {
 // DSNPool returns the Pool config from dsn.
 func DSNPool(str string) PoolCfg {
 	if strings.HasSuffix(str, ":POOLED") || strings.Contains(str, "(SERVER=POOLED)") {
-		return PoolCfg{Type: DRCPool}
+		pc := PoolCfg{Type: DRCPool, Min: 1, Max: 999, Incr: 1}
+		pc.Username, pc.Password, _ = SplitDSN(str)
+		return pc
 	}
 	return PoolCfg{}
 }
