@@ -11,7 +11,7 @@ Package ora implements an Oracle database driver.
     import (
     	"database/sql"
 
-    	_ "gopkg.in/rana/ora.v4"
+    	"gopkg.in/rana/ora.v4"
     )
 
     func main() {
