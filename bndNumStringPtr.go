@@ -26,9 +26,9 @@ type bndNumStringPtr struct {
 func (bnd *bndNumStringPtr) bind(value *Num, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
-	bnd.nullp.Set(value == nil)
+	bnd.nullp.Set(value == nil || *value == "")
 	length := C.ub4(0)
-	if value != nil {
+	if value != nil && *value != "" {
 		length = C.ub4(copy(bnd.buf[:], string(*value)))
 		fmt.Printf("NumberFromtext %q [%d]\n", value, length)
 		if err := bnd.stmt.ses.srv.env.numberFromText(&bnd.ociNumber[0], string(*value)); err != nil {

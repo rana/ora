@@ -792,6 +792,22 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 			stmt.hasPtrBind = true
+		case *Num:
+			bnd := stmt.getBnd(bndIdxNumStringPtr).(*bndNumStringPtr)
+			bnds[n] = bnd
+			err = bnd.bind(value, pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *OraNum:
+			bnd := stmt.getBnd(bndIdxNumStringPtr).(*bndNumStringPtr)
+			bnds[n] = bnd
+			err = bnd.bind((*Num)(&value.Value), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
 
 		case []int64:
 			bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)

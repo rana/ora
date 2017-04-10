@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	_ "net/http/pprof"
 
@@ -3636,4 +3637,25 @@ func TestGetDriverName(t *testing.T) {
 			t.Logf("%d: %s/%s/%s/%s", sid, program, module, action, clientInfo)
 		}
 	}
+}
+func TestFloat64Prec(t *testing.T) {
+	var v0 float64 = 123456789.0123456789
+	var v1 float64
+	t.Logf("v0 = %.12f = %g", v0, v0)
+	_, err := testSes.PrepAndExe("begin :1 := 123456789.0123456789; end;", &v1)
+	if err != nil {
+		t.Fatalf("1 - %v", err)
+	}
+
+	t.Logf("v1 = %.12f = %g", v1, v1)
+	t.Logf("v0 internal: %064s\n", strconv.FormatUint((*(*uint64)(unsafe.Pointer(&v0))), 2))
+	t.Logf("v1 internal: %064s\n", strconv.FormatUint((*(*uint64)(unsafe.Pointer(&v1))), 2))
+
+	var v3 ora.OraNum
+	//enableLogging(t)
+	_, err = testSes.PrepAndExe("begin :1 := 123456789.0123456789; end;", &v3)
+	if err != nil {
+		t.Fatalf("2 - %v", err)
+	}
+	t.Logf("v3 = %s = %#v", v3, v3)
 }
