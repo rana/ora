@@ -982,6 +982,13 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+		case []OCINum:
+			bnd := stmt.getBnd(bndIdxOCINumSlice).(*bndOCINumSlice)
+			bnds[n] = bnd
+			iterations, err = bnd.bind(value, nil, pos, stmt, isAssocArray)
+			if err != nil {
+				return iterations, err
+			}
 
 		case []Int64:
 			bnd := stmt.getBnd(bndIdxInt64Slice).(*bndInt64Slice)
