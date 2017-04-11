@@ -10,11 +10,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-
-	"gopkg.in/rana/ora.v4/num"
-)
+import "unsafe"
 
 type defOCINum struct {
 	ociDef
@@ -38,14 +34,12 @@ func (def *defOCINum) value(offset int) (value interface{}, err error) {
 		}
 		return nil, nil
 	}
-	length := int(def.ociNumber[offset].OCINumberPart[0])
-	num := num.OCINum(((*[C.OCI_NUMBER_SIZE]byte)(
-		unsafe.Pointer(&def.ociNumber[offset].OCINumberPart[1]),
-	))[:length])
+	var num OCINum
+	num.FromC(def.ociNumber[offset])
 	if def.isNullable {
-		return OraOCINum{Value: num}, nil
+		return OraOCINum{Value: num.OCINum}, nil
 	}
-	return OCINum{OCINum: num}, nil
+	return OCINum{OCINum: num.OCINum}, nil
 }
 
 func (def *defOCINum) alloc() error { return nil }

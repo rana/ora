@@ -11,11 +11,11 @@ package num
 //import "C"
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // OCINum is an OCINumber
@@ -39,6 +39,12 @@ If you specify the datatype code 2 in the dty parameter of an OCIDefineByPos() c
 //
 // So the number is stored as sign * significand * 100^exponent where significand is in 1.xxx format.
 type OCINum []byte
+
+var (
+	ErrTooLong      = errors.New("input string too long")
+	ErrNoDigit      = errors.New("no digit found")
+	ErrBadCharacter = errors.New("bad character")
+)
 
 // IsNull returns whether the underlying number is NULL.
 func (num OCINum) IsNull() bool { return len(num) < 2 }
@@ -135,7 +141,7 @@ func (num OCINum) Print(buf []byte) []byte {
 	return res
 }
 
-var bytesPool = sync.Pool{New: func() interface{} { return make([]byte, 0, 4) }}
+var bytesPool = sync.Pool{New: func() interface{} { return make([]byte, 0, 42) }}
 
 // String returns the string representation of the number.
 func (num OCINum) String() string {
@@ -160,7 +166,7 @@ func (num *OCINum) SetString(s string) error {
 		if '0' <= r && r <= '9' {
 			numCount++
 			if numCount == 40 {
-				return errors.New("input string too long")
+				return errors.Wrapf(ErrTooLong, "got %d, max 39 (%q)", numCount, s)
 			}
 			if r != '0' {
 				nonZeros++
@@ -174,10 +180,10 @@ func (num *OCINum) SetString(s string) error {
 			dotSeen = true
 			continue
 		}
-		return fmt.Errorf("bad character %c in %q", r, s)
+		return errors.Wrapf(ErrBadCharacter, "%c in %q", r, s)
 	}
 	if numCount == 0 {
-		return errors.New("no digit found")
+		return errors.Wrap(ErrNoDigit, s)
 	}
 	if nonZeros == 0 {
 		*num = OCINum([]byte{128})

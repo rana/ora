@@ -3666,4 +3666,27 @@ func TestFloat64Prec(t *testing.T) {
 		t.Fatalf("3 - %v", err)
 	}
 	t.Logf("v4 = %s = %#v", v4, v4)
+
+	oCfg := testSes.Cfg()
+	defer testSes.SetCfg(oCfg)
+	testSes.SetCfg(oCfg.
+		SetNumberInt(ora.OraN).
+		SetNumberBigInt(ora.OraN).
+		SetNumberFloat(ora.OraN).
+		SetNumberBigFloat(ora.OraN).
+		SetBinaryDouble(ora.OraN).
+		SetBinaryFloat(ora.OraN).
+		SetFloat(ora.OraN))
+	v := "-23452342342423423423423.12345678901234567"
+	rset, err := testSes.PrepAndQry(fmt.Sprintf("select dump(%s), %s from dual", v, v))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rset.Next() {
+		t.Log("Original Value - ", v)
+		t.Log("Value from     - ", rset.Row[1])
+		t.Log("Column type    - ", reflect.TypeOf(rset.Row[1]))
+		t.Log("Dump from DB   - ", rset.Row[0])
+		t.Log("Dump from ora.OraOCINum -    ", []byte(rset.Row[1].(ora.OraOCINum).Value))
+	}
 }
