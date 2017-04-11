@@ -40,6 +40,9 @@ If you specify the datatype code 2 in the dty parameter of an OCIDefineByPos() c
 // So the number is stored as sign * significand * 100^exponent where significand is in 1.xxx format.
 type OCINum []byte
 
+// IsNull returns whether the underlying number is NULL.
+func (num OCINum) IsNull() bool { return len(num) < 2 }
+
 // Print the number into the given byte slice.
 //
 //

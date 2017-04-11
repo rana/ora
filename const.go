@@ -162,6 +162,7 @@ const (
 	bndIdxFloat64
 	bndIdxFloat32
 	bndIdxNumString
+	bndIdxOCINum
 
 	bndIdxInt64Ptr
 	bndIdxInt32Ptr
@@ -174,6 +175,7 @@ const (
 	bndIdxFloat64Ptr
 	bndIdxFloat32Ptr
 	bndIdxNumStringPtr
+	bndIdxOCINumPtr
 
 	bndIdxInt64Slice
 	bndIdxInt32Slice
@@ -186,6 +188,7 @@ const (
 	bndIdxFloat64Slice
 	bndIdxFloat32Slice
 	bndIdxNumStringSlice
+	bndIdxOCINumSlice
 
 	bndIdxTime
 	bndIdxTimePtr

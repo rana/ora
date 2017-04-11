@@ -712,6 +712,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case OCINum:
+			bnd := stmt.getBnd(bndIdxOCINum).(*bndOCINum)
+			bnds[n] = bnd
+			err = bnd.bind(value, pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+
 		case *int64:
 			bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
 			bnds[n] = bnd
@@ -804,6 +812,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			bnd := stmt.getBnd(bndIdxNumStringPtr).(*bndNumStringPtr)
 			bnds[n] = bnd
 			err = bnd.bind((*Num)(&value.Value), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
+		case *OCINum:
+			bnd := stmt.getBnd(bndIdxOCINumPtr).(*bndOCINumPtr)
+			bnds[n] = bnd
+			err = bnd.bind(value, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}

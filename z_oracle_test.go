@@ -3658,4 +3658,12 @@ func TestFloat64Prec(t *testing.T) {
 		t.Fatalf("2 - %v", err)
 	}
 	t.Logf("v3 = %s = %#v", v3, v3)
+
+	var v4 ora.OCINum
+	enableLogging(t)
+	_, err = testSes.PrepAndExe("begin :1 := 123456789.0123456789; end;", &v4)
+	if err != nil {
+		t.Fatalf("3 - %v", err)
+	}
+	t.Logf("v4 = %s = %#v", v4, v4)
 }
