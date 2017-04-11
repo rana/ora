@@ -488,6 +488,12 @@ func (n OCINum) String() string {
 	return s
 }
 
+// Value returns the driver.Value as required by database/sql.
+// So OCINum is allowed as a parameter to Scan.
+func (n OCINum) Value() (driver.Value, error) {
+	return n.String(), nil
+}
+
 type OraOCINum struct {
 	IsNull bool
 	Value  num.OCINum
