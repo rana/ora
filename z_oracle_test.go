@@ -3667,6 +3667,15 @@ func TestFloat64Prec(t *testing.T) {
 	}
 	t.Logf("v4 = %s = %#v", v4, v4)
 
+	var v5 ora.Num
+	qry := "begin SELECT 1 INTO :2 FROM DUAL; end;"
+	_, err = testSes.PrepAndExe(qry, &v5)
+	if err != nil {
+		t.Errorf("4 - %q: %v", qry, err)
+		return
+	}
+	t.Logf("v5 = %s = %#v", v5, v5)
+
 	oCfg := testSes.Cfg()
 	defer testSes.SetCfg(oCfg)
 	testSes.SetCfg(oCfg.
@@ -3689,4 +3698,5 @@ func TestFloat64Prec(t *testing.T) {
 		t.Log("Dump from DB   - ", rset.Row[0])
 		t.Log("Dump from ora.OraOCINum -    ", []byte(rset.Row[1].(ora.OraOCINum).Value))
 	}
+
 }
