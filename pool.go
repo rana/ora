@@ -314,11 +314,14 @@ func (p *SesPool) Put(ses *Ses) {
 }
 
 type poolEvictor struct {
+	// evict duration, in seconds
+	// MUST be the first element in the struct, as used in atomic.
+	evictDurSec uint32
+
 	Evict func(time.Duration)
 
 	sync.Mutex
-	evictDurSec uint32 // evict duration, in seconds
-	tickerCh    chan *time.Ticker
+	tickerCh chan *time.Ticker
 }
 
 // Set the eviction duration to the given.

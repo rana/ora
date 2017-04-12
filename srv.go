@@ -58,6 +58,10 @@ func NewLogSrvCfg() LogSrvCfg {
 
 // Srv represents an Oracle server.
 type Srv struct {
+	// is UTF8?
+	// MUST be the first element in the struct, as used in atomic.
+	isUTF8 int32
+
 	sync.RWMutex
 
 	id     uint64
@@ -65,7 +69,6 @@ type Srv struct {
 	cfg    atomic.Value
 	env    *Env
 	ocisrv *C.OCIServer
-	isUTF8 int32
 
 	openSess *sesList
 
