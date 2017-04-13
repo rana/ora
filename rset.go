@@ -77,10 +77,6 @@ func NewLogRsetCfg() LogRsetCfg {
 // Opening and closing a Rset is managed internally. Rset doesn't have an Open
 // method or Close method.
 type Rset struct {
-	// index of the row.
-	// MUST be the first element in the struct, as used in atomic.
-	index int64
-
 	sync.RWMutex
 
 	id uint64
@@ -96,6 +92,7 @@ type Rset struct {
 
 	Row             []interface{}
 	Columns         []Column
+	index           int64
 	err             error
 	fetched, offset int64
 	fetchLen        int
