@@ -92,7 +92,7 @@ type Rset struct {
 
 	Row             []interface{}
 	Columns         []Column
-	index           int64
+	index           int32
 	err             error
 	fetched, offset int64
 	fetchLen        int
@@ -119,7 +119,7 @@ func (rset *Rset) Err() error {
 
 // Len returns the number of rows retrieved.
 func (rset *Rset) Len() int {
-	return int(atomic.LoadInt64(&rset.index)) + 1
+	return int(atomic.LoadInt32(&rset.index)) + 1
 }
 
 // checkIsOpen validates that the result set is open.
@@ -183,7 +183,6 @@ func (rset *Rset) close() (err error) {
 	rset.stmt = nil
 	rset.ocistmt = nil
 	rset.defs = nil
-	//rset.index = -1  // either reset it, or use it after rset.Next() returned false (io.EOF)
 	rset.Row = nil
 	rset.Columns = nil
 	rset.Unlock()
@@ -209,7 +208,7 @@ func (rset *Rset) beginRow() (err error) {
 
 	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", fetched, offset, finished)
 	if fetched > 0 && fetched > offset {
-		atomic.AddInt64(&rset.index, 1)
+		atomic.AddInt32(&rset.index, 1)
 		return nil
 	}
 	if finished {
@@ -280,7 +279,7 @@ func (rset *Rset) beginRow() (err error) {
 		rset.finished = true
 		err = io.EOF
 	} else {
-		rset.index++
+		atomic.AddInt32(&rset.index, 1)
 	}
 	rset.Unlock()
 
@@ -417,7 +416,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.Lock()
 	rset.stmt = stmt
 	rset.ocistmt = ocistmt
-	rset.index = -1
+	atomic.StoreInt32(&rset.index, -1)
 	rset.offset = 0
 	rset.fetched = 0
 	rset.finished = false
