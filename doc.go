@@ -1235,7 +1235,7 @@ So if you need performance more than correctness, start your programs with
 
 License
 
-Copyright 2016 Rana Ian, Tamás Gulácsi. All rights reserved.
+Copyright 2017 Rana Ian, Tamás Gulácsi. All rights reserved.
 Use of this source code is governed by The MIT License
 found in the accompanying LICENSE file.
 

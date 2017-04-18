@@ -150,17 +150,105 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	}
 	// attach to server
 	cDblink := C.CString(cfg.Dblink)
-	env.RLock()
-	r := C.OCIServerAttach(
-		(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
-		env.ocierr,                            //OCIError      *errhp,
-		(*C.OraText)(unsafe.Pointer(cDblink)), //const OraText *dblink,
-		C.sb4(len(cfg.Dblink)),                //sb4           dblink_len,
-		C.OCI_DEFAULT)                         //ub4           mode);
-	env.RUnlock()
-	C.free(unsafe.Pointer(cDblink))
-	if r == C.OCI_ERROR {
-		return nil, errE(env.ociError())
+
+	var (
+		poolName           *C.OraText
+		poolNameLen        C.ub4
+		ocipool            unsafe.Pointer
+		username, password *C.char
+	)
+
+	switch cfg.Pool.Type {
+	case CPool, SPool, DRCPool:
+		username, password = C.CString(cfg.Pool.Username), C.CString(cfg.Pool.Password)
+		defer func() {
+			C.free(unsafe.Pointer(username))
+			C.free(unsafe.Pointer(password))
+		}()
+	}
+
+	switch cfg.Pool.Type {
+	case CPool:
+		if ocipool, err = env.allocOciHandle(C.OCI_HTYPE_CPOOL); err != nil {
+			C.free(unsafe.Pointer(cDblink))
+			return nil, errE(err)
+		}
+		var pnl C.sb4
+		env.RLock()
+		r := C.OCIConnectionPoolCreate(
+			env.ocienv,                               // OCIEnv           *envhp,
+			env.ocierr,                               //           OCIError         *errhp,
+			(*C.OCICPool)(ocipool),                   //                       OCISPool         *spoolhp,
+			(**C.OraText)(unsafe.Pointer(&poolName)), //                        OraText          **poolName,
+			&pnl, //                       ub4              *poolNameLen,
+			(*C.OraText)(unsafe.Pointer(cDblink)),  //                        CONST OraText    *connStr,
+			C.sb4(len(cfg.Dblink)),                 //                        ub4              connStrLen,
+			C.ub4(cfg.Pool.Min),                    //                        ub4              sessMin,
+			C.ub4(cfg.Pool.Max),                    //                        ub4              sessMax,
+			C.ub4(cfg.Pool.Incr),                   //                        ub4              sessIncr,
+			(*C.OraText)(unsafe.Pointer(username)), //     OraText          *userid,
+			C.sb4(len(cfg.Pool.Username)),          //                        ub4              useridLen,
+			(*C.OraText)(unsafe.Pointer(password)), // OraText          *password,
+			C.sb4(len(cfg.Pool.Password)),          //            ub4              passwordLen,
+			C.OCI_DEFAULT,                          //                        ub4              mode
+		)
+		env.RUnlock()
+		if r == C.OCI_ERROR {
+			err := env.ociError()
+			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("ConnectionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
+			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(ocipool, C.OCI_HTYPE_CPOOL)
+			return nil, errE(err)
+		}
+		poolNameLen = C.ub4(pnl)
+
+	case SPool, DRCPool:
+		ocipool, err := env.allocOciHandle(C.OCI_HTYPE_SPOOL)
+		if err != nil {
+			C.free(unsafe.Pointer(cDblink))
+			return nil, errE(err)
+		}
+
+		env.RLock()
+		r := C.OCISessionPoolCreate(
+			env.ocienv,                               // OCIEnv           *envhp,
+			env.ocierr,                               //           OCIError         *errhp,
+			(*C.OCISPool)(ocipool),                   //                       OCISPool         *spoolhp,
+			(**C.OraText)(unsafe.Pointer(&poolName)), //                        OraText          **poolName,
+			&poolNameLen,                             //                       ub4              *poolNameLen,
+			(*C.OraText)(unsafe.Pointer(cDblink)),    //                        CONST OraText    *connStr,
+			C.ub4(len(cfg.Dblink)),                   //                        ub4              connStrLen,
+			C.ub4(cfg.Pool.Min),                      //                        ub4              sessMin,
+			C.ub4(cfg.Pool.Max),                      //                        ub4              sessMax,
+			C.ub4(cfg.Pool.Incr),                     //                        ub4              sessIncr,
+			(*C.OraText)(unsafe.Pointer(username)),   //     OraText          *userid,
+			C.ub4(len(cfg.Pool.Username)),            //                        ub4              useridLen,
+			(*C.OraText)(unsafe.Pointer(password)),   // OraText          *password,
+			C.ub4(len(cfg.Pool.Password)),            //            ub4              passwordLen,
+			C.OCI_DEFAULT,                            //                        ub4              mode
+		)
+		env.RUnlock()
+		if r == C.OCI_ERROR {
+			err := env.ociError()
+			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("SessionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
+			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(ocipool, C.OCI_HTYPE_SPOOL)
+			return nil, errE(err)
+		}
+
+	default:
+		env.RLock()
+		r := C.OCIServerAttach(
+			(*C.OCIServer)(ocisrv),                //OCIServer     *srvhp,
+			env.ocierr,                            //OCIError      *errhp,
+			(*C.OraText)(unsafe.Pointer(cDblink)), //const OraText *dblink,
+			C.sb4(len(cfg.Dblink)),                //sb4           dblink_len,
+			C.OCI_DEFAULT)                         //ub4           mode);
+		env.RUnlock()
+		if r == C.OCI_ERROR {
+			C.free(unsafe.Pointer(cDblink))
+			return nil, errE(env.ociError())
+		}
 	}
 
 	srv = _drv.srvPool.Get().(*Srv) // set *Srv
@@ -172,6 +260,9 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	if srv.id == 0 {
 		srv.id = _drv.srvId.nextId()
 	}
+	srv.ocipool = ocipool
+	srv.poolType = cfg.Pool.Type
+	srv.ociPoolName, srv.ociPoolNameLen = poolName, poolNameLen
 	srv.Unlock()
 	srv.SetCfg(cfg)
 	if cfg.StmtCfg.IsZero() && !srv.env.Cfg().IsZero() {
@@ -207,11 +298,12 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	}
 	dsn = strings.TrimSpace(dsn)
 
-	srvCfg := SrvCfg{StmtCfg: env.Cfg()}
+	srvCfg := SrvCfg{StmtCfg: env.Cfg(), Pool: DSNPool(dsn)}
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
+		fmt.Printf("OpenSrv(%#v): %+v", srvCfg, err)
 		return nil, errE(err)
 	}
 	ses, err := srv.OpenSes(sesCfg)
@@ -400,6 +492,7 @@ func (env *Env) setAttr(
 		attributeType, //ub4         attrtype,
 		env.ocierr)    //OCIError    *errhp );
 	if r == C.OCI_ERROR {
+		panic(errE(env.ociError()))
 		return errE(env.ociError())
 	}
 	return nil

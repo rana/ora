@@ -181,7 +181,6 @@ func maybeBadConn(err error) error {
 	if err == nil {
 		return nil
 	}
-	fmt.Printf("err=%#v %T\n", err, err)
 	// database/sql API expect driver.ErrBadConn to reconnect to the database
 	if cd, ok := err.(interface {
 		Code() int

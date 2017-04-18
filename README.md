@@ -11,7 +11,7 @@ Package ora implements an Oracle database driver.
     import (
     	"database/sql"
 
-    	"gopkg.in/rana/ora.v4"
+    	_ "gopkg.in/rana/ora.v4"
     )
 
     func main() {
@@ -1245,5 +1245,5 @@ So if you need performance more than correctness, start your programs with
 
 ### License
 
-Copyright 2016 Rana Ian, Tamás Gulácsi. All rights reserved. Use of this source
+Copyright 2017 Rana Ian, Tamás Gulácsi. All rights reserved. Use of this source
 code is governed by The MIT License found in the accompanying LICENSE file.

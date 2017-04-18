@@ -2,6 +2,7 @@
 
 ## master ##
   * Allow Num, OraNum and OCINum as bind parameters.
+  * Allow DRCP (Database Resident Connection Pooling).
 
 ## v4.1.5 ##
   * Fix reconnection when disconnected from Oracle (return driver.ErrBadConn).

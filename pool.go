@@ -12,6 +12,23 @@ import (
 	"time"
 )
 
+type PoolCfg struct {
+	Type           PoolType
+	Name           string
+	Username       string
+	Password       string
+	Min, Max, Incr uint32
+}
+
+type PoolType uint8
+
+const (
+	NoPool  = PoolType(0)
+	DRCPool = PoolType(1)
+	SPool   = PoolType(2)
+	CPool   = PoolType(3)
+)
+
 const (
 	DefaultPoolSize      = 4
 	DefaultEvictDuration = time.Minute
@@ -56,7 +73,7 @@ func NewPool(dsn string, size int) (*Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	srvCfg := SrvCfg{StmtCfg: NewStmtCfg()}
+	srvCfg := SrvCfg{StmtCfg: NewStmtCfg(), Pool: DSNPool(dsn)}
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	return env.NewPool(srvCfg, sesCfg, size), nil
@@ -391,6 +408,16 @@ func DSNMode(str string) SessionMode {
 	return SysDefault
 }
 
+// DSNPool returns the Pool config from dsn.
+func DSNPool(str string) PoolCfg {
+	if strings.HasSuffix(str, ":POOLED") || strings.Contains(str, "(SERVER=POOLED)") {
+		pc := PoolCfg{Type: DRCPool, Min: 1, Max: 999, Incr: 1}
+		pc.Username, pc.Password, _ = SplitDSN(str)
+		return pc
+	}
+	return PoolCfg{}
+}
+
 // NewEnvSrvSes is a comfort function which opens the environment,
 // creates a connection (Srv) to the server,
 // and opens a session (Ses), in one call.
@@ -401,7 +428,7 @@ func NewEnvSrvSes(dsn string) (*Env, *Srv, *Ses, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	srvCfg := SrvCfg{StmtCfg: env.Cfg()}
+	srvCfg := SrvCfg{StmtCfg: env.Cfg(), Pool: DSNPool(dsn)}
 	sesCfg := SesCfg{Mode: DSNMode(dsn)}
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	//fmt.Fprintf(os.Stderr, "dsn=% => srv=%#v ses=%#v", dsn, srvCfg, sesCfg)
