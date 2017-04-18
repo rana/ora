@@ -318,23 +318,33 @@ func (ses *Ses) close() (err error) {
 	// if not explicitly committed or rolledback.
 	ses.RLock()
 	openTxs, openStmts := ses.openTxs, ses.openStmts
+	env, srv := ses.Env(), ses.srv
+	ocises, ocisvcctx := ses.ocises, ses.ocisvcctx
 	ses.RUnlock()
 	openTxs.closeAll(errs)
 	openStmts.closeAll(errs) // close statements
 
 	// close session
-	ses.RLock()
-	env := ses.Env()
-	r := C.OCISessionEnd(
-		ses.ocisvcctx, //OCISvcCtx       *svchp,
-		env.ocierr,    //OCIError        *errhp,
-		ses.ocises,    //OCISession      *usrhp,
-		C.OCI_DEFAULT) //ub4             mode );
-	ocises, ocisvcctx := ses.ocises, ses.ocisvcctx
-	ses.RUnlock()
+	var r C.sword
+	if srv.poolType == NoPool {
+		r = C.OCISessionEnd(
+			ocisvcctx,     //OCISvcCtx       *svchp,
+			env.ocierr,    //OCIError        *errhp,
+			ocises,        //OCISession      *usrhp,
+			C.OCI_DEFAULT) //ub4             mode );
+	} else {
+		r = C.OCISessionRelease(
+			ocisvcctx,     //OCISvcCtx       *svchp,
+			env.ocierr,    //OCIError        *errhp,
+			nil,           //OraText         *tag,
+			0,             //ub4             tag_len,
+			C.OCI_DEFAULT, //ub4             mode );
+		)
+	}
 	if r == C.OCI_ERROR {
 		errs.PushBack(errE(env.ociError()))
 	}
+
 	env.RLock()
 	err = env.freeOciHandle(unsafe.Pointer(ocises), C.OCI_HTYPE_SESSION)
 	if err != nil {
