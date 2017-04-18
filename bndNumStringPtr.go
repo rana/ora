@@ -9,10 +9,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"fmt"
-	"unsafe"
-)
+import "unsafe"
 
 type bndNumStringPtr struct {
 	stmt      *Stmt
@@ -27,10 +24,10 @@ func (bnd *bndNumStringPtr) bind(value *Num, position namedPos, stmt *Stmt) erro
 	bnd.stmt = stmt
 	bnd.value = value
 	bnd.nullp.Set(value == nil || *value == "")
-	length := C.ub4(0)
+	//length := C.ub4(0)
 	if value != nil && *value != "" {
-		length = C.ub4(copy(bnd.buf[:], string(*value)))
-		fmt.Printf("NumberFromtext %q [%d]\n", value, length)
+		//length = C.ub4(copy(bnd.buf[:], string(*value)))
+		//fmt.Printf("NumberFromtext %q [%d]\n", value, length)
 		if err := bnd.stmt.ses.srv.env.numberFromText(&bnd.ociNumber[0], string(*value)); err != nil {
 			return err
 		}
@@ -79,7 +76,13 @@ func (bnd *bndNumStringPtr) setPtr() error {
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()
 	}
-	*bnd.value = Num(bnd.buf[:int(bufLen)])
+	if bufLen > 0 && bnd.buf[0] == '.' {
+		*bnd.value = Num(append(append(make([]byte, 0, int(bufLen)+1),
+			'0'),
+			bnd.buf[:int(bufLen)]...))
+	} else {
+		*bnd.value = Num(bnd.buf[:int(bufLen)])
+	}
 	return nil
 }
 

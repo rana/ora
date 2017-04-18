@@ -87,6 +87,9 @@ func (num OCINum) Print(buf []byte) []byte {
 			digits = strconv.AppendInt(digits, j, 10)
 		}
 		if i == exp {
+			if len(digits) == 0 {
+				digits = append(digits, '0')
+			}
 			digits = append(digits, '.')
 			dotWritten = true
 		}
