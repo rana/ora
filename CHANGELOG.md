@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v4.1.6 ##
+
 ## v4.1.5 ##
   * Allow Num, OraNum and OCINum as bind parameters.
   * Allow DRCP (Database Resident Connection Pooling).
