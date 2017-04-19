@@ -1,10 +1,10 @@
 # Changelog #
 
 ## master ##
-  * Allow Num, OraNum and OCINum as bind parameters.
-  * Allow DRCP (Database Resident Connection Pooling).
 
 ## v4.1.5 ##
+  * Allow Num, OraNum and OCINum as bind parameters.
+  * Allow DRCP (Database Resident Connection Pooling).
   * Fix reconnection when disconnected from Oracle (return driver.ErrBadConn).
   * Fix LOB reading error happening only spuriously, under pressure - issue 159.
 
