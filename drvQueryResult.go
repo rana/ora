@@ -167,7 +167,7 @@ func (qr *DrvQueryResult) ColumnTypeLength(index int) (length int64, ok bool) {
 	}
 	qr.rset.RLock()
 	c := qr.rset.Columns[index]
-	qr.rset.Unlock()
+	qr.rset.RUnlock()
 	if c.Length == 0 {
 		return 0, false
 	}
