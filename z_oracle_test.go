@@ -3660,7 +3660,6 @@ func TestFloat64Prec(t *testing.T) {
 	t.Logf("v3 = %s = %#v", v3, v3)
 
 	var v4 ora.OCINum
-	enableLogging(t)
 	_, err = testSes.PrepAndExe("begin :1 := 123456789.0123456789; end;", &v4)
 	if err != nil {
 		t.Fatalf("3 - %v", err)
@@ -3676,6 +3675,40 @@ func TestFloat64Prec(t *testing.T) {
 	}
 	t.Logf("v5 = %s = %#v", v5, v5)
 
+	qry = "SELECT 0.123, 0.12300000000000001 FROM DUAL"
+	enableLogging(t)
+	rset, err := testSes.PrepAndQry(qry)
+	if err != nil {
+		t.Errorf("6 - %q: %v", qry, err)
+	}
+	for rset.Next() {
+		v6 := rset.Row[0]
+		t.Logf("v6.1 = %v = %#v", v6, v6)
+		if v6 != float64(0.123) {
+			t.Logf("got %#v, wanted 0.123", v6)
+		}
+		v6 = rset.Row[1]
+		t.Logf("v6.2  = %v = %#v", v6, v6)
+		if v6 != float64(0.12300000000000001) {
+			t.Logf("got %#v, wanted 0.12300000000000001", v6)
+		}
+	}
+	if err = rset.Err(); err != nil {
+		t.Error(err)
+	}
+
+	v7 := ora.Num("0.1")
+	var v8 ora.Num
+	_, err = testSes.PrepAndExe("begin SELECT :1 into :2 FROM DUAL; end;", v7, &v8)
+	if err != nil {
+		t.Logf("7 - %v", err)
+		return
+	}
+	t.Logf("v7 = %s", v8)
+	if v8 != v7 {
+		t.Errorf("8 - got %q, wanted %q from %#v.", v8, v7, v8)
+	}
+
 	oCfg := testSes.Cfg()
 	defer testSes.SetCfg(oCfg)
 	testSes.SetCfg(oCfg.
@@ -3687,7 +3720,7 @@ func TestFloat64Prec(t *testing.T) {
 		SetBinaryFloat(ora.OraN).
 		SetFloat(ora.OraN))
 	v := "-23452342342423423423423.12345678901234567"
-	rset, err := testSes.PrepAndQry(fmt.Sprintf("select dump(%s), %s from dual", v, v))
+	rset, err = testSes.PrepAndQry(fmt.Sprintf("select dump(%s), %s from dual", v, v))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3697,6 +3730,9 @@ func TestFloat64Prec(t *testing.T) {
 		t.Log("Column type    - ", reflect.TypeOf(rset.Row[1]))
 		t.Log("Dump from DB   - ", rset.Row[0])
 		t.Log("Dump from ora.OraOCINum -    ", []byte(rset.Row[1].(ora.OraOCINum).Value))
+	}
+	if err = rset.Err(); err != nil {
+		t.Error(err)
 	}
 
 }

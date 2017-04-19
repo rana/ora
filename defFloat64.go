@@ -10,9 +10,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // defFloat32.go is generated from defFloat64.go!
 
@@ -49,6 +47,7 @@ func (def *defFloat64) value(offset int) (value interface{}, err error) {
 	if r == C.OCI_ERROR {
 		err = def.rset.stmt.ses.srv.env.ociError()
 	}
+	//fmt.Printf("%d. %#v = %#v\n", offset, on, float64Value)
 	if def.isNullable {
 		return Float64{Value: float64Value}, err
 	}
