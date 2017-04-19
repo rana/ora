@@ -30,7 +30,7 @@ func (bnd *bndInt16Ptr) bind(value *int16, position namedPos, stmt *Stmt) error 
 			return err
 		}
 		bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-			"Int16Ptr.bind(%s) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
+			"Int16Ptr.bind(%v) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	}
 	ph, phLen, phFree := position.CString()
 	if ph != nil {

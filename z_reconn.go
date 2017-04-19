@@ -42,7 +42,7 @@ func main() {
 		time.Sleep(5 * time.Second)
 	}
 
-	log.Printf("All collect finished\nCurrent open connections: %d", db.Stats().OpenConnections)
+	//log.Printf("All collect finished\nCurrent open connections: %d", db.Stats().OpenConnections)
 }
 
 func executeSQL(db *sql.DB) error {

@@ -363,7 +363,6 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 			return n, err
 		}
 	}
-	return n, nil
 }
 
 // TODO(tgulacsi): find how to return lobReadWriter.

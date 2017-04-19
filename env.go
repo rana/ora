@@ -492,7 +492,6 @@ func (env *Env) setAttr(
 		attributeType, //ub4         attrtype,
 		env.ocierr)    //OCIError    *errhp );
 	if r == C.OCI_ERROR {
-		panic(errE(env.ociError()))
 		return errE(env.ociError())
 	}
 	return nil

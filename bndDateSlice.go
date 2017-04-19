@@ -98,7 +98,7 @@ func (bnd *bndDateSlice) bind(values *[]time.Time, position namedPos, stmt *Stmt
 	}
 
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
+		"%p pos=%v cap=%d len=%d curlen=%d curlenp=%p value_sz=%d alen=%v",
 		bnd, position, cap(bnd.ociDates), len(bnd.ociDates), bnd.curlen, curlenp,
 		valueSz, bnd.alen)
 	ph, phLen, phFree := position.CString()

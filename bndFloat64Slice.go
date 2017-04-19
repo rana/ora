@@ -93,7 +93,7 @@ func (bnd *bndFloat64Slice) bind(values *[]float64, position namedPos, stmt *Stm
 		}
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
+		"%p pos=%v cap=%d len=%d curlen=%d curlenp=%p", bnd, position, cap(bnd.ociNumbers), len(bnd.ociNumbers), bnd.curlen, curlenp)
 	ph, phLen, phFree := position.CString()
 	if ph != nil {
 		defer phFree()

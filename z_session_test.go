@@ -89,7 +89,7 @@ func Test_open_cursors(t *testing.T) {
 	}
 	after := toNum(rset.NextRow()[0])
 	if after-before >= rounds {
-		t.Errorf("before=%f after=%f, awaited less than %d increment!", before, after, rounds)
+		t.Errorf("before=%v after=%v, awaited less than %d increment!", before, after, rounds)
 		return
 	}
 	//t.Logf("before=%d after=%d", before, after)
@@ -145,7 +145,7 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 	testErr(err, t)
 
 	for rset.Next() {
-		t.Log("Row=%v", rset.Row)
+		t.Logf("Row=%v", rset.Row)
 	}
 	if 2 != rset.Len() {
 		t.Fatalf("row count: expected(%v), actual(%v)", 2, rset.Len())

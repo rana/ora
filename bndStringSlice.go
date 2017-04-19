@@ -76,7 +76,7 @@ func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt,
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%s cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
+		"%p pos=%v cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
 		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
 	ph, phLen, phFree := position.CString()
 	if ph != nil {

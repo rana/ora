@@ -22,7 +22,7 @@ type bndRset struct {
 }
 
 func (bnd *bndRset) bind(value *Rset, position namedPos, stmt *Stmt) error {
-	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "%p pos=%s", bnd, position)
+	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "%p pos=%v", bnd, position)
 
 	bnd.stmt = stmt
 	bnd.value = value

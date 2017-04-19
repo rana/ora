@@ -215,7 +215,7 @@ func TestZeroRowsAffected(t *testing.T) {
 	if ra, err := res.RowsAffected(); err != nil {
 		t.Error(err)
 	} else if ra != 0 {
-		t.Errorf("got %d, wanted 0 rows affected!")
+		t.Errorf("got %d, wanted 0 rows affected!", ra)
 	}
 	if _, err := res.LastInsertId(); err == nil {
 		t.Error("wanted error for LastInsertId, got nil")

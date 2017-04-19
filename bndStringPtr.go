@@ -73,7 +73,7 @@ func (bnd *bndStringPtr) bind(value *string, position namedPos, stringPtrBufferS
 		bnd.alen[0] = C.ACTUAL_LENGTH_TYPE(len(*value))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%s cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
+		"%p pos=%v cap=%d len=%d alen=%d bufSize=%d", bnd, position, cap(bnd.buf), len(bnd.buf), bnd.alen[0], stringPtrBufferSize)
 	ph, phLen, phFree := position.CString()
 	if ph != nil {
 		defer phFree()

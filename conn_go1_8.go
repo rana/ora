@@ -78,7 +78,7 @@ func (con *Con) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, 
 	case sql.LevelSerializable:
 		flags |= C.OCI_TRANS_SERIALIZABLE
 	default:
-		return nil, fmt.Errorf("Isolation level %s not supported.", level)
+		return nil, fmt.Errorf("Isolation level %v not supported.", level)
 	}
 	con.log(_drv.Cfg().Log.Con.Begin)
 	if err := con.checkIsOpen(); err != nil {

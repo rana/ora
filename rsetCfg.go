@@ -345,7 +345,6 @@ func (c RsetCfg) SetTimestamp(gct GoColumnType) RsetCfg {
 		if c.Err == nil {
 			c.Err = err
 		}
-		return c
 		c.timestamp = gct
 	}
 	return c
