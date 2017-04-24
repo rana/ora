@@ -76,8 +76,8 @@ func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt,
 		bnd.alen[m] = C.ACTUAL_LENGTH_TYPE(len(str))
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
-		"%p pos=%v cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v",
-		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen)
+		"%p pos=%v cap=%d len=%d curlen=%d curlenp=%p maxlen=%d iterations=%d alen=%v isAssoc=%t",
+		bnd, position, cap(bnd.bytes), len(bnd.bytes), bnd.curlen, curlenp, bnd.maxLen, iterations, bnd.alen, isAssocArray)
 	ph, phLen, phFree := position.CString()
 	if ph != nil {
 		defer phFree()
@@ -117,6 +117,7 @@ func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt,
 
 func (bnd *bndStringSlice) setPtr() error {
 	if !bnd.IsAssocArr() {
+		bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "isAssoc=false")
 		return nil
 	}
 	n := int(bnd.curlen)

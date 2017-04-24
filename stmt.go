@@ -344,7 +344,7 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	stmt.ses.RUnlock()
 	stmtType, hasPtrBind := stmt.stmtType, stmt.hasPtrBind
 	stmt.RUnlock()
-	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "returned %d", r)
+	stmt.logF(_drv.Cfg().Log.Stmt.Exe, "returned %d, hasPtrBind=%t", r, hasPtrBind)
 	if r == C.OCI_ERROR {
 		return 0, 0, errE(env.ociError())
 	}
@@ -1209,24 +1209,28 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if iterations, err = bnd.bind(&value, pos, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case []String:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			bnds[n] = bnd
 			if iterations, err = bnd.bindOra(&value, pos, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case *[]string:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			bnds[n] = bnd
 			if iterations, err = bnd.bind(value, pos, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case *[]String:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			bnds[n] = bnd
 			if iterations, err = bnd.bindOra(value, pos, stmt, isAssocArray); err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 
 		case bool:
 			bnd := stmt.getBnd(bndIdxBool).(*bndBool)
@@ -1262,6 +1266,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 			iterations = uint32(len(value))
+			stmt.hasPtrBind = true
 		case []Bool:
 			bnd := stmt.getBnd(bndIdxBoolSlice).(*bndBoolSlice)
 			bnds[n] = bnd
@@ -1270,6 +1275,8 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				return iterations, err
 			}
 			iterations = uint32(len(value))
+			stmt.hasPtrBind = true
+
 		case Raw:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_BIN)
@@ -1312,6 +1319,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 				}
 				stmt.hasPtrBind = true
 			}
+			stmt.hasPtrBind = true
 
 		case [][]byte:
 			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
@@ -1320,6 +1328,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case []Raw:
 			bnd := stmt.getBnd(bndIdxBinSlice).(*bndBinSlice)
 			bnds[n] = bnd
@@ -1327,6 +1336,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case []Lob:
 			bnd := stmt.getBnd(bndIdxLobSlice).(*bndLobSlice)
 			bnds[n] = bnd
@@ -1334,6 +1344,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 
 			// FIXME(tgulacsi): []*Lob ?
 
@@ -1355,6 +1366,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case IntervalDS:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_INTERVAL_DS)
@@ -1373,6 +1385,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if err != nil {
 				return iterations, err
 			}
+			stmt.hasPtrBind = true
 		case Bfile:
 			if value.IsNull {
 				err = stmt.setNilBind(n, C.SQLT_FILE)

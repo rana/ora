@@ -213,3 +213,22 @@ func checkCompile(t *testing.T, testSes *ora.Ses) {
 		t.Fatal(errors.New(strings.Join(errS, "\n")))
 	}
 }
+
+func TestIssue188(t *testing.T) {
+	stmt, err := testSes.Prep(`BEGIN :1(1) := 'test'; END;`)
+	if err != nil {
+		t.Fatal("1 - ", err)
+	}
+	defer stmt.Close()
+
+	sret := make([]string, 0, 1000)
+	enableLogging(t)
+	n, err := stmt.ExeP(&sret)
+	if err != nil {
+		t.Fatal("2 - ", err)
+	}
+	t.Log("Result - ", n, len(sret), sret)
+	if len(sret) != 1 || sret[0] != "test" {
+		t.Errorf("Want \"test\", got %#v", sret)
+	}
+}
