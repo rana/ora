@@ -3,6 +3,7 @@
 ## master ##
 
 ## v4.1.6 ##
+  * Fix memory consumption in defString.
 
 ## v4.1.5 ##
   * Allow Num, OraNum and OCINum as bind parameters.

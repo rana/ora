@@ -53,7 +53,12 @@ func (def *defDate) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defDate) alloc() error { return nil }
-func (def *defDate) free()        {}
+func (def *defDate) free() {
+	if def.ociDate != nil {
+		C.free(unsafe.Pointer(&def.ociDate[0]))
+		def.ociDate = nil
+	}
+}
 
 func (def *defDate) close() (err error) {
 	defer func() {
@@ -65,10 +70,7 @@ func (def *defDate) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	if def.ociDate != nil {
-		C.free(unsafe.Pointer(&def.ociDate[0]))
-		def.ociDate = nil
-	}
+	def.free()
 	def.arrHlp.close()
 	rset.putDef(defIdxDate, def)
 	return nil
