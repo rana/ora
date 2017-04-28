@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v4.1.7 ##
+
 ## v4.1.6 ##
   * Fix memory consumption in defString.
 
