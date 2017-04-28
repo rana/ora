@@ -57,6 +57,10 @@ func (def *defBool) alloc() error {
 }
 
 func (def *defBool) free() {
+	if def.buf != nil {
+		bytesPool.Put(def.buf)
+		def.buf = nil
+	}
 }
 
 func (def *defBool) close() (err error) {
@@ -69,8 +73,7 @@ func (def *defBool) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	bytesPool.Put(def.buf)
-	def.buf = nil
+	def.free()
 	def.arrHlp.close()
 	rset.putDef(defIdxBool, def)
 	return nil

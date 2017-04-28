@@ -57,7 +57,12 @@ func (def *defLongRaw) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defLongRaw) alloc() error { return nil }
-func (def *defLongRaw) free()        {}
+func (def *defLongRaw) free() {
+	if def.buf != nil {
+		bytesPool.Put(def.buf)
+		def.buf = nil
+	}
+}
 
 func (def *defLongRaw) close() (err error) {
 	defer func() {
@@ -69,8 +74,7 @@ func (def *defLongRaw) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	bytesPool.Put(def.buf)
-	def.buf = nil
+	def.free()
 	def.arrHlp.close()
 	rset.putDef(defIdxLongRaw, def)
 	return nil
