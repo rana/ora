@@ -43,9 +43,9 @@ func (def *defInt8) value(offset int) (value interface{}, err error) {
 	on := def.ociNumber[offset]
 	r := C.OCINumberToInt(
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-		&on,                        //const OCINumber       *number,
+		&on,                         //const OCINumber       *number,
 		byteWidth8,                 //uword                 rsl_length,
-		C.OCI_NUMBER_SIGNED,        //uword                 rsl_flag,
+		C.OCI_NUMBER_SIGNED,         //uword                 rsl_flag,
 		unsafe.Pointer(&int8Value)) //void                  *rsl );
 	if r == C.OCI_ERROR {
 		err = def.rset.stmt.ses.srv.env.ociError()
@@ -57,7 +57,9 @@ func (def *defInt8) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defInt8) alloc() error { return nil }
-func (def *defInt8) free()        {}
+func (def *defInt8) free()        {
+	def.arrHlp.close()
+}
 
 func (def *defInt8) close() (err error) {
 	defer func() {
@@ -72,7 +74,6 @@ func (def *defInt8) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxInt8, def)
 	return nil
 }

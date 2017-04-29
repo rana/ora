@@ -57,7 +57,9 @@ func (def *defInt16) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defInt16) alloc() error { return nil }
-func (def *defInt16) free()        {}
+func (def *defInt16) free()        {
+	def.arrHlp.close()
+}
 
 func (def *defInt16) close() (err error) {
 	defer func() {
@@ -72,7 +74,6 @@ func (def *defInt16) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxInt16, def)
 	return nil
 }

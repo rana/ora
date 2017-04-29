@@ -43,9 +43,9 @@ func (def *defUint16) value(offset int) (value interface{}, err error) {
 	on := def.ociNumber[offset]
 	r := C.OCINumberToInt(
 		def.rset.stmt.ses.srv.env.ocierr, //OCIError              *err,
-		&on,                          //const OCINumber       *number,
-		byteWidth16,                  //uword                 rsl_length,
-		C.OCI_NUMBER_UNSIGNED,        //uword                 rsl_flag,
+		&on,                         //const OCINumber       *number,
+		byteWidth16,                 //uword                 rsl_length,
+		C.OCI_NUMBER_UNSIGNED,         //uword                 rsl_flag,
 		unsafe.Pointer(&uint16Value)) //void                  *rsl );
 	if r == C.OCI_ERROR {
 		err = def.rset.stmt.ses.srv.env.ociError()
@@ -57,7 +57,9 @@ func (def *defUint16) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defUint16) alloc() error { return nil }
-func (def *defUint16) free()        {}
+func (def *defUint16) free()        {
+	def.arrHlp.close()
+}
 
 func (def *defUint16) close() (err error) {
 	defer func() {
@@ -72,7 +74,6 @@ func (def *defUint16) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxUint16, def)
 	return nil
 }

@@ -10,9 +10,7 @@ package ora
 #include "version.h"
 */
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // defFloat32.go is generated from defFloat32.go!
 
@@ -49,6 +47,7 @@ func (def *defFloat32) value(offset int) (value interface{}, err error) {
 	if r == C.OCI_ERROR {
 		err = def.rset.stmt.ses.srv.env.ociError()
 	}
+	//fmt.Printf("%d. %#v = %#v\n", offset, on, float32Value)
 	if def.isNullable {
 		return Float32{Value: float32Value}, err
 	}
@@ -60,6 +59,7 @@ func (def *defFloat32) alloc() error {
 }
 
 func (def *defFloat32) free() {
+	def.arrHlp.close()
 }
 
 func (def *defFloat32) close() (err error) {
@@ -76,7 +76,6 @@ func (def *defFloat32) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxFloat32, def)
 	return nil
 }

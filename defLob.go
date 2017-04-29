@@ -194,6 +194,7 @@ func (def *defLob) alloc() error {
 func (def *defLob) free() {
 	def.Lock()
 	defer def.Unlock()
+	def.arrHlp.close()
 	ses := def.rset.stmt.ses
 	for i, lob := range def.lobs {
 		if lob == nil {
@@ -213,7 +214,6 @@ func (def *defLob) close() (err error) {
 	def.lobs = nil
 	def.rset = nil
 	def.ocidef = nil
-	def.arrHlp.close()
 	def.Unlock()
 
 	rset.putDef(defIdxLob, def)

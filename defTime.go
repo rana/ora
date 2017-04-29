@@ -67,6 +67,7 @@ func (def *defTime) alloc() error {
 }
 
 func (def *defTime) free() {
+	def.arrHlp.close()
 	for i, d := range def.dates {
 		if d == nil {
 			continue
@@ -93,7 +94,6 @@ func (def *defTime) close() (err error) {
 		def.dates = nil
 	}
 	def.ocidef = nil
-	def.arrHlp.close()
 	rset.putDef(defIdxTime, def)
 	return nil
 }

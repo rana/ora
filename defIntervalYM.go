@@ -70,6 +70,7 @@ func (def *defIntervalYM) alloc() error {
 }
 
 func (def *defIntervalYM) free() {
+	def.arrHlp.close()
 	for i, p := range def.intervals {
 		if p == nil {
 			continue
@@ -96,7 +97,6 @@ func (def *defIntervalYM) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.arrHlp.close()
 	rset.putDef(defIdxIntervalYM, def)
 	return nil
 }

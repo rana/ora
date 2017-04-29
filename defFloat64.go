@@ -59,6 +59,7 @@ func (def *defFloat64) alloc() error {
 }
 
 func (def *defFloat64) free() {
+	def.arrHlp.close()
 }
 
 func (def *defFloat64) close() (err error) {
@@ -75,7 +76,6 @@ func (def *defFloat64) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxFloat64, def)
 	return nil
 }

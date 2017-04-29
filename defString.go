@@ -94,6 +94,7 @@ func (def *defString) free() {
 		bytesPool.Put(def.buf)
 		def.buf = nil
 	}
+	def.arrHlp.close()
 }
 
 func (def *defString) close() (err error) {
@@ -107,7 +108,6 @@ func (def *defString) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.free()
-	def.arrHlp.close()
 	rset.putDef(defIdxString, def)
 	return nil
 }

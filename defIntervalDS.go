@@ -80,6 +80,7 @@ func (def *defIntervalDS) alloc() error {
 }
 
 func (def *defIntervalDS) free() {
+	def.arrHlp.close()
 	for i, p := range def.intervals {
 		if p == nil {
 			continue
@@ -106,7 +107,6 @@ func (def *defIntervalDS) close() (err error) {
 		def.intervals = nil
 	}
 	def.ocidef = nil
-	def.arrHlp.close()
 	rset.putDef(defIdxIntervalDS, def)
 	return nil
 }

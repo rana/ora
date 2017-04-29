@@ -58,6 +58,7 @@ func (def *defDate) free() {
 		C.free(unsafe.Pointer(&def.ociDate[0]))
 		def.ociDate = nil
 	}
+	def.arrHlp.close()
 }
 
 func (def *defDate) close() (err error) {
@@ -71,7 +72,6 @@ func (def *defDate) close() (err error) {
 	def.rset = nil
 	def.ocidef = nil
 	def.free()
-	def.arrHlp.close()
 	rset.putDef(defIdxDate, def)
 	return nil
 }

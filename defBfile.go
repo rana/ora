@@ -83,6 +83,7 @@ func (def *defBfile) free() {
 			unsafe.Pointer(lob), //void     *descp,
 			C.OCI_DTYPE_FILE)    //ub4      type );
 	}
+	def.arrHlp.close()
 }
 
 func (def *defBfile) close() (err error) {
@@ -98,6 +99,7 @@ func (def *defBfile) close() (err error) {
 	for i := range def.filename[:cap(def.filename)] {
 		def.filename[i] = 0
 	}
+	def.free()
 	if def.lobs != nil {
 		C.free(unsafe.Pointer(&def.lobs[0]))
 		def.lobs = nil
@@ -105,7 +107,6 @@ func (def *defBfile) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.arrHlp.close()
 	rset.putDef(defIdxBfile, def)
 	return nil
 }

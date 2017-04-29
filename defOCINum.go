@@ -43,7 +43,9 @@ func (def *defOCINum) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defOCINum) alloc() error { return nil }
-func (def *defOCINum) free()        {}
+func (def *defOCINum) free()        {
+	def.arrHlp.close()
+}
 
 func (def *defOCINum) close() (err error) {
 	defer func() {
@@ -59,7 +61,6 @@ func (def *defOCINum) close() (err error) {
 		C.free(unsafe.Pointer(&def.ociNumber[0]))
 		def.ociNumber = nil
 	}
-	def.arrHlp.close()
 	rset.putDef(defIdxOCINum, def)
 	return nil
 }

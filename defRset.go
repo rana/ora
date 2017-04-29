@@ -62,6 +62,7 @@ func (def *defRset) alloc() error {
 }
 
 func (def *defRset) free() {
+	def.arrHlp.close()
 	for i, p := range def.ocistmt {
 		if p == nil {
 			continue
@@ -86,7 +87,6 @@ func (def *defRset) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.arrHlp.close()
 	rset.putDef(defIdxRset, def)
 	return nil
 }

@@ -46,6 +46,7 @@ func (def *defRowid) value(offset int) (value interface{}, err error) {
 
 func (def *defRowid) alloc() error { return nil }
 func (def *defRowid) free() {
+	def.arrHlp.close()
 	if def.buf != nil {
 		bytesPool.Put(def.buf)
 		def.buf = nil
@@ -62,7 +63,6 @@ func (def *defRowid) close() (err error) {
 	rset := def.rset
 	def.rset = nil
 	def.ocidef = nil
-	def.arrHlp.close()
 	def.free()
 	rset.putDef(defIdxRowid, def)
 	return nil
