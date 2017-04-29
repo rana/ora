@@ -3,6 +3,7 @@
 ## master ##
 
 ## v4.1.7 ##
+  * Fix missing Rset.Close in DrvQueryResult.Next.
 
 ## v4.1.6 ##
   * Fix memory consumption in defString.
