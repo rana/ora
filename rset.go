@@ -169,14 +169,14 @@ func (rset *Rset) close() (err error) {
 	}
 	errs := _drv.listPool.Get().(*list.List)
 	rset.Lock()
-	if len(rset.defs) > 0 { // close defines
-		for _, def := range rset.defs {
-			if def != nil {
-				err0 := def.close()
-				if err0 != nil {
-					errs.PushBack(err0)
-				}
-			}
+	// close defines
+	for _, def := range rset.defs {
+		if def == nil {
+			continue
+		}
+		err0 := def.close()
+		if err0 != nil {
+			errs.PushBack(err0)
 		}
 	}
 	rset.env = nil
@@ -396,7 +396,8 @@ func (rset *Rset) NextRow() []interface{} {
 	defer rset.RUnlock()
 	return rset.Row
 }
-var defStringPool = sync.Pool{New:func() interface{}{return &defString{}}}
+
+var defStringPool = sync.Pool{New: func() interface{} { return &defString{} }}
 
 // gets a define struct from a driver slice
 func (rset *Rset) getDef(idx int) interface{} {

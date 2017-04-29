@@ -35,10 +35,12 @@ func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
 		return er("empty Rset")
 	}
 	err = qr.rset.beginRow()
-	defer qr.rset.endRow()
 	if err != nil {
+		qr.rset.close()
 		return err
 	}
+	defer qr.rset.endRow()
+
 	// Populate column values into destination slice
 	for n, define := range qr.rset.defs {
 		value, err := define.value(int(qr.rset.offset))
