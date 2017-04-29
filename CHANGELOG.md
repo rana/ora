@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v4.1.8 ##
+
 ## v4.1.7 ##
   * Fix missing Rset.Close in DrvQueryResult.Next.
 
