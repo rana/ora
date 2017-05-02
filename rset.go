@@ -403,6 +403,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	logCfg := _drv.Cfg().Log
 	rset.Lock()
 	defer rset.Unlock()
+
 	env := rset.env
 	if env == nil {
 		rset.log(logCfg.Rset.Open, "env is nil")
@@ -728,7 +729,6 @@ Loop:
 
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
 			defs[n], err = rset.defineString(n, stmt.Cfg().longBufferSize, gct, false)
-			//rset.Unlock()
 			if err != nil {
 				return err
 			}

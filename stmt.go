@@ -434,13 +434,15 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 		}
 	}
 	// create result set and open
-	rset = _drv.rsetPool.Get().(*Rset)
-	rset.Lock()
+	// FIXME(tgulacsi): reusing Rsets causes sporadic failures.
+	//rset = _drv.rsetPool.Get().(*Rset)
+	rset = &Rset{}
+	//rset.Lock()
 	rset.env = env
 	if rset.id == 0 {
 		rset.id = _drv.rsetId.nextId()
 	}
-	rset.Unlock()
+	//rset.Unlock()
 	err = rset.open(stmt, stmt.ocistmt)
 	if err != nil {
 		rset.close()

@@ -37,7 +37,7 @@ func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
 	err = qr.rset.beginRow()
 	if err != nil {
 		// FIXME(tgulacsi): this results in erroneous short iteration!
-		//qr.rset.close()
+		qr.rset.close()
 		// but without this close, memory consumtion grows!
 		qr.rset = nil
 		return err
