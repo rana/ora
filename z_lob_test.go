@@ -721,6 +721,25 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 
 }
 
+func TestLobIssue191(t *testing.T) {
+	enableLogging(t)
+	l := &ora.Lob{}
+	stmt, err := testSes.Prep(`begin :1 := null; end;`)
+	if err != nil {
+		t.Fatal("2 - ", err)
+	}
+	n, err := stmt.Exe(l)
+
+	if err != nil {
+		t.Fatal("3 - ", err)
+	}
+	bb1, err := l.Bytes()
+	if err != nil {
+		t.Fatal("4 - ", err)
+	}
+	t.Log("Result - ", n, string(bb1))
+}
+
 func stringEqualNonUnicode(a, b string) string {
 	if a == b {
 		return ""
