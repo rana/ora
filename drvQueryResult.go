@@ -36,14 +36,23 @@ func (qr *DrvQueryResult) Next(dest []driver.Value) (err error) {
 	}
 	err = qr.rset.beginRow()
 	if err != nil {
-		qr.rset.close()
+		// FIXME(tgulacsi): this results in erroneous short iteration!
+		//qr.rset.close()
+		// but without this close, memory consumtion grows!
+		qr.rset = nil
 		return err
 	}
 	defer qr.rset.endRow()
 
 	// Populate column values into destination slice
+	qr.rset.RLock()
+	defer qr.rset.RUnlock()
+	if len(dest) < len(qr.rset.defs) {
+		return fmt.Errorf("Short dest: got %d, wanted %d.", len(dest), len(qr.rset.defs))
+	}
+	offset := int(qr.rset.offset)
 	for n, define := range qr.rset.defs {
-		value, err := define.value(int(qr.rset.offset))
+		value, err := define.value(offset)
 		if err != nil {
 			fmt.Printf("%d. %T (%#v): %v\n", n, define, define, err)
 			return err

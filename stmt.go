@@ -435,10 +435,12 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	}
 	// create result set and open
 	rset = _drv.rsetPool.Get().(*Rset)
+	rset.Lock()
 	rset.env = env
 	if rset.id == 0 {
 		rset.id = _drv.rsetId.nextId()
 	}
+	rset.Unlock()
 	err = rset.open(stmt, stmt.ocistmt)
 	if err != nil {
 		rset.close()

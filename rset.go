@@ -80,8 +80,6 @@ type Rset struct {
 	sync.RWMutex
 
 	id uint64
-	// protects that open/close should not happen at once
-	cmu sync.Mutex
 	// cached
 	env       *Env
 	stmt      *Stmt
@@ -153,9 +151,6 @@ func (rset *Rset) closeWithRemove() (err error) {
 func (rset *Rset) close() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.Close)
 
-	rset.cmu.Lock()
-	defer rset.cmu.Unlock()
-
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -167,8 +162,10 @@ func (rset *Rset) close() (err error) {
 	if err := rset.checkIsOpen(); err != nil {
 		return er("Rset is closed.")
 	}
-	errs := _drv.listPool.Get().(*list.List)
 	rset.Lock()
+	defer rset.Unlock()
+
+	errs := _drv.listPool.Get().(*list.List)
 	// close defines
 	for _, def := range rset.defs {
 		if def == nil {
@@ -185,7 +182,6 @@ func (rset *Rset) close() (err error) {
 	rset.defs = nil
 	rset.Row = nil
 	rset.Columns = nil
-	rset.Unlock()
 	// do not clear error in case of autoClose when error exists
 	// clear error when rset in initialized
 	//rset.err = nil
@@ -201,10 +197,11 @@ func (rset *Rset) close() (err error) {
 // beginRow allocates a handle for each column and fetches one row.
 func (rset *Rset) beginRow() (err error) {
 	rset.log(_drv.Cfg().Log.Rset.BeginRow)
-	rset.RLock()
+	rset.Lock()
+	defer rset.Unlock()
+
 	fetched, offset, finished := rset.fetched, rset.offset, rset.finished
 	ocistmt := rset.ocistmt
-	rset.RUnlock()
 
 	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", fetched, offset, finished)
 	if fetched > 0 && fetched > offset {
@@ -217,14 +214,14 @@ func (rset *Rset) beginRow() (err error) {
 	}
 	// check is open
 	if ocistmt == nil {
-		return errF("Rset is closed")
+		rset.log(_drv.Cfg().Log.Rset.BeginRow, "Rset is closed")
+		return io.EOF
 	}
 	// allocate define descriptor handles
-	rset.Lock()
 	if rset.env == nil {
-		rset.Unlock()
 		return errF("Rset env is closed")
 	}
+	env := rset.env
 	for _, define := range rset.defs {
 		//rset.logF(_drv.Cfg().Log.Rset.BeginRow, "defs[%d]=%#v", i, define)
 		if define == nil {
@@ -232,7 +229,6 @@ func (rset *Rset) beginRow() (err error) {
 		}
 		err := define.alloc()
 		if err != nil {
-			rset.Unlock()
 			return err
 		}
 	}
@@ -241,21 +237,18 @@ func (rset *Rset) beginRow() (err error) {
 	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
 		rset.ocistmt,         //OCIStmt     *stmthp,
-		rset.env.ocierr,      //OCIError    *errhp,
+		env.ocierr,           //OCIError    *errhp,
 		C.ub4(rset.fetchLen), //ub4         nrows,
 		C.OCI_FETCH_NEXT,     //ub2         orientation,
 		C.sb4(0),             //sb4         fetchOffset,
 		C.OCI_DEFAULT)        //ub4         mode );
-	rset.Unlock()
 	if r == C.OCI_ERROR {
-		err := rset.env.ociError()
+		err := env.ociError()
 		return err
 	} else if r == C.OCI_NO_DATA {
 		rset.log(_drv.Cfg().Log.Rset.BeginRow, "OCI_NO_DATA")
-		rset.Lock()
 		rset.finished = true
 		fetchLen := rset.fetchLen
-		rset.Unlock()
 		if fetchLen == 1 {
 			// return io.EOF to conform with database/sql/driver
 			return io.EOF
@@ -271,7 +264,6 @@ func (rset *Rset) beginRow() (err error) {
 		return err
 	}
 
-	rset.Lock()
 	rset.fetched = int64(rowsFetched)
 	rset.offset = 0
 	err = nil
@@ -281,7 +273,6 @@ func (rset *Rset) beginRow() (err error) {
 	} else {
 		atomic.AddInt32(&rset.index, 1)
 	}
-	rset.Unlock()
 
 	return err
 }
@@ -289,13 +280,11 @@ func (rset *Rset) beginRow() (err error) {
 // endRow deallocates a handle for each column.
 func (rset *Rset) endRow() {
 	rset.log(_drv.Cfg().Log.Rset.EndRow)
-	rset.RLock()
+	rset.Lock()
+	defer rset.Unlock()
 	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
 	defs := rset.defs
-	rset.RUnlock()
-	rset.Lock()
 	rset.offset++
-	rset.Unlock()
 	if !done {
 		return
 	}
@@ -411,11 +400,14 @@ func (rset *Rset) putDef(idx int, def def) {
 
 // Open defines select-list columns.
 func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
-	rset.cmu.Lock()
-	defer rset.cmu.Unlock()
-
 	logCfg := _drv.Cfg().Log
 	rset.Lock()
+	defer rset.Unlock()
+	env := rset.env
+	if env == nil {
+		rset.log(logCfg.Rset.Open, "env is nil")
+		return io.EOF
+	}
 	rset.stmt = stmt
 	rset.ocistmt = ocistmt
 	atomic.StoreInt32(&rset.index, -1)
@@ -424,7 +416,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.finished = false
 	rset.err = nil
 	defs, Columns, Row := rset.defs, rset.Columns, rset.Row
-	rset.Unlock()
+	rset.defs, rset.Columns, rset.Row = nil, nil, nil
 
 	rset.log(logCfg.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
@@ -432,14 +424,14 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	r := C.OCIStmtExecute(
 		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
 		ocistmt,             //OCIStmt             *stmtp,
-		rset.env.ocierr,     //OCIError            *errhp,
+		env.ocierr,          //OCIError            *errhp,
 		C.ub4(1),            //ub4                 iters,
 		C.ub4(0),            //ub4                 rowoff,
 		nil,                 //const OCISnapshot   *snap_in,
 		nil,                 //OCISnapshot         *snap_out,
 		C.OCI_DESCRIBE_ONLY) //ub4                 mode );
 	if r == C.OCI_ERROR {
-		return rset.env.ociError()
+		return env.ociError()
 	}
 	// get the parameter count
 	var paramCount C.ub4
@@ -485,16 +477,14 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	for n := range defs {
 		// Create oci parameter handle; may be freed by OCIDescriptorFree()
 		// parameter position is 1-based
-		rset.RLock()
 		r := C.OCIParamGet(
-			unsafe.Pointer(rset.ocistmt),                        //const void        *hndlp,
-			C.OCI_HTYPE_STMT,                                    //ub4               htype,
-			rset.env.ocierr,                                     //OCIError          *errhp,
+			unsafe.Pointer(rset.ocistmt), //const void        *hndlp,
+			C.OCI_HTYPE_STMT,             //ub4               htype,
+			env.ocierr,                   //OCIError          *errhp,
 			(*unsafe.Pointer)(unsafe.Pointer(&params[n].param)), //void              **parmdpp,
 			C.ub4(n+1)) //ub4               pos );
-		rset.RUnlock()
 		if r == C.OCI_ERROR {
-			return rset.env.ociError()
+			return env.ociError()
 		}
 		ocipar := params[n].param
 		// Get column size in bytes
@@ -533,10 +523,8 @@ Loop:
 		}
 	}
 
-	rset.Lock()
 	rset.defs, rset.Columns, rset.Row = defs, Columns, Row
 	rset.fetchLen = fetchLen
-	rset.Unlock()
 
 	cfg := rset.stmt.Cfg()
 	//rset.logF(logCfg.Rset.Open, "cfg=%#v", cfg)
@@ -575,9 +563,7 @@ Loop:
 				gct = gcts[n]
 			}
 			rset.logF(logCfg.Rset.OpenDefs, "%d. prec=%d scale=%d => gct=%s", n+1, precision, scale, GctName(gct))
-			rset.Lock()
 			defs[n], err = rset.defineNumeric(n, gct)
-			rset.Unlock()
 			if err != nil {
 				return err
 			}
@@ -592,9 +578,7 @@ Loop:
 				}
 				gct = gcts[n]
 			}
-			rset.Lock()
 			defs[n], err = rset.defineNumeric(n, gct)
-			rset.Unlock()
 			if err != nil {
 				return err
 			}
@@ -609,9 +593,7 @@ Loop:
 				}
 				gct = gcts[n]
 			}
-			rset.Lock()
 			defs[n], err = rset.defineNumeric(n, gct)
-			rset.Unlock()
 			if err != nil {
 				return err
 			}
@@ -675,9 +657,7 @@ Loop:
 				}
 				gct = gcts[n]
 			}
-			rset.Lock()
 			defs[n], err = rset.defineString(n, columnSize, gct, false)
-			rset.Unlock()
 			if err != nil {
 				return err
 			}
@@ -706,18 +686,14 @@ Loop:
 						isNullable = true
 					}
 					def := rset.getDef(defIdxBool).(*defBool)
-					rset.Lock()
 					defs[n] = def
-					rset.Unlock()
 					err = def.define(n+1, int(columnSize), isNullable, rset)
 					if err != nil {
 						return err
 					}
 				case S, OraS:
 					// Interpret single char as string
-					rset.Lock()
 					defs[n], err = rset.defineString(n, columnSize, gct, true)
-					rset.Unlock()
 					if err != nil {
 						return err
 					}
@@ -733,9 +709,7 @@ Loop:
 					}
 					gct = gcts[n]
 				}
-				rset.Lock()
 				defs[n], err = rset.defineString(n, columnSize, gct, true)
-				rset.Unlock()
 				if err != nil {
 					return err
 				}
@@ -753,9 +727,8 @@ Loop:
 			}
 
 			// longBufferSize: Use a moderate default buffer size; 2GB max buffer may not be feasible on all clients
-			rset.Lock()
 			defs[n], err = rset.defineString(n, stmt.Cfg().longBufferSize, gct, false)
-			rset.Unlock()
+			//rset.Unlock()
 			if err != nil {
 				return err
 			}
@@ -968,7 +941,6 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 	if attrSizep == nil {
 		attrSizep = new(C.ub4)
 	}
-	rset.RLock()
 	r := C.OCIAttrGet(
 		unsafe.Pointer(ocipar), //const void     *trgthndlp,
 		C.OCI_DTYPE_PARAM,      //ub4            trghndltyp,
@@ -976,7 +948,6 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 		attrSizep,              //ub4            *sizep,
 		attrType,               //ub4            attrtype,
 		rset.env.ocierr)        //OCIError       *errhp );
-	rset.RUnlock()
 	if r == C.OCI_ERROR {
 		return rset.env.ociError()
 	}
@@ -985,7 +956,7 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 
 // attr gets an attribute from the statement handle.
 func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
-	rset.RLock()
+	env := rset.env
 	r := C.OCIAttrGet(
 		unsafe.Pointer(rset.ocistmt), //const void     *trgthndlp,
 		C.OCI_HTYPE_STMT,             //ub4            trghndltyp,
@@ -993,11 +964,8 @@ func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) er
 		&attrSize,                    //ub4            *sizep,
 		attrType,                     //ub4            attrtype,
 		rset.env.ocierr)              //OCIError       *errhp );
-	rset.RUnlock()
 	if r == C.OCI_ERROR {
-		rset.RLock()
-		err := rset.env.ociError()
-		rset.RUnlock()
+		err := env.ociError()
 		return err
 	}
 	return nil

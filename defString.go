@@ -12,11 +12,15 @@ package ora
 import "C"
 import (
 	"strings"
+	"os"
+	"fmt"
+	"sync"
 	"unsafe"
 )
 
 type defString struct {
 	ociDef
+	sync.RWMutex
 	buf               []byte
 	isNullable, rTrim bool
 	columnSize        int
@@ -31,6 +35,8 @@ func (def *defNumString) define(position int, isNullable bool, rset *Rset) error
 }
 
 func (def *defString) define(position int, columnSize int, isNullable, rTrim bool, rset *Rset) error {
+	def.Lock()
+	defer def.Unlock()
 	def.rset = rset
 	def.isNullable, def.rTrim = isNullable, rTrim
 	//Log.Infof("defString position=%d columnSize=%d", position, columnSize)
@@ -62,6 +68,11 @@ func (def *defString) define(position int, columnSize int, isNullable, rTrim boo
 }
 
 func (def *defString) value(offset int) (value interface{}, err error) {
+	def.RLock()
+	defer def.RUnlock()
+	if offset < 0 || offset >= len(def.nullInds) {
+		fmt.Fprintf(os.Stderr, "offset=%d nullInds=%d\n", offset, len(def.nullInds))
+	}
 	if def.nullInds[offset] < 0 {
 		if def.isNullable {
 			return String{IsNull: true}, nil
@@ -90,11 +101,13 @@ func (def *defString) alloc() error {
 }
 
 func (def *defString) free() {
+	def.Lock()
 	def.arrHlp.close()
 	if def.buf != nil {
 		bytesPool.Put(def.buf)
 		def.buf = nil
 	}
+	def.Unlock()
 }
 
 func (def *defString) close() (err error) {
