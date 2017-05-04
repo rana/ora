@@ -2,10 +2,7 @@
 
 ## master ##
 
-## v4.1.9 ##
-
 ## v4.1.8 ##
-  * Allow *ora.String as a bind parameter - thanks @vamkaxifa!
 
 ## v4.1.7 ##
   * Fix missing Rset.Close in DrvQueryResult.Next.

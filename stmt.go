@@ -1207,19 +1207,6 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
-		case *String:
-			bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
-			bnds[n] = bnd
-			spbs := stmt.stringPtrBufferSize
-			if spbs == 0 {
-				spbs = stmt.Cfg().stringPtrBufferSize
-			}
-			str := &(value.Value)
-			err = bnd.bind(str, pos, spbs, stmt)
-			if err != nil {
-				return iterations, err
-			}
-			stmt.hasPtrBind = true
 		case []string:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			bnds[n] = bnd
