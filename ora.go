@@ -27,7 +27,7 @@ const (
 
 	// The driver version sent to an Oracle server and visible in
 	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
-	Version string = "v4.1.8"
+	Version string = "v4.1.9"
 )
 
 var _drv *Drv
