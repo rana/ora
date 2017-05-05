@@ -42,6 +42,7 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	case <-ctx.Done():
 		if err = ctx.Err(); isCanceled(err) {
 			ds.stmt.ses.Break()
+			return nil, err
 		}
 	case err = <-done:
 	}

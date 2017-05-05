@@ -941,15 +941,16 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 	if attrSizep == nil {
 		attrSizep = new(C.ub4)
 	}
+	env := rset.env
 	r := C.OCIAttrGet(
 		unsafe.Pointer(ocipar), //const void     *trgthndlp,
 		C.OCI_DTYPE_PARAM,      //ub4            trghndltyp,
 		attrup,                 //void           *attributep,
 		attrSizep,              //ub4            *sizep,
 		attrType,               //ub4            attrtype,
-		rset.env.ocierr)        //OCIError       *errhp );
+		env.ocierr)             //OCIError       *errhp );
 	if r == C.OCI_ERROR {
-		return rset.env.ociError()
+		return env.ociError()
 	}
 	return nil
 }
@@ -965,8 +966,7 @@ func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) er
 		attrType,                     //ub4            attrtype,
 		rset.env.ocierr)              //OCIError       *errhp );
 	if r == C.OCI_ERROR {
-		err := env.ociError()
-		return err
+		return env.ociError()
 	}
 	return nil
 }
