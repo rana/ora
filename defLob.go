@@ -47,10 +47,10 @@ func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset
 	if def.lobs != nil {
 		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
-	rset.RLock()
+	//rset.RLock()
 	fetchLen := rset.fetchLen
 	env := rset.stmt.ses.srv.env
-	rset.RUnlock()
+	//rset.RUnlock()
 	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(fetchLen) * C.sof_LobLocatorp))))[:fetchLen]
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
@@ -106,13 +106,13 @@ func (def *defLob) String(offset int) (value string, err error) {
 // Also dissociates this def from the LOB!
 func (def *defLob) Reader(offset int) io.ReadCloser {
 	def.Lock()
-	def.rset.RLock()
+	//def.rset.RLock()
 	lr := &lobReader{
 		ses:           def.rset.stmt.ses,
 		ociLobLocator: def.lobs[offset],
 		piece:         C.OCI_FIRST_PIECE,
 	}
-	def.rset.RUnlock()
+	//def.rset.RUnlock()
 	def.lobs[offset] = nil // don't use it anywhere else
 	def.Unlock()
 	//fmt.Printf("%p.Reader(%d): %p\n", def, offset, lr)
