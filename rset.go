@@ -156,6 +156,7 @@ func (rset *Rset) close() (err error) {
 			err = errR(value)
 		}
 		if rset.genByPool { // recycle pool-generated Rset; don't recycle user-specfied Rset
+			*rset = Rset{}
 			_drv.rsetPool.Put(rset)
 		}
 	}()
