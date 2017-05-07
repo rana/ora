@@ -125,7 +125,8 @@ func TestBindDefine_numeric(t *testing.T) {
 
 func TestBindSlice_numeric(t *testing.T) {
 	sc := ora.NewStmtCfg()
-	for valName, gen := range map[string](func() interface{}){
+
+	generators := map[string](func() interface{}){
 		"int64Slice":        func() interface{} { return gen_int64Slice() },
 		"int32Slice":        func() interface{} { return gen_int32Slice() },
 		"int16Slice":        func() interface{} { return gen_int16Slice() },
@@ -160,7 +161,13 @@ func TestBindSlice_numeric(t *testing.T) {
 		"OraFloat32TruncSliceNull": func() interface{} { return gen_OraFloat32TruncSlice(true) },
 
 		"numStringTruncSlice": func() interface{} { return gen_NumStringTruncSlice() },
-	} {
+	}
+
+	valName := "float32TruncSlice"
+	enableLogging(t)
+	testBindDefine(generators[valName](), _T_colType["numberP16S15"], t, sc)
+
+	for valName, gen := range generators {
 		valName := valName
 		if gen == nil {
 			continue

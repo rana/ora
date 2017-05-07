@@ -294,14 +294,15 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	defer dropTable(tableName, testSes, t)
 
 	// insert
-	insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+	qry := fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)
+	insertStmt, err := testSes.Prep(qry)
+	testErr(errors.Wrap(err, qry), t)
 	if !c.IsZero() {
 		insertStmt.SetCfg(c)
 	}
 	defer insertStmt.Close()
-	testErr(err, t)
 	rowsAffected, err := insertStmt.Exe(expected)
-	testErr(err, t)
+	testErr(errors.Wrapf(err, "%q, %#v", qry, expected), t)
 	expLen := length(expected)
 	if gct == ora.Bin || gct == ora.OraBin {
 		expLen = 1
@@ -850,18 +851,21 @@ func testErr(err error, t testing.TB, expectedErrs ...error) {
 		}
 	}
 	done := make(chan struct{})
-	go func() {
-		select {
-		case <-time.After(30 * time.Second):
-			fmt.Printf("\n\nPRINT TIMEOUT\n%v: %s\n", err, getStack(1))
-		case <-done:
-		}
-	}()
-	t.Fatalf("%v: %s", err, getStack(1))
+	msg := fmt.Sprintf("%v: %s", err, getStack(1))
+	if true {
+		go func() {
+			select {
+			case <-time.After(300 * time.Second):
+				fmt.Printf("\n\nPRINT TIMEOUT\n%s", msg)
+			case <-done:
+			}
+		}()
+	}
+	t.Fatal(msg)
+	close(done)
 	if strings.Contains(err.Error(), "ORA-01000:") {
 		os.Exit(1)
 	}
-	close(done)
 }
 
 func goColumnTypeFromValue(value interface{}) ora.GoColumnType {
@@ -2169,41 +2173,41 @@ func gen_uint8Slice() []uint8 {
 
 func gen_float64Slice() []float64 {
 	expected := make([]float64, 5)
-	expected[0] = -float64(6.28318) //5307179586)
-	expected[1] = -float64(3.14159) //2653589793)
+	expected[0] = -6.28318 //5307179586)
+	expected[1] = -3.14159 //2653589793)
 	expected[2] = 0
-	expected[3] = float64(3.14159) //2653589793)
-	expected[4] = float64(6.28318) //5307179586)
+	expected[3] = 3.14159 //2653589793)
+	expected[4] = 6.28318 //5307179586)
 	return expected
 }
 
 func gen_float64TruncSlice() []float64 {
 	expected := make([]float64, 5)
-	expected[0] = -float64(6)
-	expected[1] = -float64(3)
+	expected[0] = -6
+	expected[1] = -3
 	expected[2] = 0
-	expected[3] = float64(3)
-	expected[4] = float64(6)
+	expected[3] = 3
+	expected[4] = 6
 	return expected
 }
 
 func gen_float32Slice() []float32 {
 	expected := make([]float32, 5)
-	expected[0] = -float32(6.28318)
-	expected[1] = -float32(3.14159)
+	expected[0] = -6.28318
+	expected[1] = -3.14159
 	expected[2] = 0
-	expected[3] = float32(3.14159)
-	expected[4] = float32(6.28318)
+	expected[3] = 3.14159
+	expected[4] = 6.28318
 	return expected
 }
 
 func gen_float32TruncSlice() []float32 {
 	expected := make([]float32, 5)
-	expected[0] = -float32(6)
-	expected[1] = -float32(3)
+	expected[0] = -6
+	expected[1] = -3
 	expected[2] = 0
-	expected[3] = float32(3)
-	expected[4] = float32(6)
+	expected[3] = 3
+	expected[4] = 6
 	return expected
 }
 func gen_NumStringSlice() []ora.Num {
