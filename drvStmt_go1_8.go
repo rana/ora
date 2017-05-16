@@ -39,12 +39,15 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	}()
 	var err error
 	select {
-	case <-ctx.Done():
-		if err = ctx.Err(); isCanceled(err) {
-			ds.stmt.ses.Break()
-			return nil, err
-		}
 	case err = <-done:
+	case <-ctx.Done():
+		err = ctx.Err()
+		if isCanceled(err) {
+			ds.stmt.RLock()
+			ses := ds.stmt.ses
+			ds.stmt.RUnlock()
+			ses.Break()
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -79,18 +82,25 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 			done <- errE(err)
 			return
 		}
-		done <- nil
+		select {
+		case done <- nil:
+		default:
+		}
+
 	}()
-	var err error
 	select {
+	case err := <-done:
+		return &DrvQueryResult{rset: rset}, err
 	case <-ctx.Done():
-		if err = ctx.Err(); isCanceled(err) {
-			ds.stmt.ses.Break()
+		err := ctx.Err()
+		if isCanceled(err) {
+			ds.stmt.RLock()
+			ses := ds.stmt.ses
+			ds.stmt.RUnlock()
+			ses.Break()
 		}
 		return nil, err
-	case err = <-done:
 	}
-	return &DrvQueryResult{rset: rset}, err
 }
 
 // vim: set fileencoding=utf-8 noet:

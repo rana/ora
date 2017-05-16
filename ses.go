@@ -796,8 +796,8 @@ func (ses *Ses) Break() (err error) {
 		return errE(err)
 	}
 	ses.Lock()
-	env := ses.Env()
 	defer ses.Unlock()
+	env := ses.Env()
 	if r := C.OCIBreak(unsafe.Pointer(ses.ocisvcctx), env.ocierr); r == C.OCI_ERROR {
 		return errE(env.ociError())
 	}

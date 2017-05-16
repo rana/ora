@@ -7,8 +7,14 @@
 package ora_test
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pkg/errors"
 )
@@ -26,4 +32,48 @@ func TestNamedArgs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(s)
+}
+
+func TestRapidCancelIssue192(t *testing.T) {
+	wait := uint64(500)
+	dbQuery := func(db *sql.DB) error {
+		w := atomic.LoadUint64(&wait)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(w))
+		defer cancel()
+		if w > 100 {
+			atomic.StoreUint64(&wait, w>>2)
+		}
+
+		rows, err := db.QueryContext(ctx, "select table_name from all_tables")
+		w = atomic.LoadUint64(&wait)
+		if err != nil {
+			fmt.Println(w, err)
+			if err == context.DeadlineExceeded {
+				atomic.StoreUint64(&wait, w+1)
+			}
+			return err
+		}
+		return rows.Close()
+	}
+
+	breakStuff := func(db *sql.DB) error {
+		for {
+			if err := dbQuery(db); err != nil && err != context.DeadlineExceeded {
+				return err
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	grp, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < 1; i++ {
+		grp.Go(func() error { return breakStuff(testDb) })
+	}
+
+	if err := grp.Wait(); err != nil {
+		t.Error(err)
+	}
 }

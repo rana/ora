@@ -410,18 +410,20 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	// Query statement on Oracle server
 	stmt.RLock()
 	env := stmt.Env()
-	stmt.ses.RLock()
+	ses := stmt.ses
+	ocistmt := stmt.ocistmt
+	ses.RLock()
 	r := C.OCIStmtExecute(
 		//stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
-		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
-		stmt.ocistmt,       //OCIStmt             *stmtp,
-		env.ocierr,         //OCIError            *errhp,
-		C.ub4(0),           //ub4                 iters,
-		C.ub4(0),           //ub4                 rowoff,
-		nil,                //const OCISnapshot   *snap_in,
-		nil,                //OCISnapshot         *snap_out,
-		C.OCI_DEFAULT)      //ub4                 mode );
-	stmt.ses.RUnlock()
+		ses.ocisvcctx, //OCISvcCtx           *svchp,
+		ocistmt,       //OCIStmt             *stmtp,
+		env.ocierr,    //OCIError            *errhp,
+		C.ub4(0),      //ub4                 iters,
+		C.ub4(0),      //ub4                 rowoff,
+		nil,           //const OCISnapshot   *snap_in,
+		nil,           //OCISnapshot         *snap_out,
+		C.OCI_DEFAULT) //ub4                 mode );
+	ses.RUnlock()
 	hasPtrBind := stmt.hasPtrBind
 	stmt.RUnlock()
 	if r == C.OCI_ERROR {
@@ -448,7 +450,7 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 		rset.id = _drv.rsetId.nextId()
 	}
 	//rset.Unlock()
-	err = rset.open(stmt, stmt.ocistmt)
+	err = rset.open(stmt, ocistmt)
 	if err != nil {
 		rset.close()
 		return nil, errE(err)

@@ -11,9 +11,9 @@ package ora
 */
 import "C"
 import (
-	"strings"
-	"os"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -47,7 +47,12 @@ func (def *defString) define(position int, columnSize int, isNullable, rTrim boo
 	//
 	// For example when the db's charset is EE8ISO8859P2, then a VARCHAR2(1) can
 	// contain an "ű", which is 2 bytes AL32UTF8.
-	if !rset.stmt.ses.srv.IsUTF8() {
+	rset.stmt.RLock()
+	rset.stmt.ses.RLock()
+	isUTF8 := rset.stmt.ses.srv.IsUTF8()
+	rset.stmt.ses.RUnlock()
+	rset.stmt.RUnlock()
+	if !isUTF8 {
 		n *= 2
 	}
 	if n == 0 {

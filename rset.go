@@ -420,11 +420,14 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	defs, Columns, Row := rset.defs, rset.Columns, rset.Row
 	rset.defs, rset.Columns, rset.Row = nil, nil, nil
 
+	stmt.RLock()
+	ses := stmt.ses
+	stmt.RUnlock()
 	rset.log(logCfg.Rset.Open) // call log after rset.stmt is set
 	// get the implcit select-list describe information; no server round-trip
 	//fmt.Fprintf(os.Stdout, "stmt=%#v rset=%#v\n", stmt, rset)
 	r := C.OCIStmtExecute(
-		stmt.ses.ocisvcctx,  //OCISvcCtx           *svchp,
+		ses.ocisvcctx,       //OCISvcCtx           *svchp,
 		ocistmt,             //OCIStmt             *stmtp,
 		env.ocierr,          //OCIError            *errhp,
 		C.ub4(1),            //ub4                 iters,
