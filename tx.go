@@ -54,7 +54,7 @@ func (tx *Tx) checkIsOpen() error {
 	tx.RLock()
 	ses := tx.ses
 	tx.RUnlock()
-	if tx.ses == nil {
+	if ses == nil {
 		return er("Tx is closed.")
 	}
 	return ses.checkClosed()
