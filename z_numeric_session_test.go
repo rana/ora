@@ -7,6 +7,7 @@ package ora_test
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -72,6 +73,23 @@ var _T_numericCols = []string{
 	"binaryDouble", "binaryDoubleNull",
 	"binaryFloat", "binaryFloatNull",
 	"floatP126", "floatP126Null",
+}
+
+func TestBindNumericString(t *testing.T) {
+	tableName, err := createTable(1, numberP38S0, testSes)
+	testErr(err, t)
+	defer dropTable(tableName, testSes, t)
+
+	stmt, err := testSes.Prep("INSERT INTO " + tableName + " (c1) VALUES (:1)")
+	testErr(err, t)
+	defer stmt.Close()
+	s := ""
+	for i := 1; i < 38; i++ {
+		s = s + strconv.Itoa(i%10)
+		if _, err := stmt.Exe(s); err != nil {
+			t.Errorf("Insert %q: %v", s, err)
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
