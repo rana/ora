@@ -455,6 +455,7 @@ const poolWaitPut = 1 * time.Second
 // The backing store is a simple []io.Closer, which is treated as random store,
 // to achive uniform reuse.
 type idlePool struct {
+	sync.RWMutex
 	elems atomic.Value
 }
 
@@ -480,6 +481,8 @@ func newIdlePool(size int) *idlePool {
 
 // Evict halves the idle items
 func (p *idlePool) Evict(dur time.Duration) {
+	p.RLock()
+	defer p.RUnlock()
 	elems := p.Elems()
 	n := len(elems)/2 + 1
 	for i := 0; i < n; i++ {
@@ -499,6 +502,8 @@ func (p *idlePool) Evict(dur time.Duration) {
 
 // Get returns a closer or nil, if no pool found.
 func (p *idlePool) Get() io.Closer {
+	p.RLock()
+	defer p.RUnlock()
 	for {
 		elems := p.Elems()
 		select {
@@ -517,6 +522,8 @@ func (p *idlePool) Get() io.Closer {
 // element is put there.
 // This way elements reused uniformly.
 func (p *idlePool) Put(c io.Closer) {
+	p.RLock()
+	defer p.RUnlock()
 	select {
 	case p.Elems() <- c:
 		return
@@ -534,6 +541,8 @@ func (p *idlePool) Put(c io.Closer) {
 
 // Close all elements.
 func (p *idlePool) Close() error {
+	p.Lock()
+	defer p.Unlock()
 	elems := p.SetElems(nil)
 	if elems == nil {
 		return nil
