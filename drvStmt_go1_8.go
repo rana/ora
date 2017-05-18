@@ -47,6 +47,8 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 			ses := ds.stmt.ses
 			ds.stmt.RUnlock()
 			ses.Break()
+			// Now wait for the interrupt to bubble through
+			<-done
 		}
 	}
 	if err != nil {
@@ -98,6 +100,8 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 			ses := ds.stmt.ses
 			ds.stmt.RUnlock()
 			ses.Break()
+			// Now wait for the interrupt to bubble through
+			<-done
 		}
 		return nil, err
 	}
