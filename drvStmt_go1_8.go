@@ -25,32 +25,27 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	var res DrvExecResult
-	done := make(chan error)
+
+	done := make(chan struct{}, 1)
 	go func() {
-		defer close(done)
-		var err error
-		res.rowsAffected, res.lastInsertId, err = ds.stmt.exeC(ctx, params, false)
-		if err != nil {
-			done <- errE(err)
+		select {
+		case <-done:
 			return
+		case <-ctx.Done():
+			if isCanceled(ctx.Err()) {
+				ds.stmt.RLock()
+				ses := ds.stmt.ses
+				ds.stmt.RUnlock()
+				ses.Break()
+			}
 		}
-		done <- nil
 	}()
+
 	var err error
-	select {
-	case err = <-done:
-	case <-ctx.Done():
-		err = ctx.Err()
-		if isCanceled(err) {
-			ds.stmt.RLock()
-			ses := ds.stmt.ses
-			ds.stmt.RUnlock()
-			ses.Break()
-			// Now wait for the interrupt to bubble through
-			<-done
-		}
-	}
+	var res DrvExecResult
+	res.rowsAffected, res.lastInsertId, err = ds.stmt.exeC(ctx, params, false)
+	done <- struct{}{}
+
 	if err != nil {
 		return nil, err
 	}
@@ -74,37 +69,28 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	var rset *Rset
-	done := make(chan error)
+	done := make(chan struct{}, 1)
 	go func() {
-		defer close(done)
-		var err error
-		rset, err = ds.stmt.qryC(ctx, params)
-		if err != nil {
-			done <- errE(err)
-			return
-		}
 		select {
-		case done <- nil:
-		default:
+		case <-done:
+			return
+		case <-ctx.Done():
+			if isCanceled(ctx.Err()) {
+				ds.stmt.RLock()
+				ses := ds.stmt.ses
+				ds.stmt.RUnlock()
+				ses.Break()
+			}
 		}
-
 	}()
-	select {
-	case err := <-done:
-		return &DrvQueryResult{rset: rset}, err
-	case <-ctx.Done():
-		err := ctx.Err()
-		if isCanceled(err) {
-			ds.stmt.RLock()
-			ses := ds.stmt.ses
-			ds.stmt.RUnlock()
-			ses.Break()
-			// Now wait for the interrupt to bubble through
-			<-done
-		}
+
+	rset, err := ds.stmt.qryC(ctx, params)
+	done <- struct{}{}
+
+	if err != nil {
 		return nil, err
 	}
+	return &DrvQueryResult{rset: rset}, nil
 }
 
 // vim: set fileencoding=utf-8 noet:

@@ -9,7 +9,6 @@ package ora_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -48,7 +47,7 @@ func TestRapidCancelIssue192(t *testing.T) {
 		rows, err := db.QueryContext(ctx, "select table_name from all_tables")
 		w = atomic.LoadUint64(&wait)
 		if err != nil {
-			fmt.Println(w, err)
+			t.Log(w, err)
 			if err == context.DeadlineExceeded && !strings.Contains(err.Error(), "ORA-01013") {
 				atomic.StoreUint64(&wait, w+1)
 			}
