@@ -410,20 +410,18 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	// Query statement on Oracle server
 	stmt.RLock()
 	env := stmt.Env()
-	ses := stmt.ses
-	ocistmt := stmt.ocistmt
-	ses.RLock()
+	stmt.ses.RLock()
 	r := C.OCIStmtExecute(
 		//stmt.ses.ocisvcctx,      //OCISvcCtx           *svchp,
-		ses.ocisvcctx, //OCISvcCtx           *svchp,
-		ocistmt,       //OCIStmt             *stmtp,
-		env.ocierr,    //OCIError            *errhp,
-		C.ub4(0),      //ub4                 iters,
-		C.ub4(0),      //ub4                 rowoff,
-		nil,           //const OCISnapshot   *snap_in,
-		nil,           //OCISnapshot         *snap_out,
-		C.OCI_DEFAULT) //ub4                 mode );
-	ses.RUnlock()
+		stmt.ses.ocisvcctx, //OCISvcCtx           *svchp,
+		stmt.ocistmt,       //OCIStmt             *stmtp,
+		env.ocierr,         //OCIError            *errhp,
+		C.ub4(0),           //ub4                 iters,
+		C.ub4(0),           //ub4                 rowoff,
+		nil,                //const OCISnapshot   *snap_in,
+		nil,                //OCISnapshot         *snap_out,
+		C.OCI_DEFAULT)      //ub4                 mode );
+	stmt.ses.RUnlock()
 	hasPtrBind := stmt.hasPtrBind
 	stmt.RUnlock()
 	if r == C.OCI_ERROR {
@@ -437,21 +435,15 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	}
 	// create result set and open
 	// FIXME(tgulacsi): reusing Rsets causes sporadic failures.
-	if false {
-		rset = _drv.rsetPool.Get().(*Rset)
-		// this causes data race
-		*rset = Rset{}
-		rset.genByPool = true
-	} else {
-		rset = &Rset{}
-	}
+	//rset = _drv.rsetPool.Get().(*Rset)
+	rset = &Rset{}
 	//rset.Lock()
 	rset.env = env
 	if rset.id == 0 {
 		rset.id = _drv.rsetId.nextId()
 	}
 	//rset.Unlock()
-	err = rset.open(stmt, ocistmt)
+	err = rset.open(stmt, stmt.ocistmt)
 	if err != nil {
 		rset.close()
 		return nil, errE(err)
@@ -607,6 +599,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Int64:
+			bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
 		case Int32:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_INT)
@@ -618,6 +618,15 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Int32:
+			bnd := stmt.getBnd(bndIdxInt32Ptr).(*bndInt32Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+
+			stmt.hasPtrBind = true
 		case Int16:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_INT)
@@ -629,6 +638,15 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Int16:
+			bnd := stmt.getBnd(bndIdxInt16Ptr).(*bndInt16Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+
+			stmt.hasPtrBind = true
 		case Int8:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_INT)
@@ -640,6 +658,15 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Int8:
+			bnd := stmt.getBnd(bndIdxInt8Ptr).(*bndInt8Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+
+			stmt.hasPtrBind = true
 		case Uint64:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_UIN)
@@ -695,6 +722,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Float64:
+			bnd := stmt.getBnd(bndIdxFloat64Ptr).(*bndFloat64Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
 		case Float32:
 			if value.IsNull {
 				stmt.setNilBind(n, C.SQLT_BFLOAT)
@@ -706,6 +741,14 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *Float32:
+			bnd := stmt.getBnd(bndIdxFloat32Ptr).(*bndFloat32Ptr)
+			bnds[n] = bnd
+			err = bnd.bind(&(value.Value), &(value.IsNull), pos, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
 		case Num:
 			bnd := stmt.getBnd(bndIdxNumString).(*bndNumString)
 			bnds[n] = bnd
@@ -735,7 +778,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *int64:
 			bnd := stmt.getBnd(bndIdxInt64Ptr).(*bndInt64Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -743,7 +786,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *int32:
 			bnd := stmt.getBnd(bndIdxInt32Ptr).(*bndInt32Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -751,7 +794,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *int16:
 			bnd := stmt.getBnd(bndIdxInt16Ptr).(*bndInt16Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -759,7 +802,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *int8:
 			bnd := stmt.getBnd(bndIdxInt8Ptr).(*bndInt8Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -799,7 +842,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *float64:
 			bnd := stmt.getBnd(bndIdxFloat64Ptr).(*bndFloat64Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -807,7 +850,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *float32:
 			bnd := stmt.getBnd(bndIdxFloat32Ptr).(*bndFloat32Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1199,7 +1242,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 			if spbs == 0 {
 				spbs = stmt.Cfg().stringPtrBufferSize
 			}
-			err = bnd.bind(value, pos, spbs, stmt)
+			err = bnd.bind(value, nil, pos, spbs, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -1215,6 +1258,19 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 					return iterations, err
 				}
 			}
+		case *String:
+			bnd := stmt.getBnd(bndIdxStringPtr).(*bndStringPtr)
+			bnds[n] = bnd
+			spbs := stmt.stringPtrBufferSize
+			if spbs == 0 {
+				spbs = stmt.Cfg().stringPtrBufferSize
+			}
+			str := &(value.Value)
+			err = bnd.bind(str, &(value.IsNull), pos, spbs, stmt)
+			if err != nil {
+				return iterations, err
+			}
+			stmt.hasPtrBind = true
 		case []string:
 			bnd := stmt.getBnd(bndIdxStringSlice).(*bndStringSlice)
 			bnds[n] = bnd

@@ -14,16 +14,18 @@ import (
 )
 
 type bndFloat64Ptr struct {
-	stmt      *Stmt
-	ocibnd    *C.OCIBind
-	ociNumber [1]C.OCINumber
-	value     *float64
+	stmt        *Stmt
+	ocibnd      *C.OCIBind
+	ociNumber   [1]C.OCINumber
+	value       *float64
+	valueIsNull *bool
 	nullp
 }
 
-func (bnd *bndFloat64Ptr) bind(value *float64, position namedPos, stmt *Stmt) error {
+func (bnd *bndFloat64Ptr) bind(value *float64, valueIsNull *bool, position namedPos, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
+	bnd.valueIsNull = valueIsNull
 	bnd.nullp.Set(value == nil)
 	if value != nil {
 		if err := bnd.stmt.ses.srv.env.OCINumberFromFloat(&bnd.ociNumber[0], floatSixtyFour(*value), byteWidth64); err != nil {
@@ -57,11 +59,15 @@ func (bnd *bndFloat64Ptr) bind(value *float64, position namedPos, stmt *Stmt) er
 }
 
 func (bnd *bndFloat64Ptr) setPtr() error {
+	if bnd.valueIsNull != nil {
+		*bnd.valueIsNull = bnd.nullp.IsNull()
+	}
 	if bnd.nullp.IsNull() {
 		return nil
 	}
 	f, err := bnd.stmt.ses.srv.env.OCINumberToFloat(&bnd.ociNumber[0], byteWidth64)
 	*bnd.value = float64(f)
+
 	return err
 }
 
@@ -76,6 +82,7 @@ func (bnd *bndFloat64Ptr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.valueIsNull = nil
 	bnd.nullp.Free()
 	stmt.putBnd(bndIdxFloat64Ptr, bnd)
 	return nil
