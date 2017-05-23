@@ -14,17 +14,19 @@ import "unsafe"
 const maxStringLength = 32767
 
 type bndStringPtr struct {
-	stmt   *Stmt
-	ocibnd *C.OCIBind
-	value  *string
-	buf    []byte
-	alen   [1]C.ACTUAL_LENGTH_TYPE
+	stmt        *Stmt
+	ocibnd      *C.OCIBind
+	value       *string
+	valueIsNull *bool
+	buf         []byte
+	alen        [1]C.ACTUAL_LENGTH_TYPE
 	nullp
 }
 
-func (bnd *bndStringPtr) bind(value *string, position namedPos, stringPtrBufferSize int, stmt *Stmt) error {
+func (bnd *bndStringPtr) bind(value *string, valueIsNull *bool, position namedPos, stringPtrBufferSize int, stmt *Stmt) error {
 	bnd.stmt = stmt
 	bnd.value = value
+	bnd.valueIsNull = valueIsNull
 	if stringPtrBufferSize < 2 {
 		stringPtrBufferSize = 2
 	} else if stringPtrBufferSize%2 == 1 {
@@ -101,11 +103,15 @@ func (bnd *bndStringPtr) bind(value *string, position namedPos, stringPtrBufferS
 }
 
 func (bnd *bndStringPtr) setPtr() error {
+	if bnd.valueIsNull != nil {
+		*bnd.valueIsNull = bnd.nullp.IsNull()
+	}
 	if bnd.value == nil {
 		return nil
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
 		"StringPtr.setPtr isNull=%t alen=%d", bnd.nullp.IsNull(), bnd.alen[0])
+
 	if !bnd.nullp.IsNull() {
 		*bnd.value = string(bnd.buf[:bnd.alen[0]])
 	} else {
@@ -127,6 +133,7 @@ func (bnd *bndStringPtr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.valueIsNull = nil
 	bnd.alen[0] = 0
 	bytesPool.Put(bnd.buf)
 	bnd.buf = nil
