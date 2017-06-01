@@ -85,7 +85,7 @@ type Rset struct {
 	stmt      *Stmt
 	ocistmt   *C.OCIStmt
 	defs      []def
-	autoClose bool
+	autoClose bool // whether the close of the rset shall close its parent stmt
 	genByPool bool
 
 	Row             []interface{}
@@ -335,6 +335,8 @@ func (rset *Rset) Next() bool {
 			rset.RUnlock()
 			rset.closeWithRemove()
 			stmt.Close()
+		} else {
+			rset.close()
 		}
 	}
 
