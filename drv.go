@@ -93,7 +93,7 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 		authMode |= C.DPI_MODE_AUTH_SYSOPER
 	}
 
-	var c conn
+	c := conn{drv: d, connString: connString}
 	cUserName, cPassword, cSid := C.CString(username), C.CString(password), C.CString(sid)
 	cUTF8, cConnClass := C.CString("AL32UTF8"), C.CString(connClass)
 	defer func() {
@@ -133,12 +133,14 @@ var _ = driver.ConnBeginTx((*conn)(nil))
 var _ = driver.ConnPrepareContext((*conn)(nil))
 
 type conn struct {
-	dpiConn *C.dpiConn
+	dpiConn    *C.dpiConn
+	connString string
+	*drv
 }
 
 // Prepare returns a prepared statement, bound to this connection.
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
-	return nil, nil
+	return c.PrepareContext(context.Background(), query)
 }
 
 // Close invalidates and potentially stops any current
@@ -150,6 +152,9 @@ func (c *conn) Prepare(query string) (driver.Stmt, error) {
 // idle connections, it shouldn't be necessary for drivers to
 // do their own connection caching.
 func (c *conn) Close() error {
+	if C.dpiConn_release(c.dpiConn) == C.DPI_FAILURE {
+		return c.getError()
+	}
 	return nil
 }
 
@@ -157,7 +162,7 @@ func (c *conn) Close() error {
 //
 // Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 func (c *conn) Begin() (driver.Tx, error) {
-	return nil, nil
+	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 
 // BeginTx starts and returns a new transaction.
@@ -173,13 +178,120 @@ func (c *conn) Begin() (driver.Tx, error) {
 // value is true to either set the read-only transaction property if supported
 // or return an error if it is not supported.
 func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	return nil, nil
+	c2, err := c.drv.Open(c.connString)
+	return &transaction{conn: c2.(*conn)}, err
 }
 
 // PrepareContext returns a prepared statement, bound to this connection.
 // context is for the preparation of the statement,
 // it must not store the context within the statement itself.
 func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	cSql := C.CString(query)
+	defer func() {
+		C.free(unsafe.Pointer(cSql))
+	}()
+	var dpiStmt *C.dpiStmt
+	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSql, C.uint32_t(len(query)), nil, 0, (**C.dpiStmt)(unsafe.Pointer(&dpiStmt))) == C.DPI_FAILURE {
+		return nil, c.getError()
+	}
+	return &statement{conn: c, dpiStmt: dpiStmt}, nil
+}
+func (c *conn) Commit() error {
+	if C.dpiConn_commit(c.dpiConn) == C.DPI_FAILURE {
+		return c.getError()
+	}
+	return nil
+}
+func (c *conn) Rollback() error {
+	if C.dpiConn_rollback(c.dpiConn) == C.DPI_FAILURE {
+		return c.getError()
+	}
+	return nil
+}
+
+var _ = driver.Tx((*transaction)(nil))
+
+type transaction struct {
+	*conn
+}
+
+func (tx *transaction) Commit() error {
+	return tx.conn.Commit()
+}
+func (tx *transaction) Rollback() error {
+	return tx.conn.Rollback()
+}
+
+var _ = driver.Stmt((*statement)(nil))
+var _ = driver.StmtQueryContext((*statement)(nil))
+var _ = driver.StmtExecContext((*statement)(nil))
+
+type statement struct {
+	*conn
+	dpiStmt *C.dpiStmt
+}
+
+// Close closes the statement.
+//
+// As of Go 1.1, a Stmt will not be closed if it's in use
+// by any queries.
+func (st *statement) Close() error {
+	if C.dpiStmt_close(st.dpiStmt, nil, 0) == C.DPI_FAILURE {
+		return st.getError()
+	}
+	return nil
+}
+
+// NumInput returns the number of placeholder parameters.
+//
+// If NumInput returns >= 0, the sql package will sanity check
+// argument counts from callers and return errors to the caller
+// before the statement's Exec or Query methods are called.
+//
+// NumInput may also return -1, if the driver doesn't know
+// its number of placeholders. In that case, the sql package
+// will not sanity check Exec or Query argument counts.
+func (st *statement) NumInput() int {
+	return -1
+}
+
+// Exec executes a query that doesn't return rows, such
+// as an INSERT or UPDATE.
+//
+// Deprecated: Drivers should implement StmtExecContext instead (or additionally).
+func (st *statement) Exec(args []driver.Value) (driver.Result, error) {
+	nargs := make([]driver.NamedValue, len(args))
+	for i, arg := range args {
+		nargs[i].Ordinal = i
+		nargs[i].Value = arg
+	}
+	return st.ExecContext(context.Background(), nargs)
+}
+
+// Query executes a query that may return rows, such as a
+// SELECT.
+//
+// Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
+func (st *statement) Query(args []driver.Value) (driver.Rows, error) {
+	nargs := make([]driver.NamedValue, len(args))
+	for i, arg := range args {
+		nargs[i].Ordinal = i
+		nargs[i].Value = arg
+	}
+	return st.QueryContext(context.Background(), nargs)
+}
+
+// ExecContext executes a query that doesn't return rows, such as an INSERT or UPDATE.
+//
+// ExecContext must honor the context timeout and return when it is canceled.
+func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	return nil, nil
+}
+
+// QueryContext executes a query that may return rows, such as a SELECT.
+//
+// QueryContext must honor the context timeout and return when it is canceled.
+func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	return nil, nil
 }
 
