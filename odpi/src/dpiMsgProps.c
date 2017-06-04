@@ -1,0 +1,328 @@
+//-----------------------------------------------------------------------------
+// Copyright (c) 2016, 2017 Oracle and/or its affiliates.  All rights reserved.
+// This program is free software: you can modify it and/or redistribute it
+// under the terms of:
+//
+// (i)  the Universal Permissive License v 1.0 or at your option, any
+//      later version (http://oss.oracle.com/licenses/upl); and/or
+//
+// (ii) the Apache License v 2.0. (http://www.apache.org/licenses/LICENSE-2.0)
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps.c
+//   Implementation of AQ message properties.
+//-----------------------------------------------------------------------------
+
+#include "dpiImpl.h"
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps__create() [INTERNAL]
+//   Create a new subscription structure and return it. In case of error NULL
+// is returned.
+//-----------------------------------------------------------------------------
+int dpiMsgProps__create(dpiMsgProps *options, dpiConn *conn, dpiError *error)
+{
+    if (dpiGen__setRefCount(conn, error, 1) < 0)
+        return DPI_FAILURE;
+    options->conn = conn;
+    return dpiOci__descriptorAlloc(conn->env, &options->handle,
+            DPI_OCI_DTYPE_AQMSG_PROPERTIES, "allocate descriptor", error);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps__free() [INTERNAL]
+//   Free the memory for a message properties structure.
+//-----------------------------------------------------------------------------
+void dpiMsgProps__free(dpiMsgProps *props, dpiError *error)
+{
+    if (props->handle) {
+        dpiOci__descriptorFree(props->handle, DPI_OCI_DTYPE_AQMSG_PROPERTIES);
+        props->handle = NULL;
+    }
+    if (props->conn) {
+        dpiGen__setRefCount(props->conn, error, -1);
+        props->conn = NULL;
+    }
+    free(props);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps__getAttrValue() [INTERNAL]
+//   Get the attribute value in OCI.
+//-----------------------------------------------------------------------------
+static int dpiMsgProps__getAttrValue(dpiMsgProps *props, uint32_t attribute,
+        const char *fnName, void *value, uint32_t *valueLength)
+{
+    dpiError error;
+
+    if (dpiGen__startPublicFn(props, DPI_HTYPE_MSG_PROPS, fnName, &error) < 0)
+        return DPI_FAILURE;
+    return dpiOci__attrGet(props->handle, DPI_OCI_DTYPE_AQMSG_PROPERTIES,
+            value, valueLength, attribute, "get attribute value", &error);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps__setAttrValue() [INTERNAL]
+//   Set the attribute value in OCI.
+//-----------------------------------------------------------------------------
+static int dpiMsgProps__setAttrValue(dpiMsgProps *props, uint32_t attribute,
+        const char *fnName, const void *value, uint32_t valueLength)
+{
+    dpiError error;
+
+    if (dpiGen__startPublicFn(props, DPI_HTYPE_MSG_PROPS, fnName, &error) < 0)
+        return DPI_FAILURE;
+    return dpiOci__attrSet(props->handle, DPI_OCI_DTYPE_AQMSG_PROPERTIES,
+            (void*) value, valueLength, attribute, "set attribute value",
+            &error);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_addRef() [PUBLIC]
+//   Add a reference to the message properties.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_addRef(dpiMsgProps *props)
+{
+    return dpiGen__addRef(props, DPI_HTYPE_MSG_PROPS, __func__);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getCorrelation() [PUBLIC]
+//   Return correlation associated with the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getCorrelation(dpiMsgProps *props, const char **value,
+        uint32_t *valueLength)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_CORRELATION, __func__,
+            (void*) value, valueLength);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getDelay() [PUBLIC]
+//   Return the number of seconds the message was delayed.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getDelay(dpiMsgProps *props, int32_t *value)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_DELAY, __func__,
+            value, NULL);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getDeliveryMode() [PUBLIC]
+//   Return the mode used for delivering the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getDeliveryMode(dpiMsgProps *props,
+        dpiMessageDeliveryMode *value)
+{
+    uint16_t ociValue;
+
+    if (dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_MSG_DELIVERY_MODE,
+            __func__, &ociValue, NULL) < 0)
+        return DPI_FAILURE;
+    *value = ociValue;
+    return DPI_SUCCESS;
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getEnqTime() [PUBLIC]
+//   Return the time the message was enqueued.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getEnqTime(dpiMsgProps *props, dpiTimestamp *value)
+{
+    dpiOciDate ociValue;
+
+    if (dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_ENQ_TIME, __func__,
+            &ociValue, NULL) < 0)
+        return DPI_FAILURE;
+    value->year = ociValue.year;
+    value->month = ociValue.month;
+    value->day = ociValue.day;
+    value->hour = ociValue.hour;
+    value->minute = ociValue.minute;
+    value->second = ociValue.second;
+    value->fsecond = 0;
+    value->tzHourOffset = 0;
+    value->tzMinuteOffset = 0;
+    return DPI_SUCCESS;
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getExceptionQ() [PUBLIC]
+//   Return the name of the exception queue associated with the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getExceptionQ(dpiMsgProps *props, const char **value,
+        uint32_t *valueLength)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_EXCEPTION_QUEUE,
+            __func__, (void*) value, valueLength);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getExpiration() [PUBLIC]
+//   Return the number of seconds until the message expires.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getExpiration(dpiMsgProps *props, int32_t *value)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_EXPIRATION, __func__,
+            value, NULL);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getNumAttempts() [PUBLIC]
+//   Return the number of attempts made to deliver the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getNumAttempts(dpiMsgProps *props, int32_t *value)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_ATTEMPTS, __func__,
+            value, NULL);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getOriginalMsgId() [PUBLIC]
+//   Return the original message id for the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getOriginalMsgId(dpiMsgProps *props, const char **value,
+        uint32_t *valueLength)
+{
+    void *rawValue;
+
+    if (dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_ORIGINAL_MSGID, __func__,
+            &rawValue, NULL) < 0)
+        return DPI_FAILURE;
+    dpiOci__rawPtr(props->env, rawValue, (void**) value);
+    dpiOci__rawSize(props->env, rawValue, valueLength);
+    return DPI_SUCCESS;
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getPriority() [PUBLIC]
+//   Return the priority of the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getPriority(dpiMsgProps *props, int32_t *value)
+{
+    return dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_PRIORITY, __func__,
+            value, NULL);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_getState() [PUBLIC]
+//   Return the state of the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_getState(dpiMsgProps *props, dpiMessageState *value)
+{
+    uint32_t ociValue;
+
+    if (dpiMsgProps__getAttrValue(props, DPI_OCI_ATTR_MSG_STATE, __func__,
+            &ociValue, NULL) < 0)
+        return DPI_FAILURE;
+    *value = ociValue;
+    return DPI_SUCCESS;
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_release() [PUBLIC]
+//   Release a reference to the message properties.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_release(dpiMsgProps *props)
+{
+    return dpiGen__release(props, DPI_HTYPE_MSG_PROPS, __func__);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setCorrelation() [PUBLIC]
+//   Set correlation associated with the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setCorrelation(dpiMsgProps *props, const char *value,
+        uint32_t valueLength)
+{
+    return dpiMsgProps__setAttrValue(props, DPI_OCI_ATTR_CORRELATION, __func__,
+            value, valueLength);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setDelay() [PUBLIC]
+//   Set the number of seconds to delay the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setDelay(dpiMsgProps *props, int32_t value)
+{
+    return dpiMsgProps__setAttrValue(props, DPI_OCI_ATTR_DELAY, __func__,
+            &value, 0);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setExceptionQ() [PUBLIC]
+//   Set the name of the exception queue associated with the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setExceptionQ(dpiMsgProps *props, const char *value,
+        uint32_t valueLength)
+{
+    return dpiMsgProps__setAttrValue(props, DPI_OCI_ATTR_EXCEPTION_QUEUE,
+            __func__, value, valueLength);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setExpiration() [PUBLIC]
+//   Set the number of seconds until the message expires.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setExpiration(dpiMsgProps *props, int32_t value)
+{
+    return dpiMsgProps__setAttrValue(props, DPI_OCI_ATTR_EXPIRATION, __func__,
+            &value, 0);
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setOriginalMsgId() [PUBLIC]
+//   Set the original message id for the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setOriginalMsgId(dpiMsgProps *props, const char *value,
+        uint32_t valueLength)
+{
+    void *rawValue = NULL;
+    dpiError error;
+    int status;
+
+    if (dpiGen__startPublicFn(props, DPI_HTYPE_MSG_PROPS, __func__,
+            &error) < 0)
+        return DPI_FAILURE;
+    if (dpiOci__rawAssignBytes(props->env, value, valueLength, &rawValue,
+            &error) < 0)
+        return DPI_FAILURE;
+    status = dpiOci__attrSet(props->handle, DPI_OCI_DTYPE_AQMSG_PROPERTIES,
+            (void*) rawValue, valueLength, DPI_OCI_ATTR_ORIGINAL_MSGID,
+            "set value", &error);
+    dpiOci__rawResize(props->env, &rawValue, 0, &error);
+    return status;
+}
+
+
+//-----------------------------------------------------------------------------
+// dpiMsgProps_setPriority() [PUBLIC]
+//   Set the priority of the message.
+//-----------------------------------------------------------------------------
+int dpiMsgProps_setPriority(dpiMsgProps *props, int32_t value)
+{
+    return dpiMsgProps__setAttrValue(props, DPI_OCI_ATTR_PRIORITY, __func__,
+            &value, 0);
+}
+
