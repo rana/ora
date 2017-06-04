@@ -177,6 +177,7 @@ func (rset *Rset) close() (err error) {
 			errs.PushBack(err0)
 		}
 	}
+
 	rset.env = nil
 	rset.stmt = nil
 	rset.ocistmt = nil
@@ -329,14 +330,14 @@ func (rset *Rset) Next() bool {
 		autoClose := rset.autoClose
 		rset.Unlock()
 		// closing the Stmt will close this (and all) Rsets under it!
-		if autoClose {
+		if !autoClose {
+			rset.close()
+		} else {
 			rset.RLock()
 			stmt := rset.stmt
 			rset.RUnlock()
 			rset.closeWithRemove()
 			stmt.Close()
-		} else {
-			rset.close()
 		}
 	}
 

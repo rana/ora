@@ -155,8 +155,10 @@ func (stmt *Stmt) close() (err error) {
 		// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
 		stmt.Lock()
 		env := stmt.Env()
+		ocistmt := stmt.ocistmt
+		fmt.Printf("OCIStmtRelease %p\n", stmt)
 		r := C.OCIStmtRelease(
-			stmt.ocistmt,  // OCIStmt        *stmthp
+			ocistmt,       // OCIStmt        *stmthp
 			env.ocierr,    // OCIError       *errhp,
 			nil,           // const OraText  *key
 			C.ub4(0),      // ub4 keylen
@@ -166,6 +168,8 @@ func (stmt *Stmt) close() (err error) {
 		if r == C.OCI_ERROR {
 			errs.PushBack(errE(env.ociError()))
 		}
+
+		C.OCIHandleFree(unsafe.Pointer(ocistmt), C.OCI_HTYPE_STMT)
 
 		stmt.SetCfg(StmtCfg{})
 		stmt.Lock()
