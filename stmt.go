@@ -125,7 +125,12 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 func (st *statement) openRows(colCount int) (*rows, error) {
 	C.dpiStmt_setFetchArraySize(st.dpiStmt, fetchRowCount)
 
-	r := rows{statement: st, columns: make([]Column, colCount)}
+	r := rows{
+		statement: st,
+		columns:   make([]Column, colCount),
+		vars:      make([]*C.dpiVar, colCount),
+		data:      make([][]*C.dpiData, colCount),
+	}
 	var info C.dpiQueryInfo
 	for i := 0; i < colCount; i++ {
 		if C.dpiStmt_getQueryInfo(st.dpiStmt, C.uint32_t(i+1), &info) == C.DPI_FAILURE {

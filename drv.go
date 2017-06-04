@@ -48,7 +48,7 @@ func init() {
 		panic(err)
 	}
 
-	sql.Register("ora", &drv{})
+	sql.Register("ora", &d)
 }
 
 var _ = driver.Driver((*drv)(nil))
@@ -121,6 +121,8 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 	if username == "" && password == "" {
 		extAuth = 1
 	}
+	_ = extAuth
+	dc := C.malloc(C.sizeof_void)
 	if C.dpiConn_create(
 		d.dpiContext,
 		cUserName, C.uint32_t(len(username)),
@@ -135,10 +137,11 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 			connectionClass: cConnClass, connectionClassLength: C.uint32_t(len(connClass)),
 			externalAuth: extAuth,
 		},
-		(**C.dpiConn)(unsafe.Pointer(&c.dpiConn)),
+		(**C.dpiConn)(unsafe.Pointer(&dc)),
 	) == C.DPI_FAILURE {
 		return nil, d.getError()
 	}
+	c.dpiConn = (*C.dpiConn)(dc)
 	return &c, nil
 }
 
@@ -149,14 +152,14 @@ type oraErr struct {
 func (oe *oraErr) Code() int       { return int(oe.errInfo.code) }
 func (oe *oraErr) Message() string { return C.GoString(oe.errInfo.message) }
 func (oe *oraErr) Error() string {
-	if oe.errInfo.code == 0 {
+	msg := oe.Message()
+	if oe.errInfo.code == 0 && msg == "" {
 		return ""
 	}
-	return fmt.Sprintf("ORA-%05d: %s", oe.Code(), oe.Message())
+	return fmt.Sprintf("ORA-%05d: %s", oe.Code(), msg)
 }
 
 func (d *drv) getError() *oraErr {
 	var oe oraErr
-	C.dpiContext_getError(d.dpiContext, &oe.errInfo)
 	return &oe
 }
