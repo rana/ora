@@ -1,3 +1,18 @@
+// Copyright 2017 Tamás Gulácsi
+//
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
 package ora
 
 /*
@@ -9,7 +24,6 @@ package ora
 import "C"
 
 import (
-	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -126,173 +140,6 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 		return nil, d.getError()
 	}
 	return &c, nil
-}
-
-var _ = driver.Conn((*conn)(nil))
-var _ = driver.ConnBeginTx((*conn)(nil))
-var _ = driver.ConnPrepareContext((*conn)(nil))
-
-type conn struct {
-	dpiConn    *C.dpiConn
-	connString string
-	*drv
-}
-
-// Prepare returns a prepared statement, bound to this connection.
-func (c *conn) Prepare(query string) (driver.Stmt, error) {
-	return c.PrepareContext(context.Background(), query)
-}
-
-// Close invalidates and potentially stops any current
-// prepared statements and transactions, marking this
-// connection as no longer in use.
-//
-// Because the sql package maintains a free pool of
-// connections and only calls Close when there's a surplus of
-// idle connections, it shouldn't be necessary for drivers to
-// do their own connection caching.
-func (c *conn) Close() error {
-	if C.dpiConn_release(c.dpiConn) == C.DPI_FAILURE {
-		return c.getError()
-	}
-	return nil
-}
-
-// Begin starts and returns a new transaction.
-//
-// Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
-func (c *conn) Begin() (driver.Tx, error) {
-	return c.BeginTx(context.Background(), driver.TxOptions{})
-}
-
-// BeginTx starts and returns a new transaction.
-// If the context is canceled by the user the sql package will
-// call Tx.Rollback before discarding and closing the connection.
-//
-// This must check opts.Isolation to determine if there is a set
-// isolation level. If the driver does not support a non-default
-// level and one is set or if there is a non-default isolation level
-// that is not supported, an error must be returned.
-//
-// This must also check opts.ReadOnly to determine if the read-only
-// value is true to either set the read-only transaction property if supported
-// or return an error if it is not supported.
-func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	c2, err := c.drv.Open(c.connString)
-	return &transaction{conn: c2.(*conn)}, err
-}
-
-// PrepareContext returns a prepared statement, bound to this connection.
-// context is for the preparation of the statement,
-// it must not store the context within the statement itself.
-func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	cSql := C.CString(query)
-	defer func() {
-		C.free(unsafe.Pointer(cSql))
-	}()
-	var dpiStmt *C.dpiStmt
-	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSql, C.uint32_t(len(query)), nil, 0, (**C.dpiStmt)(unsafe.Pointer(&dpiStmt))) == C.DPI_FAILURE {
-		return nil, c.getError()
-	}
-	return &statement{conn: c, dpiStmt: dpiStmt}, nil
-}
-func (c *conn) Commit() error {
-	if C.dpiConn_commit(c.dpiConn) == C.DPI_FAILURE {
-		return c.getError()
-	}
-	return nil
-}
-func (c *conn) Rollback() error {
-	if C.dpiConn_rollback(c.dpiConn) == C.DPI_FAILURE {
-		return c.getError()
-	}
-	return nil
-}
-
-var _ = driver.Tx((*transaction)(nil))
-
-type transaction struct {
-	*conn
-}
-
-func (tx *transaction) Commit() error {
-	return tx.conn.Commit()
-}
-func (tx *transaction) Rollback() error {
-	return tx.conn.Rollback()
-}
-
-var _ = driver.Stmt((*statement)(nil))
-var _ = driver.StmtQueryContext((*statement)(nil))
-var _ = driver.StmtExecContext((*statement)(nil))
-
-type statement struct {
-	*conn
-	dpiStmt *C.dpiStmt
-}
-
-// Close closes the statement.
-//
-// As of Go 1.1, a Stmt will not be closed if it's in use
-// by any queries.
-func (st *statement) Close() error {
-	if C.dpiStmt_close(st.dpiStmt, nil, 0) == C.DPI_FAILURE {
-		return st.getError()
-	}
-	return nil
-}
-
-// NumInput returns the number of placeholder parameters.
-//
-// If NumInput returns >= 0, the sql package will sanity check
-// argument counts from callers and return errors to the caller
-// before the statement's Exec or Query methods are called.
-//
-// NumInput may also return -1, if the driver doesn't know
-// its number of placeholders. In that case, the sql package
-// will not sanity check Exec or Query argument counts.
-func (st *statement) NumInput() int {
-	return -1
-}
-
-// Exec executes a query that doesn't return rows, such
-// as an INSERT or UPDATE.
-//
-// Deprecated: Drivers should implement StmtExecContext instead (or additionally).
-func (st *statement) Exec(args []driver.Value) (driver.Result, error) {
-	nargs := make([]driver.NamedValue, len(args))
-	for i, arg := range args {
-		nargs[i].Ordinal = i
-		nargs[i].Value = arg
-	}
-	return st.ExecContext(context.Background(), nargs)
-}
-
-// Query executes a query that may return rows, such as a
-// SELECT.
-//
-// Deprecated: Drivers should implement StmtQueryContext instead (or additionally).
-func (st *statement) Query(args []driver.Value) (driver.Rows, error) {
-	nargs := make([]driver.NamedValue, len(args))
-	for i, arg := range args {
-		nargs[i].Ordinal = i
-		nargs[i].Value = arg
-	}
-	return st.QueryContext(context.Background(), nargs)
-}
-
-// ExecContext executes a query that doesn't return rows, such as an INSERT or UPDATE.
-//
-// ExecContext must honor the context timeout and return when it is canceled.
-func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
-	return nil, nil
-}
-
-// QueryContext executes a query that may return rows, such as a SELECT.
-//
-// QueryContext must honor the context timeout and return when it is canceled.
-func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-	return nil, nil
 }
 
 type oraErr struct {
