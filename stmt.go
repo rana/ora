@@ -34,6 +34,7 @@ import (
 var _ = driver.Stmt((*statement)(nil))
 var _ = driver.StmtQueryContext((*statement)(nil))
 var _ = driver.StmtExecContext((*statement)(nil))
+var _ = driver.NamedValueChecker((*statement)(nil))
 
 const sizeof_dpiData = C.sizeof_dpiData
 
@@ -113,7 +114,11 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	if C.dpiStmt_execute(st.dpiStmt, mode, &colCount) == C.DPI_FAILURE {
 		return nil, st.getError()
 	}
-	return nil, nil
+	var count C.uint64_t
+	if C.dpiStmt_getRowCount(st.dpiStmt, &count) == C.DPI_FAILURE {
+		return nil, nil
+	}
+	return driver.RowsAffected(count), nil
 }
 
 // QueryContext executes a query that may return rows, such as a SELECT.
@@ -125,6 +130,21 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 		return nil, st.getError()
 	}
 	return st.openRows(int(colCount))
+}
+
+// CheckNamedValue is called before passing arguments to the driver
+// and is called in place of any ColumnConverter. CheckNamedValue must do type
+// validation and conversion as appropriate for the driver.
+//
+// If CheckNamedValue returns ErrRemoveArgument, the NamedValue will not be included
+// in the final query arguments.
+// This may be used to pass special options to the query itself.
+//
+// If ErrSkip is returned the column converter error checking path is used
+// for the argument.
+// Drivers may wish to return ErrSkip after they have exhausted their own special cases.
+func (st *statement) CheckNamedValue(nv *driver.NamedValue) error {
+	return nil
 }
 
 func (st *statement) openRows(colCount int) (*rows, error) {

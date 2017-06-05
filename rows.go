@@ -11,6 +11,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"math"
+	"reflect"
 	"time"
 	"unsafe"
 
@@ -19,6 +21,13 @@ import (
 
 const fetchRowCount = 1 //<< 7
 const maxArraySize = 1 << 10
+
+var _ = driver.Rows((*rows)(nil))
+var _ = driver.RowsColumnTypeDatabaseTypeName((*rows)(nil))
+var _ = driver.RowsColumnTypeLength((*rows)(nil))
+var _ = driver.RowsColumnTypeNullable((*rows)(nil))
+var _ = driver.RowsColumnTypePrecisionScale((*rows)(nil))
+var _ = driver.RowsColumnTypeScanType((*rows)(nil))
 
 type rows struct {
 	*statement
@@ -51,6 +60,171 @@ func (r *rows) Close() error {
 		return r.getError()
 	}
 	return nil
+}
+
+// ColumnTypeLength return the length of the column type if the column is a variable length type.
+// If the column is not a variable length type ok should return false.
+// If length is not limited other than system limits, it should return math.MaxInt64.
+// The following are examples of returned values for various types:
+//
+// TEXT          (math.MaxInt64, true)
+// varchar(10)   (10, true)
+// nvarchar(10)  (10, true)
+// decimal       (0, false)
+// int           (0, false)
+// bytea(30)     (30, true)
+func (r *rows) ColumnTypeLength(index int) (length int64, ok bool) {
+	switch col := r.columns[index]; col.Type {
+	case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR,
+		C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR,
+		C.DPI_ORACLE_TYPE_LONG_VARCHAR,
+		C.DPI_NATIVE_TYPE_BYTES:
+		return int64(col.Size), true
+	case C.DPI_ORACLE_TYPE_CLOB, C.DPI_ORACLE_TYPE_NCLOB,
+		C.DPI_ORACLE_TYPE_BLOB,
+		C.DPI_ORACLE_TYPE_BFILE,
+		C.DPI_NATIVE_TYPE_LOB:
+		return math.MaxInt64, true
+	default:
+		return 0, false
+	}
+}
+
+// ColumnTypeDatabaseTypeName returns the database system type name without the length.
+// Type names should be uppercase.
+// Examples of returned types: "VARCHAR", "NVARCHAR", "VARCHAR2", "CHAR", "TEXT", "DECIMAL", "SMALLINT", "INT", "BIGINT", "BOOL", "[]BIGINT", "JSONB", "XML", "TIMESTAMP".
+func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
+	switch r.columns[index].Type {
+	case C.DPI_ORACLE_TYPE_VARCHAR:
+		return "VARCHAR"
+	case C.DPI_ORACLE_TYPE_NVARCHAR:
+		return "NVARCHAR"
+	case C.DPI_ORACLE_TYPE_CHAR:
+		return "CHAR"
+	case C.DPI_ORACLE_TYPE_NCHAR:
+		return "NCHAR"
+	case C.DPI_ORACLE_TYPE_LONG_VARCHAR:
+		return "LONG"
+	case C.DPI_NATIVE_TYPE_BYTES, C.DPI_ORACLE_TYPE_RAW:
+		return "RAW"
+	case C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID:
+		return "ROWID"
+	case C.DPI_ORACLE_TYPE_LONG_RAW:
+		return "LONG RAW"
+	case C.DPI_ORACLE_TYPE_NUMBER:
+		return "NUMBER"
+	case C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT:
+		return "FLOAT"
+	case C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE:
+		return "DOUBLE"
+	case C.DPI_ORACLE_TYPE_NATIVE_INT, C.DPI_NATIVE_TYPE_INT64:
+		return "BINARY_INTEGER"
+	case C.DPI_ORACLE_TYPE_NATIVE_UINT, C.DPI_NATIVE_TYPE_UINT64:
+		return "BINARY_INTEGER"
+	case C.DPI_ORACLE_TYPE_TIMESTAMP, C.DPI_NATIVE_TYPE_TIMESTAMP:
+		return "TIMESTAMP"
+	case C.DPI_ORACLE_TYPE_TIMESTAMP_TZ:
+		return "TIMESTAMP WITH TIMEZONE"
+	case C.DPI_ORACLE_TYPE_TIMESTAMP_LTZ:
+		return "TIMESTAMP WITH LOCAL TIMEZONE"
+	case C.DPI_ORACLE_TYPE_DATE:
+		return "DATE"
+	case C.DPI_ORACLE_TYPE_INTERVAL_DS, C.DPI_NATIVE_TYPE_INTERVAL_DS:
+		return "INTERVAL DAY TO SECOND"
+	case C.DPI_ORACLE_TYPE_INTERVAL_YM, C.DPI_NATIVE_TYPE_INTERVAL_YM:
+		return "INTERVAL YEAR TO MONTH"
+	case C.DPI_ORACLE_TYPE_CLOB:
+		return "CLOB"
+	case C.DPI_ORACLE_TYPE_NCLOB:
+		return "NCLOB"
+	case C.DPI_ORACLE_TYPE_BLOB:
+		return "BLOB"
+	case C.DPI_ORACLE_TYPE_BFILE:
+		return "BFILE"
+	case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
+		return "SYS_REFCURSOR"
+	case C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN:
+		return "BOOLEAN"
+	case C.DPI_ORACLE_TYPE_OBJECT:
+		return "OBJECT"
+	default:
+		return fmt.Sprintf("OTHER[%d]", r.columns[index].Type)
+	}
+}
+
+// ColumnTypeNullable. The nullable value should be true if it is known the column may be null, or false if the column is known to be not nullable. If the column nullability is unknown, ok should be false.
+
+func (r *rows) ColumnTypeNullable(index int) (nullable, ok bool) {
+	return r.columns[index].Nullable, true
+}
+
+// ColumnTypePrecisionScale returns the precision and scale for decimal types.
+// If not applicable, ok should be false.
+// The following are examples of returned values for various types:
+//
+// decimal(38, 4)    (38, 4, true)
+// int               (0, 0, false)
+// decimal           (math.MaxInt64, math.MaxInt64, true)
+func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	switch col := r.columns[index]; col.Type {
+	case
+		//C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT,
+		//C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE,
+		//C.DPI_ORACLE_TYPE_NATIVE_INT, C.DPI_NATIVE_TYPE_INT64,
+		//C.DPI_ORACLE_TYPE_NATIVE_UINT, C.DPI_NATIVE_TYPE_UINT64,
+		C.DPI_ORACLE_TYPE_NUMBER:
+		return int64(col.Precision), int64(col.Scale), true
+	default:
+		return 0, 0, false
+	}
+}
+
+// ColumnTypeScanType returns the value type that can be used to scan types into.
+// For example, the database column type "bigint" this should return "reflect.TypeOf(int64(0))".
+func (r *rows) ColumnTypeScanType(index int) reflect.Type {
+	switch col := r.columns[index]; col.Type {
+	case C.DPI_NATIVE_TYPE_BYTES, C.DPI_ORACLE_TYPE_RAW,
+		C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID,
+		C.DPI_ORACLE_TYPE_LONG_RAW:
+		return reflect.TypeOf([]byte(nil))
+	case C.DPI_ORACLE_TYPE_NUMBER:
+		switch col.DefaultNumType {
+		case C.DPI_NATIVE_TYPE_INT64:
+			return reflect.TypeOf(int64(0))
+		case C.DPI_NATIVE_TYPE_UINT64:
+			return reflect.TypeOf(uint64(0))
+		case C.DPI_NATIVE_TYPE_FLOAT:
+			return reflect.TypeOf(float32(0))
+		case C.DPI_NATIVE_TYPE_DOUBLE:
+			return reflect.TypeOf(float64(0))
+		default:
+			return reflect.TypeOf("")
+		}
+	case C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT:
+		return reflect.TypeOf(float32(0))
+	case C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE:
+		return reflect.TypeOf(float64(0))
+	case C.DPI_ORACLE_TYPE_NATIVE_INT, C.DPI_NATIVE_TYPE_INT64:
+		return reflect.TypeOf(int64(0))
+	case C.DPI_ORACLE_TYPE_NATIVE_UINT, C.DPI_NATIVE_TYPE_UINT64:
+		return reflect.TypeOf(uint64(0))
+	case C.DPI_ORACLE_TYPE_TIMESTAMP, C.DPI_NATIVE_TYPE_TIMESTAMP,
+		C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_ORACLE_TYPE_TIMESTAMP_LTZ,
+		C.DPI_ORACLE_TYPE_DATE:
+		return reflect.TypeOf(time.Time{})
+	case C.DPI_ORACLE_TYPE_INTERVAL_DS, C.DPI_NATIVE_TYPE_INTERVAL_DS:
+		return reflect.TypeOf(time.Duration(0))
+	case C.DPI_ORACLE_TYPE_CLOB, C.DPI_ORACLE_TYPE_NCLOB:
+		return reflect.TypeOf("")
+	case C.DPI_ORACLE_TYPE_BLOB, C.DPI_ORACLE_TYPE_BFILE:
+		return reflect.TypeOf([]byte(nil))
+	case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
+		return reflect.TypeOf(&statement{})
+	case C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN:
+		return reflect.TypeOf(false)
+	default:
+		return reflect.TypeOf("")
+	}
 }
 
 // Next is called to populate the next row of data into
