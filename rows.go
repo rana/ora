@@ -15,12 +15,9 @@ import (
 	"unsafe"
 
 	"github.com/pkg/errors"
-
-	"gopkg.in/rana/ora.v5/date"
-	"gopkg.in/rana/ora.v5/num"
 )
 
-const fetchRowCount = 1 << 7
+const fetchRowCount = 1 //<< 7
 const maxArraySize = 1 << 10
 
 type rows struct {
@@ -28,6 +25,7 @@ type rows struct {
 	columns        []Column
 	bufferRowIndex C.uint32_t
 	fetched        C.uint32_t
+	finished       bool
 	vars           []*C.dpiVar
 	data           [][]*C.dpiData
 }
@@ -61,89 +59,98 @@ func (r *rows) Close() error {
 //
 // Next should return io.EOF when there are no more rows.
 func (r *rows) Next(dest []driver.Value) error {
+	if r.finished {
+		return io.EOF
+	}
 	if r.fetched == 0 {
 		var moreRows C.int
 		if C.dpiStmt_fetchRows(r.dpiStmt, fetchRowCount, &r.bufferRowIndex, &r.fetched, &moreRows) == C.DPI_FAILURE {
 			return r.getError()
 		}
 		if r.fetched == 0 {
+			r.finished = moreRows == 0
 			return io.EOF
 		}
+		//fmt.Printf("data=%#v\n", r.data)
 	}
+	//fmt.Printf("data=%#v\n", r.data)
 
+	//fmt.Printf("bri=%d fetched=%d\n", r.bufferRowIndex, r.fetched)
+	//fmt.Printf("data=%#v\n", r.data[0][r.bufferRowIndex])
+	//fmt.Printf("VC=%d\n", C.DPI_ORACLE_TYPE_VARCHAR)
 	for i, col := range r.columns {
+		typ := col.Type
 		d := r.data[i][r.bufferRowIndex]
+		//fmt.Printf("data=%#v typ=%d\n", d, typ)
 		if d.isNull == 1 {
 			dest[i] = nil
 			continue
 		}
-		/*
-			// structure used for transferring data to/from ODPI-C
-			struct dpiData {
-			    int isNull;
-			    union {
-			        int asBoolean;
-			        int64_t asInt64;
-			        uint64_t asUint64;
-			        float asFloat;
-			        double asDouble;
-			        dpiBytes asBytes;
-			        dpiTimestamp asTimestamp;
-			        dpiIntervalDS asIntervalDS;
-			        dpiIntervalYM asIntervalYM;
-			        dpiLob *asLOB;
-			        dpiObject *asObject;
-			        dpiStmt *asStmt;
-			        dpiRowid *asRowid;
-			    } value;
-			};
-		*/
-		switch col.Type {
-		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR, C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR, C.DPI_ORACLE_TYPE_LONG_VARCHAR:
+
+		switch typ {
+		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR,
+			C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR,
+			C.DPI_ORACLE_TYPE_LONG_VARCHAR,
+			C.DPI_NATIVE_TYPE_BYTES, C.DPI_ORACLE_TYPE_NUMBER:
+			//fmt.Printf("CHAR\n")
 			b := C.dpiData_getBytes(d)
+			//fmt.Printf("b=%p[%d]\n", b.ptr, b.length)
+			if b.ptr == nil {
+				dest[i] = ""
+				continue
+			}
 			dest[i] = C.GoStringN(b.ptr, C.int(b.length))
-		case C.DPI_ORACLE_TYPE_ROWID, C.DPI_ORACLE_TYPE_RAW, C.DPI_ORACLE_TYPE_LONG_RAW:
+		case C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID,
+			C.DPI_ORACLE_TYPE_RAW, C.DPI_ORACLE_TYPE_LONG_RAW:
+			fmt.Printf("RAW\n")
 			b := C.dpiData_getBytes(d)
 			dest[i] = C.GoBytes(unsafe.Pointer(b.ptr), C.int(b.length))
-		case C.DPI_ORACLE_TYPE_NATIVE_FLOAT:
+		case C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT:
+			fmt.Printf("FLOAT\n")
 			dest[i] = float32(C.dpiData_getFloat(d))
-		case C.DPI_ORACLE_TYPE_NATIVE_DOUBLE:
+		case C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE:
+			fmt.Printf("DOUBLE\n")
 			dest[i] = float64(C.dpiData_getDouble(d))
-		case C.DPI_ORACLE_TYPE_NATIVE_INT:
+		case C.DPI_ORACLE_TYPE_NATIVE_INT, C.DPI_NATIVE_TYPE_INT64:
+			fmt.Printf("INT\n")
 			dest[i] = int64(C.dpiData_getInt64(d))
-		case C.DPI_ORACLE_TYPE_NATIVE_UINT:
+		case C.DPI_ORACLE_TYPE_NATIVE_UINT, C.DPI_NATIVE_TYPE_UINT64:
+			fmt.Printf("UINT\n")
 			dest[i] = uint64(C.dpiData_getUint64(d))
-		case C.DPI_ORACLE_TYPE_NUMBER: //Default type used for NUMBER columns in the database. Data is transferred to/from Oracle in Oracle's internal format.
-			b := C.dpiData_getBytes(d)
-			dest[i] = append(make(num.OCINum, 0, 22), C.GoBytes(unsafe.Pointer(b), C.int(b.length))...)
-		case C.DPI_ORACLE_TYPE_DATE:
-			var dt date.Date
-			b := C.dpiData_getBytes(d)
-			copy(dt[:], (*[7]byte)(unsafe.Pointer(&b.ptr))[:len(dt)])
-			dest[i] = dt.Get()
-		case C.DPI_ORACLE_TYPE_TIMESTAMP, C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_ORACLE_TYPE_TIMESTAMP_LTZ: //Default type used for TIMESTAMP columns in the database. Data is transferred to/from Oracle in Oracle's internal format.
+		case C.DPI_ORACLE_TYPE_TIMESTAMP,
+			C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_ORACLE_TYPE_TIMESTAMP_LTZ,
+			C.DPI_NATIVE_TYPE_TIMESTAMP,
+			C.DPI_ORACLE_TYPE_DATE:
+			//fmt.Printf("TS\n")
 			ts := C.dpiData_getTimestamp(d)
 			tz := time.Local
-			if col.Type != C.DPI_ORACLE_TYPE_TIMESTAMP {
+			if col.Type != C.DPI_ORACLE_TYPE_TIMESTAMP && col.Type != C.DPI_ORACLE_TYPE_DATE {
 				tz = time.FixedZone(
 					fmt.Sprintf("%02d:%02d", ts.tzHourOffset, ts.tzMinuteOffset),
 					int(ts.tzHourOffset)*3600+int(ts.tzMinuteOffset)*60,
 				)
 			}
 			dest[i] = time.Date(int(ts.year), time.Month(ts.month), int(ts.day), int(ts.hour), int(ts.minute), int(ts.second), int(ts.fsecond), tz)
-		case C.DPI_ORACLE_TYPE_INTERVAL_DS: //Default type used for INTERVAL DAY TO SECOND columns in the database. Data is transferred to/from Oracle in Oracle's internal format.
+		case C.DPI_ORACLE_TYPE_INTERVAL_DS, C.DPI_NATIVE_TYPE_INTERVAL_DS:
+			fmt.Printf("INTERVAL_DS\n")
 			ds := C.dpiData_getIntervalDS(d)
 			dest[i] = time.Duration(ds.days)*24*time.Hour +
 				time.Duration(ds.hours)*time.Hour +
 				time.Duration(ds.minutes)*time.Minute +
 				time.Duration(ds.seconds)*time.Second +
 				time.Duration(ds.fseconds)
-		case C.DPI_ORACLE_TYPE_INTERVAL_YM: //Default type used for INTERVAL YEAR TO MONTH columns in the database. Data is transferred to/from Oracle in Oracle's internal format.
+		case C.DPI_ORACLE_TYPE_INTERVAL_YM, C.DPI_NATIVE_TYPE_INTERVAL_YM:
+			fmt.Printf("FLOAT\n")
 			ym := C.dpiData_getIntervalYM(d)
 			dest[i] = fmt.Sprintf("%dy%dm", ym.years, ym.months)
-		case C.DPI_ORACLE_TYPE_CLOB, C.DPI_ORACLE_TYPE_NCLOB, C.DPI_ORACLE_TYPE_BLOB, C.DPI_ORACLE_TYPE_BFILE: //Default type used for CLOB columns in the database. Only a locator is transferred to/from Oracle, which can subsequently be used via dpiLob references to read/write from that locator.
+		case C.DPI_ORACLE_TYPE_CLOB, C.DPI_ORACLE_TYPE_NCLOB,
+			C.DPI_ORACLE_TYPE_BLOB,
+			C.DPI_ORACLE_TYPE_BFILE,
+			C.DPI_NATIVE_TYPE_LOB:
+			fmt.Printf("INTERVAL_YM\n")
 			dest[i] = &Lob{dpiLob: C.dpiData_getLOB(d)}
-		case C.DPI_ORACLE_TYPE_STMT: //Used within PL/SQL for REF CURSOR or within SQL for querying a CURSOR. Only a handle is transferred to/from Oracle, which can subsequently be used via dpiStmt for querying.
+		case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
+			fmt.Printf("STMT\n")
 			st := &statement{dpiStmt: C.dpiData_getStmt(d)}
 			var colCount C.uint32_t
 			if C.dpiStmt_getNumQueryColumns(st.dpiStmt, &colCount) == C.DPI_FAILURE {
@@ -154,13 +161,19 @@ func (r *rows) Next(dest []driver.Value) error {
 				return err
 			}
 			dest[i] = r2
-		case C.DPI_ORACLE_TYPE_BOOLEAN: //Used within PL/SQL for boolean values. This is only available in 12.1. Earlier releases simply use the integer values 0 and 1 to represent a boolean value. Data is transferred to/from Oracle as an integer.
+		case C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN:
+			fmt.Printf("BOOL\n")
 			dest[i] = C.dpiData_getBool(d) == 1
 			//case C.DPI_ORACLE_TYPE_OBJECT: //Default type used for named type columns in the database. Data is transferred to/from Oracle in Oracle's internal format.
 		default:
-			return errors.Errorf("unsupported column type %d", col.Type)
+			fmt.Printf("OTHER(%d)\n", typ)
+			return errors.Errorf("unsupported column type %d", typ)
 		}
+
+		//fmt.Printf("dest[%d]=%#v\n", i, dest[i])
 	}
+	r.bufferRowIndex++
+	r.fetched--
 
 	return nil
 }

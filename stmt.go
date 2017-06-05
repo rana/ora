@@ -20,6 +20,8 @@ package ora
 #cgo LDFLAGS: -Lodpi/lib -lodpic -ldl
 
 #include "dpiImpl.h"
+
+const int sizeof_dpiData = sizeof(void);
 */
 import "C"
 import (
@@ -31,6 +33,8 @@ import (
 var _ = driver.Stmt((*statement)(nil))
 var _ = driver.StmtQueryContext((*statement)(nil))
 var _ = driver.StmtExecContext((*statement)(nil))
+
+const sizeof_dpiData = C.sizeof_dpiData
 
 type statement struct {
 	*conn
@@ -148,6 +152,12 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		}
 		typ, numTyp := info.oracleTypeNum, info.defaultNativeTypeNum
 		bufSize := maxArraySize * info.clientSizeInBytes
+		switch numTyp {
+		case C.DPI_ORACLE_TYPE_NUMBER:
+			numTyp = C.DPI_NATIVE_TYPE_BYTES
+		case C.DPI_ORACLE_TYPE_DATE:
+			numTyp = C.DPI_NATIVE_TYPE_TIMESTAMP
+		}
 		switch typ {
 		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR, C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR:
 			bufSize *= 4
@@ -163,7 +173,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		if C.dpiStmt_define(st.dpiStmt, C.uint32_t(i+1), r.vars[i]) == C.DPI_FAILURE {
 			return nil, st.getError()
 		}
-		r.data[i] = (*((*[maxArraySize]*C.dpiData)(unsafe.Pointer(dataArr))))[:]
+		r.data[i] = (*((*[maxArraySize]*C.dpiData)(unsafe.Pointer(&dataArr))))[:]
 	}
 	if C.dpiStmt_addRef(st.dpiStmt) == C.DPI_FAILURE {
 		return &r, st.getError()
