@@ -1,3 +1,5 @@
+// +build go1.9
+
 // Copyright 2017 Tamás Gulácsi
 //
 //
@@ -16,8 +18,7 @@
 package ora
 
 /*
-#cgo CFLAGS: -Iodpi/src -Iodpi/include
-#cgo LDFLAGS: -Lodpi/lib -lodpic -ldl
+#cgo pkg-config: odpi
 
 #include "dpiImpl.h"
 
