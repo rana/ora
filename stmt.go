@@ -140,6 +140,14 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		if C.dpiStmt_getQueryInfo(st.dpiStmt, C.uint32_t(i+1), &info) == C.DPI_FAILURE {
 			return nil, st.getError()
 		}
+		bufSize := maxArraySize * info.clientSizeInBytes
+		//fmt.Println(typ, numTyp, info.precision, info.scale, info.clientSizeInBytes)
+		switch info.defaultNativeTypeNum {
+		case C.DPI_ORACLE_TYPE_NUMBER:
+			info.defaultNativeTypeNum = C.DPI_NATIVE_TYPE_BYTES
+		case C.DPI_ORACLE_TYPE_DATE:
+			info.defaultNativeTypeNum = C.DPI_NATIVE_TYPE_TIMESTAMP
+		}
 		r.columns[i] = Column{
 			Name:           C.GoStringN(info.name, C.int(info.nameLength)),
 			Type:           info.oracleTypeNum,
@@ -150,22 +158,13 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 			Nullable:       info.nullOk == 1,
 			ObjectType:     info.objectType,
 		}
-		typ, numTyp := info.oracleTypeNum, info.defaultNativeTypeNum
-		bufSize := maxArraySize * info.clientSizeInBytes
-		//fmt.Println(typ, numTyp, info.precision, info.scale, info.clientSizeInBytes)
-		switch numTyp {
-		case C.DPI_ORACLE_TYPE_NUMBER:
-			numTyp = C.DPI_NATIVE_TYPE_BYTES
-		case C.DPI_ORACLE_TYPE_DATE:
-			numTyp = C.DPI_NATIVE_TYPE_TIMESTAMP
-		}
-		switch typ {
+		switch info.oracleTypeNum {
 		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR, C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR:
 			bufSize *= 4
 		}
 		var dataArr *C.dpiData
 		if C.dpiConn_newVar(
-			st.conn.dpiConn, typ, numTyp, maxArraySize,
+			st.conn.dpiConn, info.oracleTypeNum, info.defaultNativeTypeNum, maxArraySize,
 			bufSize, 1, 0, info.objectType,
 			&r.vars[i], &dataArr,
 		) == C.DPI_FAILURE {

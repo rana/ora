@@ -19,20 +19,24 @@ func init() {
 }
 
 func TestSelect(t *testing.T) {
-	rows, err := testDb.Query("SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000")
+	rows, err := testDb.Query("SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000 ORDER BY object_id")
 	if err != nil {
 		t.Fatal(err)
 	}
-	n := 0
+	n, oldOid := 0, int64(0)
 	for rows.Next() {
 		var tbl, typ string
-		var oid string
+		var oid int64
 		var created time.Time
 		if err := rows.Scan(&tbl, &typ, &oid, &created); err != nil {
 			t.Fatal(err)
 		}
 		t.Log(tbl, typ, oid, created)
 		n++
+		if oldOid > oid {
+			t.Errorf("got oid=%d, wanted sth < %d.", oid, oldOid)
+		}
+		oldOid = oid
 	}
 	if n != 999 {
 		t.Errorf("got %d rows, wanted 999")
