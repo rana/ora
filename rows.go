@@ -91,15 +91,31 @@ func (r *rows) Next(dest []driver.Value) error {
 		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR,
 			C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR,
 			C.DPI_ORACLE_TYPE_LONG_VARCHAR,
-			C.DPI_NATIVE_TYPE_BYTES, C.DPI_ORACLE_TYPE_NUMBER:
+			C.DPI_NATIVE_TYPE_BYTES:
 			//fmt.Printf("CHAR\n")
 			b := C.dpiData_getBytes(d)
-			//fmt.Printf("b=%p[%d]\n", b.ptr, b.length)
 			if b.ptr == nil {
 				dest[i] = ""
 				continue
 			}
 			dest[i] = C.GoStringN(b.ptr, C.int(b.length))
+
+		case C.DPI_ORACLE_TYPE_NUMBER:
+			switch col.DefaultNumType {
+			case C.DPI_NATIVE_TYPE_INT64:
+				dest[i] = C.dpiData_getInt64(d)
+			case C.DPI_NATIVE_TYPE_UINT64:
+				dest[i] = C.dpiData_getUint64(d)
+			case C.DPI_NATIVE_TYPE_FLOAT:
+				dest[i] = C.dpiData_getFloat(d)
+			case C.DPI_NATIVE_TYPE_DOUBLE:
+				dest[i] = C.dpiData_getDouble(d)
+			default:
+				b := C.dpiData_getBytes(d)
+				//fmt.Printf("b=%p[%d] t=%d i=%d\n", b.ptr, b.length, col.DefaultNumType, C.dpiData_getInt64(d))
+				dest[i] = C.GoStringN(b.ptr, C.int(b.length))
+			}
+
 		case C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID,
 			C.DPI_ORACLE_TYPE_RAW, C.DPI_ORACLE_TYPE_LONG_RAW:
 			fmt.Printf("RAW\n")

@@ -152,6 +152,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		}
 		typ, numTyp := info.oracleTypeNum, info.defaultNativeTypeNum
 		bufSize := maxArraySize * info.clientSizeInBytes
+		//fmt.Println(typ, numTyp, info.precision, info.scale, info.clientSizeInBytes)
 		switch numTyp {
 		case C.DPI_ORACLE_TYPE_NUMBER:
 			numTyp = C.DPI_NATIVE_TYPE_BYTES
