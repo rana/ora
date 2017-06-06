@@ -106,12 +106,31 @@ func (st *statement) Query(args []driver.Value) (driver.Rows, error) {
 //
 // ExecContext must honor the context timeout and return when it is canceled.
 func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// bind variables
+
+	// execute
+	done := make(chan struct{}, 1)
+	go func() {
+		select {
+		case <-ctx.Done():
+			st.Break()
+		case <-done:
+			return
+		}
+	}()
+
 	mode := C.dpiExecMode(C.DPI_MODE_EXEC_DEFAULT)
 	if !st.inTransaction {
 		mode |= C.DPI_MODE_EXEC_COMMIT_ON_SUCCESS
 	}
 	var colCount C.uint32_t
-	if C.dpiStmt_execute(st.dpiStmt, mode, &colCount) == C.DPI_FAILURE {
+	res := C.dpiStmt_execute(st.dpiStmt, mode, &colCount)
+	done <- struct{}{}
+	if res == C.DPI_FAILURE {
 		return nil, st.getError()
 	}
 	var count C.uint64_t
@@ -125,8 +144,26 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 //
 // QueryContext must honor the context timeout and return when it is canceled.
 func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// bind variables
+
+	// execute
+	done := make(chan struct{}, 1)
+	go func() {
+		select {
+		case <-ctx.Done():
+			st.Break()
+		case <-done:
+			return
+		}
+	}()
 	var colCount C.uint32_t
-	if C.dpiStmt_execute(st.dpiStmt, C.DPI_MODE_EXEC_DEFAULT, &colCount) == C.DPI_FAILURE {
+	res := C.dpiStmt_execute(st.dpiStmt, C.DPI_MODE_EXEC_DEFAULT, &colCount)
+	done <- struct{}{}
+	if res == C.DPI_FAILURE {
 		return nil, st.getError()
 	}
 	return st.openRows(int(colCount))

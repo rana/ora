@@ -1,6 +1,7 @@
 package ora_test
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
@@ -19,7 +20,9 @@ func init() {
 }
 
 func TestSelect(t *testing.T) {
-	rows, err := testDb.Query("SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000 ORDER BY object_id")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000 ORDER BY object_id")
 	if err != nil {
 		t.Fatal(err)
 	}

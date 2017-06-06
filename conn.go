@@ -24,8 +24,11 @@ import "C"
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 var _ = driver.Conn((*conn)(nil))
@@ -40,6 +43,13 @@ type conn struct {
 	*drv
 }
 
+func (c *conn) Break() error {
+	if C.dpiConn_breakExecution(c.dpiConn) == C.DPI_FAILURE {
+		return c.getError()
+	}
+	return nil
+}
+
 func (c *conn) Ping(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -49,7 +59,7 @@ func (c *conn) Ping(ctx context.Context) error {
 		select {
 		case <-done:
 		case <-ctx.Done():
-			C.dpiConn_breakExecution(c.dpiConn)
+			c.Break()
 		}
 	}()
 	ok := C.dpiConn_ping(c.dpiConn) == C.DPI_FAILURE
@@ -100,6 +110,18 @@ func (c *conn) Begin() (driver.Tx, error) {
 // value is true to either set the read-only transaction property if supported
 // or return an error if it is not supported.
 func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if opts.ReadOnly {
+		return nil, errors.New("read-only transaction property is not supported")
+	}
+	switch level := sql.IsolationLevel(opts.Isolation); level {
+	case sql.LevelDefault, sql.LevelReadCommitted:
+	default:
+		return nil, errors.Errorf("%s isolation level is not supported", sql.IsolationLevel(opts.Isolation))
+	}
+
 	dc, err := c.drv.Open(c.connString)
 	if err != nil {
 		return nil, err
@@ -113,12 +135,17 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 // context is for the preparation of the statement,
 // it must not store the context within the statement itself.
 func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	cSql := C.CString(query)
 	defer func() {
 		C.free(unsafe.Pointer(cSql))
 	}()
 	var dpiStmt *C.dpiStmt
-	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSql, C.uint32_t(len(query)), nil, 0, (**C.dpiStmt)(unsafe.Pointer(&dpiStmt))) == C.DPI_FAILURE {
+	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSql, C.uint32_t(len(query)), nil, 0,
+		(**C.dpiStmt)(unsafe.Pointer(&dpiStmt)),
+	) == C.DPI_FAILURE {
 		return nil, c.getError()
 	}
 	return &statement{conn: c, dpiStmt: dpiStmt}, nil
