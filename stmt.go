@@ -156,7 +156,6 @@ func (stmt *Stmt) close() (err error) {
 		stmt.Lock()
 		env := stmt.Env()
 		ocistmt := stmt.ocistmt
-		fmt.Printf("OCIStmtRelease %p\n", stmt)
 		r := C.OCIStmtRelease(
 			ocistmt,       // OCIStmt        *stmthp
 			env.ocierr,    // OCIError       *errhp,
