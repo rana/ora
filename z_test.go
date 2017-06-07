@@ -22,9 +22,10 @@ func init() {
 func TestSelect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000 ORDER BY object_id")
+	const num = 1000
+	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < :1 ORDER BY object_id", num)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%#v", err)
 	}
 	n, oldOid := 0, int64(0)
 	for rows.Next() {
@@ -41,7 +42,7 @@ func TestSelect(t *testing.T) {
 		}
 		oldOid = oid
 	}
-	if n != 999 {
+	if n != num-1 {
 		t.Errorf("got %d rows, wanted 999")
 	}
 }

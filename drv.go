@@ -161,5 +161,6 @@ func (oe *oraErr) Error() string {
 
 func (d *drv) getError() *oraErr {
 	var oe oraErr
+	C.dpiContext_getError(d.dpiContext, &oe.errInfo)
 	return &oe
 }

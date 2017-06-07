@@ -29,6 +29,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"io"
+	"log"
 	"time"
 	"unsafe"
 
@@ -176,6 +177,7 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	res := C.dpiStmt_execute(st.dpiStmt, C.DPI_MODE_EXEC_DEFAULT, &colCount)
 	done <- struct{}{}
 	if res == C.DPI_FAILURE {
+		log.Printf("dpiStmt_execute: %+v", st.getError())
 		return nil, st.getError()
 	}
 	return st.openRows(int(colCount))
@@ -186,6 +188,16 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 // FIXME(tgulacsi): handle sql.Out params and arrays as ExecuteMany OR PL/SQL arrays.
 func (st *statement) bindVars(args []driver.NamedValue) error {
 	var named bool
+	if cap(st.vars) < len(args) {
+		st.vars = make([]*C.dpiVar, len(args))
+	} else {
+		st.vars = st.vars[:len(args)]
+	}
+	if cap(st.data) < len(args) {
+		st.data = make([][]*C.dpiData, len(args))
+	} else {
+		st.data = st.data[:len(args)]
+	}
 	for i, a := range args {
 		if !named {
 			named = a.Name != ""
@@ -311,6 +323,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if err := set(st.data[i][0], a.Value); err != nil {
 			return err
 		}
+		log.Printf("set %d to %#v(%T): %#v", i, a.Value, a.Value, st.data[i][0])
 	}
 
 	return nil
@@ -328,6 +341,15 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 // for the argument.
 // Drivers may wish to return ErrSkip after they have exhausted their own special cases.
 func (st *statement) CheckNamedValue(nv *driver.NamedValue) error {
+	if nv == nil {
+		return nil
+	}
+	switch x := nv.Value.(type) {
+	case int:
+		nv.Value = int64(x)
+	case uint:
+		nv.Value = uint64(x)
+	}
 	return nil
 }
 
