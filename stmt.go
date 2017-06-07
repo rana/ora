@@ -29,7 +29,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"io"
-	"log"
+	"strconv"
 	"time"
 	"unsafe"
 
@@ -177,7 +177,6 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	res := C.dpiStmt_execute(st.dpiStmt, C.DPI_MODE_EXEC_DEFAULT, &colCount)
 	done <- struct{}{}
 	if res == C.DPI_FAILURE {
-		log.Printf("dpiStmt_execute: %+v", st.getError())
 		return nil, st.getError()
 	}
 	return st.openRows(int(colCount))
@@ -323,7 +322,25 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if err := set(st.data[i][0], a.Value); err != nil {
 			return err
 		}
-		log.Printf("set %d to %#v(%T): %#v", i, a.Value, a.Value, st.data[i][0])
+	}
+
+	if !named {
+		for i, v := range st.vars {
+			C.dpiStmt_bindByPos(st.dpiStmt, C.uint32_t(i+1), v)
+		}
+	} else {
+		for i, v := range args {
+			name := v.Name
+			if name == "" {
+				name = strconv.Itoa(v.Ordinal)
+			}
+			cName := C.CString(name)
+			res := C.dpiStmt_bindByName(st.dpiStmt, cName, C.uint32_t(len(name)), st.vars[i])
+			C.free(unsafe.Pointer(cName))
+			if res == C.DPI_FAILURE {
+				return st.getError()
+			}
+		}
 	}
 
 	return nil
