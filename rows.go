@@ -1,3 +1,20 @@
+// +build go1.9
+
+// Copyright 2017 Tamás Gulácsi
+//
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
 package ora
 
 /*
@@ -96,9 +113,9 @@ func (r *rows) ColumnTypeLength(index int) (length int64, ok bool) {
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
 	switch r.columns[index].Type {
 	case C.DPI_ORACLE_TYPE_VARCHAR:
-		return "VARCHAR"
+		return "VARCHAR2"
 	case C.DPI_ORACLE_TYPE_NVARCHAR:
-		return "NVARCHAR"
+		return "NVARCHAR2"
 	case C.DPI_ORACLE_TYPE_CHAR:
 		return "CHAR"
 	case C.DPI_ORACLE_TYPE_NCHAR:
@@ -338,7 +355,10 @@ func (r *rows) Next(dest []driver.Value) error {
 			C.DPI_ORACLE_TYPE_BFILE,
 			C.DPI_NATIVE_TYPE_LOB:
 			fmt.Printf("INTERVAL_YM\n")
-			dest[i] = &Lob{dpiLob: C.dpiData_getLOB(d)}
+			dest[i] = &Lob{
+				Reader: &dpiLobReader{dpiLob: C.dpiData_getLOB(d)},
+				IsClob: typ == C.DPI_ORACLE_TYPE_CLOB || typ == C.DPI_ORACLE_TYPE_NCLOB,
+			}
 		case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
 			fmt.Printf("STMT\n")
 			st := &statement{dpiStmt: C.dpiData_getStmt(d)}
@@ -369,5 +389,23 @@ func (r *rows) Next(dest []driver.Value) error {
 }
 
 type Lob struct {
+	io.Reader
+	IsClob bool
+}
+
+var _ = io.Reader((*dpiLobReader)(nil))
+
+type dpiLobReader struct {
+	*conn
 	dpiLob *C.dpiLob
+	offset C.uint64_t
+}
+
+func (dlr *dpiLobReader) Read(p []byte) (int, error) {
+	n := C.uint64_t(len(p))
+	if C.dpiLob_readBytes(dlr.dpiLob, dlr.offset, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
+		return 0, dlr.getError()
+	}
+	dlr.offset += n
+	return int(n), nil
 }

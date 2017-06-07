@@ -28,7 +28,11 @@ import "C"
 import (
 	"context"
 	"database/sql/driver"
+	"io"
+	"time"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 var _ = driver.Stmt((*statement)(nil))
@@ -42,6 +46,8 @@ type statement struct {
 	*conn
 	dpiStmt *C.dpiStmt
 	query   string
+	data    [][]*C.dpiData
+	vars    []*C.dpiVar
 }
 
 // Close closes the statement.
@@ -83,7 +89,7 @@ func (st *statement) NumInput() int {
 func (st *statement) Exec(args []driver.Value) (driver.Result, error) {
 	nargs := make([]driver.NamedValue, len(args))
 	for i, arg := range args {
-		nargs[i].Ordinal = i
+		nargs[i].Ordinal = i + 1
 		nargs[i].Value = arg
 	}
 	return st.ExecContext(context.Background(), nargs)
@@ -96,7 +102,7 @@ func (st *statement) Exec(args []driver.Value) (driver.Result, error) {
 func (st *statement) Query(args []driver.Value) (driver.Rows, error) {
 	nargs := make([]driver.NamedValue, len(args))
 	for i, arg := range args {
-		nargs[i].Ordinal = i
+		nargs[i].Ordinal = i + 1
 		nargs[i].Value = arg
 	}
 	return st.QueryContext(context.Background(), nargs)
@@ -111,6 +117,9 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	}
 
 	// bind variables
+	if err := st.bindVars(args); err != nil {
+		return nil, err
+	}
 
 	// execute
 	done := make(chan struct{}, 1)
@@ -149,6 +158,9 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	}
 
 	// bind variables
+	if err := st.bindVars(args); err != nil {
+		return nil, err
+	}
 
 	// execute
 	done := make(chan struct{}, 1)
@@ -167,6 +179,141 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 		return nil, st.getError()
 	}
 	return st.openRows(int(colCount))
+}
+
+// bindVars binds the given args into new variables.
+//
+// FIXME(tgulacsi): handle sql.Out params and arrays as ExecuteMany OR PL/SQL arrays.
+func (st *statement) bindVars(args []driver.NamedValue) error {
+	var named bool
+	for i, a := range args {
+		if !named {
+			named = a.Name != ""
+		}
+		var set func(data *C.dpiData, v interface{}) error
+
+		var typ C.dpiOracleTypeNum
+		var natTyp C.dpiNativeTypeNum
+		var bufSize C.uint32_t
+		switch v := a.Value.(type) {
+		case Lob:
+			typ, natTyp = C.DPI_ORACLE_TYPE_BLOB, C.DPI_NATIVE_TYPE_LOB
+			if v.IsClob {
+				typ = C.DPI_ORACLE_TYPE_CLOB
+			}
+			set = func(data *C.dpiData, v interface{}) error {
+				L := v.(Lob)
+				var lob *C.dpiLob
+				if C.dpiConn_newTempLob(st.dpiConn, typ, &lob) == C.DPI_FAILURE {
+					return st.getError()
+				}
+				if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
+					return st.getError()
+				}
+				var offset C.uint64_t
+				p := make([]byte, 1<<20)
+				for {
+					n, err := L.Read(p)
+					if n > 0 {
+						if C.dpiLob_writeBytes(lob, offset, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
+							return st.getError()
+						}
+						offset += C.uint64_t(n)
+					}
+					if err != nil {
+						if err == io.EOF {
+							break
+						}
+						return err
+					}
+				}
+				if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
+					return st.getError()
+				}
+				C.dpiData_setLOB(data, lob)
+				return nil
+			}
+		case int64:
+			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
+			set = func(data *C.dpiData, v interface{}) error {
+				C.dpiData_setInt64(data, C.int64_t(v.(int64)))
+				return nil
+			}
+		case uint64:
+			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_UINT64
+			set = func(data *C.dpiData, v interface{}) error {
+				C.dpiData_setUint64(data, C.uint64_t(v.(uint64)))
+				return nil
+			}
+		case float32:
+			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_FLOAT
+			set = func(data *C.dpiData, v interface{}) error {
+				C.dpiData_setFloat(data, C.float(v.(float32)))
+				return nil
+			}
+		case float64:
+			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_DOUBLE
+			set = func(data *C.dpiData, v interface{}) error {
+				C.dpiData_setDouble(data, C.double(v.(float64)))
+				return nil
+			}
+		case bool:
+			typ, natTyp = C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN
+			set = func(data *C.dpiData, v interface{}) error {
+				b := C.int(0)
+				if v.(bool) {
+					b = 1
+				}
+				C.dpiData_setBool(data, b)
+				return nil
+			}
+		case []byte:
+			typ, natTyp = C.DPI_ORACLE_TYPE_RAW, C.DPI_NATIVE_TYPE_BYTES
+			bufSize = C.uint32_t(len(v))
+			set = func(data *C.dpiData, v interface{}) error {
+				b := v.([]byte)
+				C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(b)))
+				return nil
+			}
+		case string:
+			typ, natTyp = C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_NATIVE_TYPE_BYTES
+			bufSize = 4 * C.uint32_t(len(v))
+			set = func(data *C.dpiData, v interface{}) error {
+				b := []byte(v.(string))
+				C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(b)))
+				return nil
+			}
+		case time.Time:
+			typ, natTyp = C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_NATIVE_TYPE_TIMESTAMP
+			set = func(data *C.dpiData, v interface{}) error {
+				t := v.(time.Time)
+				_, z := t.Zone()
+				C.dpiData_setTimestamp(data,
+					C.int16_t(t.Year()), C.uint8_t(t.Month()), C.uint8_t(t.Day()),
+					C.uint8_t(t.Hour()), C.uint8_t(t.Minute()), C.uint8_t(t.Second()), C.uint32_t(t.Nanosecond()),
+					C.int8_t(z/3600), C.int8_t((z%3600)/60),
+				)
+				return nil
+			}
+		default:
+			return errors.Errorf("%d. arg: unknown type %T", i+1, a.Value)
+		}
+		var dataArr *C.dpiData
+		if C.dpiConn_newVar(
+			st.conn.dpiConn, typ, natTyp, 1,
+			bufSize, 1, 0, nil,
+			&st.vars[i], &dataArr,
+		) == C.DPI_FAILURE {
+			return st.getError()
+		}
+		st.data[i] = (*((*[maxArraySize]*C.dpiData)(unsafe.Pointer(&dataArr))))[:]
+
+		if err := set(st.data[i][0], a.Value); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // CheckNamedValue is called before passing arguments to the driver
