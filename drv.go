@@ -39,6 +39,9 @@ const (
 	DpiMajorVersion = 2
 	// DpiMinorVersion is the wanted minor version of the underlying ODPI-C library.
 	DpiMinorVersion = 0
+
+	// DriverName is set on the connection to be seen in the DB
+	DriverName = "github.com/rana/ora.v5"
 )
 
 func init() {
@@ -112,12 +115,14 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 	c := conn{drv: d, connString: connString}
 	cUserName, cPassword, cSid := C.CString(username), C.CString(password), C.CString(sid)
 	cUTF8, cConnClass := C.CString("AL32UTF8"), C.CString(connClass)
+	cDriverName := C.CString(DriverName)
 	defer func() {
 		C.free(unsafe.Pointer(cUserName))
 		C.free(unsafe.Pointer(cPassword))
 		C.free(unsafe.Pointer(cSid))
 		C.free(unsafe.Pointer(cUTF8))
 		C.free(unsafe.Pointer(cConnClass))
+		C.free(unsafe.Pointer(cDriverName))
 	}()
 	var extAuth C.int
 	if username == "" && password == "" {
@@ -133,6 +138,7 @@ func (d *drv) Open(connString string) (driver.Conn, error) {
 		&C.dpiCommonCreateParams{
 			createMode: C.DPI_MODE_CREATE_DEFAULT | C.DPI_MODE_CREATE_THREADED | C.DPI_MODE_CREATE_EVENTS,
 			encoding:   cUTF8, nencoding: cUTF8,
+			driverName: cDriverName, driverNameLength: C.uint32_t(len(DriverName)),
 		},
 		&C.dpiConnCreateParams{
 			authMode:        authMode,
