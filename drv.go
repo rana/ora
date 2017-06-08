@@ -35,7 +35,9 @@ import (
 )
 
 const (
+	// DpiMajorVersion is the wanted major version of the underlying ODPI-C library.
 	DpiMajorVersion = 2
+	// DpiMinorVersion is the wanted minor version of the underlying ODPI-C library.
 	DpiMinorVersion = 0
 )
 

@@ -388,6 +388,7 @@ func (r *rows) Next(dest []driver.Value) error {
 	return nil
 }
 
+// Lob is for reading/writing a LOB.
 type Lob struct {
 	io.Reader
 	IsClob bool

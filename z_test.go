@@ -23,7 +23,7 @@ func TestSelect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	const num = 1000
-	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < :1 ORDER BY object_id", num)
+	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < :alpha ORDER BY object_id", sql.Named("alpha", num))
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
@@ -43,6 +43,6 @@ func TestSelect(t *testing.T) {
 		oldOid = oid
 	}
 	if n != num-1 {
-		t.Errorf("got %d rows, wanted 999")
+		t.Errorf("got %d rows, wanted %d", n, num-1)
 	}
 }

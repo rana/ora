@@ -36,19 +36,27 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Option for NamedArgs
+type Option uint8
+
+// PlSQLArrays is to signal that the slices given in arguments of Exec to
+// be left as is - the default is to treat them as arguments for ExecMany.
+const PlSQLArrays = Option(1)
+
 var _ = driver.Stmt((*statement)(nil))
 var _ = driver.StmtQueryContext((*statement)(nil))
 var _ = driver.StmtExecContext((*statement)(nil))
 var _ = driver.NamedValueChecker((*statement)(nil))
 
-const sizeof_dpiData = C.sizeof_dpiData
+const sizeofDpiData = C.sizeof_dpiData
 
 type statement struct {
 	*conn
-	dpiStmt *C.dpiStmt
-	query   string
-	data    [][]*C.dpiData
-	vars    []*C.dpiVar
+	dpiStmt     *C.dpiStmt
+	query       string
+	data        [][]*C.dpiData
+	vars        []*C.dpiVar
+	PlSQLArrays bool
 }
 
 // Close closes the statement.
@@ -127,7 +135,7 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	go func() {
 		select {
 		case <-ctx.Done():
-			st.Break()
+			_ = st.Break()
 		case <-done:
 			return
 		}
@@ -168,7 +176,7 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	go func() {
 		select {
 		case <-ctx.Done():
-			st.Break()
+			_ = st.Break()
 		case <-done:
 			return
 		}
@@ -197,6 +205,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 	} else {
 		st.data = st.data[:len(args)]
 	}
+	//FIXME(tgulacsi): handle !st.PlSQLArrays as a call for ExecMany
 	for i, a := range args {
 		if !named {
 			named = a.Name != ""
@@ -361,6 +370,10 @@ func (st *statement) CheckNamedValue(nv *driver.NamedValue) error {
 	if nv == nil {
 		return nil
 	}
+	if nv.Value == PlSQLArrays {
+		st.PlSQLArrays = true
+		return driver.ErrRemoveArgument
+	}
 	switch x := nv.Value.(type) {
 	case int:
 		nv.Value = int64(x)
@@ -425,6 +438,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 	return &r, nil
 }
 
+// Column holds the info from a column.
 type Column struct {
 	Name           string
 	Type           C.dpiOracleTypeNum

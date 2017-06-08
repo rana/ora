@@ -59,7 +59,7 @@ func (c *conn) Ping(ctx context.Context) error {
 		select {
 		case <-done:
 		case <-ctx.Done():
-			c.Break()
+			_ = c.Break()
 		}
 	}()
 	ok := C.dpiConn_ping(c.dpiConn) == C.DPI_FAILURE
@@ -119,7 +119,7 @@ func (c *conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	switch level := sql.IsolationLevel(opts.Isolation); level {
 	case sql.LevelDefault, sql.LevelReadCommitted:
 	default:
-		return nil, errors.Errorf("%s isolation level is not supported", sql.IsolationLevel(opts.Isolation))
+		return nil, errors.Errorf("%v isolation level is not supported", sql.IsolationLevel(opts.Isolation))
 	}
 
 	dc, err := c.drv.Open(c.connString)
@@ -138,12 +138,12 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	cSql := C.CString(query)
+	cSQL := C.CString(query)
 	defer func() {
-		C.free(unsafe.Pointer(cSql))
+		C.free(unsafe.Pointer(cSQL))
 	}()
 	var dpiStmt *C.dpiStmt
-	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSql, C.uint32_t(len(query)), nil, 0,
+	if C.dpiConn_prepareStmt(c.dpiConn, 0, cSQL, C.uint32_t(len(query)), nil, 0,
 		(**C.dpiStmt)(unsafe.Pointer(&dpiStmt)),
 	) == C.DPI_FAILURE {
 		return nil, c.getError()
