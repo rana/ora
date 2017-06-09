@@ -34,6 +34,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Version of this driver
+const Version = "v5.0.0"
+
 const (
 	// DpiMajorVersion is the wanted major version of the underlying ODPI-C library.
 	DpiMajorVersion = 2
@@ -41,7 +44,7 @@ const (
 	DpiMinorVersion = 0
 
 	// DriverName is set on the connection to be seen in the DB
-	DriverName = "github.com/rana/ora.v5"
+	DriverName = "gopkg.in/rana/ora.v5 : " + Version
 )
 
 func init() {
