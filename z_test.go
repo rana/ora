@@ -20,6 +20,7 @@ func init() {
 }
 
 func TestSelect(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	const num = 1000
@@ -45,4 +46,22 @@ func TestSelect(t *testing.T) {
 	if n != num-1 {
 		t.Errorf("got %d rows, wanted %d", n, num-1)
 	}
+}
+func TestExecuteMany(t *testing.T) {
+	t.Parallel()
+	testDb.Exec("CREATE TABLE test_em (i INTEGER)")
+	defer testDb.Exec("DROP TABLE test_em")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	const num = 1000
+	nums := make([]int, num)
+	for i := range nums {
+		nums[i] = i << 1
+	}
+	res, err := testDb.ExecContext(ctx, "INSERT INTO test_em (i) VALUES (:1)", nums)
+	if err != nil {
+		t.Fatalf("%#v", err)
+	}
+	t.Log(res)
 }
