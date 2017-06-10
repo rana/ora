@@ -3,6 +3,7 @@ package ora_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ var testDb *sql.DB
 func init() {
 	var err error
 	if testDb, err = sql.Open("ora", os.Getenv("GO_ORA_DRV_TEST_USERNAME")+"/"+os.Getenv("GO_ORA_DRV_TEST_PASSWORD")+"@"+os.Getenv("GO_ORA_DRV_TEST_DB")); err != nil {
+		fmt.Println("ERROR")
 		panic(err)
 	}
 }
@@ -63,5 +65,5 @@ func TestExecuteMany(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
-	t.Log(res)
+	t.Logf("result=%+v", res)
 }

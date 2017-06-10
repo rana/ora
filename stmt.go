@@ -32,6 +32,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -53,10 +54,11 @@ var _ = driver.NamedValueChecker((*statement)(nil))
 const sizeofDpiData = C.sizeof_dpiData
 
 type statement struct {
+	sync.Mutex
 	*conn
 	dpiStmt     *C.dpiStmt
 	query       string
-	data        [][]*C.dpiData
+	data        [][]C.dpiData
 	vars        []*C.dpiVar
 	PlSQLArrays bool
 	arrLen      int
@@ -67,7 +69,9 @@ type statement struct {
 // As of Go 1.1, a Stmt will not be closed if it's in use
 // by any queries.
 func (st *statement) Close() error {
-	if C.dpiStmt_close(st.dpiStmt, nil, 0) == C.DPI_FAILURE {
+	st.Lock()
+	defer st.Unlock()
+	if C.dpiStmt_release(st.dpiStmt) == C.DPI_FAILURE {
 		return st.getError()
 	}
 	return nil
@@ -91,6 +95,7 @@ func (st *statement) NumInput() int {
 	if C.dpiStmt_getBindCount(st.dpiStmt, &cnt) == C.DPI_FAILURE {
 		return -1
 	}
+	fmt.Printf("%p.NumInput=%d\n", st, cnt)
 	return int(cnt)
 }
 
@@ -127,6 +132,9 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+
+	st.Lock()
+	defer st.Unlock()
 
 	// bind variables
 	if err := st.bindVars(args); err != nil {
@@ -174,6 +182,10 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 		return nil, err
 	}
 
+	st.Lock()
+	defer st.Unlock()
+
+	fmt.Printf("QueryContext(%+v)\n", args)
 	// bind variables
 	if err := st.bindVars(args); err != nil {
 		return nil, err
@@ -209,7 +221,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		st.vars = st.vars[:len(args)]
 	}
 	if cap(st.data) < len(args) {
-		st.data = make([][]*C.dpiData, len(args))
+		st.data = make([][]C.dpiData, len(args))
 	} else {
 		st.data = st.data[:len(args)]
 	}
@@ -242,6 +254,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		dataSliceLen = st.arrLen
 	}
 
+	fmt.Printf("bindVars %d\n", len(args))
 	for i, a := range args {
 		if !named {
 			named = a.Name != ""
@@ -300,8 +313,8 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		case int, []int:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
 			set = func(data *C.dpiData, v interface{}) error {
-				fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
 				C.dpiData_setInt64(data, C.int64_t(int64(v.(int))))
+				//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
 				return nil
 			}
 		case int64, []int64:
@@ -402,28 +415,41 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		) == C.DPI_FAILURE {
 			return st.getError()
 		}
-		st.data[i] = (*((*[maxArraySize]*C.dpiData)(unsafe.Pointer(&dataArr))))[:dataSliceLen]
-		fmt.Printf("%d. dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
-			i, st.conn.dpiConn, typ, natTyp, dataSliceLen, bufSize, 1, isArray, nil, &st.vars[i], &dataArr, st.data[i])
+		data := (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:dataSliceLen]
+		for j := range data {
+			data[j].isNull = 1
+		}
+		st.data[i] = data
+		n := dataSliceLen
+		if n > 10 {
+			n = 10
+		}
+		fmt.Printf("%d. %T dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
+			i, a.Value, st.conn.dpiConn, typ, natTyp, dataSliceLen, bufSize, 1, isArray, nil, &st.vars[i], &dataArr, st.data[i][:n])
 
 		if doExecMany {
 			fmt.Println("n:", len(st.data[i]))
 			for j := 0; j < dataSliceLen; j++ {
 				//fmt.Printf("d[%d]=%p\n", j, st.data[i][j])
-				if err := set(st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
+				_ = rArgs[i].Index(j)
+				if err := set(&st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
 					return err
 				}
 			}
 		} else {
-			if err := set(st.data[i][0], a.Value); err != nil {
+			if err := set(&st.data[i][0], a.Value); err != nil {
 				return err
 			}
 		}
+		fmt.Printf("data[%d]: %#v\n", i, st.data[i][:n])
 	}
 
 	if !named {
 		for i, v := range st.vars {
-			C.dpiStmt_bindByPos(st.dpiStmt, C.uint32_t(i+1), v)
+			fmt.Printf("bindByPos(%d)\n", i+1)
+			if C.dpiStmt_bindByPos(st.dpiStmt, C.uint32_t(i+1), v) == C.DPI_FAILURE {
+				return st.getError()
+			}
 		}
 	} else {
 		for i, v := range args {
@@ -431,6 +457,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			if name == "" {
 				name = strconv.Itoa(v.Ordinal)
 			}
+			fmt.Printf("bindByName(%q)\n", name)
 			cName := C.CString(name)
 			res := C.dpiStmt_bindByName(st.dpiStmt, cName, C.uint32_t(len(name)), st.vars[i])
 			C.free(unsafe.Pointer(cName))
@@ -472,7 +499,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		statement: st,
 		columns:   make([]Column, colCount),
 		vars:      make([]*C.dpiVar, colCount),
-		data:      make([][]*C.dpiData, colCount),
+		data:      make([][]C.dpiData, colCount),
 	}
 	var info C.dpiQueryInfo
 	for i := 0; i < colCount; i++ {
@@ -512,7 +539,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		if C.dpiStmt_define(st.dpiStmt, C.uint32_t(i+1), r.vars[i]) == C.DPI_FAILURE {
 			return nil, st.getError()
 		}
-		r.data[i] = (*((*[maxArraySize]*C.dpiData)(unsafe.Pointer(&dataArr))))[:]
+		r.data[i] = (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:]
 	}
 	if C.dpiStmt_addRef(st.dpiStmt) == C.DPI_FAILURE {
 		return &r, st.getError()

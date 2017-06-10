@@ -53,7 +53,7 @@ type rows struct {
 	fetched        C.uint32_t
 	finished       bool
 	vars           []*C.dpiVar
-	data           [][]*C.dpiData
+	data           [][]C.dpiData
 }
 
 // Columns returns the names of the columns. The number of
@@ -258,6 +258,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		if C.dpiStmt_fetchRows(r.dpiStmt, fetchRowCount, &r.bufferRowIndex, &r.fetched, &moreRows) == C.DPI_FAILURE {
 			return r.getError()
 		}
+		fmt.Printf("fetched=%d, moreRows=%d\n", r.fetched, moreRows)
 		if r.fetched == 0 {
 			r.finished = moreRows == 0
 			return io.EOF
@@ -271,7 +272,7 @@ func (r *rows) Next(dest []driver.Value) error {
 	//fmt.Printf("VC=%d\n", C.DPI_ORACLE_TYPE_VARCHAR)
 	for i, col := range r.columns {
 		typ := col.Type
-		d := r.data[i][r.bufferRowIndex]
+		d := &r.data[i][r.bufferRowIndex]
 		//fmt.Printf("data=%#v typ=%d\n", d, typ)
 		if d.isNull == 1 {
 			dest[i] = nil

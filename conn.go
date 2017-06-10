@@ -26,6 +26,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -148,6 +149,7 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	) == C.DPI_FAILURE {
 		return nil, c.getError()
 	}
+	fmt.Printf("PrepareContext(%q):%p\n", query, dpiStmt)
 	return &statement{conn: c, dpiStmt: dpiStmt}, nil
 }
 func (c *conn) Commit() error {
