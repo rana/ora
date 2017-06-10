@@ -258,12 +258,25 @@ func (r *rows) Next(dest []driver.Value) error {
 		if C.dpiStmt_fetchRows(r.dpiStmt, fetchRowCount, &r.bufferRowIndex, &r.fetched, &moreRows) == C.DPI_FAILURE {
 			return r.getError()
 		}
-		fmt.Printf("bri=%d fetched=%d, moreRows=%d\n", r.bufferRowIndex, r.fetched, moreRows)
+		//fmt.Printf("bri=%d fetched=%d, moreRows=%d\n", r.bufferRowIndex, r.fetched, moreRows)
 		if r.fetched == 0 {
 			r.finished = moreRows == 0
 			return io.EOF
 		}
 		//fmt.Printf("data=%#v\n", r.data)
+		if r.data == nil {
+			r.data = make([][]C.dpiData, len(r.columns))
+			for i := range r.columns {
+				var n C.uint32_t
+				var data *C.dpiData
+				if C.dpiVar_getData(r.vars[i], &n, &data) == C.DPI_FAILURE {
+					return r.getError()
+				}
+				r.data[i] = (*[fetchRowCount]C.dpiData)(unsafe.Pointer(data))[:n]
+				fmt.Printf("data %d=%+v\n%+v\n", n, data, r.data[i][0])
+			}
+		}
+
 	}
 	//fmt.Printf("data=%#v\n", r.data)
 
@@ -273,7 +286,7 @@ func (r *rows) Next(dest []driver.Value) error {
 	for i, col := range r.columns {
 		typ := col.OracleType
 		d := &r.data[i][r.bufferRowIndex]
-		fmt.Printf("data[%d][%d]=%+v typ=%d\n", i, r.bufferRowIndex, d, typ)
+		//fmt.Printf("data[%d][%d]=%+v typ=%d\n", i, r.bufferRowIndex, d, typ)
 		isNull := d.isNull == 1
 
 		switch typ {

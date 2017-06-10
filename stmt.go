@@ -95,7 +95,7 @@ func (st *statement) NumInput() int {
 	if C.dpiStmt_getBindCount(st.dpiStmt, &cnt) == C.DPI_FAILURE {
 		return -1
 	}
-	fmt.Printf("%p.NumInput=%d\n", st, cnt)
+	//fmt.Printf("%p.NumInput=%d\n", st, cnt)
 	return int(cnt)
 }
 
@@ -185,7 +185,7 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	st.Lock()
 	defer st.Unlock()
 
-	fmt.Printf("QueryContext(%+v)\n", args)
+	//fmt.Printf("QueryContext(%+v)\n", args)
 	// bind variables
 	if err := st.bindVars(args); err != nil {
 		return nil, err
@@ -254,7 +254,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		dataSliceLen = st.arrLen
 	}
 
-	fmt.Printf("bindVars %d\n", len(args))
+	//fmt.Printf("bindVars %d\n", len(args))
 	for i, a := range args {
 		if !named {
 			named = a.Name != ""
@@ -408,7 +408,9 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		}
 
 		var err error
-		if st.vars[i], st.data[i], err = st.newVar(st.PlSQLArrays, typ, natTyp, dataSliceLen, bufSize); err != nil {
+		if st.vars[i], st.data[i], err = st.newVar(
+			st.PlSQLArrays, typ, natTyp, dataSliceLen, bufSize,
+		); err != nil {
 			return err
 		}
 
@@ -425,12 +427,12 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				return err
 			}
 		}
-		fmt.Printf("data[%d]: %#v\n", i, st.data[i])
+		//fmt.Printf("data[%d]: %#v\n", i, st.data[i])
 	}
 
 	if !named {
 		for i, v := range st.vars {
-			fmt.Printf("bindByPos(%d)\n", i+1)
+			//fmt.Printf("bindByPos(%d)\n", i+1)
 			if C.dpiStmt_bindByPos(st.dpiStmt, C.uint32_t(i+1), v) == C.DPI_FAILURE {
 				return st.getError()
 			}
@@ -441,7 +443,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			if name == "" {
 				name = strconv.Itoa(a.Ordinal)
 			}
-			fmt.Printf("bindByName(%q)\n", name)
+			//fmt.Printf("bindByName(%q)\n", name)
 			cName := C.CString(name)
 			res := C.dpiStmt_bindByName(st.dpiStmt, cName, C.uint32_t(len(name)), st.vars[i])
 			C.free(unsafe.Pointer(cName))
@@ -513,7 +515,9 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 			bufSize *= 4
 		}
 		var err error
-		if r.vars[i], r.data[i], err = st.newVar(false, info.oracleTypeNum, info.defaultNativeTypeNum, fetchRowCount, bufSize); err != nil {
+		if r.vars[i], r.data[i], err = st.newVar(
+			false, info.oracleTypeNum, info.defaultNativeTypeNum, fetchRowCount, bufSize,
+		); err != nil {
 			return nil, err
 		}
 

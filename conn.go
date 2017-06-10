@@ -149,7 +149,7 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	) == C.DPI_FAILURE {
 		return nil, c.getError()
 	}
-	fmt.Printf("PrepareContext(%q):%p\n", query, dpiStmt)
+	//fmt.Printf("PrepareContext(%q):%p\n", query, dpiStmt)
 	return &statement{conn: c, dpiStmt: dpiStmt}, nil
 }
 func (c *conn) Commit() error {
@@ -182,13 +182,14 @@ func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNat
 	) == C.DPI_FAILURE {
 		return nil, nil, c.getError()
 	}
-	data := (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:arraySize]
+	// https://github.com/golang/go/wiki/cgo#Turning_C_arrays_into_Go_slices
 	/*
-		for j := range data {
-			data[j].isNull = 1
-		}
+		var theCArray *C.YourType = C.getTheArray()
+		length := C.getTheArrayLength()
+		slice := (*[1 << 30]C.YourType)(unsafe.Pointer(theCArray))[:length:length]
 	*/
-	if true {
+	data := ((*[maxArraySize]C.dpiData)(unsafe.Pointer(dataArr)))[:arraySize]
+	if false {
 		n := arraySize
 		if n > 10 {
 			n = 10

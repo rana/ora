@@ -69,5 +69,10 @@ func TestExecuteMany(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
-	t.Logf("result=%+v", res)
+	ra, err := res.RowsAffected()
+	if err != nil {
+		t.Error(err)
+	} else if ra != num {
+		t.Errorf("wanted %d rows, got %d", num, ra)
+	}
 }
