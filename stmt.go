@@ -165,7 +165,7 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	}
 	done <- struct{}{}
 	if res == C.DPI_FAILURE {
-		return nil, st.getError()
+		return nil, errors.Wrapf(st.getError(), "dpiStmt_execute(mode=%d arrLen=%d)", mode, st.arrLen)
 	}
 	var count C.uint64_t
 	if C.dpiStmt_getRowCount(st.dpiStmt, &count) == C.DPI_FAILURE {
@@ -205,7 +205,7 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 	res := C.dpiStmt_execute(st.dpiStmt, C.DPI_MODE_EXEC_DEFAULT, &colCount)
 	done <- struct{}{}
 	if res == C.DPI_FAILURE {
-		return nil, st.getError()
+		return nil, errors.Wrapf(st.getError(), "dpiStmt_execute")
 	}
 	return st.openRows(int(colCount))
 }
@@ -317,6 +317,12 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
 				return nil
 			}
+		case int32, []int32:
+			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
+			set = func(data *C.dpiData, v interface{}) error {
+				C.dpiData_setInt64(data, C.int64_t(v.(int32)))
+				return nil
+			}
 		case int64, []int64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
 			set = func(data *C.dpiData, v interface{}) error {
@@ -411,20 +417,21 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if st.vars[i], st.data[i], err = st.newVar(
 			st.PlSQLArrays, typ, natTyp, dataSliceLen, bufSize,
 		); err != nil {
-			return err
+			return errors.WithMessage(err, fmt.Sprintf("%d", i))
 		}
 
 		if doExecMany {
-			fmt.Println("n:", len(st.data[i]))
+			////fmt.Println("n:", len(st.data[i]))
 			for j := 0; j < dataSliceLen; j++ {
 				//fmt.Printf("d[%d]=%p\n", j, st.data[i][j])
 				if err := set(&st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
-					return err
+					v := rArgs[i].Index(j).Interface()
+					return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, j, v, v)
 				}
 			}
 		} else {
 			if err := set(&st.data[i][0], a.Value); err != nil {
-				return err
+				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, a.Value, a.Value)
 			}
 		}
 		//fmt.Printf("data[%d]: %#v\n", i, st.data[i])

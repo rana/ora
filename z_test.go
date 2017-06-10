@@ -55,17 +55,33 @@ func TestSelect(t *testing.T) {
 }
 func TestExecuteMany(t *testing.T) {
 	t.Parallel()
-	testDb.Exec("CREATE TABLE test_em (i INTEGER)")
+	testDb.Exec("CREATE TABLE test_em (f_int INTEGER, f_num NUMBER, f_num_6 NUMBER(6), F_num_5_2 NUMBER(5,2), f_vc VARCHAR2(30), F_dt DATE)")
 	defer testDb.Exec("DROP TABLE test_em")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	const num = 1000
-	nums := make([]int, num)
+	ints := make([]int, num)
+	nums := make([]string, num)
+	int32s := make([]int32, num)
+	floats := make([]float32, num)
+	strs := make([]string, num)
+	dates := make([]time.Time, num)
+	now := time.Now()
 	for i := range nums {
-		nums[i] = i << 1
+		ints[i] = i << 1
+		nums[i] = fmt.Sprintf("%d", i)
+		int32s[i] = int32(i)
+		floats[i] = float32(i) / float32(3.14)
+		strs[i] = fmt.Sprintf("%x", i)
+		dates[i] = now.Add(-time.Duration(i) * time.Hour)
 	}
-	res, err := testDb.ExecContext(ctx, "INSERT INTO test_em (i) VALUES (:1)", nums)
+	res, err := testDb.ExecContext(ctx,
+		`INSERT INTO test_em
+		  (f_int, f_num, f_num_6, F_num_5_2, F_vc, F_dt)
+		  VALUES
+		  (:1, :2, :3, :4, :5, :6)`,
+		ints, nums, nums, nums, strs, dates)
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}

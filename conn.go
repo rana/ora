@@ -180,7 +180,7 @@ func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNat
 		isArray, nil,
 		&v, &dataArr,
 	) == C.DPI_FAILURE {
-		return nil, nil, c.getError()
+		return nil, nil, errors.Wrapf(c.getError(), "newVar(typ=%d, natTyp=%d, arraySize=%d, bufSize=%d)", typ, natTyp, arraySize, bufSize)
 	}
 	// https://github.com/golang/go/wiki/cgo#Turning_C_arrays_into_Go_slices
 	/*
