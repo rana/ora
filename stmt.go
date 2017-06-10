@@ -263,7 +263,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 
 		var typ C.dpiOracleTypeNum
 		var natTyp C.dpiNativeTypeNum
-		var bufSize C.uint32_t
+		var bufSize int
 		switch v := a.Value.(type) {
 		case Lob, []Lob:
 			typ, natTyp = C.DPI_ORACLE_TYPE_BLOB, C.DPI_NATIVE_TYPE_LOB
@@ -361,10 +361,12 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			typ, natTyp = C.DPI_ORACLE_TYPE_RAW, C.DPI_NATIVE_TYPE_BYTES
 			switch v := v.(type) {
 			case []byte:
-				bufSize = C.uint32_t(len(v))
+				bufSize = len(v)
 			case [][]byte:
 				for _, b := range v {
-					bufSize += C.uint32_t(len(b))
+					if n := len(b); n > bufSize {
+						bufSize = n
+					}
 				}
 			}
 			set = func(data *C.dpiData, v interface{}) error {
@@ -376,10 +378,12 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			typ, natTyp = C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_NATIVE_TYPE_BYTES
 			switch v := v.(type) {
 			case string:
-				bufSize = 4 * C.uint32_t(len(v))
+				bufSize = 4 * len(v)
 			case []string:
 				for _, s := range v {
-					bufSize += 4 * C.uint32_t(len(s))
+					if n := 4 * len(s); n > bufSize {
+						bufSize = n
+					}
 				}
 			}
 			set = func(data *C.dpiData, v interface{}) error {
@@ -402,36 +406,16 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		default:
 			return errors.Errorf("%d. arg: unknown type %T", i+1, a.Value)
 		}
-		var dataArr *C.dpiData
-		isArray := C.int(0)
-		if st.PlSQLArrays {
-			isArray = 1
+
+		var err error
+		if st.vars[i], st.data[i], err = st.newVar(st.PlSQLArrays, typ, natTyp, dataSliceLen, bufSize); err != nil {
+			return err
 		}
-		if C.dpiConn_newVar(
-			st.conn.dpiConn, typ, natTyp, C.uint32_t(dataSliceLen),
-			bufSize, 1,
-			isArray, nil,
-			&st.vars[i], &dataArr,
-		) == C.DPI_FAILURE {
-			return st.getError()
-		}
-		data := (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:dataSliceLen]
-		for j := range data {
-			data[j].isNull = 1
-		}
-		st.data[i] = data
-		n := dataSliceLen
-		if n > 10 {
-			n = 10
-		}
-		fmt.Printf("%d. %T dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
-			i, a.Value, st.conn.dpiConn, typ, natTyp, dataSliceLen, bufSize, 1, isArray, nil, &st.vars[i], &dataArr, st.data[i][:n])
 
 		if doExecMany {
 			fmt.Println("n:", len(st.data[i]))
 			for j := 0; j < dataSliceLen; j++ {
 				//fmt.Printf("d[%d]=%p\n", j, st.data[i][j])
-				_ = rArgs[i].Index(j)
 				if err := set(&st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
 					return err
 				}
@@ -441,7 +425,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				return err
 			}
 		}
-		fmt.Printf("data[%d]: %#v\n", i, st.data[i][:n])
+		fmt.Printf("data[%d]: %#v\n", i, st.data[i])
 	}
 
 	if !named {
@@ -452,10 +436,10 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			}
 		}
 	} else {
-		for i, v := range args {
-			name := v.Name
+		for i, a := range args {
+			name := a.Name
 			if name == "" {
-				name = strconv.Itoa(v.Ordinal)
+				name = strconv.Itoa(a.Ordinal)
 			}
 			fmt.Printf("bindByName(%q)\n", name)
 			cName := C.CString(name)
@@ -506,7 +490,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 		if C.dpiStmt_getQueryInfo(st.dpiStmt, C.uint32_t(i+1), &info) == C.DPI_FAILURE {
 			return nil, st.getError()
 		}
-		bufSize := maxArraySize * info.clientSizeInBytes
+		bufSize := int(info.clientSizeInBytes)
 		//fmt.Println(typ, numTyp, info.precision, info.scale, info.clientSizeInBytes)
 		switch info.defaultNativeTypeNum {
 		case C.DPI_ORACLE_TYPE_NUMBER:
@@ -515,31 +499,27 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 			info.defaultNativeTypeNum = C.DPI_NATIVE_TYPE_TIMESTAMP
 		}
 		r.columns[i] = Column{
-			Name:           C.GoStringN(info.name, C.int(info.nameLength)),
-			Type:           info.oracleTypeNum,
-			DefaultNumType: info.defaultNativeTypeNum,
-			Size:           info.clientSizeInBytes,
-			Precision:      info.precision,
-			Scale:          info.scale,
-			Nullable:       info.nullOk == 1,
-			ObjectType:     info.objectType,
+			Name:       C.GoStringN(info.name, C.int(info.nameLength)),
+			OracleType: info.oracleTypeNum,
+			NativeType: info.defaultNativeTypeNum,
+			Size:       info.clientSizeInBytes,
+			Precision:  info.precision,
+			Scale:      info.scale,
+			Nullable:   info.nullOk == 1,
+			ObjectType: info.objectType,
 		}
 		switch info.oracleTypeNum {
 		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR, C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR:
 			bufSize *= 4
 		}
-		var dataArr *C.dpiData
-		if C.dpiConn_newVar(
-			st.conn.dpiConn, info.oracleTypeNum, info.defaultNativeTypeNum, maxArraySize,
-			bufSize, 1, 0, info.objectType,
-			&r.vars[i], &dataArr,
-		) == C.DPI_FAILURE {
-			return nil, st.getError()
+		var err error
+		if r.vars[i], r.data[i], err = st.newVar(false, info.oracleTypeNum, info.defaultNativeTypeNum, fetchRowCount, bufSize); err != nil {
+			return nil, err
 		}
+
 		if C.dpiStmt_define(st.dpiStmt, C.uint32_t(i+1), r.vars[i]) == C.DPI_FAILURE {
 			return nil, st.getError()
 		}
-		r.data[i] = (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:]
 	}
 	if C.dpiStmt_addRef(st.dpiStmt) == C.DPI_FAILURE {
 		return &r, st.getError()
@@ -549,12 +529,12 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 
 // Column holds the info from a column.
 type Column struct {
-	Name           string
-	Type           C.dpiOracleTypeNum
-	DefaultNumType C.dpiNativeTypeNum
-	Size           C.uint32_t
-	Precision      C.int16_t
-	Scale          C.int8_t
-	Nullable       bool
-	ObjectType     *C.dpiObjectType
+	Name       string
+	OracleType C.dpiOracleTypeNum
+	NativeType C.dpiNativeTypeNum
+	Size       C.uint32_t
+	Precision  C.int16_t
+	Scale      C.int8_t
+	Nullable   bool
+	ObjectType *C.dpiObjectType
 }

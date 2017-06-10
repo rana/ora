@@ -26,9 +26,10 @@ func TestSelect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	const num = 1000
-	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < :alpha ORDER BY object_id", sql.Named("alpha", num))
+	//rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < :alpha ORDER BY object_id", sql.Named("alpha", num))
+	rows, err := testDb.QueryContext(ctx, "SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000 ORDER BY object_id")
 	if err != nil {
-		t.Fatalf("%#v", err)
+		t.Fatalf("%+v", err)
 	}
 	n, oldOid := 0, int64(0)
 	for rows.Next() {
@@ -39,6 +40,9 @@ func TestSelect(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Log(tbl, typ, oid, created)
+		if tbl == "" {
+			t.Fatal("empty tbl")
+		}
 		n++
 		if oldOid > oid {
 			t.Errorf("got oid=%d, wanted sth < %d.", oid, oldOid)

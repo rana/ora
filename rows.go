@@ -36,7 +36,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const fetchRowCount = 1 //<< 7
+const fetchRowCount = 1 << 7
 const maxArraySize = 1 << 10
 
 var _ = driver.Rows((*rows)(nil))
@@ -91,7 +91,7 @@ func (r *rows) Close() error {
 // int           (0, false)
 // bytea(30)     (30, true)
 func (r *rows) ColumnTypeLength(index int) (length int64, ok bool) {
-	switch col := r.columns[index]; col.Type {
+	switch col := r.columns[index]; col.OracleType {
 	case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR,
 		C.DPI_ORACLE_TYPE_CHAR, C.DPI_ORACLE_TYPE_NCHAR,
 		C.DPI_ORACLE_TYPE_LONG_VARCHAR,
@@ -111,7 +111,7 @@ func (r *rows) ColumnTypeLength(index int) (length int64, ok bool) {
 // Type names should be uppercase.
 // Examples of returned types: "VARCHAR", "NVARCHAR", "VARCHAR2", "CHAR", "TEXT", "DECIMAL", "SMALLINT", "INT", "BIGINT", "BOOL", "[]BIGINT", "JSONB", "XML", "TIMESTAMP".
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
-	switch r.columns[index].Type {
+	switch r.columns[index].OracleType {
 	case C.DPI_ORACLE_TYPE_VARCHAR:
 		return "VARCHAR2"
 	case C.DPI_ORACLE_TYPE_NVARCHAR:
@@ -165,7 +165,7 @@ func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
 	case C.DPI_ORACLE_TYPE_OBJECT:
 		return "OBJECT"
 	default:
-		return fmt.Sprintf("OTHER[%d]", r.columns[index].Type)
+		return fmt.Sprintf("OTHER[%d]", r.columns[index].OracleType)
 	}
 }
 
@@ -183,7 +183,7 @@ func (r *rows) ColumnTypeNullable(index int) (nullable, ok bool) {
 // int               (0, 0, false)
 // decimal           (math.MaxInt64, math.MaxInt64, true)
 func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
-	switch col := r.columns[index]; col.Type {
+	switch col := r.columns[index]; col.OracleType {
 	case
 		//C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT,
 		//C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE,
@@ -199,13 +199,13 @@ func (r *rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok b
 // ColumnTypeScanType returns the value type that can be used to scan types into.
 // For example, the database column type "bigint" this should return "reflect.TypeOf(int64(0))".
 func (r *rows) ColumnTypeScanType(index int) reflect.Type {
-	switch col := r.columns[index]; col.Type {
+	switch col := r.columns[index]; col.OracleType {
 	case C.DPI_NATIVE_TYPE_BYTES, C.DPI_ORACLE_TYPE_RAW,
 		C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID,
 		C.DPI_ORACLE_TYPE_LONG_RAW:
 		return reflect.TypeOf([]byte(nil))
 	case C.DPI_ORACLE_TYPE_NUMBER:
-		switch col.DefaultNumType {
+		switch col.NativeType {
 		case C.DPI_NATIVE_TYPE_INT64:
 			return reflect.TypeOf(int64(0))
 		case C.DPI_NATIVE_TYPE_UINT64:
@@ -258,7 +258,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		if C.dpiStmt_fetchRows(r.dpiStmt, fetchRowCount, &r.bufferRowIndex, &r.fetched, &moreRows) == C.DPI_FAILURE {
 			return r.getError()
 		}
-		fmt.Printf("fetched=%d, moreRows=%d\n", r.fetched, moreRows)
+		fmt.Printf("bri=%d fetched=%d, moreRows=%d\n", r.bufferRowIndex, r.fetched, moreRows)
 		if r.fetched == 0 {
 			r.finished = moreRows == 0
 			return io.EOF
@@ -271,13 +271,10 @@ func (r *rows) Next(dest []driver.Value) error {
 	//fmt.Printf("data=%#v\n", r.data[0][r.bufferRowIndex])
 	//fmt.Printf("VC=%d\n", C.DPI_ORACLE_TYPE_VARCHAR)
 	for i, col := range r.columns {
-		typ := col.Type
+		typ := col.OracleType
 		d := &r.data[i][r.bufferRowIndex]
-		//fmt.Printf("data=%#v typ=%d\n", d, typ)
-		if d.isNull == 1 {
-			dest[i] = nil
-			continue
-		}
+		//fmt.Printf("data[%d][%d]=%#v typ=%d\n", i, r.bufferRowIndex, d, typ)
+		isNull := d.isNull == 1
 
 		switch typ {
 		case C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_ORACLE_TYPE_NVARCHAR,
@@ -285,24 +282,32 @@ func (r *rows) Next(dest []driver.Value) error {
 			C.DPI_ORACLE_TYPE_LONG_VARCHAR,
 			C.DPI_NATIVE_TYPE_BYTES:
 			//fmt.Printf("CHAR\n")
-			b := C.dpiData_getBytes(d)
-			if b.ptr == nil {
+			if isNull {
 				dest[i] = ""
 				continue
 			}
+			b := C.dpiData_getBytes(d)
 			dest[i] = C.GoStringN(b.ptr, C.int(b.length))
 
 		case C.DPI_ORACLE_TYPE_NUMBER:
-			switch col.DefaultNumType {
+			if isNull {
+				dest[i] = 0
+				continue
+			}
+			switch col.NativeType {
 			case C.DPI_NATIVE_TYPE_INT64:
-				dest[i] = C.dpiData_getInt64(d)
+				dest[i] = int64(C.dpiData_getInt64(d))
 			case C.DPI_NATIVE_TYPE_UINT64:
-				dest[i] = C.dpiData_getUint64(d)
+				dest[i] = uint64(C.dpiData_getUint64(d))
 			case C.DPI_NATIVE_TYPE_FLOAT:
-				dest[i] = C.dpiData_getFloat(d)
+				dest[i] = float32(C.dpiData_getFloat(d))
 			case C.DPI_NATIVE_TYPE_DOUBLE:
-				dest[i] = C.dpiData_getDouble(d)
+				dest[i] = float64(C.dpiData_getDouble(d))
 			default:
+				if isNull {
+					dest[i] = nil
+					continue
+				}
 				b := C.dpiData_getBytes(d)
 				//fmt.Printf("b=%p[%d] t=%d i=%d\n", b.ptr, b.length, col.DefaultNumType, C.dpiData_getInt64(d))
 				dest[i] = C.GoStringN(b.ptr, C.int(b.length))
@@ -310,29 +315,53 @@ func (r *rows) Next(dest []driver.Value) error {
 
 		case C.DPI_ORACLE_TYPE_ROWID, C.DPI_NATIVE_TYPE_ROWID,
 			C.DPI_ORACLE_TYPE_RAW, C.DPI_ORACLE_TYPE_LONG_RAW:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("RAW\n")
 			b := C.dpiData_getBytes(d)
 			dest[i] = C.GoBytes(unsafe.Pointer(b.ptr), C.int(b.length))
 		case C.DPI_ORACLE_TYPE_NATIVE_FLOAT, C.DPI_NATIVE_TYPE_FLOAT:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("FLOAT\n")
 			dest[i] = float32(C.dpiData_getFloat(d))
 		case C.DPI_ORACLE_TYPE_NATIVE_DOUBLE, C.DPI_NATIVE_TYPE_DOUBLE:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("DOUBLE\n")
 			dest[i] = float64(C.dpiData_getDouble(d))
 		case C.DPI_ORACLE_TYPE_NATIVE_INT, C.DPI_NATIVE_TYPE_INT64:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("INT\n")
 			dest[i] = int64(C.dpiData_getInt64(d))
 		case C.DPI_ORACLE_TYPE_NATIVE_UINT, C.DPI_NATIVE_TYPE_UINT64:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("UINT\n")
 			dest[i] = uint64(C.dpiData_getUint64(d))
 		case C.DPI_ORACLE_TYPE_TIMESTAMP,
 			C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_ORACLE_TYPE_TIMESTAMP_LTZ,
 			C.DPI_NATIVE_TYPE_TIMESTAMP,
 			C.DPI_ORACLE_TYPE_DATE:
+			if isNull {
+				dest[i] = time.Time{}
+				continue
+			}
 			//fmt.Printf("TS\n")
 			ts := C.dpiData_getTimestamp(d)
 			tz := time.Local
-			if col.Type != C.DPI_ORACLE_TYPE_TIMESTAMP && col.Type != C.DPI_ORACLE_TYPE_DATE {
+			if col.OracleType != C.DPI_ORACLE_TYPE_TIMESTAMP && col.OracleType != C.DPI_ORACLE_TYPE_DATE {
 				tz = time.FixedZone(
 					fmt.Sprintf("%02d:%02d", ts.tzHourOffset, ts.tzMinuteOffset),
 					int(ts.tzHourOffset)*3600+int(ts.tzMinuteOffset)*60,
@@ -340,6 +369,10 @@ func (r *rows) Next(dest []driver.Value) error {
 			}
 			dest[i] = time.Date(int(ts.year), time.Month(ts.month), int(ts.day), int(ts.hour), int(ts.minute), int(ts.second), int(ts.fsecond), tz)
 		case C.DPI_ORACLE_TYPE_INTERVAL_DS, C.DPI_NATIVE_TYPE_INTERVAL_DS:
+			if isNull {
+				dest[i] = time.Time{}
+				continue
+			}
 			fmt.Printf("INTERVAL_DS\n")
 			ds := C.dpiData_getIntervalDS(d)
 			dest[i] = time.Duration(ds.days)*24*time.Hour +
@@ -348,6 +381,10 @@ func (r *rows) Next(dest []driver.Value) error {
 				time.Duration(ds.seconds)*time.Second +
 				time.Duration(ds.fseconds)
 		case C.DPI_ORACLE_TYPE_INTERVAL_YM, C.DPI_NATIVE_TYPE_INTERVAL_YM:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("FLOAT\n")
 			ym := C.dpiData_getIntervalYM(d)
 			dest[i] = fmt.Sprintf("%dy%dm", ym.years, ym.months)
@@ -355,12 +392,20 @@ func (r *rows) Next(dest []driver.Value) error {
 			C.DPI_ORACLE_TYPE_BLOB,
 			C.DPI_ORACLE_TYPE_BFILE,
 			C.DPI_NATIVE_TYPE_LOB:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("INTERVAL_YM\n")
 			dest[i] = &Lob{
 				Reader: &dpiLobReader{dpiLob: C.dpiData_getLOB(d)},
 				IsClob: typ == C.DPI_ORACLE_TYPE_CLOB || typ == C.DPI_ORACLE_TYPE_NCLOB,
 			}
 		case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("STMT\n")
 			st := &statement{dpiStmt: C.dpiData_getStmt(d)}
 			var colCount C.uint32_t
@@ -373,6 +418,10 @@ func (r *rows) Next(dest []driver.Value) error {
 			}
 			dest[i] = r2
 		case C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN:
+			if isNull {
+				dest[i] = nil
+				continue
+			}
 			fmt.Printf("BOOL\n")
 			dest[i] = C.dpiData_getBool(d) == 1
 			//case C.DPI_ORACLE_TYPE_OBJECT: //Default type used for named type columns in the database. Data is transferred to/from Oracle in Oracle's internal format.

@@ -167,4 +167,34 @@ func (c *conn) Rollback() error {
 	return nil
 }
 
+func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNativeTypeNum, arraySize int, bufSize int) (*C.dpiVar, []C.dpiData, error) {
+	isArray := C.int(0)
+	if isPlSQLArray {
+		isArray = 1
+	}
+	var dataArr *C.dpiData
+	var v *C.dpiVar
+	if C.dpiConn_newVar(
+		c.dpiConn, typ, natTyp, C.uint32_t(arraySize),
+		C.uint32_t(bufSize), 1,
+		isArray, nil,
+		&v, &dataArr,
+	) == C.DPI_FAILURE {
+		return nil, nil, c.getError()
+	}
+	data := (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:arraySize]
+	for j := range data {
+		data[j].isNull = 1
+	}
+	if false {
+		n := arraySize
+		if n > 10 {
+			n = 10
+		}
+		fmt.Printf("dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
+			c.dpiConn, typ, natTyp, arraySize, bufSize, 1, isArray, nil, &v, &dataArr, data[:n])
+	}
+	return v, data, nil
+}
+
 var _ = driver.Tx((*conn)(nil))
