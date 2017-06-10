@@ -273,7 +273,7 @@ func (r *rows) Next(dest []driver.Value) error {
 	for i, col := range r.columns {
 		typ := col.OracleType
 		d := &r.data[i][r.bufferRowIndex]
-		//fmt.Printf("data[%d][%d]=%#v typ=%d\n", i, r.bufferRowIndex, d, typ)
+		fmt.Printf("data[%d][%d]=%+v typ=%d\n", i, r.bufferRowIndex, d, typ)
 		isNull := d.isNull == 1
 
 		switch typ {

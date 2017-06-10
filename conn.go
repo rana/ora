@@ -183,10 +183,12 @@ func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNat
 		return nil, nil, c.getError()
 	}
 	data := (*((*[maxArraySize]C.dpiData)(unsafe.Pointer(&dataArr))))[:arraySize]
-	for j := range data {
-		data[j].isNull = 1
-	}
-	if false {
+	/*
+		for j := range data {
+			data[j].isNull = 1
+		}
+	*/
+	if true {
 		n := arraySize
 		if n > 10 {
 			n = 10
