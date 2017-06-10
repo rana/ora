@@ -188,7 +188,7 @@ func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNat
 		length := C.getTheArrayLength()
 		slice := (*[1 << 30]C.YourType)(unsafe.Pointer(theCArray))[:length:length]
 	*/
-	data := ((*[maxArraySize]C.dpiData)(unsafe.Pointer(dataArr)))[:arraySize]
+	data := ((*[maxArraySize]C.dpiData)(unsafe.Pointer(dataArr)))[:arraySize:arraySize]
 	if false {
 		n := arraySize
 		if n > 10 {
