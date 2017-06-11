@@ -230,6 +230,9 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 	minArrLen, maxArrLen := -1, -1
 	for i, a := range args {
 		rArgs[i] = reflect.ValueOf(a.Value)
+		if _, isByteSlice := a.Value.([]byte); isByteSlice {
+			continue
+		}
 		if rArgs[i].Kind() == reflect.Slice {
 			n := rArgs[i].Len()
 			if minArrLen == -1 || n < minArrLen {
@@ -279,20 +282,30 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			}
 			set = func(data *C.dpiData, v interface{}) error {
 				L := v.(Lob)
+				if v == nil || L.Reader == nil {
+					data.isNull = 1
+					return nil
+				}
 				var lob *C.dpiLob
 				if C.dpiConn_newTempLob(st.dpiConn, typ, &lob) == C.DPI_FAILURE {
-					return st.getError()
+					return errors.Wrapf(st.getError(), "newTempLob(typ=%d)", typ)
 				}
 				if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
-					return st.getError()
+					return errors.Wrapf(st.getError(), "openResources(%p)", lob)
+				}
+				defer C.dpiLob_closeResource(lob)
+				var chunkSize C.uint32_t
+				_ = C.dpiLob_getChunkSize(lob, &chunkSize)
+				if chunkSize == 0 {
+					chunkSize = 1 << 20
 				}
 				var offset C.uint64_t
-				p := make([]byte, 1<<20)
+				p := make([]byte, int(chunkSize))
 				for {
 					n, err := L.Read(p)
 					if n > 0 {
-						if C.dpiLob_writeBytes(lob, offset, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
-							return st.getError()
+						if C.dpiLob_writeBytes(lob, offset+1, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
+							return errors.Wrapf(st.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, offset, n)
 						}
 						offset += C.uint64_t(n)
 					}
@@ -304,7 +317,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 					}
 				}
 				if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
-					return st.getError()
+					return errors.Wrapf(st.getError(), "closeResource(%p)", lob)
 				}
 				C.dpiData_setLOB(data, lob)
 				return nil

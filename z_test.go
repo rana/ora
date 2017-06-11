@@ -1,14 +1,16 @@
 package ora_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
-	_ "gopkg.in/rana/ora.v5"
+	ora "gopkg.in/rana/ora.v5"
 )
 
 var testDb *sql.DB
@@ -115,5 +117,35 @@ func TestExecuteMany(t *testing.T) {
 		t.Error(err)
 	} else if ra != num {
 		t.Errorf("wanted %d rows, got %d", num, ra)
+	}
+}
+func TestReadWriteLob(t *testing.T) {
+	t.Parallel()
+	testDb.Exec("CREATE TABLE test_lob (f_id NUMBER(6), f_blob BLOB, f_clob CLOB)")
+	defer testDb.Exec("DROP TABLE test_lob")
+
+	stmt, err := testDb.Prepare("INSERT INTO test_lob (F_id, f_blob, F_clob) VALUES (:1, :2, :3)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	for tN, tC := range []struct {
+		Bytes  []byte
+		String string
+	}{
+		{[]byte{0, 1, 2, 3, 4, 5}, "12345"},
+	} {
+
+		if _, err := stmt.Exec(tN*2, tC.Bytes, tC.String); err != nil {
+			t.Errorf("%d/1. (%v, %q): %v", tN, tC.Bytes, tC.String, err)
+			continue
+		}
+		if _, err := stmt.Exec(tN*2+1,
+			ora.Lob{Reader: bytes.NewReader(tC.Bytes)},
+			ora.Lob{Reader: strings.NewReader(tC.String), IsClob: true},
+		); err != nil {
+			t.Errorf("%d/2. (%v, %q): %v", tN, tC.Bytes, tC.String, err)
+		}
 	}
 }
