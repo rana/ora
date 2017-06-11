@@ -76,6 +76,31 @@ func TestExecuteMany(t *testing.T) {
 		strs[i] = fmt.Sprintf("%x", i)
 		dates[i] = now.Add(-time.Duration(i) * time.Hour)
 	}
+	for i, tc := range []struct {
+		Name  string
+		Value interface{}
+	}{
+		{"f_int", ints},
+		{"f_num", nums},
+		{"f_num_6", int32s},
+		{"f_num_5_2", floats},
+		{"f_vc", strs},
+		{"f_dt", dates},
+	} {
+		res, err := testDb.ExecContext(ctx,
+			"INSERT INTO test_em ("+tc.Name+") VALUES (:1)",
+			tc.Value)
+		if err != nil {
+			t.Fatalf("%d. %+v: %#v", i, tc, err)
+		}
+		ra, err := res.RowsAffected()
+		if err != nil {
+			t.Error(err)
+		} else if ra != num {
+			t.Errorf("%d. %q: wanted %d rows, got %d", i, tc.Name, num, ra)
+		}
+	}
+
 	res, err := testDb.ExecContext(ctx,
 		`INSERT INTO test_em
 		  (f_int, f_num, f_num_6, F_num_5_2, F_vc, F_dt)

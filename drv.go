@@ -167,7 +167,11 @@ func (oe *oraErr) Error() string {
 	if oe.errInfo.code == 0 && msg == "" {
 		return ""
 	}
-	return fmt.Sprintf("ORA-%05d: %s", oe.Code(), msg)
+	prefix := fmt.Sprintf("ORA-%05d: ", oe.Code())
+	if strings.HasPrefix(msg, prefix) {
+		return msg
+	}
+	return prefix + msg
 }
 
 func (d *drv) getError() *oraErr {
