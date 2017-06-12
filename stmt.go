@@ -71,9 +71,15 @@ type statement struct {
 func (st *statement) Close() error {
 	st.Lock()
 	defer st.Unlock()
+	for _, v := range st.vars {
+		C.dpiVar_release(v)
+	}
 	if C.dpiStmt_release(st.dpiStmt) == C.DPI_FAILURE {
 		return st.getError()
 	}
+	st.data = nil
+	st.vars = nil
+	st.dpiStmt = nil
 	return nil
 }
 
@@ -262,8 +268,8 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if !named {
 			named = a.Name != ""
 		}
-		var set func(data *C.dpiData, v interface{}) error
 
+		var set dataSetter
 		var typ C.dpiOracleTypeNum
 		var natTyp C.dpiNativeTypeNum
 		var bufSize int
@@ -280,95 +286,32 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			if isClob {
 				typ = C.DPI_ORACLE_TYPE_CLOB
 			}
-			set = func(data *C.dpiData, v interface{}) error {
-				L := v.(Lob)
-				if v == nil || L.Reader == nil {
-					data.isNull = 1
-					return nil
-				}
-				var lob *C.dpiLob
-				if C.dpiConn_newTempLob(st.dpiConn, typ, &lob) == C.DPI_FAILURE {
-					return errors.Wrapf(st.getError(), "newTempLob(typ=%d)", typ)
-				}
-				if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
-					return errors.Wrapf(st.getError(), "openResources(%p)", lob)
-				}
-				defer C.dpiLob_closeResource(lob)
-				var chunkSize C.uint32_t
-				_ = C.dpiLob_getChunkSize(lob, &chunkSize)
-				if chunkSize == 0 {
-					chunkSize = 1 << 20
-				}
-				var offset C.uint64_t
-				p := make([]byte, int(chunkSize))
-				for {
-					n, err := L.Read(p)
-					if n > 0 {
-						if C.dpiLob_writeBytes(lob, offset+1, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
-							return errors.Wrapf(st.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, offset, n)
-						}
-						offset += C.uint64_t(n)
-					}
-					if err != nil {
-						if err == io.EOF {
-							break
-						}
-						return err
-					}
-				}
-				if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
-					return errors.Wrapf(st.getError(), "closeResource(%p)", lob)
-				}
-				C.dpiData_setLOB(data, lob)
-				return nil
-			}
+			set = st.dataSetLOB
 
 		case int, []int:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setInt64(data, C.int64_t(int64(v.(int))))
-				//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
-				return nil
-			}
+			set = dataSetNumber
 		case int32, []int32:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setInt64(data, C.int64_t(v.(int32)))
-				return nil
-			}
+			set = dataSetNumber
 		case int64, []int64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setInt64(data, C.int64_t(v.(int64)))
-				return nil
-			}
+			set = dataSetNumber
 		case uint, []uint:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_UINT64
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setUint64(data, C.uint64_t(uint64(v.(uint))))
-				return nil
-			}
+			set = dataSetNumber
 		case uint64, []uint64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_UINT64
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setUint64(data, C.uint64_t(v.(uint64)))
-				return nil
-			}
+			set = dataSetNumber
 		case float32, []float32:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_FLOAT
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setFloat(data, C.float(v.(float32)))
-				return nil
-			}
+			set = dataSetNumber
 		case float64, []float64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_DOUBLE
-			set = func(data *C.dpiData, v interface{}) error {
-				C.dpiData_setDouble(data, C.double(v.(float64)))
-				return nil
-			}
+			set = dataSetNumber
 		case bool, []bool:
 			typ, natTyp = C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN
-			set = func(data *C.dpiData, v interface{}) error {
+			set = func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 				b := C.int(0)
 				if v.(bool) {
 					b = 1
@@ -388,11 +331,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 					}
 				}
 			}
-			set = func(data *C.dpiData, v interface{}) error {
-				b := v.([]byte)
-				C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(b)))
-				return nil
-			}
+			set = dataSetBytes
 		case string, []string:
 			typ, natTyp = C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_NATIVE_TYPE_BYTES
 			switch v := v.(type) {
@@ -405,14 +344,10 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 					}
 				}
 			}
-			set = func(data *C.dpiData, v interface{}) error {
-				b := []byte(v.(string))
-				C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(b)))
-				return nil
-			}
+			set = dataSetBytes
 		case time.Time, []time.Time:
 			typ, natTyp = C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_NATIVE_TYPE_TIMESTAMP
-			set = func(data *C.dpiData, v interface{}) error {
+			set = func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 				t := v.(time.Time)
 				_, z := t.Zone()
 				C.dpiData_setTimestamp(data,
@@ -433,17 +368,18 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			return errors.WithMessage(err, fmt.Sprintf("%d", i))
 		}
 
+		dv := st.vars[i]
 		if doExecMany {
 			////fmt.Println("n:", len(st.data[i]))
 			for j := 0; j < dataSliceLen; j++ {
 				//fmt.Printf("d[%d]=%p\n", j, st.data[i][j])
-				if err := set(&st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
+				if err := set(dv, j, &st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
 					v := rArgs[i].Index(j).Interface()
 					return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, j, v, v)
 				}
 			}
 		} else {
-			if err := set(&st.data[i][0], a.Value); err != nil {
+			if err := set(dv, 0, &st.data[i][0], a.Value); err != nil {
 				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, a.Value, a.Value)
 			}
 		}
@@ -452,7 +388,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 
 	if !named {
 		for i, v := range st.vars {
-			//fmt.Printf("bindByPos(%d)\n", i+1)
+			//fmt.Printf("bindByPos(%d, %p, %p)\n", i+1, v, st.data[i])
 			if C.dpiStmt_bindByPos(st.dpiStmt, C.uint32_t(i+1), v) == C.DPI_FAILURE {
 				return st.getError()
 			}
@@ -473,6 +409,97 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		}
 	}
 
+	return nil
+}
+
+type dataSetter func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error
+
+func dataSetNumber(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
+	switch x := v.(type) {
+	case int:
+		C.dpiData_setInt64(data, C.int64_t(x))
+	case int32:
+		C.dpiData_setInt64(data, C.int64_t(x))
+	case int64:
+		C.dpiData_setInt64(data, C.int64_t(x))
+
+	case uint:
+		C.dpiData_setUint64(data, C.uint64_t(x))
+	case uint32:
+		C.dpiData_setUint64(data, C.uint64_t(x))
+	case uint64:
+		C.dpiData_setUint64(data, C.uint64_t(x))
+
+	case float32:
+		C.dpiData_setFloat(data, C.float(x))
+	case float64:
+		C.dpiData_setDouble(data, C.double(x))
+
+	default:
+		return errors.Errorf("unknown number [%T] %#v", v, v)
+	}
+
+	//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
+	return nil
+}
+func dataSetBytes(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
+	switch x := v.(type) {
+	case []byte:
+		C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&x[0])), C.uint32_t(len(x)))
+	case string:
+		b := []byte(x)
+		C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(x)))
+	default:
+		return errors.Errorf("unknown []byte/string [%T] %#v", v, v)
+	}
+	return nil
+}
+func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
+	L := v.(Lob)
+	if v == nil || L.Reader == nil {
+		data.isNull = 1
+		return nil
+	}
+	typ := C.dpiOracleTypeNum(C.DPI_ORACLE_TYPE_BLOB)
+	if L.IsClob {
+		typ = C.DPI_ORACLE_TYPE_CLOB
+	}
+	var lob *C.dpiLob
+	if C.dpiConn_newTempLob(c.dpiConn, typ, &lob) == C.DPI_FAILURE {
+		return errors.Wrapf(c.getError(), "newTempLob(typ=%d)", typ)
+	}
+	if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
+		return errors.Wrapf(c.getError(), "openResources(%p)", lob)
+	}
+	var chunkSize C.uint32_t
+	_ = C.dpiLob_getChunkSize(lob, &chunkSize)
+	if chunkSize == 0 {
+		chunkSize = 1 << 20
+	}
+	var offset C.uint64_t
+	p := make([]byte, int(chunkSize))
+	for {
+		n, err := L.Read(p)
+		if n > 0 {
+			if C.dpiLob_writeBytes(lob, offset+1, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
+				C.dpiLob_closeResource(lob)
+				return errors.Wrapf(c.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, offset, n)
+			}
+			offset += C.uint64_t(n)
+		}
+		if err == nil {
+			continue
+		}
+		if err == io.EOF {
+			break
+		}
+		C.dpiLob_closeResource(lob)
+		return err
+	}
+	if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
+		return errors.Wrapf(c.getError(), "closeResource(%p)", lob)
+	}
+	C.dpiVar_setFromLob(dv, C.uint32_t(pos), lob)
 	return nil
 }
 

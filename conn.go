@@ -88,6 +88,7 @@ func (c *conn) Close() error {
 	if C.dpiConn_release(c.dpiConn) == C.DPI_FAILURE {
 		return c.getError()
 	}
+	c.dpiConn = nil
 	return nil
 }
 
