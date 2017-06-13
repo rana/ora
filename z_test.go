@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -147,5 +148,45 @@ func TestReadWriteLob(t *testing.T) {
 		); err != nil {
 			t.Errorf("%d/2. (%v, %q): %v", tN, tC.Bytes, tC.String, err)
 		}
+
+		rows, err := testDb.Query("SELECT F_blob, F_clob FROM test_lob WHERE F_id = :1", tN)
+		if err != nil {
+			t.Errorf("%d/3. %v", tN, err)
+			continue
+		}
+		if !rows.Next() {
+			rows.Close()
+			t.Errorf("%d/3. no rows found", tN)
+			continue
+		}
+		var blob, clob interface{}
+		if err := rows.Scan(&blob, &clob); err != nil {
+			rows.Close()
+			t.Errorf("%d/3. scan: %v", tN, err)
+			continue
+		}
+		t.Logf("%d. blob=%+v clob=%+v", tN, blob, clob)
+		if clob, ok := clob.(*ora.Lob); !ok {
+			t.Errorf("%d. %T is not LOB", tN, blob)
+		} else {
+			got, err := ioutil.ReadAll(clob)
+			if err != nil {
+				t.Errorf("%d. %v", tN, err)
+			} else if got := string(got); got != tC.String {
+				t.Errorf("%d. got %q, wanted %q", tN, got, tC.String)
+			}
+		}
+		if blob, ok := blob.(*ora.Lob); !ok {
+			t.Errorf("%d. %T is not LOB", tN, blob)
+		} else {
+			got, err := ioutil.ReadAll(blob)
+			if err != nil {
+				t.Errorf("%d. %v", tN, err)
+			} else if !bytes.Equal(got, tC.Bytes) {
+				t.Errorf("%d. got %v, wanted %v", tN, got, tC.Bytes)
+			}
+		}
+
+		rows.Close()
 	}
 }

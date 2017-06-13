@@ -409,9 +409,9 @@ func (r *rows) Next(dest []driver.Value) error {
 				dest[i] = nil
 				continue
 			}
-			fmt.Printf("INTERVAL_YM\n")
+			fmt.Printf("LOB\n")
 			dest[i] = &Lob{
-				Reader: &dpiLobReader{dpiLob: C.dpiData_getLOB(d)},
+				Reader: &dpiLobReader{dpiLob: C.dpiData_getLOB(d), conn: r.conn},
 				IsClob: typ == C.DPI_ORACLE_TYPE_CLOB || typ == C.DPI_ORACLE_TYPE_NCLOB,
 			}
 		case C.DPI_ORACLE_TYPE_STMT, C.DPI_NATIVE_TYPE_STMT:
@@ -457,19 +457,64 @@ type Lob struct {
 	IsClob bool
 }
 
+// Scan assigns a value from a database driver.
+//
+// The src value will be of one of the following types:
+//
+//    int64
+//    float64
+//    bool
+//    []byte
+//    string
+//    time.Time
+//    nil - for NULL values
+//
+// An error should be returned if the value cannot be stored
+// without loss of information.
+func (dlr *dpiLobReader) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.Errorf("cannot convert LOB to %T", src)
+	}
+	_ = b
+	return nil
+}
+
 var _ = io.Reader((*dpiLobReader)(nil))
 
 type dpiLobReader struct {
 	*conn
 	dpiLob *C.dpiLob
 	offset C.uint64_t
+	size   C.uint64_t
 }
 
 func (dlr *dpiLobReader) Read(p []byte) (int, error) {
+	if dlr == nil {
+		return 0, errors.New("read on nil dpiLobReader")
+	}
+	if dlr.size == 0 {
+		if C.dpiLob_getSize(dlr.dpiLob, &dlr.size) == C.DPI_FAILURE {
+			return 0, errors.Wrap(dlr.getError(), "getSize")
+		}
+	}
+	//fmt.Printf("offset=%d size=%d\n", dlr.offset, dlr.size)
+	if dlr.size <= dlr.offset {
+		return 0, io.EOF
+	}
 	n := C.uint64_t(len(p))
-	if C.dpiLob_readBytes(dlr.dpiLob, dlr.offset, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
-		return 0, dlr.getError()
+	var eof bool
+	if eof := dlr.size < dlr.offset+n; eof {
+		n = dlr.size - dlr.offset
+	}
+	fmt.Printf("offset=%d n=%d size=%d\n", dlr.offset, n, dlr.size)
+	if C.dpiLob_readBytes(dlr.dpiLob, dlr.offset+1, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
+		return 0, errors.Wrapf(dlr.getError(), "lob=%p offset=%d n=%d size=%d", dlr.dpiLob, dlr.offset, len(p), dlr.size)
 	}
 	dlr.offset += n
-	return int(n), nil
+	var err error
+	if eof {
+		err = io.EOF
+	}
+	return int(n), err
 }

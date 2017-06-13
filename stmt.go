@@ -468,39 +468,16 @@ func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{})
 	if C.dpiConn_newTempLob(c.dpiConn, typ, &lob) == C.DPI_FAILURE {
 		return errors.Wrapf(c.getError(), "newTempLob(typ=%d)", typ)
 	}
-	if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
-		return errors.Wrapf(c.getError(), "openResources(%p)", lob)
-	}
 	var chunkSize C.uint32_t
 	_ = C.dpiLob_getChunkSize(lob, &chunkSize)
 	if chunkSize == 0 {
 		chunkSize = 1 << 20
 	}
-	var offset C.uint64_t
-	p := make([]byte, int(chunkSize))
-	for {
-		n, err := L.Read(p)
-		if n > 0 {
-			if C.dpiLob_writeBytes(lob, offset+1, (*C.char)(unsafe.Pointer(&p[0])), C.uint64_t(n)) == C.DPI_FAILURE {
-				C.dpiLob_closeResource(lob)
-				return errors.Wrapf(c.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, offset, n)
-			}
-			offset += C.uint64_t(n)
-		}
-		if err == nil {
-			continue
-		}
-		if err == io.EOF {
-			break
-		}
-		C.dpiLob_closeResource(lob)
-		return err
-	}
-	if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
-		return errors.Wrapf(c.getError(), "closeResource(%p)", lob)
-	}
+	lw := &dpiLobWriter{dpiLob: lob, conn: c}
+	_, err := io.CopyBuffer(lw, L, make([]byte, int(chunkSize)))
+	_ = lw.Close()
 	C.dpiVar_setFromLob(dv, C.uint32_t(pos), lob)
-	return nil
+	return err
 }
 
 // CheckNamedValue is called before passing arguments to the driver
@@ -588,4 +565,43 @@ type Column struct {
 	Scale      C.int8_t
 	Nullable   bool
 	ObjectType *C.dpiObjectType
+}
+
+type dpiLobWriter struct {
+	*conn
+	dpiLob *C.dpiLob
+	offset C.uint64_t
+	opened bool
+}
+
+func (dlw *dpiLobWriter) Write(p []byte) (int, error) {
+	if !dlw.opened {
+		if C.dpiLob_openResource(dlw.dpiLob) == C.DPI_FAILURE {
+			return 0, errors.Wrapf(dlw.getError(), "openResources(%p)", dlw.dpiLob)
+		}
+		dlw.opened = true
+	}
+
+	n := C.uint64_t(len(p))
+	if C.dpiLob_writeBytes(dlw.dpiLob, dlw.offset+1, (*C.char)(unsafe.Pointer(&p[0])), n) == C.DPI_FAILURE {
+		lob := dlw.dpiLob
+		dlw.dpiLob = nil
+		C.dpiLob_closeResource(lob)
+		return 0, errors.Wrapf(dlw.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, dlw.offset, n)
+	}
+	fmt.Printf("written %q into %p@%d\n", p, dlw.dpiLob, dlw.offset)
+	dlw.offset += n
+	return len(p), nil
+}
+
+func (dlw *dpiLobWriter) Close() error {
+	if dlw == nil || dlw.dpiLob == nil {
+		return nil
+	}
+	lob := dlw.dpiLob
+	dlw.dpiLob = nil
+	if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
+		return errors.Wrapf(dlw.getError(), "closeResource(%p)", lob)
+	}
+	return nil
 }
