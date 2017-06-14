@@ -80,17 +80,17 @@ func TestExecuteMany(t *testing.T) {
 	defer cancel()
 	const num = 1000
 	ints := make([]int, num)
-	nums := make([]string, num)
+	nums := make([]float64, num)
 	int32s := make([]int32, num)
-	floats := make([]float32, num)
+	floats := make([]float64, num)
 	strs := make([]string, num)
 	dates := make([]time.Time, num)
 	now := time.Now()
 	for i := range nums {
 		ints[i] = i << 1
-		nums[i] = fmt.Sprintf("%d", i)
+		nums[i] = float64(i)
 		int32s[i] = int32(i)
-		floats[i] = float32(i) / float32(3.14)
+		floats[i] = float64(i) / float64(3.14)
 		strs[i] = fmt.Sprintf("%x", i)
 		dates[i] = now.Add(-time.Duration(i) * time.Hour)
 	}
