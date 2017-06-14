@@ -1,3 +1,18 @@
+// Copyright 2017 Tamás Gulácsi
+//
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+
 package ora_test
 
 import (
@@ -122,8 +137,9 @@ func TestExecuteMany(t *testing.T) {
 }
 func TestReadWriteLob(t *testing.T) {
 	t.Parallel()
+	testDb.Exec("DROP TABLE test_lob")
 	testDb.Exec("CREATE TABLE test_lob (f_id NUMBER(6), f_blob BLOB, f_clob CLOB)")
-	defer testDb.Exec("DROP TABLE test_lob")
+	//defer testDb.Exec("DROP TABLE test_lob")
 
 	stmt, err := testDb.Prepare("INSERT INTO test_lob (F_id, f_blob, F_clob) VALUES (:1, :2, :3)")
 	if err != nil {
@@ -165,7 +181,7 @@ func TestReadWriteLob(t *testing.T) {
 			t.Errorf("%d/3. scan: %v", tN, err)
 			continue
 		}
-		t.Logf("%d. blob=%+v clob=%+v", tN, blob, clob)
+		t.Logf("%d. blob=%+v clob=%+v", 2*tN+1, blob, clob)
 		if clob, ok := clob.(*ora.Lob); !ok {
 			t.Errorf("%d. %T is not LOB", tN, blob)
 		} else {
@@ -173,7 +189,7 @@ func TestReadWriteLob(t *testing.T) {
 			if err != nil {
 				t.Errorf("%d. %v", tN, err)
 			} else if got := string(got); got != tC.String {
-				t.Errorf("%d. got %q, wanted %q", tN, got, tC.String)
+				t.Errorf("%d. got %q for CLOB, wanted %q", tN, got, tC.String)
 			}
 		}
 		if blob, ok := blob.(*ora.Lob); !ok {
@@ -183,7 +199,7 @@ func TestReadWriteLob(t *testing.T) {
 			if err != nil {
 				t.Errorf("%d. %v", tN, err)
 			} else if !bytes.Equal(got, tC.Bytes) {
-				t.Errorf("%d. got %v, wanted %v", tN, got, tC.Bytes)
+				t.Errorf("%d. got %v for BLOB, wanted %v", tN, got, tC.Bytes)
 			}
 		}
 
