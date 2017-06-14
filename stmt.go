@@ -474,8 +474,14 @@ func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{})
 		chunkSize = 1 << 20
 	}
 	lw := &dpiLobWriter{dpiLob: lob, conn: c}
-	_, err := io.CopyBuffer(lw, L, make([]byte, int(chunkSize)))
-	_ = lw.Close()
+	n, err := io.CopyBuffer(lw, L, make([]byte, int(chunkSize)))
+	fmt.Printf("%p written %d with chunkSize=%d\n", lob, n, chunkSize)
+	if closeErr := lw.Close(); closeErr != nil {
+		if err == nil {
+			err = closeErr
+		}
+		fmt.Printf("close %p: %+v\n", lob, closeErr)
+	}
 	C.dpiVar_setFromLob(dv, C.uint32_t(pos), lob)
 	return err
 }

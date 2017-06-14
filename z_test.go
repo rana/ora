@@ -165,44 +165,40 @@ func TestReadWriteLob(t *testing.T) {
 			t.Errorf("%d/2. (%v, %q): %v", tN, tC.Bytes, tC.String, err)
 		}
 
-		rows, err := testDb.Query("SELECT F_blob, F_clob FROM test_lob WHERE F_id = :1", tN)
+		rows, err := testDb.Query("SELECT F_id, F_blob, F_clob FROM test_lob WHERE F_id IN (:1, :2)", 2*tN, 2*tN+1)
 		if err != nil {
 			t.Errorf("%d/3. %v", tN, err)
 			continue
 		}
-		if !rows.Next() {
-			rows.Close()
-			t.Errorf("%d/3. no rows found", tN)
-			continue
-		}
-		var blob, clob interface{}
-		if err := rows.Scan(&blob, &clob); err != nil {
-			rows.Close()
-			t.Errorf("%d/3. scan: %v", tN, err)
-			continue
-		}
-		t.Logf("%d. blob=%+v clob=%+v", 2*tN+1, blob, clob)
-		if clob, ok := clob.(*ora.Lob); !ok {
-			t.Errorf("%d. %T is not LOB", tN, blob)
-		} else {
-			got, err := ioutil.ReadAll(clob)
-			if err != nil {
-				t.Errorf("%d. %v", tN, err)
-			} else if got := string(got); got != tC.String {
-				t.Errorf("%d. got %q for CLOB, wanted %q", tN, got, tC.String)
+		for rows.Next() {
+			var id, blob, clob interface{}
+			if err := rows.Scan(&id, &blob, &clob); err != nil {
+				rows.Close()
+				t.Errorf("%d/3. scan: %v", tN, err)
+				continue
+			}
+			t.Logf("%d. blob=%+v clob=%+v", id, blob, clob)
+			if clob, ok := clob.(*ora.Lob); !ok {
+				t.Errorf("%d. %T is not LOB", id, blob)
+			} else {
+				got, err := ioutil.ReadAll(clob)
+				if err != nil {
+					t.Errorf("%d. %v", id, err)
+				} else if got := string(got); got != tC.String {
+					t.Errorf("%d. got %q for CLOB, wanted %q", id, got, tC.String)
+				}
+			}
+			if blob, ok := blob.(*ora.Lob); !ok {
+				t.Errorf("%d. %T is not LOB", id, blob)
+			} else {
+				got, err := ioutil.ReadAll(blob)
+				if err != nil {
+					t.Errorf("%d. %v", id, err)
+				} else if !bytes.Equal(got, tC.Bytes) {
+					t.Errorf("%d. got %v for BLOB, wanted %v", id, got, tC.Bytes)
+				}
 			}
 		}
-		if blob, ok := blob.(*ora.Lob); !ok {
-			t.Errorf("%d. %T is not LOB", tN, blob)
-		} else {
-			got, err := ioutil.ReadAll(blob)
-			if err != nil {
-				t.Errorf("%d. %v", tN, err)
-			} else if !bytes.Equal(got, tC.Bytes) {
-				t.Errorf("%d. got %v for BLOB, wanted %v", tN, got, tC.Bytes)
-			}
-		}
-
 		rows.Close()
 	}
 }

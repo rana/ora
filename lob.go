@@ -65,43 +65,35 @@ var _ = io.Reader((*dpiLobReader)(nil))
 
 type dpiLobReader struct {
 	*conn
-	dpiLob *C.dpiLob
-	offset C.uint64_t
-	size   C.uint64_t
+	dpiLob   *C.dpiLob
+	offset   C.uint64_t
+	finished bool
 }
 
 func (dlr *dpiLobReader) Read(p []byte) (int, error) {
 	if dlr == nil {
 		return 0, errors.New("read on nil dpiLobReader")
 	}
-	if dlr.size == 0 {
-		if C.dpiLob_getSize(dlr.dpiLob, &dlr.size) == C.DPI_FAILURE {
-			return 0, errors.Wrap(dlr.getError(), "getSize")
-		}
-	}
-	//fmt.Printf("offset=%d size=%d\n", dlr.offset, dlr.size)
-	if dlr.size <= dlr.offset {
+	if dlr.finished {
 		return 0, io.EOF
 	}
-	n := C.uint64_t(len(p))
-	var eof bool
-	if eof := dlr.size < dlr.offset+n; eof {
-		n = dlr.size - dlr.offset
+	if len(p) == 0 {
+		return 0, nil
 	}
-	fmt.Printf("%p.Read offset=%d n=%d size=%d\n", dlr.dpiLob, dlr.offset, n, dlr.size)
+	n := C.uint64_t(len(p))
+	fmt.Printf("%p.Read offset=%d n=%d\n", dlr.dpiLob, dlr.offset, n)
 	if C.dpiLob_readBytes(dlr.dpiLob, dlr.offset+1, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
 		err := dlr.getError()
-		fmt.Printf("read %d, got ORA-%d\n", n, err.Code())
-		if n > 0 && err.Code() == 1403 {
+		if dlr.finished = err.Code() == 1403; dlr.finished {
 			dlr.offset += n
 			return int(n), io.EOF
 		}
-		return int(n), errors.Wrapf(err, "lob=%p offset=%d n=%d size=%d", dlr.dpiLob, dlr.offset, len(p), dlr.size)
+		return int(n), errors.Wrapf(err, "lob=%p offset=%d n=%d", dlr.dpiLob, dlr.offset, len(p))
 	}
 	fmt.Printf("read %d\n", n)
 	dlr.offset += n
 	var err error
-	if eof {
+	if n == 0 {
 		err = io.EOF
 	}
 	return int(n), err
@@ -115,27 +107,29 @@ type dpiLobWriter struct {
 }
 
 func (dlw *dpiLobWriter) Write(p []byte) (int, error) {
+	lob := dlw.dpiLob
 	if !dlw.opened {
-		if C.dpiLob_openResource(dlw.dpiLob) == C.DPI_FAILURE {
-			return 0, errors.Wrapf(dlw.getError(), "openResources(%p)", dlw.dpiLob)
+		fmt.Printf("open %p\n", lob)
+		if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
+			return 0, errors.Wrapf(dlw.getError(), "openResources(%p)", lob)
 		}
 		dlw.opened = true
 	}
 
 	n := C.uint64_t(len(p))
-	if C.dpiLob_writeBytes(dlw.dpiLob, dlw.offset+1, (*C.char)(unsafe.Pointer(&p[0])), n) == C.DPI_FAILURE {
-		lob := dlw.dpiLob
+	if C.dpiLob_writeBytes(lob, dlw.offset+1, (*C.char)(unsafe.Pointer(&p[0])), n) == C.DPI_FAILURE {
+		err := errors.Wrapf(dlw.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, dlw.offset, n)
 		dlw.dpiLob = nil
 		C.dpiLob_closeResource(lob)
-		return 0, errors.Wrapf(dlw.getError(), "writeBytes(%p, offset=%d, data=%d)", lob, dlw.offset, n)
+		return 0, err
 	}
-	fmt.Printf("written %q into %p@%d\n", p, dlw.dpiLob, dlw.offset)
+	fmt.Printf("written %q into %p@%d\n", p[:n], lob, dlw.offset)
 	dlw.offset += n
 
-	if CheckLOBWrite {
+	if true && CheckLOBWrite {
 		var size C.uint64_t
-		if C.dpiLob_getSize(dlw.dpiLob, &size); size != dlw.offset {
-			return int(n), errors.Errorf("%p size=%d, offset=%d", dlw.dpiLob, size, dlw.offset)
+		if C.dpiLob_getSize(lob, &size); size != dlw.offset {
+			return int(n), errors.Errorf("%p size=%d, offset=%d", lob, size, dlw.offset)
 		}
 	}
 	return int(n), nil
@@ -146,10 +140,8 @@ func (dlw *dpiLobWriter) Close() error {
 		return nil
 	}
 	lob := dlw.dpiLob
-	if C.dpiLob_flushBuffer(lob) == C.DPI_FAILURE {
-		return errors.Wrapf(dlw.getError(), "flushBuffer(%p)", lob)
-	}
 	dlw.dpiLob = nil
+	C.dpiLob_flushBuffer(lob)
 	if C.dpiLob_closeResource(lob) == C.DPI_FAILURE {
 		return errors.Wrapf(dlw.getError(), "closeResource(%p)", lob)
 	}
