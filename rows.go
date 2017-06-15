@@ -409,7 +409,7 @@ func (r *rows) Next(dest []driver.Value) error {
 				dest[i] = nil
 				continue
 			}
-			fmt.Printf("LOB\n")
+			//fmt.Printf("LOB\n")
 			dest[i] = &Lob{
 				Reader: &dpiLobReader{dpiLob: C.dpiData_getLOB(d), conn: r.conn},
 				IsClob: typ == C.DPI_ORACLE_TYPE_CLOB || typ == C.DPI_ORACLE_TYPE_NCLOB,

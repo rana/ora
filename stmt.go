@@ -319,6 +319,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				C.dpiData_setBool(data, b)
 				return nil
 			}
+
 		case []byte, [][]byte:
 			typ, natTyp = C.DPI_ORACLE_TYPE_RAW, C.DPI_NATIVE_TYPE_BYTES
 			switch v := v.(type) {
@@ -332,6 +333,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				}
 			}
 			set = dataSetBytes
+
 		case string, []string:
 			typ, natTyp = C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_NATIVE_TYPE_BYTES
 			switch v := v.(type) {
@@ -345,6 +347,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				}
 			}
 			set = dataSetBytes
+
 		case time.Time, []time.Time:
 			typ, natTyp = C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_NATIVE_TYPE_TIMESTAMP
 			set = func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
@@ -357,6 +360,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				)
 				return nil
 			}
+
 		default:
 			return errors.Errorf("%d. arg: unknown type %T", i+1, a.Value)
 		}
@@ -368,19 +372,19 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			return errors.WithMessage(err, fmt.Sprintf("%d", i))
 		}
 
-		dv := st.vars[i]
-		if doExecMany {
-			////fmt.Println("n:", len(st.data[i]))
+		dv, data := st.vars[i], st.data[i]
+		if !doExecMany {
+			if err := set(dv, 0, &data[0], a.Value); err != nil {
+				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, a.Value, a.Value)
+			}
+		} else {
+			//fmt.Println("n:", len(st.data[i]))
 			for j := 0; j < dataSliceLen; j++ {
 				//fmt.Printf("d[%d]=%p\n", j, st.data[i][j])
-				if err := set(dv, j, &st.data[i][j], rArgs[i].Index(j).Interface()); err != nil {
+				if err := set(dv, j, &data[j], rArgs[i].Index(j).Interface()); err != nil {
 					v := rArgs[i].Index(j).Interface()
 					return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, j, v, v)
 				}
-			}
-		} else {
-			if err := set(dv, 0, &st.data[i][0], a.Value); err != nil {
-				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, a.Value, a.Value)
 			}
 		}
 		//fmt.Printf("data[%d]: %#v\n", i, st.data[i])
@@ -445,15 +449,16 @@ func dataSetNumber(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error 
 func dataSetBytes(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	switch x := v.(type) {
 	case []byte:
-		C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&x[0])), C.uint32_t(len(x)))
+		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), (*C.char)(unsafe.Pointer(&x[0])), C.uint32_t(len(x)))
 	case string:
 		b := []byte(x)
-		C.dpiData_setBytes(data, (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(x)))
+		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(x)))
 	default:
 		return errors.Errorf("awaited []byte/string, got %T (%#v)", v, v)
 	}
 	return nil
 }
+
 func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	L := v.(Lob)
 	if v == nil || L.Reader == nil {
@@ -474,13 +479,13 @@ func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{})
 		chunkSize = 1 << 20
 	}
 	lw := &dpiLobWriter{dpiLob: lob, conn: c}
-	n, err := io.CopyBuffer(lw, L, make([]byte, int(chunkSize)))
-	fmt.Printf("%p written %d with chunkSize=%d\n", lob, n, chunkSize)
+	_, err := io.CopyBuffer(lw, L, make([]byte, int(chunkSize)))
+	//fmt.Printf("%p written %d with chunkSize=%d\n", lob, n, chunkSize)
 	if closeErr := lw.Close(); closeErr != nil {
 		if err == nil {
 			err = closeErr
 		}
-		fmt.Printf("close %p: %+v\n", lob, closeErr)
+		//fmt.Printf("close %p: %+v\n", lob, closeErr)
 	}
 	C.dpiVar_setFromLob(dv, C.uint32_t(pos), lob)
 	return err

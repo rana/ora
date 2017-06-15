@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func TestSelect(t *testing.T) {
 }
 func TestExecuteMany(t *testing.T) {
 	t.Parallel()
+	testDb.Exec("DROP TABLE test_em")
 	testDb.Exec("CREATE TABLE test_em (f_int INTEGER, f_num NUMBER, f_num_6 NUMBER(6), F_num_5_2 NUMBER(5,2), f_vc VARCHAR2(30), F_dt DATE)")
 	defer testDb.Exec("DROP TABLE test_em")
 
@@ -80,7 +82,7 @@ func TestExecuteMany(t *testing.T) {
 	defer cancel()
 	const num = 1000
 	ints := make([]int, num)
-	nums := make([]float64, num)
+	nums := make([]string, num)
 	int32s := make([]int32, num)
 	floats := make([]float64, num)
 	strs := make([]string, num)
@@ -88,7 +90,7 @@ func TestExecuteMany(t *testing.T) {
 	now := time.Now()
 	for i := range nums {
 		ints[i] = i << 1
-		nums[i] = float64(i)
+		nums[i] = strconv.Itoa(i)
 		int32s[i] = int32(i)
 		floats[i] = float64(i) / float64(3.14)
 		strs[i] = fmt.Sprintf("%x", i)
@@ -139,7 +141,7 @@ func TestReadWriteLob(t *testing.T) {
 	t.Parallel()
 	testDb.Exec("DROP TABLE test_lob")
 	testDb.Exec("CREATE TABLE test_lob (f_id NUMBER(6), f_blob BLOB, f_clob CLOB)")
-	//defer testDb.Exec("DROP TABLE test_lob")
+	defer testDb.Exec("DROP TABLE test_lob")
 
 	stmt, err := testDb.Prepare("INSERT INTO test_lob (F_id, f_blob, F_clob) VALUES (:1, :2, :3)")
 	if err != nil {

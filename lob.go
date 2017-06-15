@@ -23,7 +23,6 @@ package ora
 */
 import "C"
 import (
-	"fmt"
 	"io"
 	"unsafe"
 
@@ -81,7 +80,7 @@ func (dlr *dpiLobReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	n := C.uint64_t(len(p))
-	fmt.Printf("%p.Read offset=%d n=%d\n", dlr.dpiLob, dlr.offset, n)
+	//fmt.Printf("%p.Read offset=%d n=%d\n", dlr.dpiLob, dlr.offset, n)
 	if C.dpiLob_readBytes(dlr.dpiLob, dlr.offset+1, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
 		err := dlr.getError()
 		if dlr.finished = err.Code() == 1403; dlr.finished {
@@ -90,7 +89,7 @@ func (dlr *dpiLobReader) Read(p []byte) (int, error) {
 		}
 		return int(n), errors.Wrapf(err, "lob=%p offset=%d n=%d", dlr.dpiLob, dlr.offset, len(p))
 	}
-	fmt.Printf("read %d\n", n)
+	//fmt.Printf("read %d\n", n)
 	dlr.offset += n
 	var err error
 	if n == 0 {
@@ -109,7 +108,7 @@ type dpiLobWriter struct {
 func (dlw *dpiLobWriter) Write(p []byte) (int, error) {
 	lob := dlw.dpiLob
 	if !dlw.opened {
-		fmt.Printf("open %p\n", lob)
+		//fmt.Printf("open %p\n", lob)
 		if C.dpiLob_openResource(lob) == C.DPI_FAILURE {
 			return 0, errors.Wrapf(dlw.getError(), "openResources(%p)", lob)
 		}
@@ -123,7 +122,7 @@ func (dlw *dpiLobWriter) Write(p []byte) (int, error) {
 		C.dpiLob_closeResource(lob)
 		return 0, err
 	}
-	fmt.Printf("written %q into %p@%d\n", p[:n], lob, dlw.offset)
+	//fmt.Printf("written %q into %p@%d\n", p[:n], lob, dlw.offset)
 	dlw.offset += n
 
 	if true && CheckLOBWrite {
