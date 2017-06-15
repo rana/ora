@@ -16,7 +16,8 @@
 package ora
 
 /*
-#cgo pkg-config: odpi
+#cgo CFLAGS: -Iodpi/src -Iodpi/include
+#cgo LDFLAGS: -Lodpi/lib -lodpic -ldl
 
 #include "dpiImpl.h"
 */

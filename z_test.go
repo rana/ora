@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func TestSelect(t *testing.T) {
 func TestExecuteMany(t *testing.T) {
 	t.Parallel()
 	testDb.Exec("DROP TABLE test_em")
-	testDb.Exec("CREATE TABLE test_em (f_int INTEGER, f_num NUMBER, f_num_6 NUMBER(6), F_num_5_2 NUMBER(5,2), f_vc VARCHAR2(30), F_dt DATE)")
+	testDb.Exec("CREATE TABLE test_em (f_id INTEGER, f_int INTEGER, f_num NUMBER, f_num_6 NUMBER(6), F_num_5_2 NUMBER(5,2), f_vc VARCHAR2(30), F_dt DATE)")
 	defer testDb.Exec("DROP TABLE test_em")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -88,7 +89,9 @@ func TestExecuteMany(t *testing.T) {
 	strs := make([]string, num)
 	dates := make([]time.Time, num)
 	now := time.Now()
+	ids := make([]int, num)
 	for i := range nums {
+		ids[i] = i
 		ints[i] = i << 1
 		nums[i] = strconv.Itoa(i)
 		int32s[i] = int32(i)
@@ -121,12 +124,14 @@ func TestExecuteMany(t *testing.T) {
 		}
 	}
 
+	testDb.ExecContext(ctx, "TRUNCATE TABLE test_em")
+
 	res, err := testDb.ExecContext(ctx,
 		`INSERT INTO test_em
-		  (f_int, f_num, f_num_6, F_num_5_2, F_vc, F_dt)
+		  (f_id, f_int, f_num, f_num_6, F_num_5_2, F_vc, F_dt)
 		  VALUES
-		  (:1, :2, :3, :4, :5, :6)`,
-		ints, nums, nums, nums, strs, dates)
+		  (:1, :2, :3, :4, :5, :6, :7)`,
+		ids, ints, nums, int32s, floats, strs, dates)
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
@@ -135,6 +140,46 @@ func TestExecuteMany(t *testing.T) {
 		t.Error(err)
 	} else if ra != num {
 		t.Errorf("wanted %d rows, got %d", num, ra)
+	}
+
+	rows, err := testDb.QueryContext(ctx, "SELECT * FROM test_em ORDER BY F_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	i := 0
+	for rows.Next() {
+		var id, Int int
+		var num, vc string
+		var num6 int32
+		var num52 float64
+		var dt time.Time
+		if err := rows.Scan(&id, &Int, &num, &num6, &num52, &vc, &dt); err != nil {
+			t.Fatal(err)
+		}
+		if id != i {
+			t.Fatalf("ID got %d, wanted %d.", id, i)
+		}
+		if Int != ints[i] {
+			t.Errorf("%d. INT got %d, wanted %d.", i, Int, ints[i])
+		}
+		if num != nums[i] {
+			t.Errorf("%d. NUM got %q, wanted %q.", i, num, nums[i])
+		}
+		if num6 != int32s[i] {
+			t.Errorf("%d. NUM_6 got %v, wanted %v.", i, num6, int32s[i])
+		}
+		rounded := float64(int64(floats[i]/0.005+0.5)) * 0.005
+		if math.Abs(num52-rounded) > 0.05 {
+			t.Errorf("%d. NUM_5_2 got %v, wanted %v.", i, num52, rounded)
+		}
+		if vc != strs[i] {
+			t.Errorf("%d. VC got %q, wanted %q.", i, vc, strs[i])
+		}
+		if dt != dates[i].Truncate(time.Second) {
+			t.Errorf("%d. got DT %v, wanted %v.", i, dt, dates[i])
+		}
+		i++
 	}
 }
 func TestReadWriteLob(t *testing.T) {
