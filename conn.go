@@ -170,6 +170,9 @@ func (c *conn) Rollback() error {
 }
 
 func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNativeTypeNum, arraySize int, bufSize int) (*C.dpiVar, []C.dpiData, error) {
+	if c == nil || c.dpiConn == nil {
+		return nil, nil, errors.New("connection is nil")
+	}
 	isArray := C.int(0)
 	if isPlSQLArray {
 		isArray = 1

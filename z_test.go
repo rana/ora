@@ -19,7 +19,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -38,6 +40,42 @@ func init() {
 	if testDb, err = sql.Open("ora", os.Getenv("GO_ORA_DRV_TEST_USERNAME")+"/"+os.Getenv("GO_ORA_DRV_TEST_PASSWORD")+"@"+os.Getenv("GO_ORA_DRV_TEST_DB")); err != nil {
 		fmt.Println("ERROR")
 		panic(err)
+	}
+}
+
+func TestSelectRefCursor(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	const num = 1000
+	rows, err := testDb.QueryContext(ctx, "SELECT CURSOR(SELECT object_name, object_type, object_id, created FROM all_objects WHERE ROWNUM < 1000) FROM DUAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var intf interface{}
+		if err := rows.Scan(&intf); err != nil {
+			t.Error(err)
+			continue
+		}
+		t.Logf("%T", intf)
+		sub := intf.(driver.RowsColumnTypeScanType)
+		cols := sub.Columns()
+		t.Log("Columns", cols)
+		dests := make([]driver.Value, len(cols))
+		for {
+			if err := sub.Next(dests); err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Error(err)
+				break
+			}
+			//fmt.Println(dests)
+			t.Log(dests)
+		}
+		sub.Close()
 	}
 }
 
@@ -73,6 +111,7 @@ func TestSelect(t *testing.T) {
 		t.Errorf("got %d rows, wanted %d", n, num-1)
 	}
 }
+
 func TestExecuteMany(t *testing.T) {
 	t.Parallel()
 	testDb.Exec("DROP TABLE test_em")

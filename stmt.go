@@ -551,6 +551,7 @@ func (st *statement) openRows(colCount int) (*rows, error) {
 			bufSize *= 4
 		}
 		var err error
+		//fmt.Printf("%d. %+v\n", i, r.columns[i])
 		if r.vars[i], r.data[i], err = st.newVar(
 			false, info.oracleTypeNum, info.defaultNativeTypeNum, fetchRowCount, bufSize,
 		); err != nil {

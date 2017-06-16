@@ -419,8 +419,8 @@ func (r *rows) Next(dest []driver.Value) error {
 				dest[i] = nil
 				continue
 			}
-			fmt.Printf("STMT\n")
-			st := &statement{dpiStmt: C.dpiData_getStmt(d)}
+			//fmt.Printf("STMT\n")
+			st := &statement{conn: r.conn, dpiStmt: C.dpiData_getStmt(d)}
 			var colCount C.uint32_t
 			if C.dpiStmt_getNumQueryColumns(st.dpiStmt, &colCount) == C.DPI_FAILURE {
 				return r.getError()
