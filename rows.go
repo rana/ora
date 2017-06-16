@@ -273,7 +273,7 @@ func (r *rows) Next(dest []driver.Value) error {
 					return r.getError()
 				}
 				r.data[i] = (*[fetchRowCount]C.dpiData)(unsafe.Pointer(data))[:n:n]
-				fmt.Printf("data %d=%+v\n%+v\n", n, data, r.data[i][0])
+				//fmt.Printf("data %d=%+v\n%+v\n", n, data, r.data[i][0])
 			}
 		}
 
@@ -398,7 +398,7 @@ func (r *rows) Next(dest []driver.Value) error {
 				dest[i] = nil
 				continue
 			}
-			fmt.Printf("FLOAT\n")
+			fmt.Printf("INTERVAL_YM\n")
 			ym := C.dpiData_getIntervalYM(d)
 			dest[i] = fmt.Sprintf("%dy%dm", ym.years, ym.months)
 		case C.DPI_ORACLE_TYPE_CLOB, C.DPI_ORACLE_TYPE_NCLOB,

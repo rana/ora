@@ -27,7 +27,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -199,8 +198,8 @@ func (c *conn) newVar(isPlSQLArray bool, typ C.dpiOracleTypeNum, natTyp C.dpiNat
 		if n > 10 {
 			n = 10
 		}
-		fmt.Printf("dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
-			c.dpiConn, typ, natTyp, arraySize, bufSize, 1, isArray, nil, &v, &dataArr, data[:n])
+		//fmt.Printf("dpiConn_newVar(dpiConn=%p, typ=%d, natTyp=%d, arraySize=%d, bufSize=%d, isBytes=%d, isArray=%d, obj=%p, *dpiVar=%p, *dataArr=%p): %#v\n",
+		//	c.dpiConn, typ, natTyp, arraySize, bufSize, 1, isArray, nil, &v, &dataArr, data[:n])
 	}
 	return v, data, nil
 }
