@@ -37,6 +37,22 @@ type Lob struct {
 	IsClob bool
 }
 
+// Hijack the underlying lob reader/writer, and
+// return a DirectLob for reading/writing the lob directly.
+//
+// After this, the Lob is unusable!
+func (lob *Lob) Hijack() (*DirectLob, error) {
+	if lob == nil || lob.Reader == nil {
+		return nil, errors.New("lob is nil")
+	}
+	lr, ok := lob.Reader.(*dpiLobReader)
+	if !ok {
+		return nil, errors.Errorf("Lob.Reader is %T, not *dpiLobReader", lob.Reader)
+	}
+	lob.Reader = nil
+	return &DirectLob{conn: lr.conn, dpiLob: lr.dpiLob}, nil
+}
+
 // Scan assigns a value from a database driver.
 //
 // The src value will be of one of the following types:
@@ -145,4 +161,47 @@ func (dlw *dpiLobWriter) Close() error {
 		return errors.Wrapf(dlw.getError(), "closeResource(%p)", lob)
 	}
 	return nil
+}
+
+type DirectLob struct {
+	*conn
+	dpiLob *C.dpiLob
+	opened bool
+}
+
+var _ = io.ReaderAt((*DirectLob)(nil))
+var _ = io.WriterAt((*DirectLob)(nil))
+
+func (dl *DirectLob) Close() error {
+	if !dl.opened {
+		return nil
+	}
+	dl.opened = false
+	if C.dpiLob_closeResource(dl.dpiLob) == C.DPI_FAILURE {
+		return errors.Wrap(dl.getError(), "closeResource")
+	}
+	return nil
+}
+
+func (dl *DirectLob) ReadAt(p []byte, offset int64) (int, error) {
+	n := C.uint64_t(len(p))
+	if C.dpiLob_readBytes(dl.dpiLob, C.uint64_t(offset)+1, n, (*C.char)(unsafe.Pointer(&p[0])), &n) == C.DPI_FAILURE {
+		return int(n), errors.Wrap(dl.getError(), "readBytes")
+	}
+	return int(n), nil
+}
+func (dl *DirectLob) WriteAt(p []byte, offset int64) (int, error) {
+	if !dl.opened {
+		//fmt.Printf("open %p\n", lob)
+		if C.dpiLob_openResource(dl.dpiLob) == C.DPI_FAILURE {
+			return 0, errors.Wrapf(dl.getError(), "openResources(%p)", dl.dpiLob)
+		}
+		dl.opened = true
+	}
+
+	n := C.uint64_t(len(p))
+	if C.dpiLob_writeBytes(dl.dpiLob, C.uint64_t(offset)+1, (*C.char)(unsafe.Pointer(&p[0])), n) == C.DPI_FAILURE {
+		return int(n), errors.Wrap(dl.getError(), "writeBytes")
+	}
+	return int(n), nil
 }
