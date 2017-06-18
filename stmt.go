@@ -28,6 +28,7 @@ const int sizeof_dpiData = sizeof(void);
 import "C"
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"io"
@@ -269,12 +270,19 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if !named {
 			named = a.Name != ""
 		}
+		value := a.Value
+		if out, ok := value.(sql.Out); ok {
+			value = out.Dest
+			if rv := reflect.ValueOf(value); rv.Kind() == reflect.Ptr {
+				value = rv.Elem().Interface()
+			}
+		}
 
 		var set dataSetter
 		var typ C.dpiOracleTypeNum
 		var natTyp C.dpiNativeTypeNum
 		var bufSize int
-		switch v := a.Value.(type) {
+		switch v := value.(type) {
 		case Lob, []Lob:
 			typ, natTyp = C.DPI_ORACLE_TYPE_BLOB, C.DPI_NATIVE_TYPE_LOB
 			var isClob bool
@@ -363,7 +371,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			}
 
 		default:
-			return errors.Errorf("%d. arg: unknown type %T", i+1, a.Value)
+			return errors.Errorf("%d. arg: unknown type %T", i+1, value)
 		}
 
 		var err error
