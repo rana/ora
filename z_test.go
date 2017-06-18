@@ -43,6 +43,47 @@ func init() {
 	}
 }
 
+func TestOutParam(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	qry := `CREATE OR REPLACE PROCEDURE
+test_p1(p_int IN OUT INTEGER, p_num IN OUT NUMBER, p_vc IN OUT VARCHAR2, p_dt IN OUT DATE, p_lob IN OUT CLOB)
+IS
+BEGIN
+  p_int := NVL(p_int * 2, 1);
+  p_num := NVL(p_num / 2, 0.5);
+  p_vc := NVL(p_vc ||' +', '-');
+  p_dt := NVL(p_dt + 1, SYSDATE);
+  p_lob := NULL;
+END;`
+	if _, err := testDb.ExecContext(ctx, qry); err != nil {
+		t.Fatal(err, qry)
+	}
+	defer testDb.Exec("DROP PROCEDURE test_p1")
+	stmt, err := testDb.PrepareContext(ctx, "BEGIN test_p1(:1, :2, :3, :4, :5); END;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	var intgr int = 3
+	var num string = "3.14"
+	var vc string = "string"
+	var dt time.Time = time.Date(2017, 6, 18, 7, 5, 51, 0, time.Local)
+	var lob ora.Lob
+	if _, err := stmt.ExecContext(ctx,
+		sql.Out{Dest: &intgr, In: true},
+		sql.Out{Dest: &num, In: true},
+		sql.Out{Dest: &vc, In: true},
+		sql.Out{Dest: &dt, In: true},
+		sql.Out{Dest: &lob, In: true},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestSelectRefCursor(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
