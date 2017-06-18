@@ -71,7 +71,7 @@ END;`
 	var num string = "3.14"
 	var vc string = "string"
 	var dt time.Time = time.Date(2017, 6, 18, 7, 5, 51, 0, time.Local)
-	var lob ora.Lob
+	var lob ora.Lob = ora.Lob{IsClob: true, Reader: strings.NewReader("abcdef")}
 	if _, err := stmt.ExecContext(ctx,
 		sql.Out{Dest: &intgr, In: true},
 		sql.Out{Dest: &num, In: true},
@@ -81,7 +81,16 @@ END;`
 	); err != nil {
 		t.Fatal(err)
 	}
-
+	t.Logf("int=%#v num=%#v vc=%#v dt=%#v", intgr, num, vc, dt)
+	if intgr != 6 {
+		t.Errorf("int: got %d, wanted %d", intgr, 6)
+	}
+	if num != "1.57" {
+		t.Errorf("num: got %q, wanted %q", num, "1.57")
+	}
+	if vc != "string +" {
+		t.Errorf("vc: got %q, wanted %q", vc, "string +")
+	}
 }
 
 func TestSelectRefCursor(t *testing.T) {

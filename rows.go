@@ -1,5 +1,3 @@
-// +build go1.9
-
 // Copyright 2017 Tamás Gulácsi
 //
 //

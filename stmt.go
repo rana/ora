@@ -1,5 +1,3 @@
-// +build go1.9
-
 // Copyright 2017 Tamás Gulácsi
 //
 //
@@ -219,8 +217,6 @@ func (st *statement) QueryContext(ctx context.Context, args []driver.NamedValue)
 }
 
 // bindVars binds the given args into new variables.
-//
-// FIXME(tgulacsi): handle sql.Out params and arrays as ExecuteMany OR PL/SQL arrays.
 func (st *statement) bindVars(args []driver.NamedValue) error {
 	var named bool
 	if cap(st.vars) < len(args) {
@@ -270,8 +266,13 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if !named {
 			named = a.Name != ""
 		}
+		isIn, isOut := true, false
 		value := a.Value
 		if out, ok := value.(sql.Out); ok {
+			if st.arrLen > 1 {
+				st.arrLen = maxArraySize
+			}
+			isIn, isOut = out.In, true
 			value = out.Dest
 			if rv := reflect.ValueOf(value); rv.Kind() == reflect.Ptr {
 				value = rv.Elem().Interface()
@@ -342,6 +343,9 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				}
 			}
 			set = dataSetBytes
+			if isOut {
+				bufSize = 4000
+			}
 
 		case string, []string:
 			typ, natTyp = C.DPI_ORACLE_TYPE_VARCHAR, C.DPI_NATIVE_TYPE_BYTES
@@ -356,6 +360,9 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				}
 			}
 			set = dataSetBytes
+			if isOut {
+				bufSize = 32767
+			}
 
 		case time.Time, []time.Time:
 			typ, natTyp = C.DPI_ORACLE_TYPE_TIMESTAMP_TZ, C.DPI_NATIVE_TYPE_TIMESTAMP
@@ -382,9 +389,12 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		}
 
 		dv, data := st.vars[i], st.data[i]
+		if !isIn {
+			continue
+		}
 		if !doExecMany {
-			if err := set(dv, 0, &data[0], a.Value); err != nil {
-				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, a.Value, a.Value)
+			if err := set(dv, 0, &data[0], value); err != nil {
+				return errors.Wrapf(err, "set(data[%d][%d], %#v (%T))", i, 0, value, value)
 			}
 		} else {
 			//fmt.Println("n:", len(st.data[i]))
@@ -456,12 +466,19 @@ func dataSetNumber(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error 
 	return nil
 }
 func dataSetBytes(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
+	var p *C.char
 	switch x := v.(type) {
 	case []byte:
-		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), (*C.char)(unsafe.Pointer(&x[0])), C.uint32_t(len(x)))
+		if len(x) > 0 {
+			p = (*C.char)(unsafe.Pointer(&x[0]))
+		}
+		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), p, C.uint32_t(len(x)))
 	case string:
 		b := []byte(x)
-		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), (*C.char)(unsafe.Pointer(&b[0])), C.uint32_t(len(x)))
+		if len(b) > 0 {
+			p = (*C.char)(unsafe.Pointer(&b[0]))
+		}
+		C.dpiVar_setFromBytes(dv, C.uint32_t(pos), p, C.uint32_t(len(b)))
 	default:
 		return errors.Errorf("awaited []byte/string, got %T (%#v)", v, v)
 	}
