@@ -181,14 +181,26 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 		if get == nil {
 			continue
 		}
-		var n C.uint32_t
+		var n C.uint32_t = 1
+		dest := args[i].Value.(sql.Out).Dest
+		rv := reflect.ValueOf(dest)
+		if rv.Elem().Kind() != reflect.Slice {
+			if err := get(dest, &st.data[i][0]); err != nil {
+				return nil, errors.Wrapf(err, "%d. get[%d]", i, 0)
+			}
+			continue
+		}
 		if C.dpiVar_getNumElementsInArray(st.vars[i], &n) == C.DPI_FAILURE {
 			return nil, errors.Wrapf(st.getError(), "%d.getNumElementsInArray", i)
 		}
+		rv.Elem().SetLen(1)
+		z := reflect.Zero(rv.Elem().Index(0).Type()).Interface()
+		rv.Elem().SetLen(1)
 		for j := 0; j < int(n); j++ {
-			if err := get(args[i].Value.(sql.Out).Dest, &st.data[i][j]); err != nil {
+			if err := get(z, &st.data[i][j]); err != nil {
 				return nil, errors.Wrapf(err, "%d. get[%d]", i, j)
 			}
+			rv.Set(reflect.Append(rv.Elem(), reflect.ValueOf(z)))
 		}
 	}
 	var count C.uint64_t
