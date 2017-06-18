@@ -60,9 +60,12 @@ type statement struct {
 	query       string
 	data        [][]C.dpiData
 	vars        []*C.dpiVar
+	gets        []dataGetter
 	PlSQLArrays bool
 	arrLen      int
 }
+
+type dataGetter func(v interface{}, data *C.dpiData) error
 
 // Close closes the statement.
 //
@@ -79,6 +82,7 @@ func (st *statement) Close() error {
 	}
 	st.data = nil
 	st.vars = nil
+	st.gets = nil
 	st.dpiStmt = nil
 	return nil
 }
@@ -173,6 +177,20 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	if res == C.DPI_FAILURE {
 		return nil, errors.Wrapf(st.getError(), "dpiStmt_execute(mode=%d arrLen=%d)", mode, st.arrLen)
 	}
+	for i, get := range st.gets {
+		if get == nil {
+			continue
+		}
+		var n C.uint32_t
+		if C.dpiVar_getNumElementsInArray(st.vars[i], &n) == C.DPI_FAILURE {
+			return nil, errors.Wrapf(st.getError(), "%d.getNumElementsInArray", i)
+		}
+		for j := 0; j < int(n); j++ {
+			if err := get(args[i].Value.(sql.Out).Dest, &st.data[i][j]); err != nil {
+				return nil, errors.Wrapf(err, "%d. get[%d]", i, j)
+			}
+		}
+	}
 	var count C.uint64_t
 	if C.dpiStmt_getRowCount(st.dpiStmt, &count) == C.DPI_FAILURE {
 		return nil, nil
@@ -260,9 +278,15 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 	if doExecMany {
 		dataSliceLen = st.arrLen
 	}
+	if cap(st.gets) < len(args) {
+		st.gets = make([]dataGetter, len(args))
+	} else {
+		st.gets = st.gets[:len(args)]
+	}
 
 	//fmt.Printf("bindVars %d\n", len(args))
 	for i, a := range args {
+		st.gets[i] = nil
 		if !named {
 			named = a.Name != ""
 		}
@@ -297,28 +321,52 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				typ = C.DPI_ORACLE_TYPE_CLOB
 			}
 			set = st.dataSetLOB
+			if isOut {
+				st.gets[i] = st.dataGetLOB
+			}
 
 		case int, []int:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case int32, []int32:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case int64, []int64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_INT64
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case uint, []uint:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_UINT64
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case uint64, []uint64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_UINT64
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case float32, []float32:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_FLOAT
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case float64, []float64:
 			typ, natTyp = C.DPI_ORACLE_TYPE_NUMBER, C.DPI_NATIVE_TYPE_DOUBLE
 			set = dataSetNumber
+			if isOut {
+				st.gets[i] = dataGetNumber
+			}
 		case bool, []bool:
 			typ, natTyp = C.DPI_ORACLE_TYPE_BOOLEAN, C.DPI_NATIVE_TYPE_BOOLEAN
 			set = func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
@@ -328,6 +376,11 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 				}
 				C.dpiData_setBool(data, b)
 				return nil
+			}
+			if isOut {
+				st.gets[i] = func(v interface{}, data *C.dpiData) error {
+					return nil
+				}
 			}
 
 		case []byte, [][]byte:
@@ -345,6 +398,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			set = dataSetBytes
 			if isOut {
 				bufSize = 4000
+				st.gets[i] = dataGetBytes
 			}
 
 		case string, []string:
@@ -362,6 +416,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			set = dataSetBytes
 			if isOut {
 				bufSize = 32767
+				st.gets[i] = dataGetBytes
 			}
 
 		case time.Time, []time.Time:
@@ -375,6 +430,11 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 					C.int8_t(z/3600), C.int8_t((z%3600)/60),
 				)
 				return nil
+			}
+			if isOut {
+				st.gets[i] = func(v interface{}, data *C.dpiData) error {
+					return nil
+				}
 			}
 
 		default:
@@ -437,6 +497,35 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 
 type dataSetter func(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error
 
+func dataGetNumber(v interface{}, data *C.dpiData) error {
+	switch x := v.(type) {
+	case *int:
+		*x = int(C.dpiData_getInt64(data))
+	case *int32:
+		*x = int32(C.dpiData_getInt64(data))
+	case *int64:
+		*x = int64(C.dpiData_getInt64(data))
+
+	case *uint:
+		*x = uint(C.dpiData_getUint64(data))
+	case *uint32:
+		*x = uint32(C.dpiData_getUint64(data))
+	case *uint64:
+		*x = uint64(C.dpiData_getUint64(data))
+
+	case *float32:
+		*x = float32(C.dpiData_getFloat(data))
+	case *float64:
+		*x = float64(C.dpiData_getDouble(data))
+
+	default:
+		return errors.Errorf("unknown number [%T] %#v", v, v)
+	}
+
+	//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
+	return nil
+}
+
 func dataSetNumber(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	switch x := v.(type) {
 	case int:
@@ -465,6 +554,32 @@ func dataSetNumber(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error 
 	//fmt.Printf("setInt64(%#v, %#v)\n", data, C.int64_t(int64(v.(int))))
 	return nil
 }
+
+func dataGetBytes(v interface{}, data *C.dpiData) error {
+	switch x := v.(type) {
+	case *[]byte:
+		if data.isNull == 1 {
+			*x = nil
+			return nil
+		}
+		b := C.dpiData_getBytes(data)
+
+		*x = ((*[32767]byte)(unsafe.Pointer(b.ptr)))[:b.length:b.length]
+
+	case *string:
+		if data.isNull == 1 {
+			*x = ""
+			return nil
+		}
+		b := C.dpiData_getBytes(data)
+		*x = string(((*[32767]byte)(unsafe.Pointer(b.ptr)))[:b.length:b.length])
+
+	default:
+		return errors.Errorf("awaited []byte/string, got %T (%#v)", v, v)
+	}
+	return nil
+}
+
 func dataSetBytes(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	var p *C.char
 	switch x := v.(type) {
@@ -485,6 +600,16 @@ func dataSetBytes(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	return nil
 }
 
+func (c *conn) dataGetLOB(v interface{}, data *C.dpiData) error {
+	L := v.(*Lob)
+	lob := C.dpiData_getLOB(data)
+	if lob == nil {
+		L.Reader = nil
+		return nil
+	}
+	L.Reader = &dpiLobReader{conn: c, dpiLob: lob}
+	return nil
+}
 func (c *conn) dataSetLOB(dv *C.dpiVar, pos int, data *C.dpiData, v interface{}) error {
 	L := v.(Lob)
 	if v == nil || L.Reader == nil {
