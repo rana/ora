@@ -61,6 +61,7 @@ type statement struct {
 	data        [][]C.dpiData
 	vars        []*C.dpiVar
 	gets        []dataGetter
+	isSlice     []bool
 	PlSQLArrays bool
 	arrLen      int
 }
@@ -181,26 +182,32 @@ func (st *statement) ExecContext(ctx context.Context, args []driver.NamedValue) 
 		if get == nil {
 			continue
 		}
-		var n C.uint32_t = 1
 		dest := args[i].Value.(sql.Out).Dest
-		rv := reflect.ValueOf(dest)
-		if rv.Elem().Kind() != reflect.Slice {
+		if !st.isSlice[i] {
 			if err := get(dest, &st.data[i][0]); err != nil {
 				return nil, errors.Wrapf(err, "%d. get[%d]", i, 0)
 			}
 			continue
 		}
+		var n C.uint32_t = 1
 		if C.dpiVar_getNumElementsInArray(st.vars[i], &n) == C.DPI_FAILURE {
 			return nil, errors.Wrapf(st.getError(), "%d.getNumElementsInArray", i)
 		}
-		rv.Elem().SetLen(1)
-		z := reflect.Zero(rv.Elem().Index(0).Type()).Interface()
-		rv.Elem().SetLen(1)
+		rv := reflect.ValueOf(dest)
+		re := rv.Elem()
+		if n == 0 {
+			re.SetLen(0)
+			continue
+		}
+		re.SetLen(1)
+		z := reflect.Zero(re.Index(0).Type()).Interface()
+		re.SetLen(0)
 		for j := 0; j < int(n); j++ {
-			if err := get(z, &st.data[i][j]); err != nil {
+			z := z
+			if err := get(&z, &st.data[i][j]); err != nil {
 				return nil, errors.Wrapf(err, "%d. get[%d]", i, j)
 			}
-			rv.Set(reflect.Append(rv.Elem(), reflect.ValueOf(z)))
+			re.Set(reflect.Append(re, reflect.ValueOf(z)))
 		}
 	}
 	var count C.uint64_t
@@ -259,6 +266,16 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 	} else {
 		st.data = st.data[:len(args)]
 	}
+	if cap(st.gets) < len(args) {
+		st.gets = make([]dataGetter, len(args))
+	} else {
+		st.gets = st.gets[:len(args)]
+	}
+	if cap(st.isSlice) < len(args) {
+		st.isSlice = make([]bool, len(args))
+	} else {
+		st.isSlice = st.isSlice[:len(args)]
+	}
 
 	rArgs := make([]reflect.Value, len(args))
 	minArrLen, maxArrLen := -1, -1
@@ -267,6 +284,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 		if _, isByteSlice := a.Value.([]byte); isByteSlice {
 			continue
 		}
+		st.isSlice[i] = false
 		if rArgs[i].Kind() == reflect.Slice {
 			n := rArgs[i].Len()
 			if minArrLen == -1 || n < minArrLen {
@@ -275,6 +293,7 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 			if maxArrLen == -1 || n > maxArrLen {
 				maxArrLen = n
 			}
+			st.isSlice[i] = true
 		}
 	}
 	if maxArrLen > maxArraySize {
@@ -289,11 +308,6 @@ func (st *statement) bindVars(args []driver.NamedValue) error {
 	dataSliceLen := 1
 	if doExecMany {
 		dataSliceLen = st.arrLen
-	}
-	if cap(st.gets) < len(args) {
-		st.gets = make([]dataGetter, len(args))
-	} else {
-		st.gets = st.gets[:len(args)]
 	}
 
 	//fmt.Printf("bindVars %d\n", len(args))
