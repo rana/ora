@@ -16,24 +16,12 @@ import (
 const insellpid = "0000000048A16C23433210AC068C"
 
 func main() {
-	env, err := ora.OpenEnv()
-	if err != nil {
-		panic(err)
-	}
-
-	srvCfg := ora.SrvCfg{Dblink: os.Getenv("GO_ORA_DRV_TEST_DB")}
-	SrvPool := env.NewSrvPool(srvCfg, 40)
-	defer SrvPool.Close()
-	sesCfg := ora.SesCfg{
-		Username: os.Getenv("GO_ORA_DRV_TEST_USERNAME"),
-		Password: os.Getenv("GO_ORA_DRV_TEST_PASSWORD"),
-	}
-	srv, err := SrvPool.Get()
+	Pool, err := ora.NewPool(os.Getenv("GO_ORA_DRV_TEST_USERNAME")+"/"+os.Getenv("GO_ORA_DRV_TEST_PASSWORD")+"@"+os.Getenv("GO_ORA_DRV_TEST_DB"), 4)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer SrvPool.Put(srv)
-	ses, err := srv.OpenSes(sesCfg)
+	defer Pool.Close()
+	ses, err := Pool.Get()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,25 +36,20 @@ func main() {
 
 	deadline := time.Now().Add(5 * time.Minute)
 	for time.Now().Before(deadline) {
-		if err := work(SrvPool, sesCfg); err != nil {
+		ses, err := Pool.Get()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := work(ses); err != nil {
 			log.Println(err)
 		}
+		ses.Close()
+		ses.Close()
 		//os.Stdout.Write([]byte{'.'})
 	}
 }
 
-func work(SrvPool *ora.SrvPool, sesCfg ora.SesCfg) error {
-	srv, err := SrvPool.Get()
-	if err != nil {
-		return err
-	}
-	defer SrvPool.Put(srv)
-	ses, err := srv.OpenSes(sesCfg)
-	if err != nil {
-		return err
-	}
-	defer ses.Close()
-
+func work(ses *ora.Ses) error {
 	qry := "CALL test_P1(:1,:2)"
 
 	procRset := &ora.Rset{}
