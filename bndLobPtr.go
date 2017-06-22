@@ -53,7 +53,7 @@ func (bnd *bndLobPtr) setPtr() error {
 		return nil
 	}
 	//Log.Infof("setPtr OCILobOpen %p", bnd.ociLobLocator)
-	lobLength, csid, csfrm, err := lobOpen(bnd.stmt.ses, bnd.lobLocatorp.Value(), C.OCI_LOB_READONLY)
+	lobLength, err := lobOpen(bnd.stmt.ses, bnd.lobLocatorp.Value(), C.OCI_LOB_READONLY)
 	if err != nil {
 		lobClose(bnd.stmt.ses, bnd.lobLocatorp.Value())
 		return err
@@ -63,8 +63,6 @@ func (bnd *bndLobPtr) setPtr() error {
 		ses:           bnd.stmt.ses,
 		ociLobLocator: bnd.lobLocatorp.Value(),
 		piece:         C.OCI_FIRST_PIECE,
-		csid:          csid,
-		csfrm:         csfrm,
 		Length:        lobLength,
 	}
 	bnd.value.Reader, bnd.value.Closer = lr, lr

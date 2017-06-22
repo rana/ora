@@ -12,12 +12,10 @@ package ora
 import "C"
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -229,7 +227,6 @@ type lobReader struct {
 	ses           *Ses
 	ociLobLocator *C.OCILobLocator
 	piece, csfrm  C.ub1
-	csid          C.ub2
 	off           C.oraub8
 	opened        bool
 
@@ -279,7 +276,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		// Open the lob to obtain length; round-trip to database
 		//Log.Infof("Reader OCILobOpen %p", def.ociLobLocator)
 		//fmt.Printf("lobOpen(%p loc=%p)\n", lr, lr.ociLobLocator)
-		lr.Length, lr.csid, lr.csfrm, err = lobOpen(ses, ociLobLocator, C.OCI_LOB_READONLY)
+		lr.Length, err = lobOpen(ses, ociLobLocator, C.OCI_LOB_READONLY)
 		lr.Unlock()
 		if err != nil {
 			return 0, err
@@ -288,7 +285,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 
 	lr.Lock()
 	Length, off := lr.Length, lr.off
-	piece, csid, csfrm := lr.piece, lr.csid, lr.csfrm
+	piece := lr.piece
 	lr.Unlock()
 	if Length == 0 || off >= Length {
 		return 0, io.EOF
@@ -308,8 +305,8 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		piece,                 //ub1                piece,
 		nil,                   //void               *ctxp,
 		nil,                   //OCICallbackLobRead2 (cbfp)
-		csid,                  //C.ub2(0),              //ub2                csid,
-		csfrm,                 //lr.charsetForm,                          //ub1                csfrm );
+		C.ub2(atomic.LoadUint32(&csIDAl32UTF8)), //ub2             csid,
+		C.SQLCS_IMPLICIT,                        //lr.charsetForm,                          //ub1                csfrm );
 	)
 	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmt)
 	err = nil
@@ -322,21 +319,8 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 	case C.OCI_INVALID_HANDLE:
 		err = fmt.Errorf("Invalid handle %v", ociLobLocator)
 	}
-	ses.logF(_drv.Cfg().Log.Ses.Close, "OCILobRead2(%p) off=%d amt=%d csid=%d csfrm=%d err=%v\n", ociLobLocator, off, byteAmt, csid, csfrm, err)
+	ses.logF(_drv.Cfg().Log.Ses.Close, "OCILobRead2(%p) off=%d amt=%d err=%v\n", ociLobLocator, off, byteAmt, err)
 	// byteAmt represents the amount copied into buffer by oci
-	if byteAmt != 0 {
-		lr.Lock()
-		lr.off += byteAmt
-		lr.piece = C.OCI_NEXT_PIECE
-		lr.Unlock()
-
-		if csid == 2000 && byteAmt > 1 {
-			// UTF-16
-			u16 := make([]uint16, int(byteAmt/2))
-			binary.Read(bytes.NewReader(p[:int(byteAmt)]), binary.BigEndian, &u16)
-			return copy(p[:], string(utf16.Decode(u16))), err
-		}
-	}
 	return int(byteAmt), err
 }
 
@@ -374,8 +358,6 @@ type lobReadWriter struct {
 	ses           *Ses
 	ociLobLocator *C.OCILobLocator
 	size          C.oraub8
-	csid          C.ub2
-	csfrm         C.ub1
 }
 
 // Size returns the actual size of the LOB.
@@ -408,9 +390,6 @@ func (lrw *lobReadWriter) Truncate(length int64) error {
 
 // ReadAt reads into p, starting from off.
 func (lrw *lobReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
-	if lrw.csid == 0 {
-		lrw.csid = C.ub2(atomic.LoadUint32(&csIDAl32UTF8))
-	}
 	byteAmt := C.oraub8(len(p))
 	//Log.Infof("LobRead2 off=%d amt=%d", off, len(p))
 	r := C.OCILobRead2(
@@ -425,8 +404,8 @@ func (lrw *lobReadWriter) ReadAt(p []byte, off int64) (n int, err error) {
 		C.OCI_ONE_PIECE,        //ub1                piece,
 		nil,                    //void               *ctxp,
 		nil,                    //OCICallbackLobRead2 (cbfp)
-		lrw.csid,               //ub2                csid,
-		lrw.csfrm,              //ub1                csfrm );
+		C.ub2(atomic.LoadUint32(&csIDAl32UTF8)),
+		C.SQLCS_IMPLICIT, //ub1                csfrm );
 	)
 	//Log.Infof("LobRead2 returned %d amt=%d", r, byteAmt)
 	switch r {
@@ -472,7 +451,7 @@ func (lrw *lobReadWriter) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
-	length C.oraub8, csid C.ub2, csfrm C.ub1, err error,
+	length C.oraub8, err error,
 ) {
 	ses.RLock()
 	ocisvcctx := ses.ocisvcctx
@@ -504,7 +483,7 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
 	//Log.Infof("OCILobOpen %p returned %d", lob, r)
 	if r != C.OCI_SUCCESS {
 		lobClose(ses, lob)
-		return 0, csid, csfrm, env.ociError("OCILobOpen")
+		return 0, env.ociError("OCILobOpen")
 	}
 	// get the length of the lob
 	// For character LOBs, it is the number of characters; for binary LOBs and BFILEs,
@@ -516,31 +495,10 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
 		&length,    //oraub8 *lenp)
 	); r == C.OCI_ERROR {
 		lobClose(ses, lob)
-		return length, csid, csfrm, env.ociError("OCILobGetLength2")
+		return length, env.ociError("OCILobGetLength2")
 	}
 
-	if r = C.OCILobCharSetId(
-		env.ocienv,
-		env.ocierr,
-		lob,
-		&csid,
-	); r == C.OCI_ERROR {
-		lobClose(ses, lob)
-		return length, csid, csfrm, env.ociError("OCILobCharSetId")
-	}
-	if csid == 0 {
-		csid = C.ub2(atomic.LoadUint32(&csIDAl32UTF8))
-	}
-	if r = C.OCILobCharSetForm(
-		env.ocienv,
-		env.ocierr,
-		lob,
-		&csfrm,
-	); r == C.OCI_ERROR {
-		lobClose(ses, lob)
-		return length, csid, csfrm, env.ociError("OCILobCharSetForm")
-	}
-	return length, csid, csfrm, nil
+	return length, nil
 }
 
 func lobClose(ses *Ses, lob *C.OCILobLocator) error {
