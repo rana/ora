@@ -320,6 +320,7 @@ func (lr *lobReader) Read(p []byte) (n int, err error) {
 		err = fmt.Errorf("Invalid handle %v", ociLobLocator)
 	}
 	ses.logF(_drv.Cfg().Log.Ses.Close, "OCILobRead2(%p) off=%d amt=%d err=%v\n", ociLobLocator, off, byteAmt, err)
+	lr.off += byteAmt
 	// byteAmt represents the amount copied into buffer by oci
 	return int(byteAmt), err
 }
