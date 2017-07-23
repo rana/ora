@@ -13,17 +13,19 @@ import "C"
 import "unsafe"
 
 type bndUint32Ptr struct {
-	stmt      *Stmt
-	ocibnd    *C.OCIBind
-	ociNumber [1]C.OCINumber
-	value     *uint32
+	stmt        *Stmt
+	ocibnd      *C.OCIBind
+	ociNumber   [1]C.OCINumber
+	value       *uint32
+	valueIsNull *bool
 	nullp
 }
 
-func (bnd *bndUint32Ptr) bind(value *uint32, position namedPos, stmt *Stmt) error {
+func (bnd *bndUint32Ptr) bind(value *uint32, valueIsNull *bool, position namedPos, stmt *Stmt) error {
 	//bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind, "Uint32Ptr.bind(%d) value=%#v => number=%#v", position, value, bnd.ociNumber[0])
 	bnd.stmt = stmt
 	bnd.value = value
+	bnd.valueIsNull = valueIsNull
 	bnd.nullp.Set(value == nil)
 	if value != nil {
 		if err := bnd.stmt.ses.srv.env.OCINumberFromInt(&bnd.ociNumber[0], int64(*value), byteWidth32); err != nil {
@@ -59,11 +61,15 @@ func (bnd *bndUint32Ptr) bind(value *uint32, position namedPos, stmt *Stmt) erro
 }
 
 func (bnd *bndUint32Ptr) setPtr() error {
+	if bnd.valueIsNull != nil {
+		*bnd.valueIsNull = bnd.nullp.IsNull()
+	}
 	if bnd.nullp.IsNull() {
 		return nil
 	}
 	i, err := bnd.stmt.ses.srv.env.OCINumberToInt(&bnd.ociNumber[0], byteWidth32)
 	*bnd.value = uint32(i)
+
 	return err
 }
 
@@ -78,6 +84,7 @@ func (bnd *bndUint32Ptr) close() (err error) {
 	bnd.stmt = nil
 	bnd.ocibnd = nil
 	bnd.value = nil
+	bnd.valueIsNull = nil
 	bnd.nullp.Free()
 	stmt.putBnd(bndIdxUint32Ptr, bnd)
 	return nil

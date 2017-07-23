@@ -113,6 +113,12 @@ gopkg.in:
 
 	go get gopkg.in/rana/ora.v4
 
+*WARNING*: If you have Oracle Instant Client 11.2, you'll need to add "=lnnz11"
+to the list of linked libs!
+Otherwise, you may encounter "undefined reference to `nzosSCSP_SetCertSelectionParams' "
+errors.
+Oracle Instant Client 12.1 does not need this.
+
 Data Types
 
 The ora package supports all built-in Oracle data types. The supported Oracle
