@@ -813,7 +813,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *uint64:
 			bnd := stmt.getBnd(bndIdxUint64Ptr).(*bndUint64Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -821,7 +821,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *uint32:
 			bnd := stmt.getBnd(bndIdxUint32Ptr).(*bndUint32Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -829,7 +829,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *uint16:
 			bnd := stmt.getBnd(bndIdxUint16Ptr).(*bndUint16Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
@@ -837,7 +837,7 @@ func (stmt *Stmt) bind(params []interface{}, isAssocArray bool) (iterations uint
 		case *uint8:
 			bnd := stmt.getBnd(bndIdxUint8Ptr).(*bndUint8Ptr)
 			bnds[n] = bnd
-			err = bnd.bind(value, pos, stmt)
+			err = bnd.bind(value, nil, pos, stmt)
 			if err != nil {
 				return iterations, err
 			}
