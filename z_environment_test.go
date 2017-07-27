@@ -5,10 +5,37 @@
 package ora_test
 
 import (
+	"database/sql"
+	"runtime"
+	"strings"
 	"testing"
 
 	"gopkg.in/rana/ora.v4"
 )
+
+func TestOpenBadMemoryIssue207(t *testing.T) {
+	var mem runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&mem)
+	t.Log("Allocated 0:", mem.Alloc)
+	badConStr := strings.Replace(testConStr, "@", "BAD@", 1)
+	zero := mem.Alloc
+	for i := 0; i < 100; i++ {
+		db, err := sql.Open(ora.Name, badConStr)
+		if err != nil {
+			t.Fatalf("bad connection string %q didn't produce error!", badConStr)
+		}
+		db.Close()
+		runtime.GC()
+		runtime.ReadMemStats(&mem)
+		t.Logf("Allocated %d: %d", i+1, mem.Alloc)
+	}
+	d := mem.Alloc - zero
+	t.Logf("atlast: %d", d)
+	if d > 1<<15 {
+		t.Errorf("Consumed more than 32KiB of memory: %d", d)
+	}
+}
 
 func TestEnv_OpenClose(t *testing.T) {
 	t.Parallel()
