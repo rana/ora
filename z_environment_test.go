@@ -18,13 +18,15 @@ func TestOpenBadMemoryIssue207(t *testing.T) {
 	runtime.GC()
 	runtime.ReadMemStats(&mem)
 	t.Log("Allocated 0:", mem.Alloc)
-	badConStr := strings.Replace(testConStr, "@", "BAD@", 1)
+	i := strings.IndexByte(testConStr, '@')
+	badConStr := "badUser/badPassword@BAD" + testConStr[i+1:]
 	zero := mem.Alloc
 	for i := 0; i < 100; i++ {
 		db, err := sql.Open(ora.Name, badConStr)
 		if err != nil {
 			t.Fatalf("bad connection string %q didn't produce error!", badConStr)
 		}
+		db.Ping()
 		db.Close()
 		runtime.GC()
 		runtime.ReadMemStats(&mem)
