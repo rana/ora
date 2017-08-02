@@ -150,6 +150,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	}
 	// attach to server
 	cDblink := C.CString(cfg.Dblink)
+	defer func() { C.free(unsafe.Pointer(cDblink)) }()
 
 	var (
 		poolName           *C.OraText
@@ -170,7 +171,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	switch cfg.Pool.Type {
 	case CPool:
 		if ocipool, err = env.allocOciHandle(C.OCI_HTYPE_CPOOL); err != nil {
-			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
 			return nil, errE(err)
 		}
 		var pnl C.sb4
@@ -196,7 +197,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 		if r == C.OCI_ERROR {
 			err := env.ociError()
 			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("ConnectionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
-			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
 			env.freeOciHandle(ocipool, C.OCI_HTYPE_CPOOL)
 			return nil, errE(err)
 		}
@@ -205,7 +206,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 	case SPool, DRCPool:
 		ocipool, err := env.allocOciHandle(C.OCI_HTYPE_SPOOL)
 		if err != nil {
-			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
 			return nil, errE(err)
 		}
 
@@ -231,7 +232,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 		if r == C.OCI_ERROR {
 			err := env.ociError()
 			env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("SessionPoolCreate(u=%q p=%q link=%q): %+v", cfg.Pool.Username, cfg.Pool.Password, cfg.Dblink, err))
-			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
 			env.freeOciHandle(ocipool, C.OCI_HTYPE_SPOOL)
 			return nil, errE(err)
 		}
@@ -246,7 +247,7 @@ func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error) {
 			C.OCI_DEFAULT)                         //ub4           mode);
 		env.RUnlock()
 		if r == C.OCI_ERROR {
-			C.free(unsafe.Pointer(cDblink))
+			env.freeOciHandle(unsafe.Pointer(ocisrv), C.OCI_HTYPE_SERVER)
 			return nil, errE(env.ociError())
 		}
 	}

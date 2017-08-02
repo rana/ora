@@ -7,8 +7,8 @@ package ora_test
 import (
 	"database/sql"
 	"runtime"
-	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/rana/ora.v4"
 )
@@ -18,8 +18,7 @@ func TestOpenBadMemoryIssue207(t *testing.T) {
 	runtime.GC()
 	runtime.ReadMemStats(&mem)
 	t.Log("Allocated 0:", mem.Alloc)
-	i := strings.IndexByte(testConStr, '@')
-	badConStr := "badUser/badPassword@BAD" + testConStr[i+1:]
+	badConStr := "bad/bad@(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.gthomas.eu)(PORT=49161)))(CONNECT_DATA=(sid=x)))"
 	zero := mem.Alloc
 	for i := 0; i < 100; i++ {
 		db, err := sql.Open(ora.Name, badConStr)
@@ -31,6 +30,7 @@ func TestOpenBadMemoryIssue207(t *testing.T) {
 		runtime.GC()
 		runtime.ReadMemStats(&mem)
 		t.Logf("Allocated %d: %d", i+1, mem.Alloc)
+		time.Sleep(10 * time.Millisecond)
 	}
 	d := mem.Alloc - zero
 	t.Logf("atlast: %d", d)
