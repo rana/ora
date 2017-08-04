@@ -2,7 +2,10 @@
 
 ## master ##
 
+## v4.1.11 ##
+
 ## v4.1.10 ##
+  * Fix missing OCI handle frees on error (issue #207).
 
 ## v4.1.9 ##
   * Fix context deadline issue 192.
