@@ -304,7 +304,7 @@ func (env *Env) OpenCon(dsn string) (con *Con, err error) {
 	sesCfg.Username, sesCfg.Password, srvCfg.Dblink = SplitDSN(dsn)
 	srv, err := env.OpenSrv(srvCfg)
 	if err != nil {
-		fmt.Printf("OpenSrv(%#v): %+v", srvCfg, err)
+		env.log(_drv.Cfg().Log.Env.OpenSrv, fmt.Sprintf("OpenSrv(%#v): %+v", srvCfg, err))
 		return nil, errE(err)
 	}
 	ses, err := srv.OpenSes(sesCfg)
