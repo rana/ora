@@ -2,7 +2,11 @@
 
 ## master ##
 
+## v4.1.12 ##
+
 ## v4.1.11 ##
+  * Return ErrBadConn from ExecContext, QueryContext if the culprit is bad conn.
+    Fixes #205.
 
 ## v4.1.10 ##
   * Fix missing OCI handle frees on error (issue #207).
