@@ -47,7 +47,7 @@ func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) 
 	done <- struct{}{}
 
 	if err != nil {
-		return nil, err
+		return nil, maybeBadConn(err)
 	}
 	if res.rowsAffected == 0 {
 		return driver.RowsAffected(0), nil
@@ -88,7 +88,7 @@ func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue)
 	done <- struct{}{}
 
 	if err != nil {
-		return nil, err
+		return nil, maybeBadConn(err)
 	}
 	return &DrvQueryResult{rset: rset}, nil
 }
