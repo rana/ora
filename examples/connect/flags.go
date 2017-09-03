@@ -1,5 +1,5 @@
 /*
-   Copyright 2013 Tamás Gulácsi
+   Copyright 2017 Tamás Gulácsi
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -25,8 +25,9 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/errgo.v1"
 	"gopkg.in/rana/ora.v4"
+
+	"github.com/pkg/errors"
 
 	"github.com/tgulacsi/go/dber"
 	"github.com/tgulacsi/go/orahlp"
@@ -43,9 +44,7 @@ var (
 )
 
 // GetDSN returns a (command-line defined) connection string
-func GetCfg(dsn string) (srvCfg *ora.SrvCfg, sesCfg *ora.SesCfg) {
-	srvCfg = ora.NewSrvCfg()
-	sesCfg = ora.NewSesCfg()
+func GetCfg(dsn string) (srvCfg ora.SrvCfg, sesCfg ora.SesCfg) {
 	if dsn != "" {
 		sesCfg.Username, sesCfg.Password, srvCfg.Dblink = orahlp.SplitDSN(*fDsn)
 		return srvCfg, sesCfg
@@ -71,14 +70,16 @@ func GetCfg(dsn string) (srvCfg *ora.SrvCfg, sesCfg *ora.SesCfg) {
 		if *fSid != "" {
 			srvCfg.Dblink = *fSid
 		} else {
-			srvCfg.Dblink = orahlp.MakeDSN(*fHost, *fPort, "", *fServiceName)
+			if srvCfg.Dblink = os.Getenv("ORACLE_SID"); srvCfg.Dblink == "" {
+				srvCfg.Dblink = os.Getenv("TWO_TASK")
+			}
 		}
 	}
 	return srvCfg, sesCfg
 }
 
-func GetDSN(srvCfg *ora.SrvCfg, sesCfg *ora.SesCfg) string {
-	if srvCfg == nil || sesCfg == nil {
+func GetDSN(srvCfg ora.SrvCfg, sesCfg ora.SesCfg) string {
+	if srvCfg.Dblink == "" && sesCfg.Username == "" {
 		srvCfg, sesCfg = GetCfg("")
 	}
 	return sesCfg.Username + "/" + sesCfg.Password + "@" + srvCfg.Dblink
@@ -92,7 +93,7 @@ func GetConnection(dsn string) (*sql.DB, error) {
 	log.Printf("GetConnection dsn=%v", dsn)
 	conn, err := sql.Open("ora", dsn)
 	if err != nil {
-		return nil, errgo.Notef(err, "dsn=%q", dsn)
+		return nil, errors.Wrap(err, "dsn="+dsn)
 	}
 	return conn, nil
 }
@@ -111,19 +112,19 @@ func GetRawConnection(dsn string) (*ora.Ses, error) {
 
 	if oraEnv == nil {
 		var err error
-		if oraEnv, err = ora.OpenEnv(nil); err != nil {
-			return nil, errgo.Notef(err, "OpenEnv")
+		if oraEnv, err = ora.OpenEnv(); err != nil {
+			return nil, errors.Wrap(err, "OpenEnv")
 		}
 	}
 	srvCfg, sesCfg := GetCfg(dsn)
 	srv, err := oraEnv.OpenSrv(srvCfg)
 	if err != nil {
-		return nil, errgo.Notef(err, "OpenSrv(%#v)", srvCfg)
+		return nil, errors.Wrapf(err, "OpenSrv(%#v)", srvCfg)
 	}
 	ses, err := srv.OpenSes(sesCfg)
 	if err != nil {
 		srv.Close()
-		return nil, errgo.Notef(err, "OpenSes(%#v)", sesCfg)
+		return nil, errors.Wrapf(err, "OpenSes(%#v)", sesCfg)
 	}
 	return ses, nil
 }
@@ -212,7 +213,7 @@ END;`, qry, &res,
 		if n, err := fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d",
 			&col.Name, &col.Type, &col.Length, &col.Precision, &col.Scale, &nullable, &col.CharsetID, &col.CharsetForm,
 		); err != nil {
-			return cols, errgo.Notef(err, "parsing %q (parsed: %d)", line, n)
+			return cols, errors.Wrapf(err, "parsing %q (parsed: %d)", line, n)
 		}
 		col.Nullable = nullable != 0
 		cols = append(cols, col)
@@ -234,7 +235,7 @@ func GetVersion(db dber.Queryer) (Version, error) {
 	var v Version
 	if _, err := fmt.Sscanf(s.String, "%d.%d.%d.%d.%d",
 		&v.Major, &v.Maintenance, &v.AppServer, &v.Component, &v.Platform); err != nil {
-		return v, errgo.Notef(err, "scan version number %q", s.String)
+		return v, errors.Wrapf(err, "scan version number %q", s.String)
 	}
 	return v, nil
 }

@@ -1,7 +1,5 @@
 # ora
 --
-    import "gopkg.in/rana/ora.v4"
-
 Package ora implements an Oracle database driver.
 
 ### Golang Oracle Database Driver ###
