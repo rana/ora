@@ -150,28 +150,10 @@ func (stmt *Stmt) close() (err error) {
 			stmt.logF(true, "PANIC %v", err)
 			errs.PushBack(err)
 		}
-		// free ocistmt to release cursor on server
-		// OCIStmtRelease must be called with OCIStmtPrepare2
-		// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
 		stmt.Lock()
 		env := stmt.Env()
 		ocistmt := stmt.ocistmt
-		r := C.OCIStmtRelease(
-			ocistmt,       // OCIStmt        *stmthp
-			env.ocierr,    // OCIError       *errhp,
-			nil,           // const OraText  *key
-			C.ub4(0),      // ub4 keylen
-			C.OCI_DEFAULT, // ub4 mode
-		)
-		stmt.Unlock()
-		if r == C.OCI_ERROR {
-			errs.PushBack(errE(env.ociError()))
-		}
 
-		C.OCIHandleFree(unsafe.Pointer(ocistmt), C.OCI_HTYPE_STMT)
-
-		stmt.SetCfg(StmtCfg{})
-		stmt.Lock()
 		stmt.stringPtrBufferSize = 0
 		stmt.env.Store((*Env)(nil))
 		stmt.ses = nil
@@ -185,6 +167,26 @@ func (stmt *Stmt) close() (err error) {
 		stmt.openRsets.clear()
 		_drv.stmtPool.Put(stmt)
 		stmt.Unlock()
+		stmt.SetCfg(StmtCfg{})
+
+		if ocistmt != nil {
+			// free ocistmt to release cursor on server
+			// OCIStmtRelease must be called with OCIStmtPrepare2
+			// See https://docs.oracle.com/database/121/LNOCI/oci09adv.htm#LNOCI16655
+			r := C.OCIStmtRelease(
+				ocistmt,       // OCIStmt        *stmthp
+				env.ocierr,    // OCIError       *errhp,
+				nil,           // const OraText  *key
+				C.ub4(0),      // ub4 keylen
+				C.OCI_DEFAULT, // ub4 mode
+			)
+			if r == C.OCI_ERROR {
+				errs.PushBack(errE(env.ociError()))
+				// Sometimes panics if free unconditionally - see #222.
+				// https://github.com/rana/ora/issues/222
+				C.OCIHandleFree(unsafe.Pointer(ocistmt), C.OCI_HTYPE_STMT)
+			}
+		}
 
 		multiErr := newMultiErrL(errs)
 		if multiErr != nil {
