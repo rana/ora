@@ -3,6 +3,7 @@
 ## master ##
 
 ## v4.1.12 ##
+  * Do not free ocistmt - panics (issue #222).
 
 ## v4.1.11 ##
   * Return ErrBadConn from ExecContext, QueryContext if the culprit is bad conn.
