@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v4.1.13 ##
+
 ## v4.1.12 ##
   * Do not free ocistmt - panics (issue #222).
 
