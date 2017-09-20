@@ -186,11 +186,12 @@ func maybeBadConn(err error) error {
 		Code() int
 	}); ok {
 		switch cd.Code() {
-		case 3113, 3114, 12528, 12545:
+		case 3113, 3114, 12528, 12545, 28547:
 			// ORA-03113: end-of-file on communication channel
 			// ORA-03114: not connected to ORACLE
 			// ORA-12528: TNS:listener: all appropriate instances are blocking new connections
 			// ORA-12545: Connect failed because target host or object does not exist
+			// ORA-28547: connection to server failed, probable Oracle Net admin error
 			return driver.ErrBadConn
 		}
 	}
