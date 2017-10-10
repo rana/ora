@@ -783,7 +783,15 @@ func (ses *Ses) Ping() (err error) {
 		C.OCI_DEFAULT) //ub4           mode );
 	ses.RUnlock()
 	if r == C.OCI_ERROR {
-		return errE(env.ociError())
+		err := errE(env.ociError())
+		if cd, ok := err.(interface {
+			Code() int
+		}); ok {
+			if cd.Code() == 1010 { // ORA-01010: invalid OCI operation for server < 10.2
+				return nil
+			}
+		}
+		return err
 	}
 	return nil
 }
