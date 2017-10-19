@@ -2,7 +2,10 @@
 
 ## master ##
 
+## v4.1.14 ##
+
 ## v4.1.13 ##
+  * Fix bindStirngSlice error of nullInds reuse without reset.
 
 ## v4.1.12 ##
   * Do not free ocistmt - panics (issue #222).
