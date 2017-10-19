@@ -57,9 +57,9 @@ func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int,
 }
 
 var (
-	sb2Pool = sync.Pool{New:func() interface{}{return []C.sb2{}}}
-	ub2Pool = sync.Pool{New:func() interface{}{return []C.ub2{}}}
-	alenPool = sync.Pool{New:func() interface{}{return []C.ACTUAL_LENGTH_TYPE{}}}
+	sb2Pool  = sync.Pool{New: func() interface{} { return []C.sb2{} }}
+	ub2Pool  = sync.Pool{New: func() interface{} { return []C.ub2{} }}
+	alenPool = sync.Pool{New: func() interface{} { return []C.ACTUAL_LENGTH_TYPE{} }}
 )
 
 func (a *arrHlp) ensureFetchLength(length int) {
@@ -144,7 +144,7 @@ func (a *arrHlp) ensureBindArrLength(
 	if cap(a.rcode) >= C {
 		a.rcode = a.rcode[:L]
 	} else {
-		if a.rcode = ub2Pool.Get().([]C.ub2);cap(a.rcode) < C {
+		if a.rcode = ub2Pool.Get().([]C.ub2); cap(a.rcode) < C {
 			a.rcode = make([]C.ub2, L, C)
 		} else {
 			a.rcode = a.rcode[:L]

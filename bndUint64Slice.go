@@ -17,6 +17,7 @@ type bndUint64Slice struct {
 	ociNumbers []C.OCINumber
 	values     *[]Uint64
 	ints       *[]uint64
+	isOra      bool
 	arrHlp
 }
 
@@ -48,7 +49,7 @@ func (bnd *bndUint64Slice) bindOra(values *[]Uint64, position namedPos, stmt *St
 		}
 	}
 	*bnd.ints = ints
-
+	bnd.isOra = true
 	return bnd.bind(bnd.ints, position, stmt, isAssocArray)
 }
 
@@ -81,6 +82,11 @@ func (bnd *bndUint64Slice) bind(values *[]uint64, position namedPos, stmt *Stmt,
 			C.ub4(len(V)),
 		); r == C.OCI_ERROR {
 			return iterations, bnd.stmt.ses.srv.env.ociError()
+		}
+	}
+	if !bnd.isOra {
+		for i := range bnd.nullInds {
+			bnd.nullInds[i] = 0
 		}
 	}
 
@@ -144,7 +150,7 @@ func (bnd *bndUint64Slice) setPtr() error {
 				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 				&number,                     //const OCINumber     *number,
 				byteWidth64,                 //uword               rsl_length,
-				C.OCI_NUMBER_UNSIGNED,         //uword               rsl_flag,
+				C.OCI_NUMBER_UNSIGNED,       //uword               rsl_flag,
 				unsafe.Pointer(&ints[i]))    //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()
@@ -172,6 +178,7 @@ func (bnd *bndUint64Slice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.values = nil
 	bnd.ints = nil
+	bnd.isOra = false
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxUint64Slice, bnd)
 	return nil

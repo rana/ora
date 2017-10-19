@@ -18,6 +18,7 @@ type bndStringSlice struct {
 	strings *[]string
 	values  *[]String
 	maxLen  int
+	isOra   bool
 	arrHlp
 }
 
@@ -45,6 +46,7 @@ func (bnd *bndStringSlice) bindOra(values *[]String, position namedPos, stmt *St
 			(*bnd.strings)[n] = v.Value
 		}
 	}
+	bnd.isOra = true
 	return bnd.bind(bnd.strings, position, stmt, isAssocArray)
 }
 
@@ -57,6 +59,11 @@ func (bnd *bndStringSlice) bind(values *[]string, position namedPos, stmt *Stmt,
 	iterations, curlenp, needAppend := bnd.ensureBindArrLength(&L, &C, isAssocArray)
 	if needAppend {
 		*values = append(*values, "")
+	}
+	if !bnd.isOra {
+		for i := range bnd.nullInds {
+			bnd.nullInds[i] = 0
+		}
 	}
 	bnd.strings = values
 	bnd.maxLen = stmt.Cfg().stringPtrBufferSize
@@ -163,6 +170,7 @@ func (bnd *bndStringSlice) close() (err error) {
 	bytesPool.Put(bnd.bytes)
 	bnd.bytes = nil
 	bnd.strings = nil
+	bnd.isOra = false
 	bnd.values = nil
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxStringSlice, bnd)

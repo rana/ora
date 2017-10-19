@@ -43,7 +43,7 @@ func (def *defOCINum) value(offset int) (value interface{}, err error) {
 }
 
 func (def *defOCINum) alloc() error { return nil }
-func (def *defOCINum) free()        {
+func (def *defOCINum) free() {
 	def.arrHlp.close()
 }
 

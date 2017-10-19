@@ -1,5 +1,7 @@
 # ora
 --
+    import "gopkg.in/rana/ora.v4"
+
 Package ora implements an Oracle database driver.
 
 ### Golang Oracle Database Driver ###
@@ -1250,3 +1252,4104 @@ So if you need performance more than correctness, start your programs with
 
 Copyright 2017 Rana Ian, Tamás Gulácsi. All rights reserved. Use of this source
 code is governed by The MIT License found in the accompanying LICENSE file.
+
+## Usage
+
+```go
+const (
+	// The driver name registered with the database/sql package.
+	Name string = "ora"
+
+	// The driver version sent to an Oracle server and visible in
+	// V$SESSION_CONNECT_INFO or GV$SESSION_CONNECT_INFO.
+	Version string = "v4.1.13"
+)
+```
+
+```go
+const (
+	NoPool  = PoolType(0)
+	DRCPool = PoolType(1)
+	SPool   = PoolType(2)
+	CPool   = PoolType(3)
+)
+```
+
+```go
+const (
+	DefaultPoolSize      = 4
+	DefaultEvictDuration = time.Minute
+)
+```
+
+```go
+const (
+	MaxFetchLen = 128
+	MinFetchLen = 8
+)
+```
+
+```go
+const (
+	// SysDefault is the default, normal session mode.
+	SysDefault = SessionMode(iota)
+	// SysDba is for connecting as SYSDBA.
+	SysDba
+	// SysOper is for connectiong as SYSOPER.
+	SysOper
+)
+```
+
+```go
+var Schema string
+```
+Schema may optionally be specified to prefix a table name in the sql generated
+by the ora.Ins, ora.Upd, ora.Del, and ora.Sel methods.
+
+#### func  AddTbl
+
+```go
+func AddTbl(v interface{}, tblName string) (err error)
+```
+AddTbl maps a table name to a struct type when a struct type name is not
+identitcal to an Oracle table name.
+
+AddTbl is optional and used by the orm-like methods ora.Ins, ora.Upd, ora.Del,
+and ora.Sel.
+
+AddTbl may be called once during the lifetime of the driver.
+
+#### func  Del
+
+```go
+func Del(v interface{}, ses *Ses) (err error)
+```
+Del deletes a struct from an Oracle table returning a possible error.
+
+Specify a struct, or struct pointer to parameter 'v' and an open Ses to
+parameter 'ses'.
+
+Del requires one struct field tagged with `db:"pk"`. The field tagged with
+`db:"pk"` is used in a sql WHERE clause.
+
+By default, Del generates and executes a sql DELETE statement based on the
+struct name and one exported field name tagged with `db:"pk"`. A struct name is
+used for the table name and a field name is used for a column name. Prior to
+calling Del, you may specify an alternative table name to ora.AddTbl. An
+alternative column name may be specified to the field tag `db:"column_name"`.
+
+Set ora.Schema to specify an optional table name prefix.
+
+#### func  DescribeQuery
+
+```go
+func DescribeQuery(db *sql.DB, qry string) ([]DescribedColumn, error)
+```
+DescribeQuery parses the query and returns the column types, as
+DBMS_SQL.describe_column does.
+
+#### func  GctName
+
+```go
+func GctName(gct GoColumnType) string
+```
+
+#### func  GetCompileErrors
+
+```go
+func GetCompileErrors(ses *Ses, all bool) ([]CompileError, error)
+```
+GetCompileErrors returns the slice of the errors in user_errors.
+
+If all is false, only errors are returned; otherwise, warnings, too.
+
+#### func  Ins
+
+```go
+func Ins(v interface{}, ses *Ses) (err error)
+```
+Ins inserts a struct into an Oracle table returning a possible error.
+
+Specify a struct, or struct pointer to parameter 'v' and an open Ses to
+parameter 'ses'.
+
+Optional struct field tags `db:"column_name,id,-"` may be specified to control
+how the sql INSERT statement is generated.
+
+By default, Ins generates and executes a sql INSERT statement based on the
+struct name and all exported field names. A struct name is used for the table
+name and a field name is used for a column name. Prior to calling Ins, you may
+specify an alternative table name to ora.AddTbl. An alternative column name may
+be specified to the field tag `db:"column_name"`. Specifying the `db:"-"` tag
+will remove a field from the INSERT statement.
+
+The optional `db:"id"` field tag may combined with the `db:"pk"` tag. A field
+tagged with `db:"pk,id"` indicates a field is a primary key backed by an Oracle
+identity sequence. `db:"pk,id"` may be tagged to one field per struct. When
+`db:"pk,id"` is tagged to a field Ins generates a RETURNING clause to recevie a
+db generated identity value. The `db:"id"` tag is not required and Ins will
+insert a struct to a table without returning an identity value.
+
+Set ora.Schema to specify an optional table name prefix.
+
+#### func  NumEnv
+
+```go
+func NumEnv() int
+```
+NumEnv returns the number of open Oracle environments.
+
+#### func  Register
+
+```go
+func Register(cfg DrvCfg)
+```
+Register used to register the ora database driver with the database/sql package,
+but this is automatic now - so this function is deprecated, has the same effect
+as SetCfg.
+
+#### func  Sel
+
+```go
+func Sel(v interface{}, rt ResType, ses *Ses, where string, whereParams ...interface{}) (result interface{}, err error)
+```
+Sel selects structs from an Oracle table returning a specified container of
+structs and a possible error.
+
+Specify a struct, or struct pointer to parameter 'v' to indicate the struct
+return type. Specify a ResType to parameter 'rt' to indicate the container
+return type. Possible container return types include a slice of structs, slice
+of struct pointers, map of structs, and map of struct pointers. Specify an open
+Ses to parameter 'ses'. Optionally specify a where clause to parameter 'where'
+and where parameters to variadic parameter 'whereParams'.
+
+Optional struct field tags `db:"column_name,omit"` may be specified to control
+how the sql SELECT statement is generated. Optional struct field tags
+`db:"pk,fk1,fk2,fk3,fk4"` control how a map return type is generated.
+
+A slice may be returned by specifying one of the 'SliceOf' ResTypes to parameter
+'rt'. Specify a SliceOfPtr to return a slice of struct pointers. Specify a
+SliceOfVal to return a slice of structs.
+
+A map may be returned by specifying one of the 'MapOf' ResTypes to parameter
+'rt'. The map key type is based on a struct field type tagged with one of
+`db:"pk"`, `db:"fk1"`, `db:"fk2"`, `db:"fk3"`, or `db:"fk4"` matching the
+specified ResType suffix Pk, Fk1, Fk2, Fk3, or Fk4. The map value type is a
+struct pointer when a 'MapOfPtr' ResType is specified. The map value type is a
+struct when a 'MapOfVal' ResType is specified. For example, tagging a uint64
+struct field with `db:"pk"` and specifying a MapOfPtrPk generates a map with a
+key type of uint64 and a value type of struct pointer.
+
+ResTypes available to specify to parameter 'rt' are MapOfPtrPk, MapOfPtrFk1,
+MapOfPtrFk2, MapOfPtrFk3, MapOfPtrFk4, MapOfValPk, MapOfValFk1, MapOfValFk2,
+MapOfValFk3, and MapOfValFk4.
+
+Set ora.Schema to specify an optional table name prefix.
+
+#### func  SetCfg
+
+```go
+func SetCfg(cfg DrvCfg)
+```
+SetCfg applies the specified cfg to the ora database driver.
+
+#### func  SplitDSN
+
+```go
+func SplitDSN(dsn string) (username, password, sid string)
+```
+SplitDSN splits the user/password@dblink string to username, password and
+dblink, to be used as SesCfg.Username, SesCfg.Password, SrvCfg.Dblink.
+
+#### func  Upd
+
+```go
+func Upd(v interface{}, ses *Ses) (err error)
+```
+Upd updates a struct to an Oracle table returning a possible error.
+
+Specify a struct, or struct pointer to parameter 'v' and an open Ses to
+parameter 'ses'.
+
+Upd requires one struct field tagged with `db:"pk"`. The field tagged with
+`db:"pk"` is used in a sql WHERE clause. Optional struct field tags
+`db:"column_name,-"` may be specified to control how the sql UPDATE statement is
+generated.
+
+By default, Upd generates and executes a sql UPDATE statement based on the
+struct name and all exported field names. A struct name is used for the table
+name and a field name is used for a column name. Prior to calling Upd, you may
+specify an alternative table name to ora.AddTbl. An alternative column name may
+be specified to the field tag `db:"column_name"`. Specifying the `db:"-"` tag
+will remove a field from the UPDATE statement.
+
+Set ora.Schema to specify an optional table name prefix.
+
+#### func  WithStmtCfg
+
+```go
+func WithStmtCfg(ctx context.Context, cfg StmtCfg) context.Context
+```
+WithStmtCfg returns a new context, with the given cfg that can be used to
+configure several parameters.
+
+WARNING: the StmtCfg must be derived from Cfg(), or NewStmtCfg(), as an empty
+StmtCfg is not usable!
+
+#### type Bfile
+
+```go
+type Bfile struct {
+	IsNull         bool
+	DirectoryAlias string
+	Filename       string
+}
+```
+
+Bfile represents a nullable BFILE Oracle value.
+
+#### func (Bfile) Equals
+
+```go
+func (this Bfile) Equals(other Bfile) bool
+```
+Equals returns true when the receiver and specified Bfile are both null, or when
+the receiver and specified Bfile are both not null, DirectoryAlias are equal and
+Filename are equal.
+
+#### type Bool
+
+```go
+type Bool struct {
+	IsNull bool
+	Value  bool
+}
+```
+
+Bool is a nullable bool.
+
+#### func (Bool) Equals
+
+```go
+func (this Bool) Equals(other Bool) bool
+```
+Equals returns true when the receiver and specified Bool are both null, or when
+the receiver and specified Bool are both not null and Values are equal.
+
+#### func (Bool) MarshalJSON
+
+```go
+func (this Bool) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Bool) UnmarshalJSON
+
+```go
+func (this *Bool) UnmarshalJSON(p []byte) error
+```
+
+#### type Column
+
+```go
+type Column struct {
+	Name      string
+	Type      C.ub2
+	Length    uint32
+	Precision C.sb2
+	Scale     C.sb1
+}
+```
+
+
+#### type CompileError
+
+```go
+type CompileError struct {
+	Owner, Name, Type    string
+	Line, Position, Code int64
+	Text                 string
+	Warning              bool
+}
+```
+
+CompileError represents a compile-time error as in user_errors view.
+
+#### func (CompileError) Error
+
+```go
+func (ce CompileError) Error() string
+```
+
+#### type Con
+
+```go
+type Con struct {
+}
+```
+
+Con is an Oracle connection associated with a server and session.
+
+Implements the driver.Conn interface.
+
+#### func (*Con) Begin
+
+```go
+func (con *Con) Begin() (driver.Tx, error)
+```
+Begin starts a transaction.
+
+Begin is a member of the driver.Conn interface.
+
+#### func (*Con) BeginTx
+
+```go
+func (con *Con) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error)
+```
+BeginTx starts and returns a new transaction. The provided context should be
+used to roll the transaction back if it is cancelled.
+
+If the driver does not support setting the isolation level and one is set or if
+there is a set isolation level but the set level is not supported, an error must
+be returned.
+
+If the read-only value is true to either set the read-only transaction property
+if supported or return an error if it is not supported.
+
+#### func (*Con) Close
+
+```go
+func (con *Con) Close() (err error)
+```
+Close ends a session and disconnects from an Oracle server.
+
+Close is a member of the driver.Conn interface.
+
+#### func (*Con) IsOpen
+
+```go
+func (con *Con) IsOpen() bool
+```
+IsOpen returns true when the connection to the Oracle server is open; otherwise,
+false.
+
+Calling Close will cause IsOpen to return false. Once closed, a connection
+cannot be re-opened. To open a new connection call Open on a driver.
+
+#### func (*Con) Name
+
+```go
+func (s *Con) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Con) Ping
+
+```go
+func (con *Con) Ping(ctx context.Context) error
+```
+Ping makes a round-trip call to an Oracle server to confirm that the connection
+is active.
+
+#### func (*Con) Prepare
+
+```go
+func (con *Con) Prepare(query string) (driver.Stmt, error)
+```
+Prepare readies a sql string for use.
+
+Prepare is a member of the driver.Conn interface.
+
+#### func (*Con) PrepareContext
+
+```go
+func (con *Con) PrepareContext(ctx context.Context, query string) (driver.Stmt, error)
+```
+PrepareContext returns a prepared statement, bound to this connection. context
+is for the preparation of the statement, it must not store the context within
+the statement itself.
+
+#### type Date
+
+```go
+type Date struct {
+	date.Date
+}
+```
+
+Date is a nullable date, for low (second) precisions (OCIDate)
+
+#### type DescribedColumn
+
+```go
+type DescribedColumn struct {
+	Column
+
+	Schema                 string
+	Nullable               bool
+	CharsetID, CharsetForm int
+}
+```
+
+DescribedColumn type for describing a column (see DescribeQuery).
+
+#### type Drv
+
+```go
+type Drv struct {
+	sync.RWMutex
+}
+```
+
+Drv represents an Oracle database driver.
+
+Drv is not meant to be called by user-code.
+
+Drv implements the driver.Driver interface.
+
+#### func (*Drv) Cfg
+
+```go
+func (drv *Drv) Cfg() DrvCfg
+```
+
+#### func (*Drv) Open
+
+```go
+func (drv *Drv) Open(conStr string) (driver.Conn, error)
+```
+Open opens a connection to an Oracle server with the database/sql environment.
+
+This is intended to be called by the database/sql package only.
+
+Alternatively, you may call Env.OpenCon to create an *ora.Con.
+
+Open is a member of the driver.Driver interface.
+
+#### func (*Drv) SetCfg
+
+```go
+func (drv *Drv) SetCfg(cfg DrvCfg)
+```
+
+#### type DrvCfg
+
+```go
+type DrvCfg struct {
+	StmtCfg
+	Log LogDrvCfg
+}
+```
+
+DrvCfg represents configuration values for the ora package.
+
+#### func  Cfg
+
+```go
+func Cfg() DrvCfg
+```
+Cfg returns the ora database driver's cfg.
+
+#### func  NewDrvCfg
+
+```go
+func NewDrvCfg() DrvCfg
+```
+NewDrvCfg creates a DrvCfg with default values.
+
+#### func (DrvCfg) SetBinaryDouble
+
+```go
+func (c DrvCfg) SetBinaryDouble(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetBinaryFloat
+
+```go
+func (c DrvCfg) SetBinaryFloat(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetBlob
+
+```go
+func (c DrvCfg) SetBlob(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetByteSlice
+
+```go
+func (c DrvCfg) SetByteSlice(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetChar
+
+```go
+func (c DrvCfg) SetChar(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetChar1
+
+```go
+func (c DrvCfg) SetChar1(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetClob
+
+```go
+func (c DrvCfg) SetClob(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetDate
+
+```go
+func (c DrvCfg) SetDate(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetFloat
+
+```go
+func (c DrvCfg) SetFloat(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetLobBufferSize
+
+```go
+func (c DrvCfg) SetLobBufferSize(size int) DrvCfg
+```
+
+#### func (DrvCfg) SetLogger
+
+```go
+func (c DrvCfg) SetLogger(lgr Logger) DrvCfg
+```
+
+#### func (DrvCfg) SetLong
+
+```go
+func (c DrvCfg) SetLong(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetLongBufferSize
+
+```go
+func (c DrvCfg) SetLongBufferSize(size uint32) DrvCfg
+```
+
+#### func (DrvCfg) SetLongRaw
+
+```go
+func (c DrvCfg) SetLongRaw(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetLongRawBufferSize
+
+```go
+func (c DrvCfg) SetLongRawBufferSize(size uint32) DrvCfg
+```
+
+#### func (DrvCfg) SetNumberBigFloat
+
+```go
+func (c DrvCfg) SetNumberBigFloat(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetNumberBigInt
+
+```go
+func (c DrvCfg) SetNumberBigInt(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetNumberFloat
+
+```go
+func (c DrvCfg) SetNumberFloat(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetNumberInt
+
+```go
+func (c DrvCfg) SetNumberInt(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetPrefetchMemorySize
+
+```go
+func (c DrvCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) DrvCfg
+```
+
+#### func (DrvCfg) SetPrefetchRowCount
+
+```go
+func (c DrvCfg) SetPrefetchRowCount(prefetchRowCount uint32) DrvCfg
+```
+
+#### func (DrvCfg) SetRaw
+
+```go
+func (c DrvCfg) SetRaw(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetStmtCfg
+
+```go
+func (cfg DrvCfg) SetStmtCfg(stmtCfg StmtCfg) DrvCfg
+```
+
+#### func (DrvCfg) SetStringPtrBufferSize
+
+```go
+func (c DrvCfg) SetStringPtrBufferSize(size int) DrvCfg
+```
+
+#### func (DrvCfg) SetTimestamp
+
+```go
+func (c DrvCfg) SetTimestamp(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetTimestampLtz
+
+```go
+func (c DrvCfg) SetTimestampLtz(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetTimestampTz
+
+```go
+func (c DrvCfg) SetTimestampTz(gct GoColumnType) DrvCfg
+```
+
+#### func (DrvCfg) SetVarchar
+
+```go
+func (c DrvCfg) SetVarchar(gct GoColumnType) DrvCfg
+```
+
+#### type DrvExecResult
+
+```go
+type DrvExecResult struct {
+}
+```
+
+DrvExecResult is an Oracle execution result.
+
+DrvExecResult implements the driver.Result interface.
+
+#### func (*DrvExecResult) LastInsertId
+
+```go
+func (er *DrvExecResult) LastInsertId() (int64, error)
+```
+LastInsertId returns the identity value from an insert statement.
+
+There are two setup steps required to reteive the LastInsertId. One, specify a
+'returning into' clause in the SQL insert statement. And, two, specify a nil
+parameter to DB.Exec or DrvStmt.Exec.
+
+For example:
+
+    db, err := sql.Open("ora", "scott/tiger@orcl")
+
+    db.Exec("CREATE TABLE T1 (C1 NUMBER(19,0) GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1), C2 VARCHAR2(48 CHAR))")
+
+    result, err := db.Exec("INSERT INTO T1 (C2) VALUES ('GO') RETURNING C1 /*lastInsertId*/ INTO :C1", nil)
+
+    id, err := result.LastInsertId()
+
+#### func (*DrvExecResult) RowsAffected
+
+```go
+func (er *DrvExecResult) RowsAffected() (int64, error)
+```
+RowsAffected returns the number of rows affected by the exec statement.
+
+#### type DrvQueryResult
+
+```go
+type DrvQueryResult struct {
+}
+```
+
+DrvQueryResult contains methods to retrieve the results of a SQL select
+statement.
+
+DrvQueryResult implements the driver.Rows interface.
+
+#### func (*DrvQueryResult) Close
+
+```go
+func (qr *DrvQueryResult) Close() error
+```
+Close performs no operations.
+
+Close is a member of the driver.Rows interface.
+
+#### func (*DrvQueryResult) ColumnTypeDatabaseTypeName
+
+```go
+func (qr *DrvQueryResult) ColumnTypeDatabaseTypeName(index int) string
+```
+ColumnTypeDatabaseTypeName returns the database system type name without the
+length, in uppercase.
+
+#### func (*DrvQueryResult) ColumnTypeLength
+
+```go
+func (qr *DrvQueryResult) ColumnTypeLength(index int) (length int64, ok bool)
+```
+ColumnTypeLength returns the length of the column type if the column is a
+variable length type. If the column is not a variable length type ok should
+return false. If length is not limited other than system limits, it should
+return math.MaxInt64.
+
+#### func (*DrvQueryResult) ColumnTypeNullable
+
+```go
+func (qr *DrvQueryResult) ColumnTypeNullable(index int) (nullable, ok bool)
+```
+ColumnTypeNullable returns true if it is known the column may be null, or false
+if the column is known to be not nullable. If the column nullability is unknown,
+ok should be false.
+
+#### func (*DrvQueryResult) ColumnTypePrecisionScale
+
+```go
+func (qr *DrvQueryResult) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool)
+```
+ColumnTypePrecisionScale return the precision and scale for decimal types. If
+not applicable, ok should be false.
+
+#### func (*DrvQueryResult) ColumnTypeScanType
+
+```go
+func (qr *DrvQueryResult) ColumnTypeScanType(index int) reflect.Type
+```
+
+#### func (*DrvQueryResult) Columns
+
+```go
+func (qr *DrvQueryResult) Columns() []string
+```
+Columns returns query column names.
+
+Columns is a member of the driver.Rows interface.
+
+#### func (*DrvQueryResult) HasNextResultSet
+
+```go
+func (qr *DrvQueryResult) HasNextResultSet() bool
+```
+HasNextResultSet reports whether there is another result set after the current
+one.
+
+#### func (*DrvQueryResult) Next
+
+```go
+func (qr *DrvQueryResult) Next(dest []driver.Value) (err error)
+```
+Next populates the specified slice with the next row of data.
+
+Returns io.EOF when there are no more rows.
+
+Next is a member of the driver.Rows interface.
+
+#### func (*DrvQueryResult) NextResultSet
+
+```go
+func (qr *DrvQueryResult) NextResultSet() error
+```
+NextResultSet advances the driver to the next result set even if there are
+remaining rows in the current result set.
+
+#### type DrvStmt
+
+```go
+type DrvStmt struct {
+}
+```
+
+DrvStmt is an Oracle statement associated with a session.
+
+DrvStmt wraps Stmt and is intended for use by the database/sql/driver package.
+
+DrvStmt implements the driver.Stmt interface.
+
+#### func (*DrvStmt) Close
+
+```go
+func (ds *DrvStmt) Close() error
+```
+Close closes the SQL statement.
+
+Close is a member of the driver.Stmt interface.
+
+#### func (*DrvStmt) Exec
+
+```go
+func (ds *DrvStmt) Exec(values []driver.Value) (driver.Result, error)
+```
+Exec executes an Oracle SQL statement on a server. Exec returns a driver.Result
+and a possible error.
+
+Exec is a member of the driver.Stmt interface.
+
+#### func (*DrvStmt) ExecContext
+
+```go
+func (ds *DrvStmt) ExecContext(ctx context.Context, values []driver.NamedValue) (driver.Result, error)
+```
+ExecContext enhances the Stmt interface by providing Exec with context.
+ExecContext must honor the context timeout and return when it is cancelled.
+
+#### func (*DrvStmt) NumInput
+
+```go
+func (ds *DrvStmt) NumInput() int
+```
+NumInput returns the number of placeholders in a sql statement.
+
+NumInput is a member of the driver.Stmt interface.
+
+#### func (*DrvStmt) Query
+
+```go
+func (ds *DrvStmt) Query(values []driver.Value) (driver.Rows, error)
+```
+Query runs a SQL query on an Oracle server. Query returns driver.Rows and a
+possible error.
+
+Query is a member of the driver.Stmt interface.
+
+#### func (*DrvStmt) QueryContext
+
+```go
+func (ds *DrvStmt) QueryContext(ctx context.Context, values []driver.NamedValue) (driver.Rows, error)
+```
+QueryContext enhances the Stmt interface by providing Query with context.
+QueryContext must honor the context timeout and return when it is cancelled.
+
+#### type EmpLgr
+
+```go
+type EmpLgr struct{}
+```
+
+
+#### func (EmpLgr) Errorf
+
+```go
+func (e EmpLgr) Errorf(format string, v ...interface{})
+```
+
+#### func (EmpLgr) Errorln
+
+```go
+func (e EmpLgr) Errorln(v ...interface{})
+```
+
+#### func (EmpLgr) Infof
+
+```go
+func (e EmpLgr) Infof(format string, v ...interface{})
+```
+
+#### func (EmpLgr) Infoln
+
+```go
+func (e EmpLgr) Infoln(v ...interface{})
+```
+
+#### type Env
+
+```go
+type Env struct {
+	sync.RWMutex
+}
+```
+
+Env represents an Oracle environment.
+
+#### func  NewEnvSrvSes
+
+```go
+func NewEnvSrvSes(dsn string) (*Env, *Srv, *Ses, error)
+```
+NewEnvSrvSes is a comfort function which opens the environment, creates a
+connection (Srv) to the server, and opens a session (Ses), in one call.
+
+Ideal for simple use cases.
+
+#### func  OpenEnv
+
+```go
+func OpenEnv() (env *Env, err error)
+```
+OpenEnv opens an Oracle environment.
+
+Optionally specify a cfg parameter. If cfg is nil, default cfg values are
+applied.
+
+#### func (*Env) Cfg
+
+```go
+func (env *Env) Cfg() StmtCfg
+```
+
+#### func (*Env) Close
+
+```go
+func (env *Env) Close() (err error)
+```
+Close disconnects from servers and resets optional fields.
+
+#### func (*Env) IsOpen
+
+```go
+func (env *Env) IsOpen() bool
+```
+IsOpen returns true when the environment is open; otherwise, false.
+
+Calling Close will cause IsOpen to return false. Once closed, the environment
+may be re-opened by calling Open.
+
+#### func (*Env) Name
+
+```go
+func (s *Env) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Env) NewPool
+
+```go
+func (env *Env) NewPool(srvCfg SrvCfg, sesCfg SesCfg, size int) *Pool
+```
+NewPool returns an idle session pool, which evicts the idle sessions every
+minute, and automatically manages the required new connections (Srv).
+
+This is done by maintaining a 1-1 pairing between the Srv and its Ses.
+
+This pool does NOT limit the number of active connections, just helps reuse
+already established connections and sessions, lowering the resource usage on the
+server.
+
+If size <= 0, then DefaultPoolSize is used.
+
+#### func (*Env) NewSrvPool
+
+```go
+func (env *Env) NewSrvPool(srvCfg SrvCfg, size int) *SrvPool
+```
+NewSrvPool returns a connection pool, which evicts the idle connections in every
+minute. The pool holds at most size idle Srv. If size is zero, DefaultPoolSize
+will be used.
+
+#### func (*Env) NumCon
+
+```go
+func (env *Env) NumCon() int
+```
+NumCon returns the number of open Oracle connections.
+
+#### func (*Env) NumSrv
+
+```go
+func (env *Env) NumSrv() int
+```
+NumSrv returns the number of open Oracle servers.
+
+#### func (*Env) OCINumberFromFloat
+
+```go
+func (env *Env) OCINumberFromFloat(dest *C.OCINumber, value float64, byteLen int) error
+```
+
+#### func (*Env) OCINumberFromInt
+
+```go
+func (env *Env) OCINumberFromInt(dest *C.OCINumber, value int64, byteLen int) error
+```
+
+#### func (*Env) OCINumberFromUint
+
+```go
+func (env *Env) OCINumberFromUint(dest *C.OCINumber, value uint64, byteLen int) error
+```
+
+#### func (*Env) OCINumberToFloat
+
+```go
+func (env *Env) OCINumberToFloat(src *C.OCINumber, byteLen int) (float64, error)
+```
+
+#### func (*Env) OCINumberToInt
+
+```go
+func (env *Env) OCINumberToInt(src *C.OCINumber, byteLen int) (int64, error)
+```
+
+#### func (*Env) OCINumberToUint
+
+```go
+func (env *Env) OCINumberToUint(src *C.OCINumber, byteLen int) (uint64, error)
+```
+
+#### func (*Env) OpenCon
+
+```go
+func (env *Env) OpenCon(dsn string) (con *Con, err error)
+```
+OpenCon starts an Oracle session on a server returning a *Con and possible
+error.
+
+The connection string has the form username/password@dblink e.g.,
+scott/tiger@orcl For connecting as SYSDBA or SYSOPER, append " AS SYSDBA" to the
+end of the connection string: "sys/sys as sysdba".
+
+dblink is a connection identifier such as a net service name, full connection
+identifier, or a simple connection identifier. The dblink may be defined in the
+client machine's tnsnames.ora file.
+
+#### func (*Env) OpenSrv
+
+```go
+func (env *Env) OpenSrv(cfg SrvCfg) (srv *Srv, err error)
+```
+OpenSrv connects to an Oracle server returning a *Srv and possible error.
+
+#### func (*Env) SetCfg
+
+```go
+func (env *Env) SetCfg(cfg StmtCfg)
+```
+
+#### type Float32
+
+```go
+type Float32 struct {
+	IsNull bool
+	Value  float32
+}
+```
+
+Float32 is a nullable float32.
+
+#### func (Float32) Equals
+
+```go
+func (this Float32) Equals(other Float32) bool
+```
+Equals returns true when the receiver and specified Float32 are both null, or
+when the receiver and specified Float32 are both not null and Values are equal.
+
+#### func (Float32) MarshalJSON
+
+```go
+func (this Float32) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Float32) UnmarshalJSON
+
+```go
+func (this *Float32) UnmarshalJSON(p []byte) error
+```
+
+#### type Float64
+
+```go
+type Float64 struct {
+	IsNull bool
+	Value  float64
+}
+```
+
+Float64 is a nullable float64.
+
+#### func (Float64) Equals
+
+```go
+func (this Float64) Equals(other Float64) bool
+```
+Equals returns true when the receiver and specified Float64 are both null, or
+when the receiver and specified Float64 are both not null and Values are equal.
+
+#### func (Float64) MarshalJSON
+
+```go
+func (this Float64) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Float64) UnmarshalJSON
+
+```go
+func (this *Float64) UnmarshalJSON(p []byte) error
+```
+
+#### type GoColumnType
+
+```go
+type GoColumnType uint
+```
+
+GoColumnType defines the Go type returned from a sql select column.
+
+```go
+const (
+	// D defines a sql select column based on its default mapping.
+	D GoColumnType = iota + 1
+	// I64 defines a sql select column as a Go int64.
+	I64
+	// I32 defines a sql select column as a Go int32.
+	I32
+	// I16 defines a sql select column as a Go int16.
+	I16
+	// I8 defines a sql select column as a Go int8.
+	I8
+	// U64 defines a sql select column as a Go uint64.
+	U64
+	// U32 defines a sql select column as a Go uint32.
+	U32
+	// U16 defines a sql select column as a Go uint16.
+	U16
+	// U8 defines a sql select column as a Go uint8.
+	U8
+	// F64 defines a sql select column as a Go float64.
+	F64
+	// F32 defines a sql select column as a Go float32.
+	F32
+	// OraI64 defines a sql select column as a nullable Go ora.Int64.
+	OraI64
+	// OraI32 defines a sql select column as a nullable Go ora.Int32.
+	OraI32
+	// OraI16 defines a sql select column as a nullable Go ora.Int16.
+	OraI16
+	// OraI8 defines a sql select column as a nullable Go ora.Int8.
+	OraI8
+	// OraU64 defines a sql select column as a nullable Go ora.Uint64.
+	OraU64
+	// OraU32 defines a sql select column as a nullable Go ora.Uint32.
+	OraU32
+	// OraU16 defines a sql select column as a nullable Go ora.Uint16.
+	OraU16
+	// OraU8 defines a sql select column as a nullable Go ora.Uint8.
+	OraU8
+	// OraF64 defines a sql select column as a nullable Go ora.Float64.
+	OraF64
+	// OraF32 defines a sql select column as a nullable Go ora.Float32.
+	OraF32
+	// T defines a sql select column as a Go time.Time.
+	T
+	// OraT defines a sql select column as a nullable Go ora.Time.
+	OraT
+	// S defines a sql select column as a Go string.
+	S
+	// OraS defines a sql select column as a nullable Go ora.String.
+	OraS
+	// B defines a sql select column as a Go bool.
+	B
+	// OraB defines a sql select column as a nullable Go ora.Bool.
+	OraB
+	// Bin defines a sql select column or bind parmeter as a Go byte slice.
+	Bin
+	// OraBin defines a sql select column as a nullable Go ora.Binary.
+	OraBin
+	// N defines a sql select column as a Go string for number.
+	N
+	// OraN defines a sql select column as a nullable Go string for number.
+	OraN
+	// L defins an sql select column as an ora.Lob.
+	L
+)
+```
+go column types
+
+#### func (GoColumnType) String
+
+```go
+func (gct GoColumnType) String() string
+```
+
+#### type Id
+
+```go
+type Id struct {
+}
+```
+
+
+#### type Int16
+
+```go
+type Int16 struct {
+	IsNull bool
+	Value  int16
+}
+```
+
+Int16 is a nullable int16.
+
+#### func (Int16) Equals
+
+```go
+func (this Int16) Equals(other Int16) bool
+```
+Equals returns true when the receiver and specified Int16 are both null, or when
+the receiver and specified Int16 are both not null and Values are equal.
+
+#### func (Int16) MarshalJSON
+
+```go
+func (this Int16) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Int16) UnmarshalJSON
+
+```go
+func (this *Int16) UnmarshalJSON(p []byte) error
+```
+
+#### type Int32
+
+```go
+type Int32 struct {
+	IsNull bool
+	Value  int32
+}
+```
+
+Int32 is a nullable int32.
+
+#### func (Int32) Equals
+
+```go
+func (this Int32) Equals(other Int32) bool
+```
+Equals returns true when the receiver and specified Int32 are both null, or when
+the receiver and specified Int32 are both not null and Values are equal.
+
+#### func (Int32) MarshalJSON
+
+```go
+func (this Int32) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Int32) UnmarshalJSON
+
+```go
+func (this *Int32) UnmarshalJSON(p []byte) error
+```
+
+#### type Int64
+
+```go
+type Int64 struct {
+	IsNull bool
+	Value  int64
+}
+```
+
+Int64 is a nullable int64.
+
+#### func (Int64) Equals
+
+```go
+func (this Int64) Equals(other Int64) bool
+```
+Equals returns true when the receiver and specified Int64 are both null, or when
+the receiver and specified Int64 are both not null and Values are equal.
+
+#### func (Int64) MarshalJSON
+
+```go
+func (this Int64) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Int64) UnmarshalJSON
+
+```go
+func (this *Int64) UnmarshalJSON(p []byte) error
+```
+
+#### type Int8
+
+```go
+type Int8 struct {
+	IsNull bool
+	Value  int8
+}
+```
+
+Int8 is a nullable int8.
+
+#### func (Int8) Equals
+
+```go
+func (this Int8) Equals(other Int8) bool
+```
+Equals returns true when the receiver and specified Int8 are both null, or when
+the receiver and specified Int8 are both not null and Values are equal.
+
+#### func (Int8) MarshalJSON
+
+```go
+func (this Int8) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Int8) UnmarshalJSON
+
+```go
+func (this *Int8) UnmarshalJSON(p []byte) error
+```
+
+#### type IntervalDS
+
+```go
+type IntervalDS struct {
+	IsNull     bool
+	Day        int32
+	Hour       int32
+	Minute     int32
+	Second     int32
+	Nanosecond int32
+}
+```
+
+IntervalDS represents a nullable INTERVAL DAY TO SECOND Oracle value.
+
+#### func (IntervalDS) Equals
+
+```go
+func (this IntervalDS) Equals(other IntervalDS) bool
+```
+Equals returns true when the receiver and specified IntervalDS are both null, or
+when the receiver and specified IntervalDS are both not null, and all other
+fields are equal.
+
+#### func (IntervalDS) ShiftTime
+
+```go
+func (this IntervalDS) ShiftTime(t time.Time) time.Time
+```
+ShiftTime returns a new Time with IntervalDS applied.
+
+#### func (IntervalDS) String
+
+```go
+func (this IntervalDS) String() string
+```
+
+#### type IntervalYM
+
+```go
+type IntervalYM struct {
+	IsNull bool
+	Year   int32
+	Month  int32
+}
+```
+
+IntervalYM represents a nullable INTERVAL YEAR TO MONTH Oracle value.
+
+#### func (IntervalYM) Equals
+
+```go
+func (this IntervalYM) Equals(other IntervalYM) bool
+```
+Equals returns true when the receiver and specified IntervalYM are both null, or
+when the receiver and specified IntervalYM are both not null, Year are equal and
+Month are equal.
+
+#### func (IntervalYM) ShiftTime
+
+```go
+func (this IntervalYM) ShiftTime(t time.Time) time.Time
+```
+ShiftTime returns a new Time with IntervalYM applied.
+
+#### func (IntervalYM) String
+
+```go
+func (this IntervalYM) String() string
+```
+
+#### type Lob
+
+```go
+type Lob struct {
+	io.Reader
+	io.Closer
+	C bool
+}
+```
+
+Lob Reader is sent to the DB on bind, if not nil. The Reader can read the LOB if
+we bind a *Lob, Closer will close the LOB. Set Lob.C = true to make this a CLOB
+reader!
+
+#### func (*Lob) Bytes
+
+```go
+func (this *Lob) Bytes() ([]byte, error)
+```
+Bytes will read the contents of the Lob.Reader, and will keep that for future.
+
+#### func (*Lob) Close
+
+```go
+func (this *Lob) Close() error
+```
+
+#### func (*Lob) Equals
+
+```go
+func (this *Lob) Equals(other Lob) bool
+```
+Equals returns true when the receiver and specified Lob are both null, or when
+they both not null and share the same Reader.
+
+#### func (*Lob) MarshalJSON
+
+```go
+func (this *Lob) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Lob) Read
+
+```go
+func (this *Lob) Read(p []byte) (int, error)
+```
+
+#### func (*Lob) Scan
+
+```go
+func (this *Lob) Scan(src interface{}) error
+```
+
+#### func (*Lob) String
+
+```go
+func (this *Lob) String() string
+```
+
+#### func (*Lob) UnmarshalJSON
+
+```go
+func (this *Lob) UnmarshalJSON(p []byte) error
+```
+
+#### func (*Lob) Value
+
+```go
+func (this *Lob) Value() (driver.Value, error)
+```
+Value returns what Lob.Bytes returns.
+
+#### type LogConCfg
+
+```go
+type LogConCfg struct {
+	// Close determines whether the Con.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// Prepare determines whether the Con.Prepare method is logged.
+	//
+	// The default is true.
+	Prepare bool
+
+	// Begin determines whether the Con.Begin method is logged.
+	//
+	// The default is true.
+	Begin bool
+
+	// Ping determines whether the Con.Ping method is logged.
+	//
+	// The default is true.
+	Ping bool
+}
+```
+
+LogConCfg represents Con logging configuration values.
+
+#### func  NewLogConCfg
+
+```go
+func NewLogConCfg() LogConCfg
+```
+NewLogConCfg creates a LogTxCfg with default values.
+
+#### type LogDrvCfg
+
+```go
+type LogDrvCfg struct {
+	// Logger writes log messages.
+	// Logger can be replaced with any type implementing the Logger interface.
+	//
+	// The default implementation uses the standard lib's log package.
+	//
+	// For a glog-based implementation, see gopkg.in/rana/ora.v4/glg.
+	// LogDrvCfg.Logger = glg.Log
+	//
+	// For an gopkg.in/inconshreveable/log15.v2-based, see gopkg.in/rana/ora.v4/lg15.
+	// LogDrvCfg.Logger = lg15.Log
+	Logger Logger
+
+	// OpenEnv determines whether the ora.OpenEnv method is logged.
+	//
+	// The default is true.
+	OpenEnv bool
+
+	// Ins determines whether the ora.Ins method is logged.
+	//
+	// The default is true.
+	Ins bool
+
+	// Upd determines whether the ora.Upd method is logged.
+	//
+	// The default is true.
+	Upd bool
+
+	// Del determines whether the ora.Del method is logged.
+	//
+	// The default is true.
+	Del bool
+
+	// Sel determines whether the ora.Sel method is logged.
+	//
+	// The default is true.
+	Sel bool
+
+	// AddTbl determines whether the ora.AddTbl method is logged.
+	//
+	// The default is true.
+	AddTbl bool
+
+	Env  LogEnvCfg
+	Srv  LogSrvCfg
+	Ses  LogSesCfg
+	Stmt LogStmtCfg
+	Tx   LogTxCfg
+	Con  LogConCfg
+	Rset LogRsetCfg
+}
+```
+
+LogDrvCfg represents package-level logging configuration values.
+
+#### func  NewLogDrvCfg
+
+```go
+func NewLogDrvCfg() LogDrvCfg
+```
+NewLogDrvCfg creates a LogDrvCfg with default values.
+
+#### func (LogDrvCfg) IsEnabled
+
+```go
+func (c LogDrvCfg) IsEnabled(enabled bool) bool
+```
+IsEnabled returns whether the logger is enabled (and enabled is true).
+
+#### type LogEnvCfg
+
+```go
+type LogEnvCfg struct {
+	// Close determines whether the Env.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// OpenSrv determines whether the Env.OpenSrv method is logged.
+	//
+	// The default is true.
+	OpenSrv bool
+
+	// OpenCon determines whether the Env.OpenCon method is logged.
+	//
+	// The default is true.
+	OpenCon bool
+}
+```
+
+LogEnvCfg represents Env logging configuration values.
+
+#### func  NewLogEnvCfg
+
+```go
+func NewLogEnvCfg() LogEnvCfg
+```
+NewLogEnvCfg creates a LogEnvCfg with default values.
+
+#### type LogRsetCfg
+
+```go
+type LogRsetCfg struct {
+	// Close determines whether the Rset.close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// BeginRow determines whether the Rset.beginRow method is logged.
+	//
+	// The default is false.
+	BeginRow bool
+
+	// EndRow determines whether the Rset.endRow method is logged.
+	//
+	// The default is false.
+	EndRow bool
+
+	// Next determines whether the Rset.Next method is logged.
+	//
+	// The default is false.
+	Next bool
+
+	// Open determines whether the Rset.open method is logged.
+	//
+	// The default is true.
+	Open bool
+
+	// OpenDefs determines whether Select-list definitions with the Rset.open method are logged.
+	//
+	// The default is true.
+	OpenDefs bool
+}
+```
+
+LogRsetCfg represents Rset logging configuration values.
+
+#### func  NewLogRsetCfg
+
+```go
+func NewLogRsetCfg() LogRsetCfg
+```
+NewLogTxCfg creates a LogRsetCfg with default values.
+
+#### type LogSesCfg
+
+```go
+type LogSesCfg struct {
+	// Close determines whether the Ses.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// PrepAndExe determines whether the Ses.PrepAndExe method is logged.
+	//
+	// The default is true.
+	PrepAndExe bool
+
+	// PrepAndQry determines whether the Ses.PrepAndQry method is logged.
+	//
+	// The default is true.
+	PrepAndQry bool
+
+	// Prep determines whether the Ses.Prep method is logged.
+	//
+	// The default is true.
+	Prep bool
+
+	// Ins determines whether the Ses.Ins method is logged.
+	//
+	// The default is true.
+	Ins bool
+
+	// Upd determines whether the Ses.Upd method is logged.
+	//
+	// The default is true.
+	Upd bool
+
+	// Sel determines whether the Ses.Sel method is logged.
+	//
+	// The default is true.
+	Sel bool
+
+	// StartTx determines whether the Ses.StartTx method is logged.
+	//
+	// The default is true.
+	StartTx bool
+
+	// Ping determines whether the Ses.Ping method is logged.
+	//
+	// The default is true.
+	Ping bool
+
+	// Break determines whether the Ses.Break method is logged.
+	//
+	// The default is true.
+	Break bool
+}
+```
+
+LogSesCfg represents Ses logging configuration values.
+
+#### func  NewLogSesCfg
+
+```go
+func NewLogSesCfg() LogSesCfg
+```
+NewLogSesCfg creates a LogSesCfg with default values.
+
+#### type LogSrvCfg
+
+```go
+type LogSrvCfg struct {
+	// Close determines whether the Srv.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// OpenSes determines whether the Srv.OpenSes method is logged.
+	//
+	// The default is true.
+	OpenSes bool
+
+	// Version determines whether the Srv.Version method is logged.
+	//
+	// The default is true.
+	Version bool
+}
+```
+
+LogSrvCfg represents Srv logging configuration values.
+
+#### func  NewLogSrvCfg
+
+```go
+func NewLogSrvCfg() LogSrvCfg
+```
+NewLogSrvCfg creates a LogSrvCfg with default values.
+
+#### type LogStmtCfg
+
+```go
+type LogStmtCfg struct {
+	// Close determines whether the Stmt.Close method is logged.
+	//
+	// The default is true.
+	Close bool
+
+	// Exe determines whether the Stmt.Exe method is logged.
+	//
+	// The default is true.
+	Exe bool
+
+	// Qry determines whether the Stmt.Qry method is logged.
+	//
+	// The default is true.
+	Qry bool
+
+	// Bind determines whether the Stmt.bind method is logged.
+	//
+	// The default is true.
+	Bind bool
+}
+```
+
+LogStmtCfg represents Stmt logging configuration values.
+
+#### func  NewLogStmtCfg
+
+```go
+func NewLogStmtCfg() LogStmtCfg
+```
+NewLogStmtCfg creates a LogStmtCfg with default values.
+
+#### type LogTxCfg
+
+```go
+type LogTxCfg struct {
+	// Commit determines whether the Tx.Commit method is logged.
+	//
+	// The default is true.
+	Commit bool
+
+	// Rollback determines whether the Tx.Rollback method is logged.
+	//
+	// The default is true.
+	Rollback bool
+}
+```
+
+LogTxCfg represents Tx logging configuration values.
+
+#### func  NewLogTxCfg
+
+```go
+func NewLogTxCfg() LogTxCfg
+```
+NewLogTxCfg creates a LogTxCfg with default values.
+
+#### type Logger
+
+```go
+type Logger interface {
+	Infof(format string, args ...interface{})
+	Infoln(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Errorln(args ...interface{})
+}
+```
+
+Logger interface is for logging.
+
+#### type MultiErr
+
+```go
+type MultiErr struct {
+}
+```
+
+MultiErr holds multiple errors in a single string.
+
+#### func (MultiErr) Error
+
+```go
+func (m MultiErr) Error() string
+```
+Error returns one or more errors.
+
+Error is a member of the 'error' interface.
+
+#### type Num
+
+```go
+type Num string
+```
+
+
+#### type OCINum
+
+```go
+type OCINum struct {
+	num.OCINum
+}
+```
+
+
+#### func (*OCINum) FromC
+
+```go
+func (num *OCINum) FromC(x C.OCINumber)
+```
+FromC converts from the given C.OCINumber.
+
+#### func (OCINum) String
+
+```go
+func (n OCINum) String() string
+```
+
+#### func (OCINum) ToC
+
+```go
+func (num OCINum) ToC(x *C.OCINumber)
+```
+ToC converts the OCINum into the given *C.OCINumber.
+
+#### func (OCINum) Value
+
+```go
+func (n OCINum) Value() (driver.Value, error)
+```
+Value returns the driver.Value as required by database/sql. So OCINum is allowed
+as a parameter to Scan.
+
+#### type ORAError
+
+```go
+type ORAError struct {
+}
+```
+
+
+#### func (ORAError) Code
+
+```go
+func (e ORAError) Code() int
+```
+
+#### func (*ORAError) Error
+
+```go
+func (e *ORAError) Error() string
+```
+
+#### type OraNum
+
+```go
+type OraNum struct {
+	IsNull bool
+	Value  string
+}
+```
+
+
+#### func (OraNum) Equals
+
+```go
+func (this OraNum) Equals(other OraNum) bool
+```
+Equals returns true when the receiver and specified OraNum are both null, or
+when the receiver and specified OraNum are both not null and Values are equal.
+
+#### func (OraNum) MarshalJSON
+
+```go
+func (this OraNum) MarshalJSON() ([]byte, error)
+```
+
+#### func (OraNum) String
+
+```go
+func (this OraNum) String() string
+```
+
+#### func (*OraNum) UnmarshalJSON
+
+```go
+func (this *OraNum) UnmarshalJSON(p []byte) error
+```
+
+#### type OraOCINum
+
+```go
+type OraOCINum struct {
+	IsNull bool
+	Value  num.OCINum
+}
+```
+
+
+#### func (OraOCINum) Equals
+
+```go
+func (this OraOCINum) Equals(other OraOCINum) bool
+```
+Equals returns true when the receiver and specified OraOCINum are both null, or
+when the receiver and specified OraOCINum are both not null and Values are
+equal.
+
+#### func (OraOCINum) MarshalJSON
+
+```go
+func (this OraOCINum) MarshalJSON() ([]byte, error)
+```
+
+#### func (OraOCINum) String
+
+```go
+func (this OraOCINum) String() string
+```
+
+#### func (*OraOCINum) UnmarshalJSON
+
+```go
+func (this *OraOCINum) UnmarshalJSON(p []byte) error
+```
+
+#### type Pool
+
+```go
+type Pool struct {
+	sync.Mutex
+}
+```
+
+
+#### func  NewPool
+
+```go
+func NewPool(dsn string, size int) (*Pool, error)
+```
+NewPool returns a new session pool with default config.
+
+#### func (*Pool) Close
+
+```go
+func (p *Pool) Close() (err error)
+```
+Close all idle sessions and connections.
+
+#### func (*Pool) Get
+
+```go
+func (p *Pool) Get() (ses *Ses, err error)
+```
+Get a session - either an idle session, or if such does not exist, then a new
+session on an idle connection; if such does not exist, then a new session on a
+new connection.
+
+#### func (*Pool) Put
+
+```go
+func (p *Pool) Put(ses *Ses)
+```
+Put the session back to the session pool. Ensure that on ses Close (eviction),
+srv is put back on the idle pool.
+
+#### func (Pool) SetEvictDuration
+
+```go
+func (p Pool) SetEvictDuration(dur time.Duration)
+```
+Set the eviction duration to the given. Also starts eviction if not yet started.
+
+#### type PoolCfg
+
+```go
+type PoolCfg struct {
+	Type           PoolType
+	Name           string
+	Username       string
+	Password       string
+	Min, Max, Incr uint32
+}
+```
+
+
+#### func  DSNPool
+
+```go
+func DSNPool(str string) PoolCfg
+```
+DSNPool returns the Pool config from dsn.
+
+#### type PoolType
+
+```go
+type PoolType uint8
+```
+
+
+#### type Raw
+
+```go
+type Raw struct {
+	IsNull bool
+	Value  []byte
+}
+```
+
+Raw represents a nullable byte slice for RAW or LONG RAW Oracle values.
+
+#### func (Raw) Equals
+
+```go
+func (this Raw) Equals(other Raw) bool
+```
+Equals returns true when the receiver and specified Raw are both null, or when
+the receiver and specified Raw are both not null and Values are equal.
+
+#### func (Raw) MarshalJSON
+
+```go
+func (this Raw) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Raw) UnmarshalJSON
+
+```go
+func (this *Raw) UnmarshalJSON(p []byte) error
+```
+
+#### type ResType
+
+```go
+type ResType int
+```
+
+ResType represents a result type returned by the ora.Sel method.
+
+```go
+const (
+	// SliceOfPtr indicates a slice of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	SliceOfPtr ResType = iota
+
+	// SliceOfVal indicates a slice of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	SliceOfVal
+
+	// MapOfPtrPk indicates a map of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"pk"`.
+	MapOfPtrPk
+
+	// MapOfPtrFk1 indicates a map of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk1"`.
+	MapOfPtrFk1
+
+	// MapOfPtrFk2 indicates a map of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk2"`.
+	MapOfPtrFk2
+
+	// MapOfPtrFk3 indicates a map of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk3"`.
+	MapOfPtrFk3
+
+	// MapOfPtrFk4 indicates a map of struct pointers will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk4"`.
+	MapOfPtrFk4
+
+	// MapOfValPk indicates a map of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"pk"`.
+	MapOfValPk
+
+	// MapOfValFk1 indicates a map of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk1"`.
+	MapOfValFk1
+
+	// MapOfValFk2 indicates a map of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk2"`.
+	MapOfValFk2
+
+	// MapOfValFk3 indicates a map of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk3"`.
+	MapOfValFk3
+
+	// MapOfValFk4 indicates a map of structs will be returned by the ora.Sel method.
+	// The struct type is specified to ora.Sel by the user.
+	// The map key is determined by a struct field tagged with `db:"fk4"`.
+	MapOfValFk4
+)
+```
+
+#### type Rset
+
+```go
+type Rset struct {
+	sync.RWMutex
+
+	Row     []interface{}
+	Columns []Column
+}
+```
+
+Rset represents a result set used to obtain Go values from a SQL select
+statement.
+
+Opening and closing a Rset is managed internally. Rset doesn't have an Open
+method or Close method.
+
+#### func (*Rset) Err
+
+```go
+func (rset *Rset) Err() error
+```
+Err returns the last error of the reesult set.
+
+#### func (*Rset) Exhaust
+
+```go
+func (rset *Rset) Exhaust()
+```
+Exhaust will cycle to the end of the Rset, to autoclose it.
+
+#### func (*Rset) IsOpen
+
+```go
+func (rset *Rset) IsOpen() bool
+```
+IsOpen returns true when a result set is open; otherwise, false.
+
+#### func (*Rset) Len
+
+```go
+func (rset *Rset) Len() int
+```
+Len returns the number of rows retrieved.
+
+#### func (*Rset) Name
+
+```go
+func (s *Rset) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Rset) Next
+
+```go
+func (rset *Rset) Next() bool
+```
+Next attempts to load a row of data from an Oracle buffer. True is returned when
+a row of data is retrieved. False is returned when no data is available.
+
+Retrieve the loaded row from the Rset.Row field. Rset.Row is updated on each
+call to Next. Rset.Row is set to nil when Next returns false.
+
+When Next returns false check Rset.Err() for any error that may have occured.
+
+#### func (*Rset) NextRow
+
+```go
+func (rset *Rset) NextRow() []interface{}
+```
+NextRow attempts to load a row from the Oracle buffer and return the row. Nil is
+returned when there's no data.
+
+When NextRow returns nil check Rset.Err() for any error that may have occured.
+
+#### type RsetCfg
+
+```go
+type RsetCfg struct {
+
+	// TrueRune is rune a Go bool true value from SQL select-list character column.
+	//
+	// The is default is '1'.
+	TrueRune rune
+
+	// Err is the error from the last Set... method.
+	Err error
+}
+```
+
+RsetCfg affects the association of Oracle select-list columns to Go types.
+
+Though it is unlucky, an empty RsetCfg is unusable! Please use NewRsetCfg().
+
+RsetCfg is immutable, so all Set... methods returns a new copy!
+
+#### func  NewRsetCfg
+
+```go
+func NewRsetCfg() RsetCfg
+```
+NewRsetCfg returns a RsetCfg with default values.
+
+#### func (RsetCfg) BinaryDouble
+
+```go
+func (c RsetCfg) BinaryDouble() GoColumnType
+```
+BinaryDouble returns a GoColumnType associated to an Oracle select-list
+BINARY_DOUBLE column.
+
+The default is F64.
+
+BinaryDouble is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, BinaryDouble is used.
+
+#### func (RsetCfg) BinaryFloat
+
+```go
+func (c RsetCfg) BinaryFloat() GoColumnType
+```
+BinaryFloat returns a GoColumnType associated to an Oracle select-list
+BINARY_FLOAT column.
+
+The default for the database/sql package is F64.
+
+The default for the ora package is F32.
+
+BinaryFloat is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, BinaryFloat is used.
+
+#### func (RsetCfg) Blob
+
+```go
+func (c RsetCfg) Blob() GoColumnType
+```
+Blob returns a GoColumnType associated to an Oracle select-list BLOB column.
+
+The default is Bits.
+
+Blob is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Blob is used.
+
+#### func (RsetCfg) Char
+
+```go
+func (c RsetCfg) Char() GoColumnType
+```
+Char returns a GoColumnType associated to an Oracle select-list CHAR column and
+NCHAR column.
+
+The default is S.
+
+Char is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Char is used.
+
+#### func (RsetCfg) Char1
+
+```go
+func (c RsetCfg) Char1() GoColumnType
+```
+Char1 returns a GoColumnType associated to an Oracle select-list CHAR column
+with length 1 and NCHAR column with length 1.
+
+The default is B.
+
+Char1 is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Char1 is used.
+
+#### func (RsetCfg) Clob
+
+```go
+func (c RsetCfg) Clob() GoColumnType
+```
+Clob returns a GoColumnType associated to an Oracle select-list CLOB column and
+NCLOB column.
+
+The default is S.
+
+Clob is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Clob is used.
+
+#### func (RsetCfg) Date
+
+```go
+func (c RsetCfg) Date() GoColumnType
+```
+Date returns a GoColumnType associated to an Oracle select-list DATE column.
+
+The default is T.
+
+Date is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Date is used.
+
+#### func (RsetCfg) Float
+
+```go
+func (c RsetCfg) Float() GoColumnType
+```
+Float returns a GoColumnType associated to an Oracle select-list FLOAT column.
+
+The default is F64.
+
+Float is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Float is used.
+
+#### func (RsetCfg) IsZero
+
+```go
+func (c RsetCfg) IsZero() bool
+```
+
+#### func (RsetCfg) Long
+
+```go
+func (c RsetCfg) Long() GoColumnType
+```
+Long returns a GoColumnType associated to an Oracle select-list LONG column.
+
+The default is S.
+
+Long is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Long is used.
+
+#### func (RsetCfg) LongRaw
+
+```go
+func (c RsetCfg) LongRaw() GoColumnType
+```
+LongRaw returns a GoColumnType associated to an Oracle select-list LONG RAW
+column.
+
+The default is Bits.
+
+LongRaw is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, LongRaw is used.
+
+#### func (RsetCfg) NumberBigFloat
+
+```go
+func (c RsetCfg) NumberBigFloat() GoColumnType
+```
+NumberBigFloat returns a GoColumnType associated to an Oracle select-list NUMBER
+column defined with a scale greater than zero and precision unknown or > 15.
+
+The default is N.
+
+NumberBugFloat is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, NumberFloat is used.
+
+#### func (RsetCfg) NumberBigInt
+
+```go
+func (c RsetCfg) NumberBigInt() GoColumnType
+```
+NumberBigInt returns a GoColumnType associated to an Oracle select-list NUMBER
+column defined with scale zero and precision unknown or > 19.
+
+The default is N.
+
+The database/sql package uses NumberBigInt.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, NumberInt is used.
+
+#### func (RsetCfg) NumberFloat
+
+```go
+func (c RsetCfg) NumberFloat() GoColumnType
+```
+NumberFloat returns a GoColumnType associated to an Oracle select-list NUMBER
+column defined with a scale greater than zero.
+
+The default is F64.
+
+NumberFloat is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, NumberFloat is used.
+
+#### func (RsetCfg) NumberInt
+
+```go
+func (c RsetCfg) NumberInt() GoColumnType
+```
+NumberInt returns a GoColumnType associated to an Oracle select-list NUMBER
+column defined with scale zero and precision <= 19.
+
+The default is I64.
+
+The database/sql package uses NumberInt.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, NumberInt is used.
+
+#### func (RsetCfg) Raw
+
+```go
+func (c RsetCfg) Raw() GoColumnType
+```
+Raw returns a GoColumnType associated to an Oracle select-list RAW column.
+
+The default is Bits.
+
+Raw is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Raw is used.
+
+#### func (RsetCfg) SetBinaryDouble
+
+```go
+func (c RsetCfg) SetBinaryDouble(gct GoColumnType) RsetCfg
+```
+SetBinaryDouble sets a GoColumnType associated to an Oracle select-list
+BINARY_DOUBLE column.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetBinaryFloat
+
+```go
+func (c RsetCfg) SetBinaryFloat(gct GoColumnType) RsetCfg
+```
+SetBinaryFloat sets a GoColumnType associated to an Oracle select-list
+BINARY_FLOAT column.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, Num, OraNum.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetBlob
+
+```go
+func (c RsetCfg) SetBlob(gct GoColumnType) RsetCfg
+```
+SetBlob sets a GoColumnType associated to an Oracle select-list BLOB column.
+
+Valid values are Bits and OraBits.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetChar
+
+```go
+func (c RsetCfg) SetChar(gct GoColumnType) RsetCfg
+```
+SetChar sets a GoColumnType associated to an Oracle select-list CHAR column and
+NCHAR column.
+
+Valid values are S and OraS.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetChar1
+
+```go
+func (c RsetCfg) SetChar1(gct GoColumnType) RsetCfg
+```
+SetChar1 sets a GoColumnType associated to an Oracle select-list CHAR column
+with length 1 and NCHAR column with length 1.
+
+Valid values are B, OraB, S and OraS.
+
+Returns an error if a non-bool or non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetClob
+
+```go
+func (c RsetCfg) SetClob(gct GoColumnType) RsetCfg
+```
+SetClob sets a GoColumnType associated to an Oracle select-list CLOB column and
+NCLOB column.
+
+Valid values are S and OraS.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetDate
+
+```go
+func (c RsetCfg) SetDate(gct GoColumnType) RsetCfg
+```
+SetDate sets a GoColumnType associated to an Oracle select-list DATE column.
+
+Valid values are T and OraT.
+
+Returns an error if a non-time GoColumnType is specified.
+
+#### func (RsetCfg) SetFloat
+
+```go
+func (c RsetCfg) SetFloat(gct GoColumnType) RsetCfg
+```
+SetFloat sets a GoColumnType associated to an Oracle select-list FLOAT column.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetLong
+
+```go
+func (c RsetCfg) SetLong(gct GoColumnType) RsetCfg
+```
+SetLong sets a GoColumnType associated to an Oracle select-list LONG column.
+
+Valid values are S and OraS.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetLongRaw
+
+```go
+func (c RsetCfg) SetLongRaw(gct GoColumnType) RsetCfg
+```
+SetLongRaw sets a GoColumnType associated to an Oracle select-list LONG RAW
+column.
+
+Valid values are Bits and OraBits.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetNumberBigFloat
+
+```go
+func (c RsetCfg) SetNumberBigFloat(gct GoColumnType) RsetCfg
+```
+SetNumberBigFloat sets a GoColumnType associated to an Oracle select-list NUMBER
+column defined with a scale greater than zero and precision unkonw or > 15.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetNumberBigInt
+
+```go
+func (c RsetCfg) SetNumberBigInt(gct GoColumnType) RsetCfg
+```
+SetNumberBigInt sets a GoColumnType associated to an Oracle select-list NUMBER
+column defined with scale zero and precision unknown or > 19.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetNumberFloat
+
+```go
+func (c RsetCfg) SetNumberFloat(gct GoColumnType) RsetCfg
+```
+SetNumberFloat sets a GoColumnType associated to an Oracle select-list NUMBER
+column defined with a scale greater than zero and precision <= 15.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetNumberInt
+
+```go
+func (c RsetCfg) SetNumberInt(gct GoColumnType) RsetCfg
+```
+SetNumberInt sets a GoColumnType associated to an Oracle select-list NUMBER
+column defined with scale zero and precision <= 19.
+
+Valid values are I64, I32, I16, I8, U64, U32, U16, U8, F64, F32, OraI64, OraI32,
+OraI16, OraI8, OraU64, OraU32, OraU16, OraU8, OraF64, OraF32, N, OraN.
+
+Returns an error if a non-numeric GoColumnType is specified.
+
+#### func (RsetCfg) SetRaw
+
+```go
+func (c RsetCfg) SetRaw(gct GoColumnType) RsetCfg
+```
+SetRaw sets a GoColumnType associated to an Oracle select-list RAW column.
+
+Valid values are Bits and OraBits.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) SetTimestamp
+
+```go
+func (c RsetCfg) SetTimestamp(gct GoColumnType) RsetCfg
+```
+SetTimestamp sets a GoColumnType associated to an Oracle select-list TIMESTAMP
+column.
+
+Valid values are T and OraT.
+
+Returns an error if a non-time GoColumnType is specified.
+
+#### func (RsetCfg) SetTimestampLtz
+
+```go
+func (c RsetCfg) SetTimestampLtz(gct GoColumnType) RsetCfg
+```
+SetTimestampLtz sets a GoColumnType associated to an Oracle select-list
+TIMESTAMP WITH LOCAL TIME ZONE column.
+
+Valid values are T and OraT.
+
+Returns an error if a non-time GoColumnType is specified.
+
+#### func (RsetCfg) SetTimestampTz
+
+```go
+func (c RsetCfg) SetTimestampTz(gct GoColumnType) RsetCfg
+```
+SetTimestampTz sets a GoColumnType associated to an Oracle select-list TIMESTAMP
+WITH TIME ZONE column.
+
+Valid values are T and OraT.
+
+Returns an error if a non-time GoColumnType is specified.
+
+#### func (RsetCfg) SetVarchar
+
+```go
+func (c RsetCfg) SetVarchar(gct GoColumnType) RsetCfg
+```
+SetVarchar sets a GoColumnType associated to an Oracle select-list VARCHAR
+column, VARCHAR2 column and NVARCHAR2 column.
+
+Valid values are S and OraS.
+
+Returns an error if a non-string GoColumnType is specified.
+
+#### func (RsetCfg) Timestamp
+
+```go
+func (c RsetCfg) Timestamp() GoColumnType
+```
+Timestamp returns a GoColumnType associated to an Oracle select-list TIMESTAMP
+column.
+
+The default is T.
+
+Timestamp is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Timestamp is used.
+
+#### func (RsetCfg) TimestampLtz
+
+```go
+func (c RsetCfg) TimestampLtz() GoColumnType
+```
+TimestampLtz returns a GoColumnType associated to an Oracle select-list
+TIMESTAMP WITH LOCAL TIME ZONE column.
+
+The default is T.
+
+TimestampLtz is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, TimestampLtz is used.
+
+#### func (RsetCfg) TimestampTz
+
+```go
+func (c RsetCfg) TimestampTz() GoColumnType
+```
+TimestampTz returns a GoColumnType associated to an Oracle select-list TIMESTAMP
+WITH TIME ZONE column.
+
+The default is T.
+
+TimestampTz is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, TimestampTz is used.
+
+#### func (RsetCfg) Varchar
+
+```go
+func (c RsetCfg) Varchar() GoColumnType
+```
+Varchar returns a GoColumnType associated to an Oracle select-list VARCHAR
+column, VARCHAR2 column and NVARCHAR2 column.
+
+The default is S.
+
+Varchar is used by the database/sql package.
+
+When using the ora package directly, custom GoColumnType associations may be
+specified to the Ses.Prep method. If no custom GoColumnType association is
+specified, Varchar is used.
+
+#### type Ses
+
+```go
+type Ses struct {
+	sync.RWMutex
+}
+```
+
+Ses is an Oracle session associated with a server.
+
+#### func (*Ses) Break
+
+```go
+func (ses *Ses) Break() (err error)
+```
+Break stops the currently running OCI function.
+
+#### func (*Ses) Cfg
+
+```go
+func (ses *Ses) Cfg() SesCfg
+```
+Cfg returns the Ses's SesCfg, or it's Srv's, if not set. If the ses.srv.env is
+the PkgSqlEnv, that will override StmtCfg!
+
+#### func (*Ses) Close
+
+```go
+func (ses *Ses) Close() (err error)
+```
+Close ends a session on an Oracle server.
+
+Any open statements associated with the session are closed.
+
+Calling Close will cause Ses.IsOpen to return false. Once closed, a session
+cannot be re-opened. Call Srv.OpenSes to open a new session.
+
+#### func (*Ses) Env
+
+```go
+func (ses *Ses) Env() *Env
+```
+
+#### func (*Ses) Ins
+
+```go
+func (ses *Ses) Ins(tbl string, columnPairs ...interface{}) (err error)
+```
+Ins composes, prepares and executes a sql INSERT statement returning a possible
+error.
+
+Ins offers convenience when specifying a long list of sql columns.
+
+Ins expects at least two column name-value pairs where the last pair will be a
+part of a sql RETURNING clause. The last column name is expected to be an
+identity column returning an Oracle-generated value. The last value specified to
+the variadic parameter 'columnPairs' is expected to be a pointer capable of
+receiving the identity value.
+
+#### func (*Ses) IsOpen
+
+```go
+func (ses *Ses) IsOpen() bool
+```
+IsOpen returns true when a session is open; otherwise, false.
+
+Calling Close will cause Ses.IsOpen to return false. Once closed, a session
+cannot be re-opened. Call Srv.OpenSes to open a new session.
+
+#### func (*Ses) Name
+
+```go
+func (s *Ses) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Ses) NumStmt
+
+```go
+func (ses *Ses) NumStmt() int
+```
+NumStmt returns the number of open Oracle statements.
+
+#### func (*Ses) NumTx
+
+```go
+func (ses *Ses) NumTx() int
+```
+NumTx returns the number of open Oracle transactions.
+
+#### func (*Ses) Ping
+
+```go
+func (ses *Ses) Ping() (err error)
+```
+Ping returns nil when an Oracle server is contacted; otherwise, an error.
+
+#### func (*Ses) Prep
+
+```go
+func (ses *Ses) Prep(sql string, gcts ...GoColumnType) (stmt *Stmt, err error)
+```
+Prep prepares a sql statement returning a *Stmt and possible error.
+
+#### func (*Ses) PrepAndExe
+
+```go
+func (ses *Ses) PrepAndExe(sql string, params ...interface{}) (rowsAffected uint64, err error)
+```
+PrepAndExe prepares and executes a SQL statement returning the number of rows
+affected and a possible error, using Exe, calling in batch for arrays.
+
+WARNING: just as sql.QueryRow, the prepared statement is closed right after
+execution, with all its siblings (Lobs, Rsets...)!
+
+So if you want to retrieve and use such objects, you have to first Prep, then
+Exe separately (and close the Stmt returned by Prep after finishing with those
+objects).
+
+#### func (*Ses) PrepAndExeP
+
+```go
+func (ses *Ses) PrepAndExeP(sql string, params ...interface{}) (rowsAffected uint64, err error)
+```
+PrepAndExeP prepares and executes a SQL statement returning the number of rows
+affected and a possible error, using ExeP, so passing arrays as is.
+
+#### func (*Ses) PrepAndQry
+
+```go
+func (ses *Ses) PrepAndQry(sql string, params ...interface{}) (rset *Rset, err error)
+```
+PrepAndQry prepares a SQL statement and queries an Oracle server returning an
+*Rset and a possible error.
+
+If an error occurs during Prep or Qry a nil *Rset will be returned.
+
+The *Stmt internal to this method is automatically closed when the *Rset
+retrieves all rows or returns an error.
+
+#### func (*Ses) Sel
+
+```go
+func (ses *Ses) Sel(sqlFrom string, columnPairs ...interface{}) (rset *Rset, err error)
+```
+Sel composes, prepares and queries a sql SELECT statement returning an *ora.Rset
+and possible error.
+
+Sel offers convenience when specifying a long list of sql columns with
+non-default GoColumnTypes.
+
+Specify a sql FROM clause with one or more pairs of sql column name-GoColumnType
+pairs. The FROM clause may have additional SQL clauses such as WHERE, HAVING,
+etc.
+
+#### func (*Ses) SetAction
+
+```go
+func (ses *Ses) SetAction(module, action string) error
+```
+SetAction sets the MODULE and ACTION attribute of the session.
+
+#### func (*Ses) SetCfg
+
+```go
+func (ses *Ses) SetCfg(cfg SesCfg)
+```
+
+#### func (*Ses) StartTx
+
+```go
+func (ses *Ses) StartTx(opts ...TxOption) (tx *Tx, err error)
+```
+StartTx starts an Oracle transaction returning a *Tx and possible error.
+
+#### func (*Ses) Timezone
+
+```go
+func (ses *Ses) Timezone() (*time.Location, error)
+```
+Timezone return the current session's timezone.
+
+#### func (*Ses) Upd
+
+```go
+func (ses *Ses) Upd(tbl string, columnPairs ...interface{}) (err error)
+```
+Upd composes, prepares and executes a sql UPDATE statement returning a possible
+error.
+
+Upd offers convenience when specifying a long list of sql columns.
+
+#### type SesCfg
+
+```go
+type SesCfg struct {
+	Username string
+	Password string
+	Mode     SessionMode
+
+	StmtCfg
+}
+```
+
+
+#### func  NewSesCfg
+
+```go
+func NewSesCfg() SesCfg
+```
+
+#### func (SesCfg) IsZero
+
+```go
+func (c SesCfg) IsZero() bool
+```
+
+#### func (SesCfg) SetBinaryDouble
+
+```go
+func (c SesCfg) SetBinaryDouble(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetBinaryFloat
+
+```go
+func (c SesCfg) SetBinaryFloat(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetBlob
+
+```go
+func (c SesCfg) SetBlob(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetByteSlice
+
+```go
+func (c SesCfg) SetByteSlice(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetChar
+
+```go
+func (c SesCfg) SetChar(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetChar1
+
+```go
+func (c SesCfg) SetChar1(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetClob
+
+```go
+func (c SesCfg) SetClob(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetDate
+
+```go
+func (c SesCfg) SetDate(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetFloat
+
+```go
+func (c SesCfg) SetFloat(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetLobBufferSize
+
+```go
+func (c SesCfg) SetLobBufferSize(size int) SesCfg
+```
+
+#### func (SesCfg) SetLong
+
+```go
+func (c SesCfg) SetLong(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetLongBufferSize
+
+```go
+func (c SesCfg) SetLongBufferSize(size uint32) SesCfg
+```
+
+#### func (SesCfg) SetLongRaw
+
+```go
+func (c SesCfg) SetLongRaw(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetLongRawBufferSize
+
+```go
+func (c SesCfg) SetLongRawBufferSize(size uint32) SesCfg
+```
+
+#### func (SesCfg) SetNumberBigFloat
+
+```go
+func (c SesCfg) SetNumberBigFloat(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetNumberBigInt
+
+```go
+func (c SesCfg) SetNumberBigInt(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetNumberFloat
+
+```go
+func (c SesCfg) SetNumberFloat(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetNumberInt
+
+```go
+func (c SesCfg) SetNumberInt(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetPrefetchMemorySize
+
+```go
+func (c SesCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) SesCfg
+```
+
+#### func (SesCfg) SetPrefetchRowCount
+
+```go
+func (c SesCfg) SetPrefetchRowCount(prefetchRowCount uint32) SesCfg
+```
+
+#### func (SesCfg) SetRaw
+
+```go
+func (c SesCfg) SetRaw(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetStmtCfg
+
+```go
+func (cfg SesCfg) SetStmtCfg(stmtCfg StmtCfg) SesCfg
+```
+
+#### func (SesCfg) SetStringPtrBufferSize
+
+```go
+func (c SesCfg) SetStringPtrBufferSize(size int) SesCfg
+```
+
+#### func (SesCfg) SetTimestamp
+
+```go
+func (c SesCfg) SetTimestamp(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetTimestampLtz
+
+```go
+func (c SesCfg) SetTimestampLtz(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetTimestampTz
+
+```go
+func (c SesCfg) SetTimestampTz(gct GoColumnType) SesCfg
+```
+
+#### func (SesCfg) SetVarchar
+
+```go
+func (c SesCfg) SetVarchar(gct GoColumnType) SesCfg
+```
+
+#### type SesPool
+
+```go
+type SesPool struct {
+}
+```
+
+
+#### func (*SesPool) Close
+
+```go
+func (p *SesPool) Close() error
+```
+
+#### func (*SesPool) Get
+
+```go
+func (p *SesPool) Get() (*Ses, error)
+```
+Get a session from an idle Srv.
+
+#### func (*SesPool) Put
+
+```go
+func (p *SesPool) Put(ses *Ses)
+```
+Put the session back to the session pool.
+
+#### func (SesPool) SetEvictDuration
+
+```go
+func (p SesPool) SetEvictDuration(dur time.Duration)
+```
+Set the eviction duration to the given. Also starts eviction if not yet started.
+
+#### type SessionMode
+
+```go
+type SessionMode uint8
+```
+
+
+#### func  DSNMode
+
+```go
+func DSNMode(str string) SessionMode
+```
+DSNMode returns the SessionMode (SysDefault/SysDba/SysOper).
+
+#### type Srv
+
+```go
+type Srv struct {
+	sync.RWMutex
+}
+```
+
+Srv represents an Oracle server.
+
+#### func (*Srv) Cfg
+
+```go
+func (srv *Srv) Cfg() SrvCfg
+```
+Cfg returns the Srv's SrvCfg, or it's Env's, if not set. If the env is the
+PkgSqlEnv, that will override StmtCfg!
+
+#### func (*Srv) Close
+
+```go
+func (srv *Srv) Close() (err error)
+```
+Close disconnects from an Oracle server.
+
+Any open sessions associated with the server are closed.
+
+Calling Close will cause Srv.IsOpen to return false. Once closed, a server
+cannot be re-opened. Call Env.OpenSrv to open a new server.
+
+#### func (*Srv) IsOpen
+
+```go
+func (srv *Srv) IsOpen() bool
+```
+IsOpen returns true when the server is open; otherwise, false.
+
+Calling Close will cause Srv.IsOpen to return false. Once closed, a server
+cannot be re-opened. Call Env.OpenSrv to open a new server.
+
+#### func (*Srv) IsUTF8
+
+```go
+func (srv *Srv) IsUTF8() bool
+```
+IsUTF8 returns whether the DB uses AL32UTF8 encoding.
+
+#### func (*Srv) Name
+
+```go
+func (s *Srv) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Srv) NewSesPool
+
+```go
+func (srv *Srv) NewSesPool(sesCfg SesCfg, size int) *SesPool
+```
+NewSesPool returns a session pool, which evicts the idle sessions in every
+minute. The pool holds at most size idle Ses. If size is zero, DefaultPoolSize
+will be used.
+
+#### func (*Srv) NumSes
+
+```go
+func (srv *Srv) NumSes() int
+```
+NumSes returns the number of open Oracle sessions.
+
+#### func (*Srv) OpenSes
+
+```go
+func (srv *Srv) OpenSes(cfg SesCfg) (ses *Ses, err error)
+```
+OpenSes opens an Oracle session returning a *Ses and possible error.
+
+#### func (*Srv) SetCfg
+
+```go
+func (srv *Srv) SetCfg(cfg SrvCfg)
+```
+
+#### func (*Srv) Version
+
+```go
+func (srv *Srv) Version() (ver string, err error)
+```
+Version returns the Oracle database server version.
+
+Version requires the server have at least one open session.
+
+#### type SrvCfg
+
+```go
+type SrvCfg struct {
+	// Dblink specifies an Oracle database server. Dblink is a connect string
+	// or a service point.
+	Dblink string
+
+	Pool PoolCfg
+
+	// StmtCfg configures new Stmts.
+	StmtCfg
+}
+```
+
+SrvCfg configures a new Srv.
+
+#### func (SrvCfg) IsZero
+
+```go
+func (c SrvCfg) IsZero() bool
+```
+
+#### type SrvPool
+
+```go
+type SrvPool struct {
+}
+```
+
+
+#### func (*SrvPool) Close
+
+```go
+func (p *SrvPool) Close() error
+```
+
+#### func (*SrvPool) Get
+
+```go
+func (p *SrvPool) Get() (*Srv, error)
+```
+Get a connection.
+
+#### func (*SrvPool) Put
+
+```go
+func (p *SrvPool) Put(srv *Srv)
+```
+Put the connection back to the idle pool.
+
+#### func (SrvPool) SetEvictDuration
+
+```go
+func (p SrvPool) SetEvictDuration(dur time.Duration)
+```
+Set the eviction duration to the given. Also starts eviction if not yet started.
+
+#### type Stmt
+
+```go
+type Stmt struct {
+	sync.RWMutex
+}
+```
+
+Stmt represents an Oracle statement.
+
+#### func (*Stmt) Cfg
+
+```go
+func (stmt *Stmt) Cfg() StmtCfg
+```
+Cfg returns the Stmt's StmtCfg, or it's Ses's, if not set. If the env is the
+PkgSqlEnv, that will override StmtCfg!
+
+#### func (*Stmt) Close
+
+```go
+func (stmt *Stmt) Close() (err error)
+```
+Close closes the SQL statement.
+
+Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
+cannot be re-opened. Call Stmt.Prep to create a new statement.
+
+#### func (*Stmt) Env
+
+```go
+func (stmt *Stmt) Env() *Env
+```
+
+#### func (*Stmt) Exe
+
+```go
+func (stmt *Stmt) Exe(params ...interface{}) (rowsAffected uint64, err error)
+```
+Exe executes a SQL statement on an Oracle server returning the number of rows
+affected and a possible error.
+
+Slice arguments should have the same length, as they'll be called in batch mode.
+
+#### func (*Stmt) ExeP
+
+```go
+func (stmt *Stmt) ExeP(params ...interface{}) (rowsAffected uint64, err error)
+```
+ExeP executes an (PL/)SQL statement on an Oracle server returning the number of
+rows affected and a possible error.
+
+All arguments are sent as is (esp. slices).
+
+#### func (*Stmt) Gcts
+
+```go
+func (stmt *Stmt) Gcts() []GoColumnType
+```
+Gcts returns a slice of GoColumnType specified by Ses.Prep or Stmt.SetGcts.
+
+Gcts is used by a Stmt.Qry *ora.Rset to determine which Go types are mapped to a
+sql select-list.
+
+#### func (*Stmt) IsOpen
+
+```go
+func (stmt *Stmt) IsOpen() bool
+```
+IsOpen returns true when a statement is open; otherwise, false.
+
+Calling Close will cause Stmt.IsOpen to return false. Once closed, a statement
+cannot be re-opened. Call Stmt.Prep to create a new statement.
+
+#### func (*Stmt) Name
+
+```go
+func (s *Stmt) Name(calc func() string) string
+```
+Name sets the name to the result of calc once, then returns that result forever.
+(Effectively caches the result of calc().)
+
+#### func (*Stmt) NumInput
+
+```go
+func (stmt *Stmt) NumInput() int
+```
+NumInput returns the number of placeholders in a sql statement.
+
+#### func (*Stmt) NumRset
+
+```go
+func (stmt *Stmt) NumRset() int
+```
+NumRset returns the number of open Oracle result sets.
+
+#### func (*Stmt) Parse
+
+```go
+func (stmt *Stmt) Parse() (err error)
+```
+Parse the statement, and return the syntax errors - WITHOUT executing it.
+Rejects ALTER statements, as they're executed anyway by Oracle...
+
+#### func (*Stmt) Qry
+
+```go
+func (stmt *Stmt) Qry(params ...interface{}) (*Rset, error)
+```
+Qry runs a SQL query on an Oracle server returning a *Rset and possible error.
+
+#### func (*Stmt) SetCfg
+
+```go
+func (stmt *Stmt) SetCfg(cfg StmtCfg)
+```
+
+#### func (*Stmt) SetGcts
+
+```go
+func (stmt *Stmt) SetGcts(gcts []GoColumnType) []GoColumnType
+```
+SetGcts sets a slice of GoColumnType used in a Stmt.Qry *ora.Rset.
+
+SetGcts is optional.
+
+#### type StmtCfg
+
+```go
+type StmtCfg struct {
+
+	// IsAutoCommitting determines whether DML statements are automatically
+	// committed.
+	//
+	// The default is true.
+	//
+	// IsAutoCommitting is not observed during a transaction.
+	IsAutoCommitting bool
+
+	// RTrimChar makes returning from CHAR colums trim the blanks (spaces)
+	// from the end of the string, added by Oracle.
+	//
+	// The default is true.
+	RTrimChar bool
+
+	// FalseRune represents the false Go bool value sent to an Oracle server
+	// during a parameter bind.
+	//
+	// The is default is '0'.
+	FalseRune rune
+
+	// TrueRune represents the true Go bool value sent to an Oracle server
+	// during a parameter bind.
+	//
+	// The is default is '1'.
+	TrueRune rune
+
+	// Rset represents configuration options for an Rset struct.
+	RsetCfg
+
+	// Err is the error from the last Set... call, if there's any.
+	Err error
+}
+```
+
+StmtCfg affects various aspects of a SQL statement.
+
+Assign values to StmtCfg prior to calling Stmt.Exe and Stmt.Qry for the
+configuration values to take effect.
+
+StmtCfg is immutable, so every Set method returns a new instance, maybe with Err
+set, too.
+
+#### func  NewStmtCfg
+
+```go
+func NewStmtCfg() StmtCfg
+```
+NewStmtCfg returns a StmtCfg with default values.
+
+#### func (StmtCfg) ByteSlice
+
+```go
+func (c StmtCfg) ByteSlice() GoColumnType
+```
+ByteSlice returns a GoColumnType associated to SQL statement []byte parameter.
+
+The default is Bits.
+
+ByteSlice is used by the database/sql package.
+
+Sending a byte slice to an Oracle server as a parameter in a SQL statement
+requires knowing the destination column type ahead of time. Set ByteSlice to
+Bits if the destination column is BLOB, RAW or LONG RAW. Set ByteSlice to U8 if
+the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
+
+#### func (StmtCfg) IsZero
+
+```go
+func (c StmtCfg) IsZero() bool
+```
+
+#### func (StmtCfg) LobBufferSize
+
+```go
+func (c StmtCfg) LobBufferSize() int
+```
+LobBufferSize returns the LOB buffer size in bytes used to define the sql
+select-column buffer size of an Oracle LOB type.
+
+The default is 16,777,216 bytes.
+
+The default is considered a moderate buffer where the 2GB max buffer may not be
+feasible on all clients.
+
+#### func (StmtCfg) LongBufferSize
+
+```go
+func (c StmtCfg) LongBufferSize() uint32
+```
+LongBufferSize returns the long buffer size in bytes used to define the sql
+select-column buffer size of an Oracle LONG type.
+
+The default is 16,777,216 bytes.
+
+The default is considered a moderate buffer where the 2GB max buffer may not be
+feasible on all clients.
+
+#### func (StmtCfg) LongRawBufferSize
+
+```go
+func (c StmtCfg) LongRawBufferSize() uint32
+```
+LongRawBufferSize returns the LONG RAW buffer size in bytes used to define the
+sql select-column buffer size of an Oracle LONG RAW type.
+
+The default is 16,777,216 bytes.
+
+The default is considered a moderate buffer where the 2GB max buffer may not be
+feasible on all clients.
+
+#### func (StmtCfg) PrefetchMemorySize
+
+```go
+func (c StmtCfg) PrefetchMemorySize() uint32
+```
+PrefetchMemorySize returns the prefetch memory size in bytes used during a SQL
+select command.
+
+The default is 134,217,728 bytes.
+
+PrefetchMemorySize works in coordination with PrefetchRowCount. When
+PrefetchRowCount is set to zero only PrefetchMemorySize is used; otherwise, the
+minimum of PrefetchRowCount and PrefetchMemorySize is used.
+
+#### func (StmtCfg) PrefetchRowCount
+
+```go
+func (c StmtCfg) PrefetchRowCount() uint32
+```
+PrefetchRowCount returns the number of rows to prefetch during a select query.
+
+The default is 0.
+
+PrefetchRowCount works in coordination with PrefetchMemorySize. When
+PrefetchRowCount is set to zero only PrefetchMemorySize is used; otherwise, the
+minimum of PrefetchRowCount and PrefetchMemorySize is used.
+
+#### func (StmtCfg) SetBinaryDouble
+
+```go
+func (c StmtCfg) SetBinaryDouble(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetBinaryFloat
+
+```go
+func (c StmtCfg) SetBinaryFloat(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetBlob
+
+```go
+func (c StmtCfg) SetBlob(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetByteSlice
+
+```go
+func (c StmtCfg) SetByteSlice(gct GoColumnType) StmtCfg
+```
+SetByteSlice sets a GoColumnType associated to SQL statement []byte parameter.
+
+Valid values are U8 and Bits.
+
+Returns an error if U8 or Bits is not specified.
+
+#### func (StmtCfg) SetChar
+
+```go
+func (c StmtCfg) SetChar(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetChar1
+
+```go
+func (c StmtCfg) SetChar1(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetClob
+
+```go
+func (c StmtCfg) SetClob(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetDate
+
+```go
+func (c StmtCfg) SetDate(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetFloat
+
+```go
+func (c StmtCfg) SetFloat(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetLobBufferSize
+
+```go
+func (c StmtCfg) SetLobBufferSize(size int) StmtCfg
+```
+SetLobBufferSize sets the LOB buffer size in bytes.
+
+The maximum is 2,147,483,642 bytes.
+
+Returns an error if the specified size is greater than 2,147,483,642.
+
+#### func (StmtCfg) SetLong
+
+```go
+func (c StmtCfg) SetLong(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetLongBufferSize
+
+```go
+func (c StmtCfg) SetLongBufferSize(size uint32) StmtCfg
+```
+SetLongBufferSize sets the long buffer size in bytes.
+
+The maximum is 2,147,483,642 bytes.
+
+Returns an error if the specified size is less than 1 or greater than
+2,147,483,642.
+
+#### func (StmtCfg) SetLongRaw
+
+```go
+func (c StmtCfg) SetLongRaw(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetLongRawBufferSize
+
+```go
+func (c StmtCfg) SetLongRawBufferSize(size uint32) StmtCfg
+```
+SetLongRawBufferSize sets the LONG RAW buffer size in bytes.
+
+The maximum is 2,147,483,642 bytes.
+
+Returns an error if the specified size is greater than 2,147,483,642.
+
+#### func (StmtCfg) SetNumberBigFloat
+
+```go
+func (c StmtCfg) SetNumberBigFloat(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetNumberBigInt
+
+```go
+func (c StmtCfg) SetNumberBigInt(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetNumberFloat
+
+```go
+func (c StmtCfg) SetNumberFloat(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetNumberInt
+
+```go
+func (c StmtCfg) SetNumberInt(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetPrefetchMemorySize
+
+```go
+func (c StmtCfg) SetPrefetchMemorySize(prefetchMemorySize uint32) StmtCfg
+```
+SetPrefetchMemorySize sets the prefetch memory size in bytes used during a SQL
+select command.
+
+#### func (StmtCfg) SetPrefetchRowCount
+
+```go
+func (c StmtCfg) SetPrefetchRowCount(prefetchRowCount uint32) StmtCfg
+```
+SetPrefetchRowCount sets the number of rows to prefetch during a select query.
+
+#### func (StmtCfg) SetRaw
+
+```go
+func (c StmtCfg) SetRaw(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetStringPtrBufferSize
+
+```go
+func (c StmtCfg) SetStringPtrBufferSize(size int) StmtCfg
+```
+SetStringPtrBufferSize sets the size of a buffer used to store a string during
+*string parameter binding and []*string parameter binding in a SQL statement.
+
+#### func (StmtCfg) SetTimestamp
+
+```go
+func (c StmtCfg) SetTimestamp(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetTimestampLtz
+
+```go
+func (c StmtCfg) SetTimestampLtz(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetTimestampTz
+
+```go
+func (c StmtCfg) SetTimestampTz(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) SetVarchar
+
+```go
+func (c StmtCfg) SetVarchar(gct GoColumnType) StmtCfg
+```
+
+#### func (StmtCfg) StringPtrBufferSize
+
+```go
+func (c StmtCfg) StringPtrBufferSize() int
+```
+StringPtrBufferSize returns the size of a buffer in bytes used to store a string
+during *string parameter binding and []*string parameter binding in a SQL
+statement.
+
+The default is 4000 bytes.
+
+For a *string parameter binding, you may wish to increase the size of
+StringPtrBufferSize depending on the Oracle column type. For VARCHAR2,
+NVARCHAR2, and RAW oracle columns the Oracle MAX_STRING_SIZE is usually 4000 but
+may be set up to 32767.
+
+#### type String
+
+```go
+type String struct {
+	IsNull bool
+	Value  string
+}
+```
+
+String is a nullable string.
+
+#### func (String) Equals
+
+```go
+func (this String) Equals(other String) bool
+```
+Equals returns true when the receiver and specified String are both null, or
+when the receiver and specified String are both not null and Values are equal.
+
+#### func (String) MarshalJSON
+
+```go
+func (this String) MarshalJSON() ([]byte, error)
+```
+
+#### func (String) String
+
+```go
+func (this String) String() string
+```
+
+#### func (*String) UnmarshalJSON
+
+```go
+func (this *String) UnmarshalJSON(p []byte) error
+```
+
+#### type Time
+
+```go
+type Time struct {
+	IsNull bool
+	Value  time.Time
+}
+```
+
+Time is a nullable time.Time.
+
+#### func (Time) Equals
+
+```go
+func (this Time) Equals(other Time) bool
+```
+Equals returns true when the receiver and specified Time are both null, or when
+the receiver and specified Time are both not null and Values are equal.
+
+#### func (Time) MarshalJSON
+
+```go
+func (this Time) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Time) UnmarshalJSON
+
+```go
+func (this *Time) UnmarshalJSON(p []byte) error
+```
+
+#### type Tx
+
+```go
+type Tx struct {
+	sync.RWMutex
+}
+```
+
+Tx represents an Oracle transaction associated with a session.
+
+Implements the driver.Tx interface.
+
+#### func (*Tx) Commit
+
+```go
+func (tx *Tx) Commit() (err error)
+```
+Commit commits the transaction.
+
+Commit is a member of the driver.Tx interface.
+
+#### func (*Tx) Rollback
+
+```go
+func (tx *Tx) Rollback() (err error)
+```
+Rollback rolls back a transaction.
+
+Rollback is a member of the driver.Tx interface.
+
+#### type TxOption
+
+```go
+type TxOption func(*txOption)
+```
+
+
+#### func  TxFlags
+
+```go
+func TxFlags(flags uint32) TxOption
+```
+
+#### func  TxTimeout
+
+```go
+func TxTimeout(timeout time.Duration) TxOption
+```
+
+#### type Uint16
+
+```go
+type Uint16 struct {
+	IsNull bool
+	Value  uint16
+}
+```
+
+Uint16 is a nullable uint16.
+
+#### func (Uint16) Equals
+
+```go
+func (this Uint16) Equals(other Uint16) bool
+```
+Equals returns true when the receiver and specified Uint16 are both null, or
+when the receiver and specified Uint16 are both not null and Values are equal.
+
+#### func (Uint16) MarshalJSON
+
+```go
+func (this Uint16) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Uint16) UnmarshalJSON
+
+```go
+func (this *Uint16) UnmarshalJSON(p []byte) error
+```
+
+#### type Uint32
+
+```go
+type Uint32 struct {
+	IsNull bool
+	Value  uint32
+}
+```
+
+Uint32 is a nullable uint32.
+
+#### func (Uint32) Equals
+
+```go
+func (this Uint32) Equals(other Uint32) bool
+```
+Equals returns true when the receiver and specified Uint32 are both null, or
+when the receiver and specified Uint32 are both not null and Values are equal.
+
+#### func (Uint32) MarshalJSON
+
+```go
+func (this Uint32) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Uint32) UnmarshalJSON
+
+```go
+func (this *Uint32) UnmarshalJSON(p []byte) error
+```
+
+#### type Uint64
+
+```go
+type Uint64 struct {
+	IsNull bool
+	Value  uint64
+}
+```
+
+Uint64 is a nullable uint64.
+
+#### func (Uint64) Equals
+
+```go
+func (this Uint64) Equals(other Uint64) bool
+```
+Equals returns true when the receiver and specified Uint64 are both null, or
+when the receiver and specified Uint64 are both not null and Values are equal.
+
+#### func (Uint64) MarshalJSON
+
+```go
+func (this Uint64) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Uint64) UnmarshalJSON
+
+```go
+func (this *Uint64) UnmarshalJSON(p []byte) error
+```
+
+#### type Uint8
+
+```go
+type Uint8 struct {
+	IsNull bool
+	Value  uint8
+}
+```
+
+Uint8 is a nullable uint8.
+
+#### func (Uint8) Equals
+
+```go
+func (this Uint8) Equals(other Uint8) bool
+```
+Equals returns true when the receiver and specified Uint8 are both null, or when
+the receiver and specified Uint8 are both not null and Values are equal.
+
+#### func (Uint8) MarshalJSON
+
+```go
+func (this Uint8) MarshalJSON() ([]byte, error)
+```
+
+#### func (*Uint8) UnmarshalJSON
+
+```go
+func (this *Uint8) UnmarshalJSON(p []byte) error
+```

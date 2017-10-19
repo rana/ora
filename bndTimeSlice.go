@@ -26,6 +26,7 @@ type bndTimeSlice struct {
 	ociDateTimes []*C.OCIDateTime
 	values       []Time
 	times        []time.Time
+	isOra        bool
 	arrHlp
 }
 
@@ -51,6 +52,7 @@ func (bnd *bndTimeSlice) bindOra(values []Time, position namedPos, stmt *Stmt, i
 			bnd.times[n] = values[n].Value
 		}
 	}
+	bnd.isOra = true
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
@@ -94,6 +96,11 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position namedPos, stmt *Stmt,
 			if valid != 0 {
 				return iterations, fmt.Errorf("%s given bad date: %d", timeValue, valid)
 			}
+		}
+	}
+	if !bnd.isOra {
+		for i := range bnd.nullInds {
+			bnd.nullInds[i] = 0
 		}
 	}
 
@@ -191,6 +198,7 @@ func (bnd *bndTimeSlice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.values = nil
 	bnd.ociDateTimes = nil
+	bnd.isOra = false
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxTimeSlice, bnd)
 	return nil

@@ -29,6 +29,7 @@ type bndDateSlice struct {
 	times    *[]time.Time
 	dtype    C.ub4
 	timezone *time.Location
+	isOra    bool
 	arrHlp
 }
 
@@ -64,6 +65,7 @@ func (bnd *bndDateSlice) bindOra(values *[]Date, position namedPos, stmt *Stmt, 
 	}
 	*bnd.values = V
 	*bnd.times = T
+	bnd.isOra = true
 	return bnd.bind(bnd.times, position, stmt, isAssocArray)
 }
 
@@ -95,6 +97,11 @@ func (bnd *bndDateSlice) bind(values *[]time.Time, position namedPos, stmt *Stmt
 		//ociSetDateTime(&arr[0], timeValue)
 		bnd.ociDates[n].Set(timeValue)
 		bnd.alen[n] = valueSz
+	}
+	if !bnd.isOra {
+		for i := range bnd.nullInds {
+			bnd.nullInds[i] = 0
+		}
 	}
 
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
@@ -182,6 +189,7 @@ func (bnd *bndDateSlice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.times = nil
 	bnd.values = nil
+	bnd.isOra = false
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxDateSlice, bnd)
 	return nil

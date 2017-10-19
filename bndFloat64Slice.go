@@ -22,6 +22,7 @@ type bndFloat64Slice struct {
 	ociNumbers []C.OCINumber
 	values     *[]Float64
 	floats     *[]float64
+	isOra      bool
 	arrHlp
 }
 
@@ -53,6 +54,7 @@ func (bnd *bndFloat64Slice) bindOra(values *[]Float64, position namedPos, stmt *
 		}
 	}
 	*bnd.floats = V
+	bnd.isOra = true
 	return bnd.bind(bnd.floats, position, stmt, isAssocArray)
 }
 
@@ -90,6 +92,11 @@ func (bnd *bndFloat64Slice) bind(values *[]float64, position namedPos, stmt *Stm
 			C.ub4(len(V)),
 		); r == C.OCI_ERROR {
 			return iterations, bnd.stmt.ses.srv.env.ociError()
+		}
+	}
+	if !bnd.isOra {
+		for i := range bnd.nullInds {
+			bnd.nullInds[i] = 0
 		}
 	}
 	bnd.stmt.logF(_drv.Cfg().Log.Stmt.Bind,
@@ -188,6 +195,7 @@ func (bnd *bndFloat64Slice) close() (err error) {
 	bnd.ocibnd = nil
 	bnd.values = nil
 	bnd.floats = nil
+	bnd.isOra = false
 	bnd.arrHlp.close()
 	stmt.putBnd(bndIdxFloat64Slice, bnd)
 	return nil
