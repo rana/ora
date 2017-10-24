@@ -18,7 +18,7 @@ type StmtCfg struct {
 	longRawBufferSize   uint32
 	lobBufferSize       int
 	stringPtrBufferSize int
-	forceMaxFetchSize	bool
+	forceMaxFetchLen    bool
 	byteSlice           GoColumnType
 
 	// IsAutoCommitting determines whether DML statements are automatically
@@ -259,12 +259,19 @@ func (c StmtCfg) ByteSlice() GoColumnType {
 	return c.byteSlice
 }
 
+// returns a value of the forceMaxFetchLen
 func (c StmtCfg) ForceMaxFetchSize() bool {
-	return c.forceMaxFetchSize
+	return c.forceMaxFetchLen
 }
 
-func (c StmtCfg) SetForceMaxFetchSize()  StmtCfg {
-	c.forceMaxFetchSize = true
+// Sets the flag forceMaxFetchLen to true which causes the
+// result sets containing columns o types:
+// C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI
+// to be fetched with MaxFetchLen
+// Caution: the default buffer size for blob is 1MB. So, for example a single
+// fetch from the result set that contains just one blob will consume 128MB of RAM
+func (c StmtCfg) SetForceMaxFetchLen() StmtCfg {
+	c.forceMaxFetchLen = true
 	return c
 }
 
