@@ -388,6 +388,7 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	return stmt.qryC(context.Background(), params)
 }
 func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, err error) {
+	fmt.Printf("in qryC\n")
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
@@ -400,6 +401,7 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	if cfg, ok := ctxStmtCfg(ctx); ok {
 		stmt.SetCfg(cfg)
 	}
+
 	err = stmt.checkClosed()
 	if err != nil {
 		return nil, errE(err)
@@ -409,6 +411,7 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 		return nil, errE(err)
 	}
 	err = stmt.setPrefetchSize() // set prefetch size
+
 	if err != nil {
 		return nil, errE(err)
 	}

@@ -521,13 +521,18 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	}
 
 	fetchLen := MaxFetchLen
+
 Loop:
 	for _, param := range params {
 		switch param.typeCode {
 		// These can consume a lot of memory.
 		case C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI:
-			fetchLen = MinFetchLen
-			break Loop
+			if !stmt.Cfg().ForceMaxFetchSize() {
+				fetchLen = MinFetchLen
+				break Loop
+			} else {
+				fmt.Println("forced MaxFetchLen")
+			}
 		}
 	}
 

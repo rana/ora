@@ -18,6 +18,7 @@ type StmtCfg struct {
 	longRawBufferSize   uint32
 	lobBufferSize       int
 	stringPtrBufferSize int
+	forceMaxFetchSize	bool
 	byteSlice           GoColumnType
 
 	// IsAutoCommitting determines whether DML statements are automatically
@@ -256,6 +257,15 @@ func (c StmtCfg) SetByteSlice(gct GoColumnType) StmtCfg {
 // if the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
 func (c StmtCfg) ByteSlice() GoColumnType {
 	return c.byteSlice
+}
+
+func (c StmtCfg) ForceMaxFetchSize() bool {
+	return c.forceMaxFetchSize
+}
+
+func (c StmtCfg) SetForceMaxFetchSize()  StmtCfg {
+	c.forceMaxFetchSize = true
+	return c
 }
 
 func (c StmtCfg) SetNumberInt(gct GoColumnType) StmtCfg {
