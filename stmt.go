@@ -95,6 +95,17 @@ func (stmt *Stmt) Cfg() StmtCfg {
 	}
 	return cfg
 }
+
+// returns the Stmt's StmtCfg only
+func (stmt *Stmt) SelfCfg() StmtCfg {
+	var cfg StmtCfg
+	c := stmt.cfg.Load()
+	if c != nil {
+		cfg = c.(StmtCfg)
+	}
+	return cfg
+}
+
 func (stmt *Stmt) SetCfg(cfg StmtCfg) {
 	stmt.cfg.Store(cfg)
 }
@@ -388,7 +399,6 @@ func (stmt *Stmt) qry(params []interface{}) (rset *Rset, err error) {
 	return stmt.qryC(context.Background(), params)
 }
 func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, err error) {
-	fmt.Printf("in qryC\n")
 	defer func() {
 		if value := recover(); value != nil {
 			err = errR(value)
