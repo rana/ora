@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	MaxFetchLen = 128
-	MinFetchLen = 8
+	MaxFetchLen        = 1024
+	DefaultFetchLen    = 128
+	DefaultLOBFetchLen = 8
 
 	byteWidth64 = 8
 	byteWidth32 = 4
@@ -520,24 +521,31 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		rset.logF(logCfg.Rset.OpenDefs, "%d. %s/%d", n+1, Columns[n].Name, params[n].typeCode)
 	}
 
-	fetchLen := MaxFetchLen
+	fetchLen, lobFetchLen := DefaultFetchLen, DefaultLOBFetchLen
+	cfg := rset.stmt.Cfg()
+	if cfg.fetchLen > 0 {
+		fetchLen = cfg.fetchLen
+	}
+	if cfg.lobFetchLen > 0 {
+		lobFetchLen = cfg.lobFetchLen
+	}
 
-Loop:
-	for _, param := range params {
-		switch param.typeCode {
-		// These can consume a lot of memory.
-		case C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI:
-			if !stmt.SelfCfg().ForceMaxFetchSize() {
-				fetchLen = MinFetchLen
+	if fetchLen != lobFetchLen {
+	Loop:
+		for _, param := range params {
+			switch param.typeCode {
+			// These can consume a lot of memory.
+			case C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI:
+				fetchLen = lobFetchLen
 				break Loop
 			}
 		}
 	}
+	//rset.logF(true, "fetchLen=%d", fetchLen)
 
 	rset.defs, rset.Columns, rset.Row = defs, Columns, Row
 	rset.fetchLen = fetchLen
 
-	cfg := rset.stmt.Cfg()
 	//rset.logF(logCfg.Rset.Open, "cfg=%#v", cfg)
 	stmt.RLock()
 	gcts := stmt.gcts

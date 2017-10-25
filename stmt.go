@@ -83,27 +83,22 @@ type Stmt struct {
 // Cfg returns the Stmt's StmtCfg, or it's Ses's, if not set.
 // If the env is the PkgSqlEnv, that will override StmtCfg!
 func (stmt *Stmt) Cfg() StmtCfg {
-	c := stmt.cfg.Load()
-	var cfg StmtCfg
-	if c != nil {
-		cfg = c.(StmtCfg)
+	cfg := stmt.SelfCfg()
+	if !cfg.IsZero() {
+		return cfg
 	}
 	if env := stmt.Env(); env.isPkgEnv {
-		cfg = env.Cfg()
-	} else if cfg.IsZero() {
-		cfg = stmt.ses.Cfg().StmtCfg
+		return env.Cfg()
 	}
-	return cfg
+	return stmt.ses.Cfg().StmtCfg
 }
 
 // returns the Stmt's StmtCfg only
 func (stmt *Stmt) SelfCfg() StmtCfg {
-	var cfg StmtCfg
-	c := stmt.cfg.Load()
-	if c != nil {
-		cfg = c.(StmtCfg)
+	if c := stmt.cfg.Load(); c != nil {
+		return c.(StmtCfg)
 	}
-	return cfg
+	return StmtCfg{}
 }
 
 func (stmt *Stmt) SetCfg(cfg StmtCfg) {

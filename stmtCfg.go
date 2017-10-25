@@ -12,14 +12,14 @@ package ora
 // StmtCfg is immutable, so every Set method returns a new
 // instance, maybe with Err set, too.
 type StmtCfg struct {
-	prefetchRowCount    uint32
-	prefetchMemorySize  uint32
-	longBufferSize      uint32
-	longRawBufferSize   uint32
-	lobBufferSize       int
-	stringPtrBufferSize int
-	forceMaxFetchLen    bool
-	byteSlice           GoColumnType
+	prefetchRowCount      uint32
+	prefetchMemorySize    uint32
+	longBufferSize        uint32
+	longRawBufferSize     uint32
+	lobBufferSize         int
+	stringPtrBufferSize   int
+	fetchLen, lobFetchLen int
+	byteSlice             GoColumnType
 
 	// IsAutoCommitting determines whether DML statements are automatically
 	// committed.
@@ -57,6 +57,8 @@ type StmtCfg struct {
 // NewStmtCfg returns a StmtCfg with default values.
 func NewStmtCfg() StmtCfg {
 	var c StmtCfg
+	c.fetchLen = DefaultFetchLen
+	c.lobFetchLen = DefaultLOBFetchLen
 	c.prefetchRowCount = 128
 	c.prefetchMemorySize = 128 << 20 // 134,217,728
 	c.longBufferSize = 16 << 20      // 16,777,216
@@ -259,19 +261,43 @@ func (c StmtCfg) ByteSlice() GoColumnType {
 	return c.byteSlice
 }
 
-// returns a value of the forceMaxFetchLen
-func (c StmtCfg) ForceMaxFetchSize() bool {
-	return c.forceMaxFetchLen
+// returns a value of the lobFetchLen
+func (c StmtCfg) LOBFetchLen() int {
+	return c.lobFetchLen
 }
 
-// Sets the flag forceMaxFetchLen to true which causes the
-// result sets containing columns o types:
+// returns a value of the fetchLen
+func (c StmtCfg) FetchLen() int {
+	return c.fetchLen
+}
+
+// SetFetchLen overrides DefaultFetchLen for prefetch lengths.
+func (c StmtCfg) SetFetchLen(length int) StmtCfg {
+	if length <= 0 {
+		return c
+	}
+	if length >= MaxFetchLen {
+		length = MaxFetchLen
+	}
+	c.fetchLen = length
+	return c
+}
+
+// SetLOBFetchLen overrides DefaultLOBFetchLen for prefetch LOB lengths.
+//
+// This affects result sets with any of the following column types:
 // C.SQLT_LNG, C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI
-// to be fetched with MaxFetchLen
+//
 // Caution: the default buffer size for blob is 1MB. So, for example a single
 // fetch from the result set that contains just one blob will consume 128MB of RAM
-func (c StmtCfg) SetForceMaxFetchLen() StmtCfg {
-	c.forceMaxFetchLen = true
+func (c StmtCfg) SetLOBFetchLen(length int) StmtCfg {
+	if length <= 0 {
+		return c
+	}
+	if length >= MaxFetchLen {
+		length = MaxFetchLen
+	}
+	c.lobFetchLen = length
 	return c
 }
 

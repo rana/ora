@@ -718,7 +718,9 @@ nullable Go types by default:
     	SetClob(ora.OraS).
     	SetBlob(ora.OraBin).
     	SetRaw(ora.OraBin).
-    	SetLongRaw(ora.OraBin)
+    	SetLongRaw(ora.OraBin).
+    	SetFetchLen(100).
+    	SetLOBFetchLen(100)
     sc.StmtCfg = cfg
     srv, err := env.OpenSrv(sc)
     // any new SesCfg.StmtCfg, StmtCfg.Cfg will receive this StmtCfg
@@ -766,6 +768,10 @@ and don't have a unique Go type.
 The default for SELECTing [BC]LOB columns is a safe Bin or S, which means all
 the contents of the LOB is slurped into memory and returned as a []byte or
 string.
+
+The DefaultLOBFetchLen says LOBs are prefetched only a minimal way, to minimize
+extra memory usage - you can override this using
+`stmt.SetCfg(stmt.Cfg().SetLOBFetchLen(100))`.
 
 If you want more control, you can use ora.L in Prep, Qry or
 `ses.SetCfg(ses.Cfg().SetBlob(ora.L))`. But keep in mind that Oracle restricts
@@ -1284,8 +1290,9 @@ const (
 
 ```go
 const (
-	MaxFetchLen = 128
-	MinFetchLen = 8
+	MaxFetchLen        = 1024
+	DefaultFetchLen    = 128
+	DefaultLOBFetchLen = 8
 )
 ```
 
@@ -4758,6 +4765,13 @@ func (stmt *Stmt) Qry(params ...interface{}) (*Rset, error)
 ```
 Qry runs a SQL query on an Oracle server returning a *Rset and possible error.
 
+#### func (*Stmt) SelfCfg
+
+```go
+func (stmt *Stmt) SelfCfg() StmtCfg
+```
+returns the Stmt's StmtCfg only
+
 #### func (*Stmt) SetCfg
 
 ```go
@@ -4843,11 +4857,25 @@ requires knowing the destination column type ahead of time. Set ByteSlice to
 Bits if the destination column is BLOB, RAW or LONG RAW. Set ByteSlice to U8 if
 the destination column is NUMBER, BINARY_DOUBLE, BINARY_FLOAT or FLOAT.
 
+#### func (StmtCfg) FetchLen
+
+```go
+func (c StmtCfg) FetchLen() int
+```
+returns a value of the fetchLen
+
 #### func (StmtCfg) IsZero
 
 ```go
 func (c StmtCfg) IsZero() bool
 ```
+
+#### func (StmtCfg) LOBFetchLen
+
+```go
+func (c StmtCfg) LOBFetchLen() int
+```
+returns a value of the lobFetchLen
 
 #### func (StmtCfg) LobBufferSize
 
@@ -4968,11 +4996,31 @@ func (c StmtCfg) SetClob(gct GoColumnType) StmtCfg
 func (c StmtCfg) SetDate(gct GoColumnType) StmtCfg
 ```
 
+#### func (StmtCfg) SetFetchLen
+
+```go
+func (c StmtCfg) SetFetchLen(length int) StmtCfg
+```
+SetFetchLen overrides DefaultFetchLen for prefetch lengths.
+
 #### func (StmtCfg) SetFloat
 
 ```go
 func (c StmtCfg) SetFloat(gct GoColumnType) StmtCfg
 ```
+
+#### func (StmtCfg) SetLOBFetchLen
+
+```go
+func (c StmtCfg) SetLOBFetchLen(length int) StmtCfg
+```
+SetLOBFetchLen overrides DefaultLOBFetchLen for prefetch LOB lengths.
+
+This affects result sets with any of the following column types: C.SQLT_LNG,
+C.SQLT_BFILE, C.SQLT_BLOB, C.SQLT_CLOB, C.SQLT_LBI
+
+Caution: the default buffer size for blob is 1MB. So, for example a single fetch
+from the result set that contains just one blob will consume 128MB of RAM
 
 #### func (StmtCfg) SetLobBufferSize
 

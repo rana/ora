@@ -22,8 +22,8 @@ func (bnd *bndUint8) bind(value uint8, position namedPos, stmt *Stmt) error {
 	r := C.OCINumberFromInt(
 		bnd.stmt.ses.srv.env.ocierr, //OCIError            *err,
 		unsafe.Pointer(&value),      //const void          *inum,
-		byteWidth8,                  //uword               inum_length,
-		C.OCI_NUMBER_UNSIGNED,       //uword               inum_s_flag,
+		byteWidth8,                 //uword               inum_length,
+		C.OCI_NUMBER_UNSIGNED,         //uword               inum_s_flag,
 		&bnd.ociNumber[0])           //OCINumber           *number );
 	if r == C.OCI_ERROR {
 		return bnd.stmt.ses.srv.env.ociError()

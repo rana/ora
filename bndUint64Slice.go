@@ -150,7 +150,7 @@ func (bnd *bndUint64Slice) setPtr() error {
 				bnd.stmt.ses.srv.env.ocierr, //OCIError              *err,
 				&number,                     //const OCINumber     *number,
 				byteWidth64,                 //uword               rsl_length,
-				C.OCI_NUMBER_UNSIGNED,       //uword               rsl_flag,
+				C.OCI_NUMBER_UNSIGNED,         //uword               rsl_flag,
 				unsafe.Pointer(&ints[i]))    //void                *rsl );
 			if r == C.OCI_ERROR {
 				return bnd.stmt.ses.srv.env.ociError()

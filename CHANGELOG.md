@@ -3,6 +3,7 @@
 ## master ##
 
 ## v4.1.14 ##
+  * Allow specifying FetchLen and LOBFetchLen.
 
 ## v4.1.13 ##
   * Fix bindStirngSlice error of nullInds reuse without reset.
