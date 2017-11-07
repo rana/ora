@@ -2,6 +2,8 @@
 
 ## master ##
 
+## v4.1.15 ##
+
 ## v4.1.14 ##
   * Allow specifying FetchLen and LOBFetchLen.
   * Add Rset.ColumnIndex helper function.
