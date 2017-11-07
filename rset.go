@@ -91,6 +91,7 @@ type Rset struct {
 
 	Row             []interface{}
 	Columns         []Column
+	ColumnIndex     map[string]int
 	index           int32
 	err             error
 	fetched, offset int64
@@ -421,7 +422,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.fetched = 0
 	rset.finished = false
 	rset.err = nil
-	defs, Columns, Row := rset.defs, rset.Columns, rset.Row
+	defs, Columns, Row, ColumnIndex := rset.defs, rset.Columns, rset.Row, rset.ColumnIndex
 	rset.defs, rset.Columns, rset.Row = nil, nil, nil
 
 	stmt.RLock()
@@ -464,6 +465,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	} else {
 		Row = Row[:len(Row)]
 	}
+	ColumnIndex = make(map[string]int)
 	//fmt.Printf("rset.open (paramCount %v)\n", paramCount)
 
 	// create parameters for each select-list column
@@ -483,6 +485,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	}()
 
 	var gct GoColumnType
+
 	for n := range defs {
 		// Create oci parameter handle; may be freed by OCIDescriptorFree()
 		// parameter position is 1-based
@@ -513,11 +516,13 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		if err != nil {
 			return err
 		}
+		cName := C.GoStringN(columnName, C.int(colSize))
 		Columns[n] = Column{
-			Name:   C.GoStringN(columnName, C.int(colSize)),
+			Name:   cName,
 			Type:   params[n].typeCode,
 			Length: params[n].columnSize,
 		}
+		ColumnIndex[cName] = n
 		rset.logF(logCfg.Rset.OpenDefs, "%d. %s/%d", n+1, Columns[n].Name, params[n].typeCode)
 	}
 
@@ -543,7 +548,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	}
 	//rset.logF(true, "fetchLen=%d", fetchLen)
 
-	rset.defs, rset.Columns, rset.Row = defs, Columns, Row
+	rset.defs, rset.Columns, rset.Row, rset.ColumnIndex = defs, Columns, Row, ColumnIndex	
 	rset.fetchLen = fetchLen
 
 	//rset.logF(logCfg.Rset.Open, "cfg=%#v", cfg)
