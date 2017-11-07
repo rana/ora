@@ -139,7 +139,9 @@ func (rset *Rset) IsOpen() bool {
 	return rset.stmt != nil && rset.ocistmt != nil && rset.env != nil
 }
 
-// ColumnIndex returns a map of column names to their respective indexes
+// ColumnIndex returns a map of column names to their respective indexes.
+// Duplicate column names are not treated specially, the biggest index returned
+// for each column name.
 func (rset *Rset) ColumnIndex() map[string]int {
 	if rset == nil {
 		return nil
@@ -147,11 +149,11 @@ func (rset *Rset) ColumnIndex() map[string]int {
 	rset.RLock()
 	defer rset.RUnlock()
 
-	if  rset.Columns == nil || len(rset.Columns) == 0 {
+	if rset.Columns == nil || len(rset.Columns) == 0 {
 		return nil
 	}
 
-	index := make(map[string]int)
+	index := make(map[string]int, len(rset.Columns))
 	for i, c := range rset.Columns {
 		index[c.Name] = i
 	}

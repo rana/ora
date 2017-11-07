@@ -53,6 +53,7 @@ func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
+	// https://docs.oracle.com/cd/B28359_01/appdev.111/b28395/oci07lob.htm#CHDDHFAB
 	prefetchLength := C.boolean(C.TRUE)
 	return env.setAttr(unsafe.Pointer(def.ocidef), C.OCI_HTYPE_DEFINE,
 		unsafe.Pointer(&prefetchLength), 0, C.OCI_ATTR_LOBPREFETCH_LENGTH)
