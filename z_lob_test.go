@@ -19,6 +19,62 @@ import (
 	ora "gopkg.in/rana/ora.v4"
 )
 
+func TestLOBCloseStatement(t *testing.T) {
+	qry := `DECLARE
+  cur1 SYS_REFCURSOR;
+  cur2 SYS_REFCURSOR;
+  cur3 SYS_REFCURSOR;
+  cur4 SYS_REFCURSOR;
+BEGIN
+  OPEN cur1 FOR
+    SELECT '1', SYSDATE dt FROM DUAL
+	UNION ALL
+	SELECT object_name, SYSDATE FROM all_objects;
+  :1 := cur1;
+  OPEN cur2 FOR
+    SELECT '1', SYSDATE dt FROM DUAL
+	UNION ALL
+	SELECT object_name, SYSDATE FROM all_objects;
+  :2 := cur2;
+  OPEN cur3 FOR
+    SELECT '1', SYSDATE dt FROM DUAL
+	UNION ALL
+	SELECT object_name, SYSDATE FROM all_objects;
+  :3 := cur3;
+  OPEN cur4 FOR
+    SELECT '2', SYSDATE dt FROM DUAL
+	UNION ALL
+	SELECT object_name, SYSDATE FROM all_objects;
+  :4 := cur4;
+END;`
+
+	for _, doNext := range []bool{true, false} {
+		stmt, err := testSes.Prep(qry)
+		if err != nil {
+			t.Error(qry, err)
+		}
+
+		cur := make([]*ora.Rset, 4)
+		for i := range cur {
+			cur[i] = &ora.Rset{}
+		}
+		if _, err = stmt.Exe(cur[0], cur[1], cur[2], cur[3]); err != nil {
+			t.Error(err)
+		}
+		if !doNext {
+			stmt.Close()
+			continue
+		}
+		for _, c := range cur {
+			row := c.NextRow()
+			if row != nil {
+				fmt.Println(row)
+			}
+		}
+		stmt.Close()
+	}
+}
+
 func TestLobSelect(t *testing.T) {
 	tbl := tableName()
 	testDb.Exec("DROP TABLE " + tbl)
