@@ -91,7 +91,6 @@ type Rset struct {
 
 	Row             []interface{}
 	Columns         []Column
-	ColumnIndex     map[string]int
 	index           int32
 	err             error
 	fetched, offset int64
@@ -138,6 +137,25 @@ func (rset *Rset) IsOpen() bool {
 	rset.RLock()
 	defer rset.RUnlock()
 	return rset.stmt != nil && rset.ocistmt != nil && rset.env != nil
+}
+
+// ColumnIndex returns a map of column names to their respective indexes
+func (rset *Rset) ColumnIndex() map[string]int {
+	if rset == nil {
+		return nil
+	}
+	rset.RLock()
+	defer rset.RUnlock()
+
+	if  rset.Columns == nil || len(rset.Columns) == 0 {
+		return nil
+	}
+
+	index := make(map[string]int)
+	for i, c := range rset.Columns {
+		index[c.Name] = i
+	}
+	return index
 }
 
 // closeWithRemove releases allocated resources and removes the Rset from the
@@ -422,7 +440,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	rset.fetched = 0
 	rset.finished = false
 	rset.err = nil
-	defs, Columns, Row, ColumnIndex := rset.defs, rset.Columns, rset.Row, rset.ColumnIndex
+	defs, Columns, Row := rset.defs, rset.Columns, rset.Row
 	rset.defs, rset.Columns, rset.Row = nil, nil, nil
 
 	stmt.RLock()
@@ -465,7 +483,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	} else {
 		Row = Row[:len(Row)]
 	}
-	ColumnIndex = make(map[string]int)
+
 	//fmt.Printf("rset.open (paramCount %v)\n", paramCount)
 
 	// create parameters for each select-list column
@@ -516,13 +534,13 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		if err != nil {
 			return err
 		}
-		cName := C.GoStringN(columnName, C.int(colSize))
+
 		Columns[n] = Column{
-			Name:   cName,
+			Name:   C.GoStringN(columnName, C.int(colSize)),
 			Type:   params[n].typeCode,
 			Length: params[n].columnSize,
 		}
-		ColumnIndex[cName] = n
+
 		rset.logF(logCfg.Rset.OpenDefs, "%d. %s/%d", n+1, Columns[n].Name, params[n].typeCode)
 	}
 
@@ -548,7 +566,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 	}
 	//rset.logF(true, "fetchLen=%d", fetchLen)
 
-	rset.defs, rset.Columns, rset.Row, rset.ColumnIndex = defs, Columns, Row, ColumnIndex	
+	rset.defs, rset.Columns, rset.Row = defs, Columns, Row
 	rset.fetchLen = fetchLen
 
 	//rset.logF(logCfg.Rset.Open, "cfg=%#v", cfg)
