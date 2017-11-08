@@ -503,7 +503,13 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
 	return length, nil
 }
 
-func lobClose(ses *Ses, lob *C.OCILobLocator) error {
+func lobClose(ses *Ses, lob *C.OCILobLocator) (err error) {
+	defer func() {
+		// Not nice, but works - see https://github.com/rana/ora/issues/229
+		if r := recover(); r != nil {
+			err = errR(r)
+		}
+	}()
 	if lob == nil {
 		return nil
 	}
