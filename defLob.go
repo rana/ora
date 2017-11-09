@@ -30,9 +30,10 @@ var lobChunkPool = sync.Pool{
 
 type defLob struct {
 	ociDef
-	gct  GoColumnType
-	sqlt C.ub2
-	lobs []*C.OCILobLocator
+	gct       GoColumnType
+	sqlt      C.ub2
+	lobs      []*C.OCILobLocator
+	allocated []bool
 	sync.Mutex
 }
 
@@ -50,6 +51,14 @@ func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset
 	env := rset.stmt.ses.srv.env
 	//rset.RUnlock()
 	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(fetchLen) * C.sof_LobLocatorp))))[:fetchLen]
+	if cap(def.allocated) < len(def.lobs) {
+		def.allocated = make([]bool, len(def.lobs))
+	} else {
+		def.allocated = def.allocated[:len(def.lobs)]
+		for i := range def.allocated {
+			def.allocated[i] = false
+		}
+	}
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
@@ -113,6 +122,7 @@ func (def *defLob) Reader(offset int) io.ReadCloser {
 	}
 	//def.rset.RUnlock()
 	def.lobs[offset] = nil // don't use it anywhere else
+	def.allocated[offset] = false
 	def.Unlock()
 	//fmt.Printf("%p.Reader(%d): %p\n", def, offset, lr)
 	return lr
@@ -175,6 +185,7 @@ func (def *defLob) alloc() error {
 	//def.rset.RUnlock()
 	ocienv := env.ocienv
 	for i := range def.lobs {
+		def.allocated[i] = false
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(ocienv),                          //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])), //dvoid         **descpp,
@@ -186,6 +197,7 @@ func (def *defLob) alloc() error {
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci lob handle during define")
 		}
+		def.allocated[i] = true
 	}
 	return nil
 }
@@ -196,11 +208,15 @@ func (def *defLob) free() {
 	def.arrHlp.close()
 	ses := def.rset.stmt.ses
 	for i, lob := range def.lobs {
+		allocated := def.allocated[i]
+		def.allocated[i] = false
 		if lob == nil {
 			continue
 		}
 		def.lobs[i] = nil
-		lobClose(ses, lob)
+		if allocated {
+			lobClose(ses, lob)
+		}
 	}
 }
 
@@ -211,6 +227,7 @@ func (def *defLob) close() (err error) {
 	def.Lock()
 	rset := def.rset
 	def.lobs = nil
+	def.allocated = nil
 	def.rset = nil
 	def.ocidef = nil
 	def.Unlock()
@@ -504,12 +521,6 @@ func lobOpen(ses *Ses, lob *C.OCILobLocator, mode C.ub1) (
 }
 
 func lobClose(ses *Ses, lob *C.OCILobLocator) (err error) {
-	defer func() {
-		// Not nice, but works - see https://github.com/rana/ora/issues/229
-		if r := recover(); r != nil {
-			err = errR(r)
-		}
-	}()
 	if lob == nil {
 		return nil
 	}
