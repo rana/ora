@@ -78,8 +78,6 @@ func (a *arrHlp) ensureFetchLength(length int) {
 	if length <= 0 || length >= MaxFetchLen {
 		length = MaxFetchLen
 	}
-	a.Lock()
-	defer a.Unlock()
 	if cap(a.nullInds) >= length {
 		a.nullInds = a.nullInds[:length]
 	} else {
@@ -117,8 +115,6 @@ func (a *arrHlp) ensureBindArrLength(
 	length, capacity *int,
 	isAssocArray bool,
 ) (iterations uint32, curlenp *C.ub4, needsAppend bool) {
-	a.Lock()
-	defer a.Unlock()
 	a.curlen = C.ub4(*length) // the real length, not L!
 	if isAssocArray {
 		// for PL/SQL associative arrays
@@ -182,8 +178,6 @@ func (a *arrHlp) close() error {
 	if a == nil {
 		return nil
 	}
-	a.Lock()
-	defer a.Unlock()
 	if a.isAssocArr {
 		return nil
 	}
