@@ -76,6 +76,9 @@ var _T_numericCols = []string{
 }
 
 func TestBindNumericString(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)

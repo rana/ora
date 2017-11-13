@@ -48,6 +48,9 @@ BEGIN
   :4 := cur4;
 END;`
 
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	for _, doNext := range []bool{true, false} {
 		stmt, err := testSes.Prep(qry)
 		if err != nil {
@@ -250,6 +253,9 @@ END test_get_json;`,
 	); err != nil {
 		t.Skipf("create function: %v", err)
 	}
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	//enableLogging(t)
 	stmt, err := testSes.Prep("CALL test_get_json(:1, :2)", ora.OraBin, ora.S)
 	if err != nil {
@@ -326,6 +332,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 	}
 
 	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
+
+	testSes := getSes(t)
+	defer testSes.Close()
 
 	enableLogging(t)
 	// LOB
@@ -641,6 +650,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 		}
 	}
 
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	qry = "SELECT * FROM " + tbl + " WHERE emnekode = :1"
 
 	// string
@@ -779,6 +791,9 @@ Læringsutbyttet defineres i forhold til områder for kunnskap, ferdigheter og h
 
 func TestLobIssue191(t *testing.T) {
 	enableLogging(t)
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	l := &ora.Lob{}
 	stmt, err := testSes.Prep(`begin :1 := null; end;`)
 	if err != nil {

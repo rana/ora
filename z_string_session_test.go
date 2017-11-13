@@ -140,6 +140,9 @@ func TestMultiDefine_long_session(t *testing.T) {
 //}
 
 func TestStringSlice(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	for _, nls_param := range []string{
 		//`NLS_LANGUAGE = 'hungarian_hungary.ee9iso8859p2'`,
 		`NLS_DATE_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS'`,

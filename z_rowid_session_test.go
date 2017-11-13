@@ -22,6 +22,9 @@ func TestDefine_string_urowid_session(t *testing.T) {
 }
 
 func testRowid(isUrowid bool, t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	for n := 0; n < testIterations(); n++ {
 		tableName := tableName()
 		stmt, err := testSes.Prep(fmt.Sprintf("create table %v (c1 varchar2(48 byte))", tableName))

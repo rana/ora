@@ -14,6 +14,9 @@ import (
 )
 
 func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	tableName := tableName()
 
@@ -40,6 +43,9 @@ func TestStmt_Exe_table_create_alter_drop(t *testing.T) {
 }
 
 func TestStmt_Exe_insert(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
@@ -56,6 +62,9 @@ func TestStmt_Exe_insert(t *testing.T) {
 }
 
 func TestStmt_Exe_update(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
@@ -82,6 +91,9 @@ func TestStmt_Exe_update(t *testing.T) {
 }
 
 func TestStmt_Exe_delete(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
@@ -108,6 +120,9 @@ func TestStmt_Exe_delete(t *testing.T) {
 }
 
 func TestStmt_Exe_select(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
 	defer dropTable(tableName, testSes, t)
@@ -164,6 +179,9 @@ func TestStmt_Exe_select(t *testing.T) {
 }
 
 func Benchmark_SimpleInsert(b *testing.B) {
+	testSes := getSes(b)
+	defer testSes.Close()
+
 	tableName := tableName()
 	testSes.PrepAndExe("CREATE TABLE " + tableName + " (F_id NUMBER, F_text VARCHAR2(30))")
 	defer testSes.PrepAndExe("DROP TABLE " + tableName)
@@ -185,6 +203,9 @@ func Benchmark_SimpleInsert(b *testing.B) {
 }
 
 func Benchmark_MultiInsert(b *testing.B) {
+	testSes := getSes(b)
+	defer testSes.Close()
+
 	tableName := tableName()
 	testSes.PrepAndExe("CREATE TABLE " + tableName + " (F_id NUMBER, F_text VARCHAR2(30))")
 	defer testSes.PrepAndExe("DROP TABLE " + tableName)

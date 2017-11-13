@@ -120,6 +120,8 @@ func TestSession_Tx_StartCommit(t *testing.T) {
 	t.Parallel()
 	ses, err := testSesPool.Get()
 	testErr(err, t)
+	defer ses.Close()
+
 	tableName, err := createTable(1, numberP38S0, ses)
 	testErr(err, t)
 	defer dropTable(tableName, ses, t)
@@ -301,6 +303,9 @@ func BenchmarkSession_PrepAndExe_Insert_WithoutCGOCheck(b *testing.B) {
 }
 
 func benchmarkSession_PrepAndExe_Insert(b *testing.B) {
+	testSes := getSes(b)
+	defer testSes.Close()
+
 	tableName, err := createTable(1, numberP38S0, testSes)
 	testErr(err, b)
 	defer dropTable(tableName, testSes, b)

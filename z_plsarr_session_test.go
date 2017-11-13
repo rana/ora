@@ -16,6 +16,9 @@ import (
 )
 
 func Test_plsarr_num_session(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_num AS
@@ -124,6 +127,9 @@ END TST_ora_plsarr_num;`,
 }
 
 func Test_plsarr_dt_session(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Parallel()
 	for _, qry := range []string{
 		`CREATE OR REPLACE PACKAGE TST_ora_plsarr_dt AS
@@ -215,6 +221,9 @@ func checkCompile(t *testing.T, testSes *ora.Ses) {
 }
 
 func TestIssue188(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	stmt, err := testSes.Prep(`BEGIN :1(1) := 'test'; END;`)
 	if err != nil {
 		t.Fatal("1 - ", err)

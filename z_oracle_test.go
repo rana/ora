@@ -6,6 +6,7 @@ package ora_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"database/sql/driver"
@@ -173,7 +174,6 @@ var testConStr string
 var testDbsessiontimezone *time.Location
 var testTableID uint32
 var testWorkloadColumnCount int
-var testSes *ora.Ses
 var testDb *sql.DB
 var testSesPool *ora.Pool
 
@@ -210,10 +210,11 @@ func init() {
 	}
 
 	testSesPool = testEnv.NewPool(testSrvCfg, testSesCfg, 4)
-	testSes, err = testSesPool.Get()
+	testSes, err := testSesPool.Get()
 	if err != nil {
 		panic(fmt.Sprintf("initError: %v", err))
 	}
+	defer testSes.Close()
 
 	//ora.SetCfg(func() StmtCfg { cfg = ora.Cfg(); cfg.RTrimChar = false; return cfg }())
 
@@ -261,6 +262,26 @@ END;`)
 			fmt.Println(http.ListenAndServe(addr, nil))
 		}()
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	err = testDb.PingContext(ctx)
+	cancel()
+	if err != nil {
+		panic(err)
+	}
+
+	if err := testSes.Ping(); err != nil {
+		panic(err)
+	}
+}
+
+func getSes(t testing.TB) *ora.Ses {
+	testSes, err := testSesPool.Get()
+	if err == nil {
+		return testSes
+	}
+	t.Fatal(err)
+	return nil
 }
 
 func enableLogging(t *testing.T) {
@@ -289,6 +310,12 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	}
 	t.Logf("testBindDefine gct (%v, %v)", gct, ora.GctName(gct))
 
+	testSes, err := testSesPool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer testSes.Close()
+
 	tableName, err := createTable(1, oct, testSes)
 	testErr(err, t)
 	defer dropTable(tableName, testSes, t)
@@ -297,10 +324,10 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 	qry := fmt.Sprintf("insert into %v (c1) values (:c1)", tableName)
 	insertStmt, err := testSes.Prep(qry)
 	testErr(errors.Wrap(err, qry), t)
+	defer insertStmt.Close()
 	if !c.IsZero() {
 		insertStmt.SetCfg(c)
 	}
-	defer insertStmt.Close()
 	rowsAffected, err := insertStmt.Exe(expected)
 	testErr(errors.Wrapf(err, "%q, %#v", qry, expected), t)
 	expLen := length(expected)
@@ -313,8 +340,8 @@ func testBindDefine(expected interface{}, oct oracleColumnType, t *testing.T, c 
 
 	// select
 	selectStmt, err := testSes.Prep(fmt.Sprintf("select c1 from %v", tableName), gct)
-	defer selectStmt.Close()
 	testErr(err, t)
+	defer selectStmt.Close()
 	rset, err := selectStmt.Qry()
 	testErr(err, t)
 	defer rset.Exhaust()
@@ -330,6 +357,7 @@ func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) 
 
 			// insert
 			stmt, err := testDb.Prepare(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
+			testErr(err, t)
 			defer stmt.Close()
 			execResult, err := stmt.Exec(expected)
 			testErr(err, t)
@@ -341,6 +369,7 @@ func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) 
 
 			// query
 			rows, err := testDb.Query(fmt.Sprintf("select c1 from %v", tableName))
+			testErr(err, t)
 			defer rows.Close()
 			testErr(err, t)
 			if rows == nil {
@@ -369,6 +398,9 @@ func testBindDefineDB(expected interface{}, t *testing.T, oct oracleColumnType) 
 }
 
 func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	t.Logf("expected=%T", expected)
 	for n := 0; n < testIterations(); n++ {
 		tableName, err := createTable(1, oct, testSes)
@@ -424,8 +456,8 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 		// insert
 		qry := "insert into " + tableName + " (c1) values (:1) returning c1 into :2"
 		stmt, err := testSes.Prep(qry)
-		defer stmt.Close()
 		testErr(err, t)
+		defer stmt.Close()
 		t.Logf("%q, [%#v %T]", qry, expected, actual)
 		rowsAffected, err := stmt.Exe(expected, actual)
 		testErr(err, t)
@@ -440,6 +472,9 @@ func testBindPtr(expected interface{}, oct oracleColumnType, t *testing.T) {
 }
 
 func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	for n := 0; n < testIterations(); n++ {
 		tableName, err := createTable(1, oct, testSes)
 		testErr(err, t)
@@ -447,8 +482,8 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 
 		// insert
 		insertStmt, err := testSes.Prep(fmt.Sprintf("insert into %v (c1) values (:c1)", tableName))
-		defer insertStmt.Close()
 		testErr(err, t)
+		defer insertStmt.Close()
 		rowsAffected, err := insertStmt.Exe(expected)
 		testErr(err, t)
 		if rowsAffected != 1 {
@@ -536,6 +571,9 @@ func testMultiDefine(expected interface{}, oct oracleColumnType, t *testing.T) {
 // Running the insert and query multiple times will ensure reuse of those structs.
 // Slice binding may have fewer columns tested due to OCI memory contraints.
 func testWorkload(oct oracleColumnType, t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	for i := 0; i < testIterations(); i++ {
 		currentMultiple := testWorkloadColumnCount
 		for m := 0; m < 3 && currentMultiple > 0; m++ {
@@ -639,6 +677,12 @@ func testWorkload(oct oracleColumnType, t *testing.T) {
 }
 
 func loadDbtimezone() (*time.Location, error) {
+	testSes, err := testSesPool.Get()
+	if err != nil {
+		return nil, err
+	}
+	defer testSes.Close()
+
 	return testSes.Timezone()
 }
 
@@ -794,18 +838,24 @@ func createTable(multiple int, oct oracleColumnType, ses *ora.Ses) (string, erro
 func dropTable(tableName string, ses *ora.Ses, t testing.TB) {
 	qry := fmt.Sprintf("drop table %v", tableName)
 	stmt, err := ses.Prep(qry)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//testErr(errors.Wrap(err, qry), t)
 	defer stmt.Close()
-	testErr(errors.Wrap(err, qry), t)
-	_, err = stmt.Exe()
-	testErr(errors.Wrap(err, qry), t)
+	if _, err = stmt.Exe(); err != nil {
+		t.Log(err)
+	}
+	//testErr(errors.Wrap(err, qry), t)
 }
 
 func createTableDB(db *sql.DB, t *testing.T, octs ...oracleColumnType) string {
 	tableName := tableName()
 	qry := createTableSql(tableName, 1, octs...)
 	stmt, err := db.Prepare(qry)
-	defer stmt.Close()
 	testErr(errors.Wrap(err, qry), t)
+	defer stmt.Close()
 	_, err = stmt.Exec()
 	testErr(errors.Wrap(err, qry), t)
 	return tableName
@@ -814,8 +864,8 @@ func createTableDB(db *sql.DB, t *testing.T, octs ...oracleColumnType) string {
 func dropTableDB(db *sql.DB, t *testing.T, tableName string) {
 	qry := fmt.Sprintf("drop table %v", tableName)
 	stmt, err := db.Prepare(qry)
-	defer stmt.Close()
 	testErr(errors.Wrap(err, qry), t)
+	defer stmt.Close()
 	_, err = stmt.Exec()
 	testErr(errors.Wrap(err, qry), t)
 }
@@ -851,7 +901,7 @@ func testErr(err error, t testing.TB, expectedErrs ...error) {
 		}
 	}
 	done := make(chan struct{})
-	msg := fmt.Sprintf("%v: %s", err, getStack(1))
+	msg := fmt.Sprintf("%+v: %s", err, getStack(2))
 	if true {
 		go func() {
 			select {
@@ -3608,6 +3658,9 @@ func TestStringSpaces(t *testing.T) {
 
 func TestPLSErr(t *testing.T) {
 	//enableLogging(t)
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	qry := `DECLARE v_db PLS_INTEGER; BEGIN
 	  SELECT 1 INTO v_db FROM DUAL WHERE 1 = 0;
 	END;`
@@ -3642,6 +3695,9 @@ func TestGetDriverName(t *testing.T) {
 	}
 }
 func TestFloat64Prec(t *testing.T) {
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	var v0 float64 = 123456789.0123456789
 	var v1 float64
 	t.Logf("v0 = %.12f = %g", v0, v0)

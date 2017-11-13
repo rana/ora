@@ -136,17 +136,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 	defer p.Unlock()
 
 	// Instead of closing the session, put it back to the session pool.
-	Instead := func(ses *Ses) error {
-		if ses == nil {
-			return nil
-		}
-		ses.Lock()
-		ses.insteadClose = nil // one-shot
-		ses.Unlock()
-		// if the session is to be evicted, its srv should go to the srv pool.
-		p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
-		return nil
-	}
+	Instead := func(ses *Ses) error { p.Put(ses); return nil }
 	// try get session from the ses pool
 	for {
 		x := p.ses.Get()
@@ -194,6 +184,7 @@ func (p *Pool) Get() (ses *Ses, err error) {
 		return nil, err
 	}
 	if ses, err = srv.OpenSes(p.sesCfg); err != nil {
+		srv.Close()
 		return nil, err
 	}
 	ses.insteadClose = Instead
@@ -206,8 +197,11 @@ func (p *Pool) Put(ses *Ses) {
 	if ses == nil || !ses.IsOpen() {
 		return
 	}
+	p.ses.Lock()
+	ses.insteadClose = nil
 	//fmt.Fprintf(os.Stderr, "POOL: put back ses\n")
-	p.ses.Put(sesSrvPB{Ses: ses, p: p.srv})
+	p.ses.putLocked(sesSrvPB{Ses: ses, p: p.srv})
+	p.ses.Unlock()
 }
 
 type sesSrvPB struct {
@@ -222,11 +216,13 @@ func (s sesSrvPB) Close() error {
 		return nil
 	}
 	var srv *Srv
+	s.Ses.Lock()
 	if s.p != nil {
-		s.Ses.RLock()
 		srv = s.Ses.srv
-		s.Ses.RUnlock()
 	}
+	s.Ses.insteadClose = nil
+	s.Ses.Unlock()
+
 	err := s.Ses.Close()
 	if srv != nil { // there's only one ses per srv, so this should be safe
 		s.p.Put(srv)
@@ -523,7 +519,11 @@ func (p *idlePool) Get() io.Closer {
 // This way elements reused uniformly.
 func (p *idlePool) Put(c io.Closer) {
 	p.RLock()
-	defer p.RUnlock()
+	p.putLocked(c)
+	p.RUnlock()
+}
+
+func (p *idlePool) putLocked(c io.Closer) {
 	select {
 	case p.Elems() <- c:
 		return

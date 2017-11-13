@@ -133,6 +133,9 @@ func TestSelectChar(t *testing.T) {
 	if _, err := testDb.Exec("CREATE TABLE " + tableName + "(c1 CHAR(1), c2 CHAR(4))"); err != nil {
 		t.Fatal(err)
 	}
+	testSes := getSes(t)
+	defer testSes.Close()
+
 	if _, err := testSes.PrepAndExe("INSERT INTO "+tableName+" VALUES (:1, :2)",
 		"A", "ABCD"); err != nil {
 		t.Fatal(err)
