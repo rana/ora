@@ -31,6 +31,7 @@ func (def *defTime) define(position int, isNullable bool, rset *Rset) error {
 		C.free(unsafe.Pointer(&def.dates[0]))
 	}
 	def.dates = (*((*[MaxFetchLen]*C.OCIDateTime)(C.malloc(C.size_t(rset.fetchLen) * C.sof_DateTimep))))[:rset.fetchLen]
+	def.ensureAllocatedLength(len(def.dates))
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.dates[0]), int(C.sof_DateTimep), C.SQLT_TIMESTAMP_TZ)
 }
 
@@ -50,6 +51,7 @@ func (def *defTime) value(offset int) (value interface{}, err error) {
 
 func (def *defTime) alloc() error {
 	for i := range def.dates {
+		def.allocated[i] = false
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.dates[i])), //dvoid         **descpp,
@@ -61,22 +63,26 @@ func (def *defTime) alloc() error {
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci timestamp handle during define")
 		}
+		def.allocated[i] = true
 	}
 	return nil
 
 }
 
 func (def *defTime) free() {
-	def.arrHlp.close()
 	for i, d := range def.dates {
 		if d == nil {
 			continue
 		}
 		def.dates[i] = nil
+		if !def.allocated[i] {
+			continue
+		}
 		C.OCIDescriptorFree(
 			unsafe.Pointer(d),        //void     *descp,
 			C.OCI_DTYPE_TIMESTAMP_TZ) //timeDefine.descTypeCode)                //ub4      type );
 	}
+	def.arrHlp.close()
 }
 
 func (def *defTime) close() (err error) {

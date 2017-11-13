@@ -25,6 +25,7 @@ func (def *defIntervalYM) define(position int, rset *Rset) error {
 		C.free(unsafe.Pointer(&def.intervals[0]))
 	}
 	def.intervals = (*((*[MaxFetchLen]*C.OCIInterval)(C.malloc(C.size_t(rset.fetchLen) * C.sof_Intervalp))))[:rset.fetchLen]
+	def.ensureAllocatedLength(len(def.intervals))
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.intervals[0]), int(C.sof_Intervalp), C.SQLT_INTERVAL_YM)
 }
 
@@ -54,6 +55,7 @@ func (def *defIntervalYM) alloc() error {
 			def.intervals[i] = nil
 			//C.OCIDescriptorFree(unsafe.Pointer(p), C.OCI_DTYPE_INTERVAL_YM)
 		}
+		def.allocated[i] = false
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv),     //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.intervals[i])), //dvoid         **descpp,
@@ -65,21 +67,25 @@ func (def *defIntervalYM) alloc() error {
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci interval handle during define")
 		}
+		def.allocated[i] = true
 	}
 	return nil
 }
 
 func (def *defIntervalYM) free() {
-	def.arrHlp.close()
 	for i, p := range def.intervals {
 		if p == nil {
 			continue
 		}
 		def.intervals[i] = nil
+		if !def.allocated[i] {
+			continue
+		}
 		C.OCIDescriptorFree(
 			unsafe.Pointer(p),       //void     *descp,
 			C.OCI_DTYPE_INTERVAL_YM) //timeDefine.descTypeCode)                //ub4      type );
 	}
+	def.arrHlp.close()
 }
 
 func (def *defIntervalYM) close() (err error) {

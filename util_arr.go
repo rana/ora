@@ -16,6 +16,7 @@ type arrHlp struct {
 	nullInds   []C.sb2
 	alen       []C.ACTUAL_LENGTH_TYPE
 	rcode      []C.ub2
+	allocated  []bool
 	isAssocArr bool
 }
 
@@ -61,6 +62,17 @@ var (
 	ub2Pool  = sync.Pool{New: func() interface{} { return []C.ub2{} }}
 	alenPool = sync.Pool{New: func() interface{} { return []C.ACTUAL_LENGTH_TYPE{} }}
 )
+
+func (d *arrHlp) ensureAllocatedLength(length int) {
+	if cap(d.allocated) < length {
+		d.allocated = make([]bool, length)
+		return
+	}
+	d.allocated = d.allocated[:length]
+	for i := range d.allocated {
+		d.allocated[i] = false
+	}
+}
 
 func (a *arrHlp) ensureFetchLength(length int) {
 	if length <= 0 || length >= MaxFetchLen {
@@ -186,6 +198,9 @@ func (a *arrHlp) close() error {
 	if a.rcode != nil {
 		ub2Pool.Put(a.rcode)
 		a.rcode = nil
+	}
+	if a.allocated != nil {
+		a.allocated = nil
 	}
 	return nil
 }

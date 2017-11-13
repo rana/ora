@@ -27,6 +27,7 @@ func (def *defBfile) define(position int, rset *Rset) error {
 		C.free(unsafe.Pointer(&def.lobs[0]))
 	}
 	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(rset.fetchLen) * C.sof_LobLocatorp))))[:rset.fetchLen]
+	def.ensureAllocatedLength(len(def.lobs))
 	return def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), C.SQLT_FILE)
 }
 func (def *defBfile) value(offset int) (value interface{}, err error) {
@@ -58,6 +59,7 @@ func (def *defBfile) alloc() error {
 	// Allocate lob locator handle
 	// For a LOB define, the buffer pointer must be a pointer to a LOB locator of type OCILobLocator, allocated by the OCIDescriptorAlloc() call.
 	for i := range def.lobs {
+		def.allocated[i] = false
 		r := C.OCIDescriptorAlloc(
 			unsafe.Pointer(def.rset.stmt.ses.srv.env.ocienv), //CONST dvoid   *parenth,
 			(*unsafe.Pointer)(unsafe.Pointer(&def.lobs[i])),  //dvoid         **descpp,
@@ -69,6 +71,7 @@ func (def *defBfile) alloc() error {
 		} else if r == C.OCI_INVALID_HANDLE {
 			return errNew("unable to allocate oci lob handle during define")
 		}
+		def.allocated[i] = true
 	}
 	return nil
 }
@@ -79,6 +82,9 @@ func (def *defBfile) free() {
 			continue
 		}
 		def.lobs[i] = nil
+		if !def.allocated[i] {
+			continue
+		}
 		C.OCIDescriptorFree(
 			unsafe.Pointer(lob), //void     *descp,
 			C.OCI_DTYPE_FILE)    //ub4      type );

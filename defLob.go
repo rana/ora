@@ -30,11 +30,9 @@ var lobChunkPool = sync.Pool{
 
 type defLob struct {
 	ociDef
-	gct       GoColumnType
-	sqlt      C.ub2
-	lobs      []*C.OCILobLocator
-	allocated []bool
-	sync.Mutex
+	gct  GoColumnType
+	sqlt C.ub2
+	lobs []*C.OCILobLocator
 }
 
 func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset) error {
@@ -51,14 +49,7 @@ func (def *defLob) define(position int, sqlt C.ub2, gct GoColumnType, rset *Rset
 	env := rset.stmt.ses.srv.env
 	//rset.RUnlock()
 	def.lobs = (*((*[MaxFetchLen]*C.OCILobLocator)(C.malloc(C.size_t(fetchLen) * C.sof_LobLocatorp))))[:fetchLen]
-	if cap(def.allocated) < len(def.lobs) {
-		def.allocated = make([]bool, len(def.lobs))
-	} else {
-		def.allocated = def.allocated[:len(def.lobs)]
-		for i := range def.allocated {
-			def.allocated[i] = false
-		}
-	}
+	def.ensureAllocatedLength(len(def.lobs))
 	if err := def.ociDef.defineByPos(position, unsafe.Pointer(&def.lobs[0]), int(C.sof_LobLocatorp), int(sqlt)); err != nil {
 		return err
 	}
@@ -205,19 +196,17 @@ func (def *defLob) alloc() error {
 func (def *defLob) free() {
 	def.Lock()
 	defer def.Unlock()
-	def.arrHlp.close()
 	ses := def.rset.stmt.ses
 	for i, lob := range def.lobs {
-		allocated := def.allocated[i]
-		def.allocated[i] = false
 		if lob == nil {
 			continue
 		}
 		def.lobs[i] = nil
-		if allocated {
+		if def.allocated[i] {
 			lobClose(ses, lob)
 		}
 	}
+	def.arrHlp.close()
 }
 
 func (def *defLob) close() (err error) {
@@ -227,7 +216,6 @@ func (def *defLob) close() (err error) {
 	def.Lock()
 	rset := def.rset
 	def.lobs = nil
-	def.allocated = nil
 	def.rset = nil
 	def.ocidef = nil
 	def.Unlock()
