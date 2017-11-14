@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"gopkg.in/rana/ora.v4"
 )
 
@@ -39,11 +40,6 @@ func Test_open_cursors(t *testing.T) {
 	}
 	defer ses.Close()
 
-	qry := "SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5"
-	rset, err := ses.PrepAndQry(qry)
-	if err != nil {
-		t.Skipf("%q: %v", qry, err)
-	}
 	toNum := func(a interface{}) int {
 		switch x := a.(type) {
 		case int64:
@@ -59,8 +55,24 @@ func Test_open_cursors(t *testing.T) {
 		}
 	}
 
-	before := toNum(rset.NextRow()[0])
-	rounds := 100
+	//qry := `SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5`
+	qry := `SELECT count(0) FROM v$open_cursor WHERE user_name = user AND cursor_type = 'OPEN'`
+	//qry := `SELECT VALUE FROM v$sesstat WHERE statistic#=5 AND SID = sys_context('USERENV', 'SID')`
+	countStmt, err := ses.Prep(qry)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, qry))
+	}
+	defer countStmt.Close()
+	count := func() int {
+		rset, err := countStmt.Qry(qry)
+		if err != nil {
+			t.Skipf("%q: %v", qry, err)
+		}
+		return toNum(rset.NextRow()[0])
+	}
+
+	before := count()
+	rounds := 2000
 	if cgocheck() != 0 {
 		rounds = 10
 	}
@@ -71,6 +83,7 @@ func Test_open_cursors(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer stmt.Close()
+			//t.Logf("%d. in: %d", i, count())
 			rset, err := stmt.Qry()
 			if err != nil {
 				t.Errorf("SELECT: %v", err)
@@ -80,14 +93,10 @@ func Test_open_cursors(t *testing.T) {
 			for rset.Next() {
 				j++
 			}
-			//t.Logf("%d objects, error=%v", j, rset.Err())
+			t.Logf("%d objects, error=%v", j, rset.Err())
 		}()
 	}
-	rset, err = ses.PrepAndQry("SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	after := toNum(rset.NextRow()[0])
+	after := count()
 	if after-before >= rounds {
 		t.Errorf("before=%v after=%v, awaited less than %d increment!", before, after, rounds)
 		return

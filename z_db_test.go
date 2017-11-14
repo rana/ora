@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"gopkg.in/rana/ora.v4"
 )
 
@@ -25,29 +26,32 @@ func Test_open_cursors_db(t *testing.T) {
 	// SELECT A.STATISTIC#, A.NAME, B.VALUE
 	// FROM V$STATNAME A, V$MYSTAT B
 	// WHERE A.STATISTIC# = B.STATISTIC#
-	qry := "SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5"
-	stmt, err := testDb.Prepare(qry)
+	//qry := `SELECT VALUE FROM V$MYSTAT WHERE STATISTIC#=5`
+	qry := `SELECT count(0) FROM v$open_cursor WHERE user_name = user AND cursor_type = 'OPEN'`
+	//qry := `SELECT VALUE FROM v$sesstat WHERE statistic#=5 AND SID = sys_context('USERENV', 'SID')`
+	countStmt, err := testDb.Prepare(qry)
 	if err != nil {
-		t.Fatalf("%q: %v", qry, err)
+		t.Fatal(errors.Wrap(err, qry))
 	}
-	var before, after int
-	if err = stmt.QueryRow().Scan(&before); err != nil {
-		t.Skipf("%q: %v", qry, err)
+	defer countStmt.Close()
+	count := func() int {
+		var n int
+		if err = countStmt.QueryRow().Scan(&n); err != nil {
+			t.Skipf("%q: %v", qry, err)
+		}
+		return n
 	}
-	rounds := 100
+	before := count()
+	rounds := 2000
 	for i := 0; i < rounds; i++ {
 		func() {
-			stmt, err := testDb.Prepare("SELECT 1 FROM user_objects WHERE ROWNUM < 100")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer stmt.Close()
-			rows, err := stmt.Query()
+			rows, err := testDb.Query("SELECT 1 FROM user_objects WHERE ROWNUM < 100")
 			if err != nil {
 				t.Errorf("SELECT: %v", err)
 				return
 			}
 			defer rows.Close()
+			//t.Logf("in: %d", count())
 			j := 0
 			for rows.Next() {
 				j++
@@ -55,9 +59,7 @@ func Test_open_cursors_db(t *testing.T) {
 			//t.Logf("%d objects, error=%v", j, rows.Err())
 		}()
 	}
-	if err = stmt.QueryRow().Scan(&after); err != nil {
-		t.Fatal(err)
-	}
+	after := count()
 	if after-before >= rounds {
 		t.Errorf("before=%d after=%d, awaited less than %d increment!", before, after, rounds)
 		return
