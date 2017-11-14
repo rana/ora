@@ -15,6 +15,64 @@ import (
 	"gopkg.in/rana/ora.v4"
 )
 
+func TestIssue233(t *testing.T) {
+	session, err := testSesPool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	session.PrepAndExe("DROP TABLE test_lob")
+	for _, qry := range []string{
+		"create table test_lob (c clob)",
+		`begin
+	  insert into test_lob values ('Hello');
+	  insert into test_lob values ('world!');
+	  commit;
+	end;`,
+		`CREATE OR REPLACE PROCEDURE sp_lob_test(o_cur_lob OUT SYS_REFCURSOR,
+                                            o_cur_date OUT SYS_REFCURSOR) AS
+BEGIN
+  OPEN o_cur_lob FOR
+    SELECT * FROM test_lob;
+
+  OPEN o_cur_date FOR
+    select sysdate from dual;
+end sp_lob_test;`,
+	} {
+		if _, err = session.PrepAndExe(qry); err != nil {
+			t.Fatal(errors.Wrap(err, qry))
+		}
+	}
+	session.Close()
+
+	qry := "call sp_lob_test(:o_cur_lob, :o_cur_date)"
+	for i := 0; i < 1000000; i++ {
+		session, err := testSesPool.Get()
+		if err != nil {
+			t.Fatal(err)
+		}
+		stmt, err := session.Prep(qry)
+		if err != nil {
+			t.Fatal(errors.Wrap(err, qry))
+
+		}
+		c1 := &ora.Rset{}
+		c2 := &ora.Rset{}
+		_, err = stmt.Exe(c1, c2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("iteration #%d\n", i)
+		fmt.Println(c1)
+		c1.Exhaust()
+		fmt.Println(c2)
+		c2.Exhaust()
+
+		stmt.Close()
+		session.Close()
+	}
+}
+
 func Test_open_cursors(t *testing.T) {
 	t.Parallel()
 	// This needs "GRANT SELECT ANY DICTIONARY TO test"
