@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/rana/ora.v4"
@@ -45,8 +46,12 @@ end sp_lob_test;`,
 	}
 	session.Close()
 
+	deadline := time.Now().Add(2 * time.Minute)
 	qry := "call sp_lob_test(:o_cur_lob, :o_cur_date)"
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 1000; i++ {
+		if time.Now().After(deadline) {
+			break
+		}
 		session, err := testSesPool.Get()
 		if err != nil {
 			t.Fatal(err)
@@ -63,13 +68,13 @@ end sp_lob_test;`,
 			t.Fatal(err)
 		}
 		t.Logf("iteration #%d\n", i)
-		fmt.Println(c1)
+		//fmt.Println(c1)
 		c1.Exhaust()
-		fmt.Println(c2)
+		//fmt.Println(c3)
 		c2.Exhaust()
 
 		stmt.Close()
-		session.Close()
+		testSesPool.Put(session)
 	}
 }
 
