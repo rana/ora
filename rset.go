@@ -167,12 +167,15 @@ func (rset *Rset) closeWithRemove() (err error) {
 	if rset != nil && rset.stmt != nil && rset.stmt.openRsets != nil {
 		rset.stmt.openRsets.remove(rset)
 	}
-	autoClose, stmt := rset.autoClose, rset.stmt
 	rset.RUnlock()
+	var stmt *Stmt
+	if rset.stmt != nil && rset.autoClose && rset.stmt.openRsets.len() == 1 {
+		stmt = rset.stmt
+	}
 	err = rset.close()
-	if autoClose && stmt != nil && stmt.NumRset() == 0 {
-		if stmtErr := stmt.Close(); stmtErr != nil && err == nil {
-			err = stmtErr
+	if stmt != nil {
+		if err0 := stmt.Close(); err0 != nil && err == nil {
+			err = err0
 		}
 	}
 	return err
@@ -187,7 +190,7 @@ func (rset *Rset) close() (err error) {
 			err = errR(value)
 		}
 		if rset.genByPool { // recycle pool-generated Rset; don't recycle user-specfied Rset
-			*rset = Rset{}
+			*rset = Rset{autoClose: true}
 			_drv.rsetPool.Put(rset)
 		}
 	}()
@@ -195,7 +198,6 @@ func (rset *Rset) close() (err error) {
 		return er("Rset is closed.")
 	}
 	rset.Lock()
-	defer rset.Unlock()
 
 	errs := _drv.listPool.Get().(*list.List)
 	// close defines
@@ -208,9 +210,6 @@ func (rset *Rset) close() (err error) {
 			errs.PushBack(err0)
 		}
 	}
-	if rset.stmt != nil && rset.stmt.NumRset() == 0 {
-		rset.stmt.Close()
-	}
 
 	rset.env = nil
 	rset.stmt = nil
@@ -218,6 +217,8 @@ func (rset *Rset) close() (err error) {
 	rset.defs = nil
 	rset.Row = nil
 	rset.Columns = nil
+	rset.Unlock()
+
 	// do not clear error in case of autoClose when error exists
 	// clear error when rset in initialized
 	//rset.err = nil
@@ -439,6 +440,7 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		rset.log(logCfg.Rset.Open, "env is nil")
 		return io.EOF
 	}
+	rset.autoClose = true
 	rset.stmt = stmt
 	rset.ocistmt = ocistmt
 	atomic.StoreInt32(&rset.index, -1)
