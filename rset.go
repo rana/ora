@@ -164,18 +164,9 @@ func (rset *Rset) ColumnIndex() map[string]int {
 // Stmt.openRsets list.
 func (rset *Rset) closeWithRemove() (err error) {
 	rset.RLock()
-	if rset != nil && rset.stmt != nil && rset.stmt.openRsets != nil {
-		rset.stmt.openRsets.remove(rset)
-	}
-	autoClose, stmt := rset.autoClose, rset.stmt
+	rset.stmt.openRsets.remove(rset)
 	rset.RUnlock()
-	err = rset.close()
-	if autoClose && stmt != nil && stmt.NumRset() == 0 {
-		if stmtErr := stmt.Close(); stmtErr != nil && err == nil {
-			err = stmtErr
-		}
-	}
-	return err
+	return rset.close()
 }
 
 // close releases allocated resources.
@@ -208,9 +199,6 @@ func (rset *Rset) close() (err error) {
 			errs.PushBack(err0)
 		}
 	}
-	if rset.stmt != nil && rset.stmt.NumRset() == 0 {
-		rset.stmt.Close()
-	}
 
 	rset.env = nil
 	rset.stmt = nil
@@ -227,7 +215,6 @@ func (rset *Rset) close() (err error) {
 	}
 	errs.Init()
 	_drv.listPool.Put(errs)
-
 	return err
 }
 
@@ -318,10 +305,10 @@ func (rset *Rset) beginRow() (err error) {
 func (rset *Rset) endRow() {
 	rset.log(_drv.Cfg().Log.Rset.EndRow)
 	rset.Lock()
+	defer rset.Unlock()
 	done := rset.finished && !(rset.fetched > 0 && rset.fetched > rset.offset)
 	defs := rset.defs
 	rset.offset++
-	rset.Unlock()
 	if !done {
 		return
 	}
@@ -330,7 +317,6 @@ func (rset *Rset) endRow() {
 			define.free()
 		}
 	}
-	rset.closeWithRemove()
 }
 
 // Exhaust will cycle to the end of the Rset, to autoclose it.
@@ -363,8 +349,18 @@ func (rset *Rset) Next() bool {
 		rset.Lock()
 		rset.err = err
 		rset.Row = nil
+		autoClose := rset.autoClose
 		rset.Unlock()
-		rset.closeWithRemove()
+		// closing the Stmt will close this (and all) Rsets under it!
+		if !autoClose {
+			rset.close()
+		} else {
+			rset.RLock()
+			stmt := rset.stmt
+			rset.RUnlock()
+			rset.closeWithRemove()
+			stmt.Close()
+		}
 	}
 
 	if err := rset.checkIsOpen(); err != nil {
