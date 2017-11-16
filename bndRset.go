@@ -76,6 +76,8 @@ func (bnd *bndRset) setPtr() error {
 	}
 	// open result set is successful; will be freed by Rset
 	bnd.stmt.openRsets.add(bnd.value)
+	bnd.value.autoClose = true
+	bnd.stmt.stranger = true
 	return bnd.stmt.setPrefetchSize()
 }
 
@@ -85,6 +87,9 @@ func (bnd *bndRset) close() (err error) {
 			err = errR(value)
 		}
 	}()
+	if bnd != nil && bnd.value != nil {
+		bnd.value.closeWithRemove()
+	}
 	stmt := bnd.stmt
 	bnd.stmt = nil
 	bnd.ocibnd = nil

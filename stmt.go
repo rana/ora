@@ -72,6 +72,7 @@ type Stmt struct {
 	gcts                []GoColumnType
 	bnds                []bnd
 	hasPtrBind          bool
+	stranger            bool
 	stringPtrBufferSize int
 	bindInfo
 
@@ -159,6 +160,7 @@ func (stmt *Stmt) close() (err error) {
 		stmt.Lock()
 		env := stmt.Env()
 		ocistmt := stmt.ocistmt
+		stranger := stmt.stranger
 
 		stmt.stringPtrBufferSize = 0
 		stmt.env.Store((*Env)(nil))
@@ -169,12 +171,14 @@ func (stmt *Stmt) close() (err error) {
 		stmt.gcts = nil
 		stmt.bnds = nil
 		stmt.hasPtrBind = false
+		stmt.stranger = false
 		stmt.bindInfo = bindInfo{}
 		stmt.openRsets.clear()
 		_drv.stmtPool.Put(stmt)
 		stmt.Unlock()
 		stmt.SetCfg(StmtCfg{})
 
+		fmt.Printf("%p.stranger=%t\n", ocistmt, stranger)
 		if ocistmt != nil {
 			// free ocistmt to release cursor on server
 			// OCIStmtRelease must be called with OCIStmtPrepare2
@@ -190,6 +194,8 @@ func (stmt *Stmt) close() (err error) {
 				errs.PushBack(errE(env.ociError()))
 				// Sometimes panics if free unconditionally - see #222.
 				// https://github.com/rana/ora/issues/222
+				C.OCIHandleFree(unsafe.Pointer(ocistmt), C.OCI_HTYPE_STMT)
+			} else if stranger {
 				C.OCIHandleFree(unsafe.Pointer(ocistmt), C.OCI_HTYPE_STMT)
 			}
 		}

@@ -30,11 +30,11 @@ func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int,
 	d.ensureFetchLength(d.rset.stmt.Cfg().FetchLen())
 	// If you omit the rlenp parameter of OCIDefineByPos(), returned values are blank-padded to the buffer length, and NULLs are returned as a string of blank characters. If rlenp is included, returned values are not blank-padded. Instead, their actual lengths are returned in the rlenp parameter.
 	if r := C.OCIDEFINEBYPOS(
-		d.rset.ocistmt,    //OCIStmt     *stmtp,
-		&d.ocidef,         //OCIDefine   **defnpp,
-		d.rset.env.ocierr, //OCIError    *errhp,
-		C.ub4(position),   //ub4         position,
-		valuep,            //void        *valuep,
+		d.rset.stmt.ocistmt, //OCIStmt     *stmtp,
+		&d.ocidef,           //OCIDefine   **defnpp,
+		d.rset.env.ocierr,   //OCIError    *errhp,
+		C.ub4(position),     //ub4         position,
+		valuep,              //void        *valuep,
 		C.LENGTH_TYPE(valueSize),       //sb8         value_sz,
 		C.ub2(dty),                     //ub2         dty,
 		unsafe.Pointer(&d.nullInds[0]), //void        *indp,

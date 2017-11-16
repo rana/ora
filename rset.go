@@ -84,7 +84,6 @@ type Rset struct {
 	// cached
 	env       *Env
 	stmt      *Stmt
-	ocistmt   *C.OCIStmt
 	defs      []def
 	autoClose bool // whether the close of the rset shall close its parent stmt
 	genByPool bool
@@ -136,7 +135,7 @@ func (rset *Rset) IsOpen() bool {
 	}
 	rset.RLock()
 	defer rset.RUnlock()
-	return rset.stmt != nil && rset.ocistmt != nil && rset.env != nil
+	return rset.stmt != nil && rset.stmt.ocistmt != nil && rset.env != nil
 }
 
 // ColumnIndex returns a map of column names to their respective indexes.
@@ -212,8 +211,8 @@ func (rset *Rset) close() (err error) {
 	}
 
 	rset.env = nil
+	rset.stmt.ocistmt = nil
 	rset.stmt = nil
-	rset.ocistmt = nil
 	rset.defs = nil
 	rset.Row = nil
 	rset.Columns = nil
@@ -239,7 +238,7 @@ func (rset *Rset) beginRow() (err error) {
 	defer rset.Unlock()
 
 	fetched, offset, finished := rset.fetched, rset.offset, rset.finished
-	ocistmt := rset.ocistmt
+	ocistmt := rset.stmt.ocistmt
 
 	rset.logF(_drv.Cfg().Log.Rset.BeginRow, "fetched=%d offset=%d finished=%t", fetched, offset, finished)
 	if fetched > 0 && fetched > offset {
@@ -274,7 +273,7 @@ func (rset *Rset) beginRow() (err error) {
 	rset.finished = false
 	// fetch rset.fetchLen rows
 	r := C.OCIStmtFetch2(
-		rset.ocistmt,         //OCIStmt     *stmthp,
+		rset.stmt.ocistmt,    //OCIStmt     *stmthp,
 		env.ocierr,           //OCIError    *errhp,
 		C.ub4(rset.fetchLen), //ub4         nrows,
 		C.OCI_FETCH_NEXT,     //ub2         orientation,
@@ -440,9 +439,8 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		rset.log(logCfg.Rset.Open, "env is nil")
 		return io.EOF
 	}
-	rset.autoClose = true
 	rset.stmt = stmt
-	rset.ocistmt = ocistmt
+	rset.stmt.ocistmt = ocistmt
 	atomic.StoreInt32(&rset.index, -1)
 	rset.offset = 0
 	rset.fetched = 0
@@ -516,9 +514,9 @@ func (rset *Rset) open(stmt *Stmt, ocistmt *C.OCIStmt) error {
 		// Create oci parameter handle; may be freed by OCIDescriptorFree()
 		// parameter position is 1-based
 		r := C.OCIParamGet(
-			unsafe.Pointer(rset.ocistmt), //const void        *hndlp,
-			C.OCI_HTYPE_STMT,             //ub4               htype,
-			env.ocierr,                   //OCIError          *errhp,
+			unsafe.Pointer(rset.stmt.ocistmt), //const void        *hndlp,
+			C.OCI_HTYPE_STMT,                  //ub4               htype,
+			env.ocierr,                        //OCIError          *errhp,
 			(*unsafe.Pointer)(unsafe.Pointer(&params[n].param)), //void              **parmdpp,
 			C.ub4(n+1)) //ub4               pos );
 		if r == C.OCI_ERROR {
@@ -1008,12 +1006,12 @@ func (rset *Rset) paramAttr(ocipar *C.OCIParam, attrup unsafe.Pointer, attrSizep
 func (rset *Rset) attr(attrup unsafe.Pointer, attrSize C.ub4, attrType C.ub4) error {
 	env := rset.env
 	r := C.OCIAttrGet(
-		unsafe.Pointer(rset.ocistmt), //const void     *trgthndlp,
-		C.OCI_HTYPE_STMT,             //ub4            trghndltyp,
-		attrup,                       //void           *attributep,
-		&attrSize,                    //ub4            *sizep,
-		attrType,                     //ub4            attrtype,
-		rset.env.ocierr)              //OCIError       *errhp );
+		unsafe.Pointer(rset.stmt.ocistmt), //const void     *trgthndlp,
+		C.OCI_HTYPE_STMT,                  //ub4            trghndltyp,
+		attrup,                            //void           *attributep,
+		&attrSize,                         //ub4            *sizep,
+		attrType,                          //ub4            attrtype,
+		rset.env.ocierr)                   //OCIError       *errhp );
 	if r == C.OCI_ERROR {
 		return env.ociError()
 	}

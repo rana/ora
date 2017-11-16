@@ -35,7 +35,8 @@ func (def *defRset) define(position int, rset *Rset) error {
 		result.autoClose = true
 		result.env = def.rset.env
 		result.stmt = rset.stmt
-		result.ocistmt = rset.ocistmt
+		result.stmt.ocistmt = rset.stmt.ocistmt
+		result.stmt.stranger = true
 		def.result[i] = result
 
 		upOciStmt, err := def.rset.stmt.ses.srv.env.allocOciHandle(C.OCI_HTYPE_STMT)
@@ -52,6 +53,8 @@ func (def *defRset) value(offset int) (value interface{}, err error) {
 	rst := def.result[offset]
 
 	rst.autoClose = true
+	rst.stmt.stranger = true
+	rst.stmt.ocistmt = def.ocistmt[offset]
 	err = rst.open(rst.stmt, def.ocistmt[offset])
 	rst.stmt.openRsets.add(rst)
 
