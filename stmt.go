@@ -449,7 +449,7 @@ func (stmt *Stmt) qryC(ctx context.Context, params []interface{}) (rset *Rset, e
 	// create result set and open
 	// FIXME(tgulacsi): reusing Rsets causes sporadic failures.
 	//rset = _drv.rsetPool.Get().(*Rset)
-	rset = &Rset{autoClose: true}
+	rset = &Rset{}
 	//rset.Lock()
 	rset.env = env
 	if rset.id == 0 {

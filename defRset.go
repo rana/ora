@@ -51,7 +51,6 @@ func (def *defRset) define(position int, rset *Rset) error {
 func (def *defRset) value(offset int) (value interface{}, err error) {
 	rst := def.result[offset]
 
-	rst.autoClose = true
 	err = rst.open(rst.stmt, def.ocistmt[offset])
 	rst.stmt.openRsets.add(rst)
 
