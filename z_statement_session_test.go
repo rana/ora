@@ -48,6 +48,9 @@ func TestStmt_Exe_insert(t *testing.T) {
 
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer dropTable(tableName, testSes, t)
 
 	// insert record
@@ -67,6 +70,9 @@ func TestStmt_Exe_update(t *testing.T) {
 
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer dropTable(tableName, testSes, t)
 
 	// insert record
@@ -96,6 +102,9 @@ func TestStmt_Exe_delete(t *testing.T) {
 
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer dropTable(tableName, testSes, t)
 
 	// insert record
@@ -125,6 +134,9 @@ func TestStmt_Exe_select(t *testing.T) {
 
 	t.Parallel()
 	tableName, err := createTable(1, numberP38S0, testSes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer dropTable(tableName, testSes, t)
 
 	// insert record

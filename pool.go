@@ -115,14 +115,6 @@ func (p *Pool) Close() (err error) {
 	return err
 }
 
-func insteadSesClose(ses *Ses, pool *idlePool) func() error {
-	return func() error {
-		ses.insteadClose = nil
-		pool.Put(ses)
-		return nil
-	}
-}
-
 // Get a session - either an idle session, or if such does not exist, then
 // a new session on an idle connection; if such does not exist, then
 // a new session on a new connection.
@@ -258,11 +250,8 @@ func (p *SrvPool) Close() error {
 
 // Get a connection.
 func (p *SrvPool) Get() (*Srv, error) {
-	for {
-		x := p.srv.Get()
-		if x == nil { // the pool is empty
-			break
-		}
+	x := p.srv.Get()
+	if x != nil {
 		return x.(*Srv), nil
 	}
 	return p.env.OpenSrv(p.srvCfg)

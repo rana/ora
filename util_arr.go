@@ -58,9 +58,9 @@ func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int,
 }
 
 var (
-	sb2Pool  = sync.Pool{New: func() interface{} { return []C.sb2{} }}
-	ub2Pool  = sync.Pool{New: func() interface{} { return []C.ub2{} }}
-	alenPool = sync.Pool{New: func() interface{} { return []C.ACTUAL_LENGTH_TYPE{} }}
+	sb2Pool  = sync.Pool{New: func() interface{} { z := []C.sb2{}; return &z }}
+	ub2Pool  = sync.Pool{New: func() interface{} { z := []C.ub2{}; return &z }}
+	alenPool = sync.Pool{New: func() interface{} { z := []C.ACTUAL_LENGTH_TYPE{}; return &z }}
 )
 
 func (d *arrHlp) ensureAllocatedLength(length int) {
@@ -81,7 +81,7 @@ func (a *arrHlp) ensureFetchLength(length int) {
 	if cap(a.nullInds) >= length {
 		a.nullInds = a.nullInds[:length]
 	} else {
-		if a.nullInds = sb2Pool.Get().([]C.sb2); cap(a.nullInds) < length {
+		if a.nullInds = *(sb2Pool.Get().(*[]C.sb2)); cap(a.nullInds) < length {
 			a.nullInds = make([]C.sb2, length)
 		} else {
 			a.nullInds = a.nullInds[:length]
@@ -90,7 +90,7 @@ func (a *arrHlp) ensureFetchLength(length int) {
 	if cap(a.alen) >= length {
 		a.alen = a.alen[:length]
 	} else {
-		if a.alen = alenPool.Get().([]C.ACTUAL_LENGTH_TYPE); cap(a.alen) < length {
+		if a.alen = *(alenPool.Get().(*[]C.ACTUAL_LENGTH_TYPE)); cap(a.alen) < length {
 			a.alen = make([]C.ACTUAL_LENGTH_TYPE, length)
 		} else {
 			a.alen = a.alen[:length]
@@ -99,7 +99,7 @@ func (a *arrHlp) ensureFetchLength(length int) {
 	if cap(a.rcode) >= length {
 		a.rcode = a.rcode[:length]
 	} else {
-		if a.rcode = ub2Pool.Get().([]C.ub2); cap(a.rcode) < length {
+		if a.rcode = *(ub2Pool.Get().(*[]C.ub2)); cap(a.rcode) < length {
 			a.rcode = make([]C.ub2, length)
 		} else {
 			a.rcode = a.rcode[:length]
@@ -137,7 +137,7 @@ func (a *arrHlp) ensureBindArrLength(
 	if cap(a.nullInds) >= C {
 		a.nullInds = (a.nullInds)[:L]
 	} else {
-		if a.nullInds = sb2Pool.Get().([]C.sb2); cap(a.nullInds) < C {
+		if a.nullInds = *(sb2Pool.Get().(*[]C.sb2)); cap(a.nullInds) < C {
 			a.nullInds = make([]C.sb2, L, C)
 		} else {
 			a.nullInds = (a.nullInds)[:L]
@@ -146,7 +146,7 @@ func (a *arrHlp) ensureBindArrLength(
 	if cap(a.alen) >= C {
 		a.alen = a.alen[:L]
 	} else {
-		if a.alen = alenPool.Get().([]C.ACTUAL_LENGTH_TYPE); cap(a.alen) < C {
+		if a.alen = *(alenPool.Get().(*[]C.ACTUAL_LENGTH_TYPE)); cap(a.alen) < C {
 			a.alen = make([]C.ACTUAL_LENGTH_TYPE, L, C)
 		} else {
 			a.alen = a.alen[:L]
@@ -155,7 +155,7 @@ func (a *arrHlp) ensureBindArrLength(
 	if cap(a.rcode) >= C {
 		a.rcode = a.rcode[:L]
 	} else {
-		if a.rcode = ub2Pool.Get().([]C.ub2); cap(a.rcode) < C {
+		if a.rcode = *(ub2Pool.Get().(*[]C.ub2)); cap(a.rcode) < C {
 			a.rcode = make([]C.ub2, L, C)
 		} else {
 			a.rcode = a.rcode[:L]
@@ -182,15 +182,15 @@ func (a *arrHlp) close() error {
 		return nil
 	}
 	if a.nullInds != nil {
-		sb2Pool.Put(a.nullInds)
+		sb2Pool.Put(&a.nullInds)
 		a.nullInds = nil
 	}
 	if a.alen != nil {
-		alenPool.Put(a.alen)
+		alenPool.Put(&a.alen)
 		a.alen = nil
 	}
 	if a.rcode != nil {
-		ub2Pool.Put(a.rcode)
+		ub2Pool.Put(&a.rcode)
 		a.rcode = nil
 	}
 	if a.allocated != nil {

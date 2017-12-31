@@ -58,12 +58,12 @@ func formatFor(buf []byte, num string) []byte {
 	return buf
 }
 
-var fmtBufPool = sync.Pool{New: func() interface{} { return make([]byte, numStringLen) }}
+var fmtBufPool = sync.Pool{New: func() interface{} { z := make([]byte, numStringLen); return &z }}
 
 func (env *Env) numberFromText(dest *C.OCINumber, value string) error {
-	buf := fmtBufPool.Get().([]byte)[:len(value)]
+	buf := (*(fmtBufPool.Get().(*[]byte)))[:len(value)]
 	copy(buf, value)
-	fmtBuf := formatFor(fmtBufPool.Get().([]byte), value)
+	fmtBuf := formatFor(*(fmtBufPool.Get().(*[]byte)), value)
 	//fmt.Printf("buf=%q fmtBuf=%q\n", buf, fmtBuf)
 	r := C.OCINumberFromText(
 		env.ocierr,                               //OCIError            *err,
@@ -75,8 +75,8 @@ func (env *Env) numberFromText(dest *C.OCINumber, value string) error {
 		C.ub4(numberNLSLen),                      //ub4                nls_p_length,
 		dest,                                     //OCINumber          *number );
 	)
-	fmtBufPool.Put(buf)
-	fmtBufPool.Put(fmtBuf)
+	fmtBufPool.Put(&buf)
+	fmtBufPool.Put(&fmtBuf)
 	if r == C.OCI_ERROR {
 		err := env.ociError()
 		//fmt.Printf("numberFromText(%q [%d]): %v\n", value, len(value), err)

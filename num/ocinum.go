@@ -78,7 +78,7 @@ func (num OCINum) Print(buf []byte) []byte {
 	exp -= 65
 
 	var dotWritten bool
-	digits := bytesPool.Get().([]byte)[:0]
+	digits := (*bytesPool.Get().(*[]byte))[:0]
 	for i, b := range num {
 		j := D(b)
 		if j < 10 {
@@ -123,7 +123,7 @@ func (num OCINum) Print(buf []byte) []byte {
 		digits = digits[1:]
 	}
 	res = append(res, digits...)
-	bytesPool.Put(digits)
+	bytesPool.Put(&digits)
 
 	if dotWritten {
 		for res[len(res)-1] == '0' {
@@ -144,13 +144,13 @@ func (num OCINum) Print(buf []byte) []byte {
 	return res
 }
 
-var bytesPool = sync.Pool{New: func() interface{} { return make([]byte, 0, 42) }}
+var bytesPool = sync.Pool{New: func() interface{} { z := make([]byte, 0, 42); return &z }}
 
 // String returns the string representation of the number.
 func (num OCINum) String() string {
-	b := bytesPool.Get().([]byte)
+	b := *(bytesPool.Get().(*[]byte))
 	s := string(num.Print(b))
-	bytesPool.Put(b)
+	bytesPool.Put(&b)
 	return s
 }
 

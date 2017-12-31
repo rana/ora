@@ -32,7 +32,7 @@ func main() {
 	for _, nm := range issues {
 		nm := nm
 		grp.Go(func() error {
-			cmd := exec.Command("go", "run", "-race", nm)
+			cmd := exec.CommandContext(ctx, "go", "run", "-race", nm)
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			return cmd.Run()
 		})

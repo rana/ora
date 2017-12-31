@@ -134,11 +134,11 @@ func (bnd *bndLob) bindByPos(position namedPos) error {
 func writeLob(ociLobLocator *C.OCILobLocator, stmt *Stmt, r io.Reader, lobBufferSize int) error {
 	var actBuf, nextBuf []byte
 	if lobChunkSize >= lobBufferSize {
-		arr := lobChunkPool.Get().([lobChunkSize]byte)
-		defer lobChunkPool.Put(arr)
+		arr := *(lobChunkPool.Get().(*[lobChunkSize]byte))
+		defer lobChunkPool.Put(&arr)
 		actBuf = arr[:lobBufferSize]
-		arr = lobChunkPool.Get().([lobChunkSize]byte)
-		defer lobChunkPool.Put(arr)
+		arr = *(lobChunkPool.Get().(*[lobChunkSize]byte))
+		defer lobChunkPool.Put(&arr)
 		nextBuf = arr[:lobBufferSize]
 	} else {
 		//actBuf = make([]byte, lobBufferSize)

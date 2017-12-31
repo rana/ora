@@ -24,7 +24,7 @@ const lobChunkSize = (1 << 20) // 1Mb
 var lobChunkPool = sync.Pool{
 	New: func() interface{} {
 		var b [lobChunkSize]byte
-		return b
+		return &b
 	},
 }
 
@@ -64,8 +64,8 @@ func (def *defLob) Bytes(offset int) (value []byte, err error) {
 	defer r.Close()
 	lr := r.(*lobReader)
 
-	arr := lobChunkPool.Get().([lobChunkSize]byte)
-	defer lobChunkPool.Put(arr)
+	arr := *(lobChunkPool.Get().(*[lobChunkSize]byte))
+	defer lobChunkPool.Put(&arr)
 	var buf bytes.Buffer
 
 	n, err := r.Read(arr[:])
@@ -339,8 +339,8 @@ func (lr *lobReader) WriteTo(w io.Writer) (n int64, err error) {
 		}
 	}()
 
-	arr := lobChunkPool.Get().([lobChunkSize]byte)
-	defer lobChunkPool.Put(arr)
+	arr := *(lobChunkPool.Get().(*[lobChunkSize]byte))
+	defer lobChunkPool.Put(&arr)
 
 	for {
 		k, err := lr.Read(arr[:])

@@ -184,6 +184,9 @@ func Test_numberP38S0Identity_db(t *testing.T) {
 	defer dropTableDB(testDb, t, tableName)
 
 	stmt, err = testDb.Prepare(fmt.Sprintf("insert into %v (c2) values ('go') returning c1 /*lastInsertId*/ into :c1", tableName))
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer stmt.Close()
 
 	// pass nil to Exec when using 'returning into' clause with sql.DB

@@ -246,7 +246,7 @@ func Upd(v interface{}, ses *Ses) (err error) {
 		pairs[p] = col.name
 		pairs[p+1] = rv.Field(col.fieldIdx).Interface()
 	}
-	tblName := ""
+	var tblName string
 	if Schema != "" {
 		tblName = Schema + "." + tbl.name
 	} else {

@@ -2125,16 +2125,8 @@ func gen_OraUint8(isNull bool) ora.Uint8 {
 	return ora.Uint8{Value: gen_uint8(), IsNull: isNull}
 }
 
-func gen_OraFloat64(isNull bool) ora.Float64 {
-	return ora.Float64{Value: gen_float64(), IsNull: isNull}
-}
-
 func gen_OraFloat64Trunc(isNull bool) ora.Float64 {
 	return ora.Float64{Value: gen_float64Trunc(), IsNull: isNull}
-}
-
-func gen_OraFloat32(isNull bool) ora.Float32 {
-	return ora.Float32{Value: gen_float32(), IsNull: isNull}
 }
 
 func gen_OraFloat32Trunc(isNull bool) ora.Float32 {
@@ -2221,16 +2213,6 @@ func gen_uint8Slice() []uint8 {
 	return expected
 }
 
-func gen_float64Slice() []float64 {
-	expected := make([]float64, 5)
-	expected[0] = -6.28318 //5307179586)
-	expected[1] = -3.14159 //2653589793)
-	expected[2] = 0
-	expected[3] = 3.14159 //2653589793)
-	expected[4] = 6.28318 //5307179586)
-	return expected
-}
-
 func gen_float64TruncSlice() []float64 {
 	expected := make([]float64, 5)
 	expected[0] = -6
@@ -2241,16 +2223,6 @@ func gen_float64TruncSlice() []float64 {
 	return expected
 }
 
-func gen_float32Slice() []float32 {
-	expected := make([]float32, 5)
-	expected[0] = -6.28318
-	expected[1] = -3.14159
-	expected[2] = 0
-	expected[3] = 3.14159
-	expected[4] = 6.28318
-	return expected
-}
-
 func gen_float32TruncSlice() []float32 {
 	expected := make([]float32, 5)
 	expected[0] = -6
@@ -2258,15 +2230,6 @@ func gen_float32TruncSlice() []float32 {
 	expected[2] = 0
 	expected[3] = 3
 	expected[4] = 6
-	return expected
-}
-func gen_NumStringSlice() []ora.Num {
-	expected := make([]ora.Num, 5)
-	expected[0] = "-6.28318" //5307179586)
-	expected[1] = "-3.14159" //2653589793)
-	expected[2] = "0"
-	expected[3] = "3.14159" //2653589793)
-	expected[4] = "6.28318" //5307179586)
 	return expected
 }
 
@@ -2360,16 +2323,6 @@ func gen_OraUint8Slice(isNull bool) []ora.Uint8 {
 	return expected
 }
 
-func gen_OraFloat64Slice(isNull bool) []ora.Float64 {
-	expected := make([]ora.Float64, 5)
-	expected[0] = ora.Float64{Value: -float64(6.28318)}
-	expected[1] = ora.Float64{Value: -float64(3.14159)}
-	expected[2] = ora.Float64{IsNull: isNull}
-	expected[3] = ora.Float64{Value: float64(3.14159)}
-	expected[4] = ora.Float64{Value: float64(6.28318)}
-	return expected
-}
-
 func gen_OraFloat64TruncSlice(isNull bool) []ora.Float64 {
 	expected := make([]ora.Float64, 5)
 	expected[0] = ora.Float64{Value: -float64(6)}
@@ -2377,16 +2330,6 @@ func gen_OraFloat64TruncSlice(isNull bool) []ora.Float64 {
 	expected[2] = ora.Float64{IsNull: isNull}
 	expected[3] = ora.Float64{Value: float64(3)}
 	expected[4] = ora.Float64{Value: float64(6)}
-	return expected
-}
-
-func gen_OraFloat32Slice(isNull bool) []ora.Float32 {
-	expected := make([]ora.Float32, 5)
-	expected[0] = ora.Float32{Value: -float32(6.28318)}
-	expected[1] = ora.Float32{Value: -float32(3.14159)}
-	expected[2] = ora.Float32{IsNull: isNull}
-	expected[3] = ora.Float32{Value: float32(3.14159)}
-	expected[4] = ora.Float32{Value: float32(6.28318)}
 	return expected
 }
 

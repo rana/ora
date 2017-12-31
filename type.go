@@ -817,24 +817,6 @@ func (m MultiErr) Error() string {
 	return m.str
 }
 
-// newMultiErr returns a MultiErr or nil.
-// It is valid to pass nil errors to newMultiErr.
-// Nil errors will be filtered out. If all errors
-// are nil newMultiError will return nil.
-func newMultiErr(errs ...error) *MultiErr {
-	var buf bytes.Buffer
-	for _, err := range errs {
-		if err != nil {
-			buf.WriteString(err.Error())
-			buf.WriteString(", ")
-		}
-	}
-	if buf.Len() > 0 {
-		return &MultiErr{str: buf.String()}
-	}
-	return nil
-}
-
 // newMultiErrL returns a MultiErr or nil.
 // It is valid to pass nil errors to newMultiErr.
 // Nil errors will be filtered out. If all errors

@@ -412,8 +412,6 @@ func (rset *Rset) NextRow() []interface{} {
 	return rset.Row
 }
 
-var defStringPool = sync.Pool{New: func() interface{} { return &defString{} }}
-
 // gets a define struct from a driver slice
 func (rset *Rset) getDef(idx int) interface{} {
 	return _drv.defPools[idx].Get()

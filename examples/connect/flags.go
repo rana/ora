@@ -34,13 +34,13 @@ import (
 )
 
 var (
-	fDsn         = flag.String("db.dsn", "", "Oracle DSN (user/passw@sid)")
-	fUsername    = flag.String("db.username", "", "username to connect as (if you don't provide the dsn")
-	fPassword    = flag.String("db.password", "", "password to connect with (if you don't provide the dsn")
-	fHost        = flag.String("db.host", "", "Oracle DB's host (if you don't provide the dsn")
-	fPort        = flag.Int("db.port", 1521, "Oracle DB's port (if you don't provide the dsn) - defaults to 1521")
-	fSid         = flag.String("db.sid", "", "Oracle DB's SID (if you don't provide the dsn)")
-	fServiceName = flag.String("db.service", "", "Oracle DB's ServiceName (if you don't provide the dsn and the sid)")
+	fDsn      = flag.String("db.dsn", "", "Oracle DSN (user/passw@sid)")
+	fUsername = flag.String("db.username", "", "username to connect as (if you don't provide the dsn")
+	fPassword = flag.String("db.password", "", "password to connect with (if you don't provide the dsn")
+	//fHost        = flag.String("db.host", "", "Oracle DB's host (if you don't provide the dsn")
+	//fPort        = flag.Int("db.port", 1521, "Oracle DB's port (if you don't provide the dsn) - defaults to 1521")
+	fSid = flag.String("db.sid", "", "Oracle DB's SID (if you don't provide the dsn)")
+	//fServiceName = flag.String("db.service", "", "Oracle DB's ServiceName (if you don't provide the dsn and the sid)")
 )
 
 // GetDSN returns a (command-line defined) connection string
@@ -101,7 +101,6 @@ func GetConnection(dsn string) (*sql.DB, error) {
 var (
 	oraEnv  *ora.Env
 	oraCxMu sync.Mutex
-	oraInit sync.Once
 )
 
 // GetRawConnection returns a raw (*ora.Ses) connection

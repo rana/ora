@@ -70,14 +70,7 @@ func (bnd *bndTimeSlice) bind(values []time.Time, position namedPos, stmt *Stmt,
 		bnd.ociDateTimes = bnd.ociDateTimes[:L]
 	}
 	valueSz := C.ACTUAL_LENGTH_TYPE(C.sof_OCIDateTime)
-	timezones := make(map[int][]byte, 2)
 	for n, timeValue := range values {
-		_, off := timeValue.Zone()
-		tz, ok := timezones[off]
-		if !ok {
-			tz = zoneOffset(make([]byte, 0, 6), timeValue)
-			timezones[off] = tz
-		}
 		arr := bnd.ociDateTimes[n : n+1 : n+1]
 		if err := (&dateTimep{p: arr}).Set(bnd.stmt.ses.srv.env, timeValue); err != nil {
 			return iterations, err

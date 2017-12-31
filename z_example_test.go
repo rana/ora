@@ -1845,6 +1845,9 @@ func Example() {
 	}
 	stmtIns, err := ses.Prep(fmt.Sprintf(
 		"INSERT INTO %v "+qry+" RETURNING C1 INTO :C1", tableName))
+	if err != nil {
+		panic(err)
+	}
 	defer stmtIns.Close()
 	rowsAffected, err = stmtIns.Exe(str, &id)
 	if err != nil {
@@ -1955,8 +1958,11 @@ func Example() {
 			"OPEN P1 FOR SELECT C1, C2 FROM %v WHERE C1 > 2 ORDER BY C1; "+
 			"END PROC1;",
 		tableName))
+	if err != nil {
+		panic(err)
+	}
 	defer stmtProcCreate.Close()
-	rowsAffected, err = stmtProcCreate.Exe()
+	_, err = stmtProcCreate.Exe()
 	if err != nil {
 		panic(err)
 	}
@@ -1964,12 +1970,15 @@ func Example() {
 	// call stored procedure
 	// pass *ora.Rset to Exec to receive the results of a sys_refcursor
 	stmtProcCall, err := ses.Prep("CALL PROC1(:1)")
+	if err != nil {
+		panic(err)
+	}
 	defer stmtProcCall.Close()
 	if err != nil {
 		panic(err)
 	}
 	procRset := &ora.Rset{}
-	rowsAffected, err = stmtProcCall.Exe(procRset)
+	_, err = stmtProcCall.Exe(procRset)
 	if err != nil {
 		panic(err)
 	}

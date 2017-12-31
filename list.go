@@ -39,20 +39,6 @@ func (l *envList) remove(e *Env) {
 	}
 }
 
-func (l *envList) setAllCfg(cfg StmtCfg) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	for n := 0; n < len(l.items); n++ {
-		l.items[n].SetCfg(cfg)
-	}
-}
-
-func (l *envList) clear() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.items = l.items[:0]
-}
-
 func (l *envList) len() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()

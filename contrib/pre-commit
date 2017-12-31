@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+output="$(gofmt -l "$@")"
+
+if [ -n "$output" ]; then
+	echo >&2 "Go files must be formatted with gofmt. Please run:"
+	for f in $output; do
+		echo >&2 "  gofmt -w $PWD/$f"
+	done
+	exit 1
+fi
+
+  #--enable=vetshadow \
+gometalinter --vendor --disable-all \
+  --enable=deadcode \
+  --enable=ineffassign \
+  --enable=gosimple \
+  --enable=staticcheck \
+  --enable=unused \
+  -e 'z_.*_test' \
+  ./...
