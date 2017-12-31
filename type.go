@@ -487,6 +487,19 @@ func (n OCINum) String() string {
 	}
 	return s
 }
+func (n OCINum) MarshalJSON() ([]byte, error) {
+	return n.MarshalText()
+}
+func (n OCINum) MarshalText() ([]byte, error) {
+	var a [42]byte
+	return n.OCINum.Print(a[:]), nil
+}
+func (n *OCINum) UnmarshalJSON(p []byte) error {
+	return n.UnmarshalText(p)
+}
+func (n *OCINum) UnmarshalText(p []byte) error {
+	return n.OCINum.SetString(string(p))
+}
 
 // Value returns the driver.Value as required by database/sql.
 // So OCINum is allowed as a parameter to Scan.

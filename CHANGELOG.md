@@ -2,7 +2,10 @@
 
 ## master ##
 
+## v4.1.16 ##
+
 ## v4.1.15 ##
+  * Add (Un)Marshal{Text,JSON} to OCINum, for nicer marshaling to JSON.
 
 ## v4.1.14 ##
   * Allow specifying FetchLen and LOBFetchLen.

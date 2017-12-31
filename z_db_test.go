@@ -5,7 +5,9 @@
 package ora_test
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -145,6 +147,26 @@ func TestSetConnMaxLifetime(t *testing.T) {
 	time.Sleep(3 * time.Second)
 	close(done)
 	wg.Wait()
+}
+
+func TestNumMarshalJSON_db(t *testing.T) {
+	t.Parallel()
+
+	var v interface{}
+	cfg := ora.Cfg()
+	ora.SetCfg(cfg.SetFloat(ora.N))
+	defer ora.SetCfg(cfg)
+	if err := testDb.QueryRow("SELECT 31415926535897932384626433832795028841/100 FROM DUAL").Scan(&v); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("v: %T %+v", v, v)
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte{'='}) {
+		t.Errorf("got %q, wanted just 314...", b)
+	}
 }
 
 func Test_numberP38S0Identity_db(t *testing.T) {
