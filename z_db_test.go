@@ -6,6 +6,7 @@ package ora_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/rana/ora.v4"
 )
 
@@ -339,5 +341,91 @@ func Test_db(t *testing.T) {
 			//enableLogging(t)
 			testBindDefineDB(gen_boolTrue(), t, ct)
 		})
+	}
+}
+
+func TestIssue244(t *testing.T) {
+	t.Parallel()
+	tableName := tableName()
+	qry := "CREATE TABLE " + tableName + " (FUND_ACCOUNT VARCHAR2(18) NOT NULL，FUND_CODE VARCHAR2(6) NOT NULL, BUSINESS_FLAG NUMBER(10) NOT NULL, MONEY_TYPE VARCHAR2(3) NOT NULL)"
+	testDb.Exec("DROP TABLE " + tableName)
+	if _, err := testDb.Exec(qry); err != nil {
+		t.Fatal(errors.Wrap(err, qry))
+	}
+	defer testDb.Exec("DROP TABLE " + tableName)
+	const bf = "143"
+	const sc = "270004"
+	qry = "INSERT INTO " + tableName + " (fund_account, fund_code, business_flag, money_type) VALUES (:1, :2, :3, :4)"
+	stmt, err := testDb.Prepare(qry)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, qry))
+	}
+	fas := []string{"14900666", "1868091", "1898964", "14900397"}
+	for _, v := range fas {
+		if _, err := stmt.Exec(v, sc, bf, "0"); err != nil {
+			stmt.Close()
+			t.Fatal(err)
+		}
+	}
+	stmt.Close()
+
+	dur := time.Minute
+	if testing.Short() {
+		dur = 10 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
+
+	grp, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < 16; i++ {
+		index := rand.Intn(len(fas))
+		grp.Go(func() error {
+			tx, err := testDb.BeginTx(ctx, nil)
+			if err != nil {
+				return err
+			}
+			defer tx.Rollback()
+
+			qry := `SELECT fund_account, money_type FROM ` + tableName + ` WHERE business_flag = :1 AND fund_code = :2 AND fund_account = :3`
+			stmt, err := tx.Prepare(qry)
+			if err != nil {
+				return err
+			}
+			defer stmt.Close()
+
+			for {
+				index = (index + 1) % len(fas)
+				rows, err := stmt.Query(bf, sc, fas[index])
+				if err != nil {
+					return errors.Wrap(err, qry)
+				}
+
+				for rows.Next() {
+					if err := ctx.Err(); err != nil {
+						rows.Close()
+						return err
+					}
+					var acc, mt string
+					if err = rows.Scan(&acc, &mt); err != nil {
+						rows.Close()
+						return err
+					}
+
+					if acc != fas[index] {
+						rows.Close()
+						return errors.Errorf("got acc %q, wanted %q", acc, fas[index])
+					}
+					if mt != "0" {
+						rows.Close()
+						return errors.Errorf("got mt %q, wanted 0", mt)
+					}
+				}
+				rows.Close()
+			}
+			return nil
+		})
+	}
+	if err := grp.Wait(); err != nil && err != context.DeadlineExceeded {
+		t.Error(err)
 	}
 }
