@@ -163,8 +163,13 @@ func (rset *Rset) ColumnIndex() map[string]int {
 // closeWithRemove releases allocated resources and removes the Rset from the
 // Stmt.openRsets list.
 func (rset *Rset) closeWithRemove() (err error) {
+	if rset == nil {
+		return nil
+	}
 	rset.RLock()
-	rset.stmt.openRsets.remove(rset)
+	if rset.stmt != nil && rset.stmt.openRsets != nil {
+		rset.stmt.openRsets.remove(rset)
+	}
 	rset.RUnlock()
 	return rset.close()
 }

@@ -21,12 +21,15 @@ type arrHlp struct {
 }
 
 type ociDef struct {
+	sync.Mutex
 	ocidef *C.OCIDefine
 	rset   *Rset
 	arrHlp
 }
 
 func (d *ociDef) defineByPos(position int, valuep unsafe.Pointer, valueSize int, dty int) error {
+	d.Lock()
+	defer d.Unlock()
 	d.ensureFetchLength(d.rset.stmt.Cfg().FetchLen())
 	// If you omit the rlenp parameter of OCIDefineByPos(), returned values are blank-padded to the buffer length, and NULLs are returned as a string of blank characters. If rlenp is included, returned values are not blank-padded. Instead, their actual lengths are returned in the rlenp parameter.
 	if r := C.OCIDEFINEBYPOS(
@@ -64,6 +67,8 @@ var (
 )
 
 func (d *arrHlp) ensureAllocatedLength(length int) {
+	d.Lock()
+	defer d.Unlock()
 	if cap(d.allocated) < length {
 		d.allocated = make([]bool, length)
 		return
@@ -78,6 +83,8 @@ func (a *arrHlp) ensureFetchLength(length int) {
 	if length <= 0 || length >= MaxFetchLen {
 		length = MaxFetchLen
 	}
+	a.Lock()
+	defer a.Unlock()
 	if cap(a.nullInds) >= length {
 		a.nullInds = a.nullInds[:length]
 	} else {
@@ -115,6 +122,8 @@ func (a *arrHlp) ensureBindArrLength(
 	length, capacity *int,
 	isAssocArray bool,
 ) (iterations uint32, curlenp *C.ub4, needsAppend bool) {
+	a.Lock()
+	defer a.Unlock()
 	a.curlen = C.ub4(*length) // the real length, not L!
 	if isAssocArray {
 		// for PL/SQL associative arrays
@@ -165,7 +174,9 @@ func (a *arrHlp) ensureBindArrLength(
 }
 
 // IsAssocArr returns true if the bind uses PL/SQL Table.
-func (a arrHlp) IsAssocArr() bool {
+func (a *arrHlp) IsAssocArr() bool {
+	a.Lock()
+	defer a.Unlock()
 	return a.isAssocArr
 }
 
@@ -175,6 +186,8 @@ func (a arrHlp) IsAssocArr() bool {
 // the bound slices can be reused; otherwise, they are still in use for
 // the subsequent iterations!
 func (a *arrHlp) close() error {
+	a.Lock()
+	defer a.Unlock()
 	if a == nil {
 		return nil
 	}
