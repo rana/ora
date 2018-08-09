@@ -1,9 +1,3 @@
-# WARNING
-I do resign as the maintainer of this package, and concentrate on `gopkg.in/goracle.v2`.
-I'll add admin rights to this repo to anybody who wants to maintain it.
-
-Thanks, @tgulacsi.
-
 # ora
 --
     import "gopkg.in/rana/ora.v4"
