@@ -307,8 +307,18 @@ func (stmt *Stmt) exeC(ctx context.Context, params []interface{}, isAssocArray b
 	// for case of inserting and returning identity for database/sql package
 	stmt.RLock()
 	pkgEnvInsert := stmt.Env().isPkgEnv && stmt.stmtType == C.OCI_STMT_INSERT
+	pkgEnvUpdate := stmt.Env().isPkgEnv && stmt.stmtType == C.OCI_STMT_UPDATE
 	stmt.RUnlock()
 	if pkgEnvInsert {
+		lastIndex := strings.LastIndex(stmt.sql, ")")
+		sqlEnd := spcRpl.Replace(stmt.sql[lastIndex+1 : len(stmt.sql)])
+		sqlEnd = strings.ToUpper(sqlEnd)
+		// add *int64 arg to capture identity
+		if i := strings.LastIndex(sqlEnd, "RETURNING"); i >= 0 && strings.Contains(sqlEnd[i:], " /*LASTINSERTID*/ INTO ") {
+			params[len(params)-1] = &lastInsertId
+		}
+	}
+	if pkgEnvUpdate {
 		lastIndex := strings.LastIndex(stmt.sql, ")")
 		sqlEnd := spcRpl.Replace(stmt.sql[lastIndex+1 : len(stmt.sql)])
 		sqlEnd = strings.ToUpper(sqlEnd)
