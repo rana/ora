@@ -1,4 +1,7 @@
-# ora
+# ora - High Performance Oracle Database Driver for Go
+
+`ora` is a feature-rich Go database driver for Oracle that implements the `database/sql/driver` interface. The project provides direct access to Oracle databases with support for advanced Oracle features while maintaining high performance and reliability.
+
 --
     import "gopkg.in/rana/ora.v4"
 
@@ -48,6 +51,79 @@ Call stored procedure with OUT parameters:
     	log.Printf("user: %q", user)
     }
 
+## Key Features
+
+### Core Capabilities
+- Full implementation of Go's `database/sql/driver` interface
+- Support for all Oracle built-in data types including NUMBER, BINARY_DOUBLE, BINARY_FLOAT, DATE, TIMESTAMP, CHAR, VARCHAR2, CLOB, BLOB, etc.
+- Advanced Oracle-specific features like SYS_REFCURSOR, INTERVAL types, RAW types, LOBs, and BFILEs
+- Connection pooling with different pool types (Session Pool, Connection Pool, DRCP)
+- Support for SYSDBA and SYSOPER connections
+- Comprehensive transaction management
+- Statement preparation and execution
+- Result set handling with prefetch capabilities
+
+### Performance Features
+- Configurable prefetch row count and memory size for optimized data retrieval
+- Connection pooling with automatic resource management
+- Support for batch operations and array binding
+- Efficient memory management through sync.Pool usage
+- Tunable LOB and LONG buffer sizes
+
+### Developer-Friendly Features
+- Extensive configuration options at driver, environment, server, session and statement levels
+- Support for nullable types (Int64, Float64, String, etc.)
+- Flexible parameter binding
+- Rich error handling with detailed Oracle error information
+- Built-in logging capabilities with multiple logger implementations
+- ORM-like convenience methods for INSERTs, UPDATEs, and SELECTs
+
+### Type System
+- Rich set of Go type mappings for Oracle types
+- Support for pointers, slices, and nullable types
+- Custom type conversion configuration
+- Special handling for booleans (mapped to single-byte chars)
+
+## Technical Highlights
+
+### Architecture
+- Layered design with Environment → Server → Session → Statement hierarchy
+- Uses Oracle Call Interface (OCI) C libraries through cgo
+- Thread-safe implementation with proper locking mechanisms
+- Resource cleanup through careful handle management
+
+### Advanced Features
+- Support for Oracle session pools (OCI_SPOOL)
+- Connection pooling (OCI_CPOOL) 
+- Database Resident Connection Pooling (DRCP)
+- Character set handling with AL32UTF8 support
+- Statement caching capabilities
+- Array DML operations
+
+### Quality Assurance
+- Comprehensive test suite
+- Production-proven with Oracle 11g and 12c
+- Memory leak prevention through proper resource management
+- Error recovery mechanisms
+
+## Notable Implementation Details
+- Written in Go with C (OCI) bindings
+- Uses sync.Pool for efficient object reuse
+- Implements connection timeouts and context cancellation
+- Proper cleanup of Oracle handles and resources
+- Thread-safe design with atomic operations and mutex protection
+
+Highlights:
+- Go programming and best practices
+- Oracle database internals and OCI
+- High-performance database driver implementation
+- Resource management and memory optimization
+- Thread-safe concurrent programming
+- Complex system architecture design
+- C integration through cgo
+- Production-grade error handling
+
+This driver stands out for its combination of performance features, extensive Oracle support, and developer-friendly interface, making it suitable for both simple applications and complex enterprise systems requiring advanced Oracle functionality.
 
 ### Background
 
@@ -5400,4 +5476,201 @@ func (this Uint8) MarshalJSON() ([]byte, error)
 
 ```go
 func (this *Uint8) UnmarshalJSON(p []byte) error
+```
+
+## File Tree
+
+```sh
+.
+├── appveyor.yml
+├── bndBfile.go
+├── bndBin.go
+├── bndBinSlice.go
+├── bndBool.go
+├── bndBoolPtr.go
+├── bndBoolSlice.go
+├── bndDate.go
+├── bndDatePtr.go
+├── bndDateSlice.go
+├── bndFloat32.go
+├── bndFloat32Ptr.go
+├── bndFloat32Slice.go
+├── bndFloat64.go
+├── bndFloat64Ptr.go
+├── bndFloat64Slice.go
+├── bnd_hlp.go
+├── bndInt16.go
+├── bndInt16Ptr.go
+├── bndInt16Slice.go
+├── bndInt32.go
+├── bndInt32Ptr.go
+├── bndInt32Slice.go
+├── bndInt64.go
+├── bndInt64Ptr.go
+├── bndInt64Slice.go
+├── bndInt8.go
+├── bndInt8Ptr.go
+├── bndInt8Slice.go
+├── bndIntervalDS.go
+├── bndIntervalDSSlice.go
+├── bndIntervalYM.go
+├── bndIntervalYMSlice.go
+├── bndLob.go
+├── bndLobPtr.go
+├── bndLobSlice.go
+├── bndNil.go
+├── bndNumString.go
+├── bndNumStringPtr.go
+├── bndNumStringSlice.go
+├── bndOCINum.go
+├── bndOCINumPtr.go
+├── bndOCINumSlice.go
+├── bndRset.go
+├── bndString.go
+├── bndStringPtr.go
+├── bndStringSlice.go
+├── bndTime.go
+├── bndTimePtr.go
+├── bndTimeSlice.go
+├── bndUint16.go
+├── bndUint16Ptr.go
+├── bndUint16Slice.go
+├── bndUint32.go
+├── bndUint32Ptr.go
+├── bndUint32Slice.go
+├── bndUint64.go
+├── bndUint64Ptr.go
+├── bndUint64Slice.go
+├── bndUint8.go
+├── bndUint8Ptr.go
+├── bndUint8Slice.go
+├── CHANGELOG.md
+├── conn.go
+├── conn_go1_7.go
+├── conn_go1_8.go
+├── const.go
+├── contrib
+│   ├── oci8_darwin.pc
+│   ├── oci8_linux_386.pc
+│   ├── oci8_linux_amd64.pc
+│   ├── oci8.pc -> oci8_linux_amd64.pc
+│   ├── oci8_windows_amd64.pc
+│   └── pre-commit
+├── ctx.go
+├── date
+│   ├── date_gen_test.go
+│   ├── date.go
+│   ├── date_test.go
+│   └── date_test.sh
+├── defBfile.go
+├── defBool.go
+├── defDate.go
+├── defFloat32.go
+├── defFloat64.go
+├── defInt16.go
+├── defInt32.go
+├── defInt64.go
+├── defInt8.go
+├── defIntervalDS.go
+├── defIntervalYM.go
+├── defLob.go
+├── defLongRaw.go
+├── defOCINum.go
+├── defRaw.go
+├── defRowid.go
+├── defRset.go
+├── defString.go
+├── defTime.go
+├── defUint16.go
+├── defUint32.go
+├── defUint64.go
+├── defUint8.go
+├── doc.go
+├── drvExecResult.go
+├── drv.go
+├── drvQueryResult.go
+├── drvStmt.go
+├── drvStmt_go1_8.go
+├── env.go
+├── examples
+│   ├── bench
+│   │   ├── gen.go
+│   │   ├── oci8
+│   │   │   └── bench_oci8.go
+│   │   ├── ora
+│   │   │   └── bench_ora.go
+│   │   ├── README.md
+│   │   └── run.sh
+│   ├── connect
+│   │   └── flags.go
+│   ├── conntest
+│   │   ├── conn_test.go
+│   │   └── main.go
+│   ├── csvdump
+│   │   ├── csvdump.go
+│   │   └── README.md
+│   └── csvload
+│       └── csvload.go
+├── gen.go
+├── glg
+│   └── glg.go
+├── lg
+│   └── lg.go
+├── lg15
+│   └── lg15.go
+├── LICENSE
+├── list.go
+├── logger.go
+├── num
+│   ├── ocinum_fuzz.go
+│   ├── ocinum.go
+│   └── ocinum_test.go
+├── ora.go
+├── orm.go
+├── pool.go
+├── README.md
+├── rsetCfg.go
+├── rsetCfg_test.go
+├── rset.go
+├── ses.go
+├── srv.go
+├── stmtCfg.go
+├── stmt.go
+├── stmt_go1_8.go
+├── stmt_go1.go
+├── test-one-by-one.sh
+├── test.sh
+├── tstlg
+│   └── tstlg.go
+├── tx.go
+├── type.go
+├── util_arr.go
+├── util.go
+├── util_test.go
+├── version.c
+├── version.h
+├── z_benchmem_test.go
+├── z_bfile_session_test.go
+├── z_bool_session_test.go
+├── z_bytes_session_test.go
+├── z_db_go1_8_test.go
+├── z_db_test.go
+├── z_environment_test.go
+├── z_example_test.go
+├── z_interval_session_test.go
+├── z_issue131.go
+├── z_issue197.go
+├── z_lob_test.go
+├── z_numeric_session_test.go
+├── z_oracle_test.go
+├── z_plsarr_session_test.go
+├── z_race.go
+├── z_reconn.go
+├── z_resultSet_session_test.go
+├── z_rowid_session_test.go
+├── z_server_session_test.go
+├── z_session_test.go
+├── z_statement_session_test.go
+├── z_string_session_test.go
+└── z_time_session_test.go
 ```
